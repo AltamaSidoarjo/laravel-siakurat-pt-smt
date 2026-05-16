@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Bukubesar\CoaController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ModulePageController;
 use Illuminate\Support\Facades\Route;
@@ -23,8 +24,12 @@ Route::middleware('preview.auth')->group(function () {
     Route::prefix('bukubesar')->name('bukubesar.')->group(function () {
         Route::get('/jurnal-umum', fn (ModulePageController $controller) => $controller->show('Bukubesar', 'Jurnal Umum'))
             ->name('jurnal-umum.index');
-        Route::get('/coa', fn (ModulePageController $controller) => $controller->show('Bukubesar', 'Coa'))
-            ->name('coa.index');
+        Route::get('/coa', [CoaController::class, 'index'])->name('coa.index');
+        Route::get('/coa/create', [CoaController::class, 'create'])->name('coa.create');
+        Route::post('/coa', [CoaController::class, 'store'])->name('coa.store');
+        Route::get('/coa/{coa}/edit', [CoaController::class, 'edit'])->name('coa.edit');
+        Route::put('/coa/{coa}', [CoaController::class, 'update'])->name('coa.update');
+        Route::delete('/coa/{coa}', [CoaController::class, 'destroy'])->name('coa.destroy');
     });
 
     Route::prefix('kasbank')->name('kasbank.')->group(function () {
