@@ -68,6 +68,13 @@ class CoaService
             ->get(['id', 'kode', 'nama']);
     }
 
+    public function getSelectableTransactionOptions(): Collection
+    {
+        return Coa::query()
+            ->selectableTransaction()
+            ->get(['id', 'kode', 'nama']);
+    }
+
     public function getTipeOptions(): Collection
     {
         return TipeCoa::query()

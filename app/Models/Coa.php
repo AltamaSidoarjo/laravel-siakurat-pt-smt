@@ -47,4 +47,19 @@ class Coa extends Model
     {
         return $query->where('status_aktif', 1);
     }
+
+    public function scopeLeaf(Builder $query): Builder
+    {
+        return $query->whereDoesntHave('children');
+    }
+
+    public function scopeActiveLeaf(Builder $query): Builder
+    {
+        return $query->active()->leaf();
+    }
+
+    public function scopeSelectableTransaction(Builder $query): Builder
+    {
+        return $query->activeLeaf()->orderBy('kode');
+    }
 }

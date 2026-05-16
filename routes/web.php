@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Bukubesar\CoaController;
+use App\Http\Controllers\Bukubesar\JurnalUmumController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ModulePageController;
 use Illuminate\Support\Facades\Route;
@@ -22,8 +23,14 @@ Route::middleware('preview.auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
 
     Route::prefix('bukubesar')->name('bukubesar.')->group(function () {
-        Route::get('/jurnal-umum', fn (ModulePageController $controller) => $controller->show('Bukubesar', 'Jurnal Umum'))
-            ->name('jurnal-umum.index');
+        Route::get('/jurnal-umum', [JurnalUmumController::class, 'index'])->name('jurnal-umum.index');
+        Route::get('/jurnal-umum/load-data', [JurnalUmumController::class, 'loadData'])->name('jurnal-umum.load-data');
+        Route::get('/jurnal-umum/create', [JurnalUmumController::class, 'create'])->name('jurnal-umum.create');
+        Route::post('/jurnal-umum', [JurnalUmumController::class, 'store'])->name('jurnal-umum.store');
+        Route::get('/jurnal-umum/{jurnalUmum}/edit', [JurnalUmumController::class, 'edit'])->name('jurnal-umum.edit');
+        Route::put('/jurnal-umum/{jurnalUmum}', [JurnalUmumController::class, 'update'])->name('jurnal-umum.update');
+        Route::delete('/jurnal-umum/{jurnalUmum}', [JurnalUmumController::class, 'destroy'])->name('jurnal-umum.destroy');
+        Route::get('/jurnal-umum/{jurnalUmum}/print', [JurnalUmumController::class, 'print'])->name('jurnal-umum.print');
         Route::get('/coa', [CoaController::class, 'index'])->name('coa.index');
         Route::get('/coa/create', [CoaController::class, 'create'])->name('coa.create');
         Route::post('/coa', [CoaController::class, 'store'])->name('coa.store');
