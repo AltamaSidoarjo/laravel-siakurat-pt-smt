@@ -11,7 +11,9 @@ use App\Http\Controllers\Pembelian\InvoicePembelianController;
 use App\Http\Controllers\Pembelian\PembayaranPembelianController;
 use App\Http\Controllers\Pendapatan\InvoicePendapatanController;
 use App\Http\Controllers\Pendapatan\PenerimaanPendapatanController;
+use App\Http\Controllers\Pengaturan\MappingGeneralController;
 use App\Http\Controllers\Pengaturan\MappingPendapatanController;
+use App\Http\Controllers\Pengaturan\SettingRbaController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -138,10 +140,24 @@ Route::middleware('preview.auth')->group(function () {
             ->name('mapping-pendapatan.lawan.store');
         Route::delete('/mapping-pendapatan/lawan-pendapatan/{mappingLawanPendapatanSimrs}', [MappingPendapatanController::class, 'destroyLawanPendapatan'])
             ->name('mapping-pendapatan.lawan.destroy');
-        Route::get('/mapping-general', fn (ModulePageController $controller) => $controller->show('Pengaturan', 'Mapping General'))
+        Route::get('/mapping-general', [MappingGeneralController::class, 'index'])
             ->name('mapping-general.index');
-        Route::get('/setting-rba', fn (ModulePageController $controller) => $controller->show('Pengaturan', 'Setting RBA'))
+        Route::get('/mapping-general/create', [MappingGeneralController::class, 'create'])
+            ->name('mapping-general.create');
+        Route::post('/mapping-general', [MappingGeneralController::class, 'store'])
+            ->name('mapping-general.store');
+        Route::delete('/mapping-general/{mappingCoaSimrs}', [MappingGeneralController::class, 'destroy'])
+            ->name('mapping-general.destroy');
+        Route::get('/setting-rba', [SettingRbaController::class, 'index'])
             ->name('setting-rba.index');
+        Route::get('/setting-rba/load-data', [SettingRbaController::class, 'loadData'])
+            ->name('setting-rba.load-data');
+        Route::get('/setting-rba/create', [SettingRbaController::class, 'create'])
+            ->name('setting-rba.create');
+        Route::post('/setting-rba', [SettingRbaController::class, 'store'])
+            ->name('setting-rba.store');
+        Route::delete('/setting-rba/{settingRba}', [SettingRbaController::class, 'destroy'])
+            ->name('setting-rba.destroy');
         Route::get('/preferensi', fn (ModulePageController $controller) => $controller->show('Pengaturan', 'Preferensi'))
             ->name('preferensi.index');
         Route::get('/pengguna', fn (ModulePageController $controller) => $controller->show('Pengaturan', 'Pengguna'))

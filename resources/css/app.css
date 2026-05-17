@@ -219,3 +219,11 @@ header > nav {
         display: block;
     }
 }
+
+/*
+ * Tailwind's `collapse` utility sets `visibility: collapse`, which conflicts
+ * with Bootstrap's collapse component class used across the app.
+ */
+.collapse {
+    visibility: visible;
+}
