@@ -587,6 +587,7 @@ class LaporanKeuanganService
             ->keyBy('id');
 
         $saldoPerCoa = $this->ambilSaldoSampaiTanggal($perDate);
+        $labaTahunBerjalan = $this->hitungLabaTahunBerjalan($perDate);
         $childrenMap = $allCoa->groupBy(fn (Coa $coa) => $coa->parent_coa ?: 0);
         $groupedByType = $allCoa->groupBy(fn (Coa $coa) => $this->klasifikasiNeraca((string) $coa->tipe_coa));
 
@@ -605,8 +606,9 @@ class LaporanKeuanganService
                 })
                 ->sortBy('kode')
                 ->values();
+            $perluBarisLabaTahunBerjalan = $rootLabel === 'EKUITAS' && abs($labaTahunBerjalan) > 0.01;
 
-            if ($topLevel->isEmpty()) {
+            if ($topLevel->isEmpty() && ! $perluBarisLabaTahunBerjalan) {
                 continue;
             }
 
@@ -634,6 +636,27 @@ class LaporanKeuanganService
 
                 $totals[strtolower($rootLabel)] += (float) ($subtree->first()['saldo'] ?? 0);
                 $rows = $rows->concat($subtree);
+            }
+
+            if ($perluBarisLabaTahunBerjalan) {
+                /**
+                 * Laba rugi periode berjalan belum diposting ke akun ekuitas permanen,
+                 * jadi di neraca kita tampilkan sebagai baris sintetis agar
+                 * Aktiva = Pasiva + Ekuitas tetap mencerminkan posisi buku besar.
+                 */
+                $rows->push([
+                    'coa_id' => null,
+                    'parent_coa' => null,
+                    'kode_coa' => '-',
+                    'nama_coa' => 'Laba Tahun Berjalan',
+                    'tipe_coa' => 'EKUITAS',
+                    'saldo' => $labaTahunBerjalan,
+                    'level' => 1,
+                    'has_children' => false,
+                    'is_root' => false,
+                ]);
+
+                $totals['ekuitas'] += $labaTahunBerjalan;
             }
         }
 
@@ -787,11 +810,59 @@ class LaporanKeuanganService
             ->all();
     }
 
+    /**
+     * Neraca standard di aplikasi lama membandingkan selisih dengan laba rugi
+     * periode berjalan, bukan akumulasi sejak awal tahun. Karena itu kita
+     * ambil mutasi dari awal bulan sampai tanggal laporan, dan hanya dari akun
+     * child paling bawah agar parent tidak menambah hitungan ganda.
+     */
+    private function hitungLabaTahunBerjalan(string $perDate): float
+    {
+        $startOfPeriod = substr($perDate, 0, 8).'01';
+        $mutasiPerCoa = $this->ambilMutasiPerCoa($startOfPeriod, $perDate);
+
+        return $this->queryCoaLabaRugiLeafAktif()
+            ->get(['id', 'tipe_coa'])
+            ->sum(function (Coa $coa) use ($mutasiPerCoa) {
+                $nominal = $this->hitungSaldoLabaRugi(
+                    tipeCoa: (string) $coa->tipe_coa,
+                    debit: (float) ($mutasiPerCoa[$coa->id]['debit'] ?? 0),
+                    kredit: (float) ($mutasiPerCoa[$coa->id]['kredit'] ?? 0),
+                );
+
+                return $this->isTipePendapatan((string) $coa->tipe_coa)
+                    ? $nominal
+                    : ($this->isTipeBiaya((string) $coa->tipe_coa) ? $nominal * -1 : 0);
+            });
+    }
+
+    /**
+     * Laba rugi periode dan laba tahun berjalan harus memakai akun leaf agar
+     * akun parent tidak ikut terhitung dua kali bersama turunannya.
+     */
+    private function queryCoaLabaRugiLeafAktif(): Builder
+    {
+        return Coa::query()
+            ->active()
+            ->leaf()
+            ->whereIn('tipe_coa', $this->ambilNamaTipeLabaRugiAktif());
+    }
+
     private function hitungSaldoLabaRugi(string $tipeCoa, float $debit, float $kredit): float
     {
-        return in_array($tipeCoa, ['Pendapatan', 'Pendapatan lain'], true)
+        return $this->isTipePendapatan($tipeCoa)
             ? $kredit - $debit
             : $debit - $kredit;
+    }
+
+    private function isTipePendapatan(string $tipeCoa): bool
+    {
+        return in_array($tipeCoa, ['Pendapatan', 'Pendapatan lain'], true);
+    }
+
+    private function isTipeBiaya(string $tipeCoa): bool
+    {
+        return in_array($tipeCoa, ['Beban Pokok Penjualan', 'Beban', 'Beban lain'], true);
     }
 
     private function urutanLabaRugi(string $tipeCoa): int
