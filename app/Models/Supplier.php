@@ -14,6 +14,15 @@ class Supplier extends Model
 
     protected $keyType = 'int';
 
+    protected $fillable = [
+        'status_aktif',
+        'kode_supplier',
+        'nama_supplier',
+        'email_supplier',
+        'alamat_supplier',
+        'kategori_supplier',
+    ];
+
     protected $casts = [
         'status_aktif' => 'boolean',
         'created_at' => 'datetime',

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Bridging\BridgingPembelianController;
 use App\Http\Controllers\Bridging\BridgingPendapatanController;
 use App\Http\Controllers\Bridging\BridgingPendapatanObatController;
 use App\Http\Controllers\Bukubesar\CoaController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\Bukubesar\JurnalUmumController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Kasbank\KasbankPembayaranController;
 use App\Http\Controllers\Kasbank\KasbankPenerimaanController;
+use App\Http\Controllers\Laporan\LaporanKeuanganController;
 use App\Http\Controllers\ModulePageController;
 use App\Http\Controllers\Pembelian\InvoicePembelianController;
 use App\Http\Controllers\Pembelian\PembayaranPembelianController;
@@ -100,8 +102,24 @@ Route::middleware('preview.auth')->group(function () {
             ->name('pendapatan-obat.process-import');
         Route::post('/pendapatan-obat/destroy-bulk', [BridgingPendapatanObatController::class, 'destroyBulk'])
             ->name('pendapatan-obat.destroy-bulk');
-        Route::get('/pembelian', fn (ModulePageController $controller) => $controller->show('Bridging', 'Pembelian'))
+        Route::get('/pembelian', [BridgingPembelianController::class, 'index'])
             ->name('pembelian.index');
+        Route::get('/pembelian/load-imported-data', [BridgingPembelianController::class, 'loadImportedData'])
+            ->name('pembelian.load-imported-data');
+        Route::get('/pembelian/tarik-obat', [BridgingPembelianController::class, 'tarikPembelianObat'])
+            ->name('pembelian.tarik-obat');
+        Route::get('/pembelian/load-tagihan-obat', [BridgingPembelianController::class, 'loadTagihanObat'])
+            ->name('pembelian.load-tagihan-obat');
+        Route::post('/pembelian/process-import-obat', [BridgingPembelianController::class, 'processImportObat'])
+            ->name('pembelian.process-import-obat');
+        Route::get('/pembelian/tarik-nonmedis', [BridgingPembelianController::class, 'tarikPembelianNonMedis'])
+            ->name('pembelian.tarik-nonmedis');
+        Route::get('/pembelian/load-tagihan-nonmedis', [BridgingPembelianController::class, 'loadTagihanNonMedis'])
+            ->name('pembelian.load-tagihan-nonmedis');
+        Route::post('/pembelian/process-import-nonmedis', [BridgingPembelianController::class, 'processImportNonMedis'])
+            ->name('pembelian.process-import-nonmedis');
+        Route::post('/pembelian/destroy-bulk', [BridgingPembelianController::class, 'destroyBulk'])
+            ->name('pembelian.destroy-bulk');
     });
 
     Route::prefix('pendapatan')->name('pendapatan.')->group(function () {
@@ -137,8 +155,36 @@ Route::middleware('preview.auth')->group(function () {
     });
 
     Route::prefix('laporan')->name('laporan.')->group(function () {
-        Route::get('/keuangan', fn (ModulePageController $controller) => $controller->show('Laporan', 'Laporan Keuangan'))
+        Route::get('/keuangan', [LaporanKeuanganController::class, 'index'])
             ->name('keuangan.index');
+        Route::get('/keuangan/rincian-transaksi-bukubesar', [LaporanKeuanganController::class, 'rincianTransaksiBukubesar'])
+            ->name('keuangan.rincian-transaksi-bukubesar');
+        Route::get('/keuangan/rincian-transaksi-bukubesar/load-data', [LaporanKeuanganController::class, 'loadRincianTransaksiBukubesar'])
+            ->name('keuangan.rincian-transaksi-bukubesar.load-data');
+        Route::get('/keuangan/deteksi-jurnal-tidak-balance', [LaporanKeuanganController::class, 'deteksiJurnalTidakBalance'])
+            ->name('keuangan.deteksi-jurnal-tidak-balance');
+        Route::get('/keuangan/deteksi-jurnal-tidak-balance/load-data', [LaporanKeuanganController::class, 'loadDeteksiJurnalTidakBalance'])
+            ->name('keuangan.deteksi-jurnal-tidak-balance.load-data');
+        Route::get('/keuangan/laba-rugi-detil', [LaporanKeuanganController::class, 'labaRugiDetil'])
+            ->name('keuangan.laba-rugi-detil');
+        Route::get('/keuangan/laba-rugi-standard', [LaporanKeuanganController::class, 'labaRugiStandard'])
+            ->name('keuangan.laba-rugi-standard');
+        Route::get('/keuangan/laba-rugi-per-parent-coa', [LaporanKeuanganController::class, 'labaRugiPerParentCoa'])
+            ->name('keuangan.laba-rugi-per-parent-coa');
+        Route::get('/keuangan/neraca-standard', [LaporanKeuanganController::class, 'neracaStandard'])
+            ->name('keuangan.neraca-standard');
+        Route::get('/keuangan/neraca-per-parent-coa', [LaporanKeuanganController::class, 'neracaPerParentCoa'])
+            ->name('keuangan.neraca-per-parent-coa');
+        Route::get('/keuangan/bukubesar', [LaporanKeuanganController::class, 'bukubesar'])
+            ->name('keuangan.bukubesar');
+        Route::get('/keuangan/neraca-saldo', [LaporanKeuanganController::class, 'neracaSaldo'])
+            ->name('keuangan.neraca-saldo');
+        Route::get('/keuangan/neraca-detil', [LaporanKeuanganController::class, 'neracaDetil'])
+            ->name('keuangan.neraca-detil');
+        Route::get('/keuangan/neraca-rinci', [LaporanKeuanganController::class, 'neracaRinci'])
+            ->name('keuangan.neraca-rinci');
+        Route::get('/keuangan/arus-kas', [LaporanKeuanganController::class, 'arusKas'])
+            ->name('keuangan.arus-kas');
         Route::get('/pendapatan', fn (ModulePageController $controller) => $controller->show('Laporan', 'Laporan Pendapatan'))
             ->name('pendapatan.index');
     });

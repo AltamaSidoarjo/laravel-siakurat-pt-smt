@@ -14,6 +14,19 @@ class FakturPembelianRinci extends Model
 
     protected $keyType = 'int';
 
+    protected $fillable = [
+        'faktur_pembelian_id',
+        'kuantitas',
+        'diskon_rupiah',
+        'subtotal',
+        'catatan',
+        'harga_barang',
+        'kode_barang',
+        'nama_barang',
+        'satuan_barang',
+        'total',
+    ];
+
     protected $casts = [
         'faktur_pembelian_id' => 'integer',
         'kuantitas' => 'decimal:2',

@@ -26,8 +26,7 @@ class JurnalUmumController extends Controller
 
     public function index(Request $request): View
     {
-        $startDate = $request->string('startDate')->toString() ?: now()->startOfMonth()->toDateString();
-        $endDate = $request->string('endDate')->toString() ?: now()->toDateString();
+        [$startDate, $endDate] = $this->resolveDateRange($request);
 
         return view('bukubesar.jurnal-umum.index', [
             'page' => 'app',
@@ -38,8 +37,7 @@ class JurnalUmumController extends Controller
 
     public function loadData(Request $request): JsonResponse
     {
-        $startDate = $request->string('startDate')->toString() ?: now()->startOfMonth()->toDateString();
-        $endDate = $request->string('endDate')->toString() ?: now()->toDateString();
+        [$startDate, $endDate] = $this->resolveDateRange($request);
 
         $query = $this->jurnalUmumService->getIndexQuery($startDate, $endDate);
 
@@ -51,6 +49,41 @@ class JurnalUmumController extends Controller
             })
             ->addColumn('nomer_link', fn (JurnalUmum $jurnalUmum) => route('bukubesar.jurnal-umum.edit', $jurnalUmum))
             ->toJson();
+    }
+
+    private function resolveDateRange(Request $request): array
+    {
+        $startDate = $this->sanitizeDateInput($request->string('startDate')->toString())
+            ?? now()->startOfMonth()->toDateString();
+        $endDate = $this->sanitizeDateInput($request->string('endDate')->toString())
+            ?? now()->toDateString();
+
+        if ($startDate > $endDate) {
+            return [$endDate, $endDate];
+        }
+
+        return [$startDate, $endDate];
+    }
+
+    private function sanitizeDateInput(?string $value): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            $date = Carbon::createFromFormat('Y-m-d', trim($value));
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if ($date->format('Y-m-d') !== trim($value)) {
+            return null;
+        }
+
+        return (int) $date->year >= 2000
+            ? $date->toDateString()
+            : null;
     }
 
     public function create(): View

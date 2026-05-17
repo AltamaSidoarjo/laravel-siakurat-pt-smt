@@ -58,4 +58,97 @@ class ExampleTest extends TestCase
             ->assertOk()
             ->assertSee('Tagihan Jual Obat SIMRS');
     }
+
+    public function test_bridging_pembelian_page_can_be_opened_with_preview_session(): void
+    {
+        $response = $this
+            ->withSession([
+                'auth.preview_user' => [
+                    'username' => 'tester',
+                ],
+            ])
+            ->get('/bridging/pembelian');
+
+        $response
+            ->assertOk()
+            ->assertSee('Bridging Pembelian');
+    }
+
+    public function test_bridging_pembelian_tarik_obat_page_can_be_opened_with_preview_session(): void
+    {
+        $response = $this
+            ->withSession([
+                'auth.preview_user' => [
+                    'username' => 'tester',
+                ],
+            ])
+            ->get('/bridging/pembelian/tarik-obat');
+
+        $response
+            ->assertOk()
+            ->assertSee('Metode tanggal pengakuan:', false);
+    }
+
+    public function test_bridging_pembelian_tarik_nonmedis_page_can_be_opened_with_preview_session(): void
+    {
+        $response = $this
+            ->withSession([
+                'auth.preview_user' => [
+                    'username' => 'tester',
+                ],
+            ])
+            ->get('/bridging/pembelian/tarik-nonmedis');
+
+        $response
+            ->assertOk()
+            ->assertSee('Tagihan Pembelian Barang Non Medis SIMRS');
+    }
+
+    public function test_laporan_keuangan_page_can_be_opened_with_preview_session(): void
+    {
+        $response = $this
+            ->withSession([
+                'auth.preview_user' => [
+                    'username' => 'tester',
+                ],
+            ])
+            ->get('/laporan/keuangan');
+
+        $response
+            ->assertOk()
+            ->assertSee('Menu Laporan Keuangan');
+    }
+
+    public function test_laporan_keuangan_rincian_transaksi_page_can_be_opened_with_preview_session(): void
+    {
+        $response = $this
+            ->withSession([
+                'auth.preview_user' => [
+                    'username' => 'tester',
+                ],
+            ])
+            ->get('/laporan/keuangan/rincian-transaksi-bukubesar');
+
+        $response
+            ->assertOk()
+            ->assertSee('Rincian Transaksi Bukubesar');
+    }
+
+    public function test_laporan_keuangan_menu_lists_core_report_links(): void
+    {
+        $response = $this
+            ->withSession([
+                'auth.preview_user' => [
+                    'username' => 'tester',
+                ],
+            ])
+            ->get('/laporan/keuangan');
+
+        $response
+            ->assertOk()
+            ->assertSee('Neraca Standard')
+            ->assertSee('Laba Rugi Standard')
+            ->assertDontSee('Laba Rugi Per Parent COA')
+            ->assertDontSee('Neraca Per Parent COA');
+    }
 }

@@ -15,6 +15,24 @@ class FakturPembelian extends Model
 
     protected $keyType = 'int';
 
+    protected $fillable = [
+        'supplier_id',
+        'nomer_faktur',
+        'tanggal_faktur',
+        'keterangan',
+        'nilai_ppn',
+        'biaya_kirim',
+        'sudah_terbayar',
+        'status_proses',
+        'created_by',
+        'updated_by',
+        'grandtotal',
+        'tanggal_jatuh_tempo',
+        'tanggal_pesan',
+        'kategori_faktur',
+        'kode_bangsal',
+    ];
+
     protected $casts = [
         'supplier_id' => 'integer',
         'tanggal_faktur' => 'date',
