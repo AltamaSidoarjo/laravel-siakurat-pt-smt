@@ -7,6 +7,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Kasbank\KasbankPembayaranController;
 use App\Http\Controllers\Kasbank\KasbankPenerimaanController;
 use App\Http\Controllers\ModulePageController;
+use App\Http\Controllers\Pendapatan\InvoicePendapatanController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -70,8 +71,9 @@ Route::middleware('preview.auth')->group(function () {
     });
 
     Route::prefix('pendapatan')->name('pendapatan.')->group(function () {
-        Route::get('/invoice', fn (ModulePageController $controller) => $controller->show('Pendapatan', 'Invoice Pendapatan'))
-            ->name('invoice.index');
+        Route::get('/invoice', [InvoicePendapatanController::class, 'index'])->name('invoice.index');
+        Route::get('/invoice/load-data', [InvoicePendapatanController::class, 'loadData'])->name('invoice.load-data');
+        Route::get('/invoice/{fakturPenjualan}', [InvoicePendapatanController::class, 'read'])->name('invoice.read');
         Route::get('/penerimaan', fn (ModulePageController $controller) => $controller->show('Pendapatan', 'Penerimaan Pendapatan'))
             ->name('penerimaan.index');
     });
