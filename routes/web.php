@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Bukubesar\CoaController;
 use App\Http\Controllers\Bukubesar\JurnalUmumController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Kasbank\KasbankPenerimaanController;
 use App\Http\Controllers\ModulePageController;
 use Illuminate\Support\Facades\Route;
 
@@ -40,8 +41,14 @@ Route::middleware('preview.auth')->group(function () {
     });
 
     Route::prefix('kasbank')->name('kasbank.')->group(function () {
-        Route::get('/penerimaan', fn (ModulePageController $controller) => $controller->show('Kasbank', 'Penerimaan'))
-            ->name('penerimaan.index');
+        Route::get('/penerimaan', [KasbankPenerimaanController::class, 'index'])->name('penerimaan.index');
+        Route::get('/penerimaan/load-data', [KasbankPenerimaanController::class, 'loadData'])->name('penerimaan.load-data');
+        Route::get('/penerimaan/create', [KasbankPenerimaanController::class, 'create'])->name('penerimaan.create');
+        Route::post('/penerimaan', [KasbankPenerimaanController::class, 'store'])->name('penerimaan.store');
+        Route::get('/penerimaan/{kasbankPenerimaan}/edit', [KasbankPenerimaanController::class, 'edit'])->name('penerimaan.edit');
+        Route::put('/penerimaan/{kasbankPenerimaan}', [KasbankPenerimaanController::class, 'update'])->name('penerimaan.update');
+        Route::delete('/penerimaan/{kasbankPenerimaan}', [KasbankPenerimaanController::class, 'destroy'])->name('penerimaan.destroy');
+        Route::get('/penerimaan/{kasbankPenerimaan}/print', [KasbankPenerimaanController::class, 'print'])->name('penerimaan.print');
         Route::get('/pembayaran', fn (ModulePageController $controller) => $controller->show('Kasbank', 'Pembayaran'))
             ->name('pembayaran.index');
     });
