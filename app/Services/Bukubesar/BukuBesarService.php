@@ -135,4 +135,43 @@ class BukuBesarService
 
         BukuBesar::query()->insert([...$payload, ...$detailPayload]);
     }
+
+    public function syncFromPenerimaanPendapatan(
+        int $penerimaanPenjualanId,
+        int $akunBankId,
+        int $akunPiutangId,
+        string $nomer,
+        string $tanggal,
+        ?string $keterangan,
+        float $jumlahPembayaran,
+    ): void {
+        $this->deleteBySource('Penerimaan Pendapatan', $penerimaanPenjualanId);
+
+        BukuBesar::query()->insert([
+            [
+                'coa_id' => $akunBankId,
+                'sumber_id' => $penerimaanPenjualanId,
+                'tanggal' => $tanggal,
+                'nomer' => $nomer,
+                'sumber_transaksi' => 'Penerimaan Pendapatan',
+                'nominal' => $jumlahPembayaran,
+                'tipe_mutasi' => 'D',
+                'keterangan' => $keterangan,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'coa_id' => $akunPiutangId,
+                'sumber_id' => $penerimaanPenjualanId,
+                'tanggal' => $tanggal,
+                'nomer' => $nomer,
+                'sumber_transaksi' => 'Penerimaan Pendapatan',
+                'nominal' => $jumlahPembayaran,
+                'tipe_mutasi' => 'K',
+                'keterangan' => $keterangan,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+    }
 }

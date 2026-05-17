@@ -8,6 +8,7 @@ use App\Http\Controllers\Kasbank\KasbankPembayaranController;
 use App\Http\Controllers\Kasbank\KasbankPenerimaanController;
 use App\Http\Controllers\ModulePageController;
 use App\Http\Controllers\Pendapatan\InvoicePendapatanController;
+use App\Http\Controllers\Pendapatan\PenerimaanPendapatanController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -74,8 +75,16 @@ Route::middleware('preview.auth')->group(function () {
         Route::get('/invoice', [InvoicePendapatanController::class, 'index'])->name('invoice.index');
         Route::get('/invoice/load-data', [InvoicePendapatanController::class, 'loadData'])->name('invoice.load-data');
         Route::get('/invoice/{fakturPenjualan}', [InvoicePendapatanController::class, 'read'])->name('invoice.read');
-        Route::get('/penerimaan', fn (ModulePageController $controller) => $controller->show('Pendapatan', 'Penerimaan Pendapatan'))
-            ->name('penerimaan.index');
+        Route::get('/penerimaan', [PenerimaanPendapatanController::class, 'index'])->name('penerimaan.index');
+        Route::get('/penerimaan/load-data', [PenerimaanPendapatanController::class, 'loadData'])->name('penerimaan.load-data');
+        Route::get('/penerimaan/create', [PenerimaanPendapatanController::class, 'create'])->name('penerimaan.create');
+        Route::post('/penerimaan', [PenerimaanPendapatanController::class, 'store'])->name('penerimaan.store');
+        Route::get('/penerimaan/{penerimaanPenjualan}/edit', [PenerimaanPendapatanController::class, 'edit'])->name('penerimaan.edit');
+        Route::put('/penerimaan/{penerimaanPenjualan}', [PenerimaanPendapatanController::class, 'update'])->name('penerimaan.update');
+        Route::delete('/penerimaan/{penerimaanPenjualan}', [PenerimaanPendapatanController::class, 'destroy'])->name('penerimaan.destroy');
+        Route::get('/penerimaan/{penerimaanPenjualan}/print', [PenerimaanPendapatanController::class, 'print'])->name('penerimaan.print');
+        Route::get('/penerimaan/api/invoice-by-pelanggan', [PenerimaanPendapatanController::class, 'apiGetInvByPelanggan'])
+            ->name('penerimaan.api.invoice-by-pelanggan');
     });
 
     Route::prefix('pembelian')->name('pembelian.')->group(function () {

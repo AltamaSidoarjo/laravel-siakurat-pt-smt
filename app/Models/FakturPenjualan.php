@@ -37,6 +37,16 @@ class FakturPenjualan extends Model
         return $this->hasMany(FakturPenjualanRinci::class, 'faktur_penjualan_id');
     }
 
+    public function pelanggan()
+    {
+        return $this->belongsTo(Pelanggan::class, 'pelanggan_id');
+    }
+
+    public function penerimaanPenjualanRincis()
+    {
+        return $this->hasMany(PenerimaanPenjualanRinci::class, 'faktur_penjualan_id');
+    }
+
     public function scopeBetweenDates(Builder $query, string $startDate, string $endDate): Builder
     {
         return $query->whereBetween('tanggal_faktur', [$startDate, $endDate]);
