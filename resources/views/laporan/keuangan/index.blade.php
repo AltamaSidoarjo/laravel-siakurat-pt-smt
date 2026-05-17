@@ -33,10 +33,6 @@
         <div class="col">
             <div class="card border-muhammadiyah mb-2">
                 <div class="card-body">
-                    <div class="alert alert-info mb-4">
-                        Halaman `Setting RBA` tidak dibahas di paket rebuild ini, tetapi laporan keuangan yang membaca data `RBA` tetap sudah diaktifkan.
-                    </div>
-
                     <div class="row row-cols-1 row-cols-md-2 g-3">
                         @foreach ($menuItems as $item)
                             <div class="col">

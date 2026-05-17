@@ -90,7 +90,8 @@
                 </li>
             </ul>
         </li>
-        <li><hr class="dropdown-divider"></li>
+        {{-- Hide sementara menu Pendapatan sampai modul dibuka lagi. --}}
+        {{-- <li><hr class="dropdown-divider"></li>
         <li class="dropdown-submenu">
             <a class="dropdown-item dropdown-toggle {{ str_starts_with($path, '/pendapatan') ? 'active fw-bold bg-success-subtle text-success' : 'fw-semibold' }}" href="#">Pendapatan</a>
             <ul class="dropdown-menu">
@@ -108,7 +109,7 @@
                     </a>
                 </li>
             </ul>
-        </li>
+        </li> --}}
         <li><hr class="dropdown-divider"></li>
         <li class="dropdown-submenu">
             <a class="dropdown-item dropdown-toggle {{ str_starts_with($path, '/pembelian') ? 'active fw-bold bg-success-subtle text-success' : 'fw-semibold' }}" href="#">Pembelian</a>
