@@ -13,6 +13,8 @@ use App\Http\Controllers\Pendapatan\InvoicePendapatanController;
 use App\Http\Controllers\Pendapatan\PenerimaanPendapatanController;
 use App\Http\Controllers\Pengaturan\MappingGeneralController;
 use App\Http\Controllers\Pengaturan\MappingPendapatanController;
+use App\Http\Controllers\Pengaturan\PenggunaController;
+use App\Http\Controllers\Pengaturan\PreferensiController;
 use App\Http\Controllers\Pengaturan\SettingRbaController;
 use Illuminate\Support\Facades\Route;
 
@@ -158,9 +160,19 @@ Route::middleware('preview.auth')->group(function () {
             ->name('setting-rba.store');
         Route::delete('/setting-rba/{settingRba}', [SettingRbaController::class, 'destroy'])
             ->name('setting-rba.destroy');
-        Route::get('/preferensi', fn (ModulePageController $controller) => $controller->show('Pengaturan', 'Preferensi'))
+        Route::get('/preferensi', [PreferensiController::class, 'index'])
             ->name('preferensi.index');
-        Route::get('/pengguna', fn (ModulePageController $controller) => $controller->show('Pengaturan', 'Pengguna'))
+        Route::post('/preferensi', [PreferensiController::class, 'update'])
+            ->name('preferensi.update');
+        Route::get('/pengguna', [PenggunaController::class, 'index'])
             ->name('pengguna.index');
+        Route::get('/pengguna/create', [PenggunaController::class, 'create'])
+            ->name('pengguna.create');
+        Route::post('/pengguna', [PenggunaController::class, 'store'])
+            ->name('pengguna.store');
+        Route::get('/pengguna/{user}/edit', [PenggunaController::class, 'edit'])
+            ->name('pengguna.edit');
+        Route::put('/pengguna/{user}', [PenggunaController::class, 'update'])
+            ->name('pengguna.update');
     });
 });
