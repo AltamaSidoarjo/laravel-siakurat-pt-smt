@@ -10,6 +10,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Kasbank\KasbankPembayaranController;
 use App\Http\Controllers\Kasbank\KasbankPenerimaanController;
 use App\Http\Controllers\Laporan\LaporanKeuanganController;
+use App\Http\Controllers\Laporan\LaporanPendapatanController;
 use App\Http\Controllers\ModulePageController;
 use App\Http\Controllers\Pembelian\InvoicePembelianController;
 use App\Http\Controllers\Pembelian\PembayaranPembelianController;
@@ -35,6 +36,11 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('preview.auth')->group(function () {
     Route::get('/home', [HomeController::class, 'index'])->name('home');
+    Route::get('/home/kunjungan-harian', [HomeController::class, 'kunjunganHarian'])->name('home.kunjungan-harian');
+    Route::get('/home/poli', [HomeController::class, 'distribusiPoli'])->name('home.poli');
+    Route::get('/home/dokter', [HomeController::class, 'topDokter'])->name('home.dokter');
+    Route::get('/home/pendapatan-harian', [HomeController::class, 'pendapatanHarian'])->name('home.pendapatan-harian');
+    Route::get('/home/penjamin', [HomeController::class, 'komposisiPenjamin'])->name('home.penjamin');
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
 
     Route::prefix('bukubesar')->name('bukubesar.')->group(function () {
@@ -185,8 +191,16 @@ Route::middleware('preview.auth')->group(function () {
             ->name('keuangan.neraca-rinci');
         Route::get('/keuangan/arus-kas', [LaporanKeuanganController::class, 'arusKas'])
             ->name('keuangan.arus-kas');
-        Route::get('/pendapatan', fn (ModulePageController $controller) => $controller->show('Laporan', 'Laporan Pendapatan'))
+        Route::get('/pendapatan', [LaporanPendapatanController::class, 'index'])
             ->name('pendapatan.index');
+        Route::get('/pendapatan/kunjungan', [LaporanPendapatanController::class, 'kunjungan'])
+            ->name('pendapatan.kunjungan');
+        Route::get('/pendapatan/kunjungan/load-data', [LaporanPendapatanController::class, 'loadKunjungan'])
+            ->name('pendapatan.kunjungan.load-data');
+        Route::get('/pendapatan/penjualan-obat', [LaporanPendapatanController::class, 'penjualanObat'])
+            ->name('pendapatan.penjualan-obat');
+        Route::get('/pendapatan/penjualan-obat/load-data', [LaporanPendapatanController::class, 'loadPenjualanObat'])
+            ->name('pendapatan.penjualan-obat.load-data');
     });
 
     Route::prefix('pengaturan')->name('pengaturan.')->group(function () {
@@ -198,6 +212,8 @@ Route::middleware('preview.auth')->group(function () {
             ->name('mapping-pendapatan.store');
         Route::delete('/mapping-pendapatan/{mappingPendapatan}', [MappingPendapatanController::class, 'destroy'])
             ->name('mapping-pendapatan.destroy');
+        Route::delete('/mapping-pendapatan/kamar/{mappingPendapatanKamar}', [MappingPendapatanController::class, 'destroyKamar'])
+            ->name('mapping-pendapatan.kamar.destroy');
         Route::get('/mapping-pendapatan/umum', [MappingPendapatanController::class, 'indexUmum'])
             ->name('mapping-pendapatan.umum.index');
         Route::get('/mapping-pendapatan/umum/create', [MappingPendapatanController::class, 'createUmum'])

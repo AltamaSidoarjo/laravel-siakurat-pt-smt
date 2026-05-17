@@ -14,6 +14,7 @@ class StoreMappingPendapatanRequest extends FormRequest
         'radiologi',
         'utd',
         'operasi',
+        'kamar',
     ];
 
     public function authorize(): bool

@@ -1,4 +1,5 @@
 @php
+    $isKamar = $selectedTypeKey === 'kamar';
     $selectedRows = old('rincian');
 
     if ($selectedRows === null) {
@@ -43,14 +44,14 @@
                                 <div class="card-body">
                                     @if ($tindakanOptions->isEmpty())
                                         <div class="alert alert-info mb-0">
-                                            Semua tindakan untuk kategori {{ $selectedType['label'] }} sudah termapping.
+                                            Semua {{ $isKamar ? 'kamar' : 'tindakan' }} untuk kategori {{ $selectedType['label'] }} sudah termapping.
                                         </div>
                                     @else
                                         <div class="table-responsive">
                                             <table id="table_data_detail" class="table table-sm table-bordered align-middle">
                                                 <thead class="table-light">
                                                     <tr>
-                                                        <th style="min-width: 420px;">Tindakan</th>
+                                                        <th style="min-width: 420px;">{{ $isKamar ? 'Kamar' : 'Tindakan' }}</th>
                                                         <th style="min-width: 320px;">Akun (COA)</th>
                                                         <th class="text-center" style="width: 60px;">#</th>
                                                     </tr>
@@ -60,10 +61,10 @@
                                                         <tr>
                                                             <td>
                                                                 <select name="rincian[{{ $index }}][tindakan_key]" class="form-select select2-tindakan" required>
-                                                                    <option value="">-- Pilih Tindakan (Kode | Nama | Penjamin) --</option>
+                                                                    <option value="">{{ $isKamar ? '-- Pilih Kamar (Kode | Nama) --' : '-- Pilih Tindakan (Kode | Nama | Penjamin) --' }}</option>
                                                                     @foreach ($tindakanOptions as $tindakan)
                                                                         <option value="{{ $tindakan['selection_key'] }}" @selected(($row['tindakan_key'] ?? '') === $tindakan['selection_key'])>
-                                                                            {{ $tindakan['kd_jenis_prw'] }} | {{ $tindakan['nm_perawatan'] }} | {{ $tindakan['png_jawab'] }}
+                                                                            {{ $tindakan['kd_jenis_prw'] }} | {{ $tindakan['nm_perawatan'] }}@unless($isKamar) | {{ $tindakan['png_jawab'] }}@endunless
                                                                         </option>
                                                                     @endforeach
                                                                 </select>
@@ -122,10 +123,10 @@
             <tr>
                 <td>
                     <select name="rincian[__index__][tindakan_key]" class="form-select select2-tindakan" required>
-                        <option value="">-- Pilih Tindakan (Kode | Nama | Penjamin) --</option>
+                        <option value="">{{ $isKamar ? '-- Pilih Kamar (Kode | Nama) --' : '-- Pilih Tindakan (Kode | Nama | Penjamin) --' }}</option>
                         @foreach ($tindakanOptions as $tindakan)
                             <option value="{{ $tindakan['selection_key'] }}">
-                                {{ $tindakan['kd_jenis_prw'] }} | {{ $tindakan['nm_perawatan'] }} | {{ $tindakan['png_jawab'] }}
+                                {{ $tindakan['kd_jenis_prw'] }} | {{ $tindakan['nm_perawatan'] }}@unless($isKamar) | {{ $tindakan['png_jawab'] }}@endunless
                             </option>
                         @endforeach
                     </select>

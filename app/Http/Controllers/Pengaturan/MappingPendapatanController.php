@@ -8,6 +8,7 @@ use App\Http\Requests\Pengaturan\StoreMappingPendapatanRequest;
 use App\Http\Requests\Pengaturan\StoreMappingPendapatanUmumRequest;
 use App\Models\MappingLawanPendapatanSimrs;
 use App\Models\MappingPendapatan;
+use App\Models\MappingPendapatanKamar;
 use App\Models\MappingPendapatanUmum;
 use App\Services\Pengaturan\MappingPendapatanTindakanService;
 use Illuminate\Http\RedirectResponse;
@@ -88,6 +89,15 @@ class MappingPendapatanController extends Controller
             ->route('pengaturan.mapping-pendapatan.index', [
                 'jenisTindakan' => $request->string('jenisTindakan')->toString() ?: $typeKey,
             ])
+            ->with('success', 'Data berhasil dihapus.');
+    }
+
+    public function destroyKamar(MappingPendapatanKamar $mappingPendapatanKamar): RedirectResponse
+    {
+        $this->mappingPendapatanTindakanService->deleteKamar($mappingPendapatanKamar);
+
+        return redirect()
+            ->route('pengaturan.mapping-pendapatan.index', ['jenisTindakan' => 'kamar'])
             ->with('success', 'Data berhasil dihapus.');
     }
 

@@ -2,6 +2,10 @@
 
 @section('title', 'Mapping Pendapatan - Tindakan')
 
+@php
+    $isKamar = $selectedTypeKey === 'kamar';
+@endphp
+
 @section('content')
     <div class="row mb-3">
         <div class="col">
@@ -69,27 +73,29 @@
                                     <table class="table table-sm table-striped table-bordered table-hover" id="datatable">
                                         <thead class="table-light">
                                             <tr>
-                                                <th>Kode tindakan</th>
-                                                <th>Nama tindakan</th>
+                                                <th>{{ $isKamar ? 'Kode kamar' : 'Kode tindakan' }}</th>
+                                                <th>{{ $isKamar ? 'Nama kamar' : 'Nama tindakan' }}</th>
                                                 <th>Kode COA</th>
                                                 <th>Nama COA</th>
-                                                <th>Sumber tindakan</th>
+                                                <th>{{ $isKamar ? 'Status aktif' : 'Sumber tindakan' }}</th>
                                                 <th class="text-center">Aksi</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             @foreach ($mappings as $mapping)
                                                 <tr>
-                                                    <td>{{ $mapping->kode_jenis_perawatan }}</td>
-                                                    <td>{{ $mapping->nm_perawatan }}</td>
+                                                    <td>{{ $isKamar ? $mapping->kode_kamar : $mapping->kode_jenis_perawatan }}</td>
+                                                    <td>{{ $isKamar ? $mapping->nama_kamar : $mapping->nm_perawatan }}</td>
                                                     <td>{{ $mapping->coa?->kode }}</td>
                                                     <td>{{ $mapping->coa?->nama }}</td>
-                                                    <td>{{ $mapping->sumber_tindakan }}</td>
+                                                    <td>{{ $isKamar ? ($mapping->status_aktif ? 'Aktif' : 'Tidak aktif') : $mapping->sumber_tindakan }}</td>
                                                     <td class="text-center">
-                                                        <form method="post" action="{{ route('pengaturan.mapping-pendapatan.destroy', $mapping) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus data ini?');">
+                                                        <form method="post" action="{{ $isKamar ? route('pengaturan.mapping-pendapatan.kamar.destroy', $mapping) : route('pengaturan.mapping-pendapatan.destroy', $mapping) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus data ini?');">
                                                             @csrf
                                                             @method('DELETE')
-                                                            <input type="hidden" name="jenisTindakan" value="{{ $selectedTypeKey }}">
+                                                            @unless($isKamar)
+                                                                <input type="hidden" name="jenisTindakan" value="{{ $selectedTypeKey }}">
+                                                            @endunless
                                                             <button type="submit" class="btn btn-danger btn-sm">
                                                                 <i class="bi bi-trash3"></i> Hapus
                                                             </button>

@@ -5,6 +5,7 @@ namespace App\Services\Pengaturan;
 use App\Models\Coa;
 use App\Models\MappingLawanPendapatanSimrs;
 use App\Models\MappingPendapatan;
+use App\Models\MappingPendapatanKamar;
 use App\Models\MappingPendapatanUmum;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -13,6 +14,12 @@ use InvalidArgumentException;
 
 class MappingPendapatanTindakanService
 {
+    private const HIDDEN_TYPE_OPTIONS = [
+        // Sementara sembunyikan dari UI, backend definisinya tetap dipertahankan
+        // agar mudah diaktifkan kembali tanpa membongkar flow yang lain.
+        'operasi',
+    ];
+
     public const MAPPING_UMUM_NAMES = [
         'Registrasi',
         'Harian',
@@ -94,6 +101,16 @@ class MappingPendapatanTindakanService
                 ORDER BY po.nm_perawatan ASC
             SQL,
         ],
+        'kamar' => [
+            'label' => 'Kamar',
+            'source' => 'Kamar',
+            'query' => <<<'SQL'
+                SELECT k.kd_kamar, CONCAT(k.kd_kamar, ' | ', b.nm_bangsal) AS nm_kamar
+                FROM kamar k
+                JOIN bangsal b ON b.kd_bangsal = k.kd_bangsal
+                ORDER BY b.nm_bangsal ASC, k.kd_kamar ASC
+            SQL,
+        ],
     ];
 
     public function resolveTypeKey(?string $typeKey): string
@@ -106,6 +123,7 @@ class MappingPendapatanTindakanService
     public function getTypeOptions(): array
     {
         return collect(self::TYPE_DEFINITIONS)
+            ->reject(fn (array $_, string $key) => in_array($key, self::HIDDEN_TYPE_OPTIONS, true))
             ->map(fn (array $item, string $key) => [
                 'key' => $key,
                 'label' => $item['label'],
@@ -146,6 +164,14 @@ class MappingPendapatanTindakanService
 
     public function getIndexData(string $typeKey): EloquentCollection
     {
+        if ($this->isKamarType($typeKey)) {
+            return MappingPendapatanKamar::query()
+                ->with('coa:id,kode,nama')
+                ->orderBy('nama_kamar')
+                ->orderBy('kode_kamar')
+                ->get();
+        }
+
         $definition = $this->getTypeDefinition($typeKey);
 
         return MappingPendapatan::query()
@@ -158,9 +184,18 @@ class MappingPendapatanTindakanService
 
     public function getAvailableTindakan(string $typeKey): Collection
     {
-        $definition = $this->getTypeDefinition($typeKey);
         $references = $this->getSimrsTindakanReferences($typeKey);
 
+        if ($this->isKamarType($typeKey)) {
+            $mappedKeys = MappingPendapatanKamar::query()
+                ->pluck('kode_kamar');
+
+            return $references
+                ->reject(fn (array $item) => $mappedKeys->contains($item['selection_key']))
+                ->values();
+        }
+
+        $definition = $this->getTypeDefinition($typeKey);
         $mappedKeys = MappingPendapatan::query()
             ->where('sumber_tindakan', $definition['source'])
             ->get(['kode_jenis_perawatan', 'kode_penjamin'])
@@ -173,6 +208,10 @@ class MappingPendapatanTindakanService
 
     public function createMappings(string $typeKey, array $rows, string $actor = 'system'): array
     {
+        if ($this->isKamarType($typeKey)) {
+            return $this->createKamarMappings($rows);
+        }
+
         $definition = $this->getTypeDefinition($typeKey);
         $referencesByKey = $this->getSimrsTindakanReferences($typeKey)->keyBy('selection_key');
 
@@ -222,6 +261,11 @@ class MappingPendapatanTindakanService
     public function delete(MappingPendapatan $mappingPendapatan): void
     {
         $mappingPendapatan->delete();
+    }
+
+    public function deleteKamar(MappingPendapatanKamar $mappingPendapatanKamar): void
+    {
+        $mappingPendapatanKamar->delete();
     }
 
     public function getUmumIndexData(): EloquentCollection
@@ -309,6 +353,19 @@ class MappingPendapatanTindakanService
     {
         $definition = $this->getTypeDefinition($typeKey);
 
+        if ($this->isKamarType($typeKey)) {
+            return collect(DB::connection('simrs')->select($definition['query']))
+                ->map(fn (object $row) => [
+                    'selection_key' => (string) $row->kd_kamar,
+                    'kd_jenis_prw' => (string) $row->kd_kamar,
+                    'nm_perawatan' => (string) $row->nm_kamar,
+                    'kd_poli' => null,
+                    'kd_pj' => null,
+                    'png_jawab' => 'Kamar',
+                ])
+                ->values();
+        }
+
         return collect(DB::connection('simrs')->select($definition['query']))
             ->map(function (object $row) {
                 $kodeJenisPerawatan = (string) $row->kd_jenis_prw;
@@ -334,5 +391,50 @@ class MappingPendapatanTindakanService
     private function buildSelectionKey(string $kodeJenisPerawatan, string $kodePenjamin): string
     {
         return $kodeJenisPerawatan.'||'.$kodePenjamin;
+    }
+
+    private function createKamarMappings(array $rows): array
+    {
+        $referencesByKey = $this->getSimrsTindakanReferences('kamar')->keyBy('selection_key');
+        $successCount = 0;
+        $failedCount = 0;
+
+        foreach ($rows as $row) {
+            $selectionKey = (string) ($row['tindakan_key'] ?? '');
+            $reference = $referencesByKey->get($selectionKey);
+
+            if (! $reference) {
+                $failedCount++;
+                continue;
+            }
+
+            $exists = MappingPendapatanKamar::query()
+                ->where('kode_kamar', $reference['kd_jenis_prw'])
+                ->exists();
+
+            if ($exists) {
+                $failedCount++;
+                continue;
+            }
+
+            MappingPendapatanKamar::query()->create([
+                'kode_kamar' => $reference['kd_jenis_prw'],
+                'nama_kamar' => $reference['nm_perawatan'],
+                'status_aktif' => '1',
+                'pendapatan_kamar_coa_id' => (int) $row['coa_id'],
+            ]);
+
+            $successCount++;
+        }
+
+        return [
+            'success' => $successCount,
+            'failed' => $failedCount,
+        ];
+    }
+
+    private function isKamarType(string $typeKey): bool
+    {
+        return $typeKey === 'kamar';
     }
 }
