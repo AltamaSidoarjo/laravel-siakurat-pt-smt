@@ -12,6 +12,8 @@ class MappingPendapatanUmum extends Model
 
     public $incrementing = true;
 
+    public $timestamps = false;
+
     protected $keyType = 'int';
 
     protected $fillable = [

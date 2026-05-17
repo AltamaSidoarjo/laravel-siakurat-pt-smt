@@ -25,6 +25,7 @@ use RuntimeException;
 class BridgingPendapatanService
 {
     private const IMPORT_JURNAL_UMUM = 'Jurnal Umum';
+
     private const IMPORT_INVOICE_PENDAPATAN = 'Invoice Pendapatan';
 
     private const KATEGORI_DENGAN_KODE = [
@@ -41,8 +42,7 @@ class BridgingPendapatanService
 
     public function __construct(
         private readonly BukuBesarService $bukuBesarService,
-    ) {
-    }
+    ) {}
 
     public function getQueryDataImport(
         string $startDate,
@@ -269,6 +269,7 @@ class BridgingPendapatanService
         }
 
         $billing = $this->ambilHeaderBillingByNoRawat($noRawat);
+
         if ($billing === null) {
             return [
                 'no_rawat' => $noRawat,
@@ -384,7 +385,7 @@ class BridgingPendapatanService
         array $counterAccounts,
         string $tanggalPengakuan,
     ): void {
-        $jurnal = new JurnalUmum();
+        $jurnal = new JurnalUmum;
         $jurnal->nomer = $billing['no_rawat'];
         $jurnal->tanggal = $tanggalPengakuan;
         $jurnal->keterangan = $this->buatNarasi($billing);
@@ -397,7 +398,7 @@ class BridgingPendapatanService
         $totalKredit = 0.0;
 
         foreach ($resolvedRevenueRows as $row) {
-            $detail = new JurnalUmumRinci();
+            $detail = new JurnalUmumRinci;
             $detail->jurnal_umum_id = (int) $jurnal->id;
             $detail->coa_id = (int) $row['coa_id'];
             $detail->debit = $row['debit'];
@@ -417,7 +418,7 @@ class BridgingPendapatanService
         }
 
         foreach ($counterAccounts as $account) {
-            $detail = new JurnalUmumRinci();
+            $detail = new JurnalUmumRinci;
             $detail->jurnal_umum_id = (int) $jurnal->id;
             $detail->coa_id = (int) $account['coa_id'];
             $detail->debit = $account['debit'];
@@ -493,7 +494,7 @@ class BridgingPendapatanService
             }
         }
 
-        $invoice = new FakturPenjualan();
+        $invoice = new FakturPenjualan;
         $invoice->pelanggan_id = (int) $pelanggan->id;
         $invoice->akun_piutang_id = $akunPiutangId;
         $invoice->nomor_faktur = $billing['no_rawat'];
@@ -519,7 +520,7 @@ class BridgingPendapatanService
         $invoice->save();
 
         foreach ($resolvedRevenueRows as $row) {
-            $rinci = new FakturPenjualanRinci();
+            $rinci = new FakturPenjualanRinci;
             $rinci->faktur_penjualan_id = (int) $invoice->id;
             $rinci->harga = abs((float) $row['raw_total']);
             $rinci->kuantitas = (float) $row['quantity'];
@@ -592,7 +593,7 @@ class BridgingPendapatanService
             return $existing;
         }
 
-        $pelanggan = new Pelanggan();
+        $pelanggan = new Pelanggan;
         $pelanggan->status_aktif = true;
         $pelanggan->kode_pelanggan = $kodePenjamin;
         $pelanggan->nama_pelanggan = $namaPenjamin;
@@ -875,13 +876,13 @@ class BridgingPendapatanService
 
         return $this->ambilNilaiTunggal(
             sprintf(
-                "SELECT %s.kd_jenis_prw
+                'SELECT %s.kd_jenis_prw
                 FROM %s
                 JOIN jns_perawatan ON jns_perawatan.kd_jenis_prw = %s.kd_jenis_prw
                 JOIN billing ON billing.no_rawat = %s.no_rawat
                     AND billing.nm_perawatan = jns_perawatan.nm_perawatan
                 WHERE %s.no_rawat = ? AND billing.nm_perawatan = ?
-                LIMIT 1",
+                LIMIT 1',
                 $table,
                 $table,
                 $table,
@@ -907,13 +908,13 @@ class BridgingPendapatanService
 
         return $this->ambilNilaiTunggal(
             sprintf(
-                "SELECT ri.kd_jenis_prw
+                'SELECT ri.kd_jenis_prw
                 FROM %s ri
                 JOIN jns_perawatan_inap jpi ON jpi.kd_jenis_prw = ri.kd_jenis_prw
                 JOIN billing b ON b.no_rawat = ri.no_rawat
                     AND b.nm_perawatan = jpi.nm_perawatan
                 WHERE b.no_rawat = ? AND b.nm_perawatan = ?
-                LIMIT 1",
+                LIMIT 1',
                 $table,
             ),
             [$noRawat, $namaPerawatan]
