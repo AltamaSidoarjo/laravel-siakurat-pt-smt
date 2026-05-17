@@ -7,6 +7,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Kasbank\KasbankPembayaranController;
 use App\Http\Controllers\Kasbank\KasbankPenerimaanController;
 use App\Http\Controllers\ModulePageController;
+use App\Http\Controllers\Pembelian\InvoicePembelianController;
 use App\Http\Controllers\Pendapatan\InvoicePendapatanController;
 use App\Http\Controllers\Pendapatan\PenerimaanPendapatanController;
 use Illuminate\Support\Facades\Route;
@@ -88,8 +89,9 @@ Route::middleware('preview.auth')->group(function () {
     });
 
     Route::prefix('pembelian')->name('pembelian.')->group(function () {
-        Route::get('/invoice', fn (ModulePageController $controller) => $controller->show('Pembelian', 'Invoice Pembelian'))
-            ->name('invoice.index');
+        Route::get('/invoice', [InvoicePembelianController::class, 'index'])->name('invoice.index');
+        Route::get('/invoice/load-data', [InvoicePembelianController::class, 'loadData'])->name('invoice.load-data');
+        Route::get('/invoice/{fakturPembelian}', [InvoicePembelianController::class, 'read'])->name('invoice.read');
         Route::get('/pembayaran', fn (ModulePageController $controller) => $controller->show('Pembelian', 'Pembayaran Pembelian'))
             ->name('pembayaran.index');
     });
