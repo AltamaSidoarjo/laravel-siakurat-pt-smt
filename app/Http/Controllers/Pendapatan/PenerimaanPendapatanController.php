@@ -55,7 +55,7 @@ class PenerimaanPendapatanController extends Controller
 
     public function store(StorePenerimaanPendapatanRequest $request): RedirectResponse
     {
-        $actor = session('auth.preview_user.username', 'system');
+        $actor = auth()->user()?->name ?? auth()->user()?->email ?? 'system';
         $penerimaanPenjualan = DB::transaction(fn () => $this->penerimaanPendapatanService->create($request->validated(), $actor));
 
         if ($request->input('submit_action') === 'save-print') {
@@ -78,7 +78,7 @@ class PenerimaanPendapatanController extends Controller
 
     public function update(UpdatePenerimaanPendapatanRequest $request, PenerimaanPenjualan $penerimaanPenjualan): RedirectResponse
     {
-        $actor = session('auth.preview_user.username', 'system');
+        $actor = auth()->user()?->name ?? auth()->user()?->email ?? 'system';
         $updated = DB::transaction(fn () => $this->penerimaanPendapatanService->update($penerimaanPenjualan, $request->validated(), $actor));
 
         if ($request->input('submit_action') === 'save-print') {
@@ -110,7 +110,7 @@ class PenerimaanPendapatanController extends Controller
             'penerimaanPendapatan' => $penerimaanPenjualan->load(['pelanggan', 'akunBank', 'akunPiutang', 'rincian.fakturPenjualan']),
             'namaRumahSakit' => $printIdentity['namaRumahSakit'],
             'printedAt' => Carbon::now(),
-            'namaPetugas' => session('auth.preview_user.username', '(Nama Petugas)'),
+            'namaPetugas' => auth()->user()?->name ?? '(Nama Petugas)',
             'ttdDirektur' => $printIdentity['ttdDirektur'],
             'ttdKabag' => $printIdentity['ttdKabag'],
         ]);

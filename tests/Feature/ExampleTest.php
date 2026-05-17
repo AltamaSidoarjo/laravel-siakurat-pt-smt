@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 // use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -14,14 +15,17 @@ class ExampleTest extends TestCase
         $response->assertRedirect(route('login'));
     }
 
-    public function test_bridging_pendapatan_page_can_be_opened_with_preview_session(): void
+    public function test_home_redirects_to_login_when_not_authenticated(): void
+    {
+        $response = $this->get('/home');
+
+        $response->assertRedirect(route('login'));
+    }
+
+    public function test_bridging_pendapatan_page_can_be_opened_with_authenticated_user(): void
     {
         $response = $this
-            ->withSession([
-                'auth.preview_user' => [
-                    'username' => 'tester',
-                ],
-            ])
+            ->actingAs($this->makeUser())
             ->get('/bridging/pendapatan');
 
         $response
@@ -29,14 +33,10 @@ class ExampleTest extends TestCase
             ->assertSee('Bridging Pendapatan');
     }
 
-    public function test_home_page_can_be_opened_with_preview_session(): void
+    public function test_home_page_can_be_opened_with_authenticated_user(): void
     {
         $response = $this
-            ->withSession([
-                'auth.preview_user' => [
-                    'username' => 'tester',
-                ],
-            ])
+            ->actingAs($this->makeUser())
             ->get('/home');
 
         $response
@@ -44,14 +44,10 @@ class ExampleTest extends TestCase
             ->assertSee('Ringkasan kunjungan dan pendapatan SIMRS');
     }
 
-    public function test_home_chart_endpoint_can_be_opened_with_preview_session(): void
+    public function test_home_chart_endpoint_can_be_opened_with_authenticated_user(): void
     {
         $response = $this
-            ->withSession([
-                'auth.preview_user' => [
-                    'username' => 'tester',
-                ],
-            ])
+            ->actingAs($this->makeUser())
             ->get('/home/pendapatan-harian');
 
         $response
@@ -59,14 +55,10 @@ class ExampleTest extends TestCase
             ->assertHeader('content-type', 'application/json');
     }
 
-    public function test_bridging_pendapatan_obat_page_can_be_opened_with_preview_session(): void
+    public function test_bridging_pendapatan_obat_page_can_be_opened_with_authenticated_user(): void
     {
         $response = $this
-            ->withSession([
-                'auth.preview_user' => [
-                    'username' => 'tester',
-                ],
-            ])
+            ->actingAs($this->makeUser())
             ->get('/bridging/pendapatan-obat');
 
         $response
@@ -74,14 +66,10 @@ class ExampleTest extends TestCase
             ->assertSee('Bridging Pendapatan Obat');
     }
 
-    public function test_bridging_pendapatan_obat_tarik_tagihan_page_can_be_opened_with_preview_session(): void
+    public function test_bridging_pendapatan_obat_tarik_tagihan_page_can_be_opened_with_authenticated_user(): void
     {
         $response = $this
-            ->withSession([
-                'auth.preview_user' => [
-                    'username' => 'tester',
-                ],
-            ])
+            ->actingAs($this->makeUser())
             ->get('/bridging/pendapatan-obat/tarik-tagihan');
 
         $response
@@ -89,14 +77,10 @@ class ExampleTest extends TestCase
             ->assertSee('Tagihan Jual Obat SIMRS');
     }
 
-    public function test_bridging_pembelian_page_can_be_opened_with_preview_session(): void
+    public function test_bridging_pembelian_page_can_be_opened_with_authenticated_user(): void
     {
         $response = $this
-            ->withSession([
-                'auth.preview_user' => [
-                    'username' => 'tester',
-                ],
-            ])
+            ->actingAs($this->makeUser())
             ->get('/bridging/pembelian');
 
         $response
@@ -104,14 +88,10 @@ class ExampleTest extends TestCase
             ->assertSee('Bridging Pembelian');
     }
 
-    public function test_bridging_pembelian_tarik_obat_page_can_be_opened_with_preview_session(): void
+    public function test_bridging_pembelian_tarik_obat_page_can_be_opened_with_authenticated_user(): void
     {
         $response = $this
-            ->withSession([
-                'auth.preview_user' => [
-                    'username' => 'tester',
-                ],
-            ])
+            ->actingAs($this->makeUser())
             ->get('/bridging/pembelian/tarik-obat');
 
         $response
@@ -119,14 +99,10 @@ class ExampleTest extends TestCase
             ->assertSee('Metode tanggal pengakuan:', false);
     }
 
-    public function test_bridging_pembelian_tarik_nonmedis_page_can_be_opened_with_preview_session(): void
+    public function test_bridging_pembelian_tarik_nonmedis_page_can_be_opened_with_authenticated_user(): void
     {
         $response = $this
-            ->withSession([
-                'auth.preview_user' => [
-                    'username' => 'tester',
-                ],
-            ])
+            ->actingAs($this->makeUser())
             ->get('/bridging/pembelian/tarik-nonmedis');
 
         $response
@@ -134,14 +110,10 @@ class ExampleTest extends TestCase
             ->assertSee('Tagihan Pembelian Barang Non Medis SIMRS');
     }
 
-    public function test_laporan_keuangan_page_can_be_opened_with_preview_session(): void
+    public function test_laporan_keuangan_page_can_be_opened_with_authenticated_user(): void
     {
         $response = $this
-            ->withSession([
-                'auth.preview_user' => [
-                    'username' => 'tester',
-                ],
-            ])
+            ->actingAs($this->makeUser())
             ->get('/laporan/keuangan');
 
         $response
@@ -149,14 +121,10 @@ class ExampleTest extends TestCase
             ->assertSee('Menu Laporan Keuangan');
     }
 
-    public function test_laporan_keuangan_rincian_transaksi_page_can_be_opened_with_preview_session(): void
+    public function test_laporan_keuangan_rincian_transaksi_page_can_be_opened_with_authenticated_user(): void
     {
         $response = $this
-            ->withSession([
-                'auth.preview_user' => [
-                    'username' => 'tester',
-                ],
-            ])
+            ->actingAs($this->makeUser())
             ->get('/laporan/keuangan/rincian-transaksi-bukubesar');
 
         $response
@@ -167,11 +135,7 @@ class ExampleTest extends TestCase
     public function test_laporan_keuangan_menu_lists_core_report_links(): void
     {
         $response = $this
-            ->withSession([
-                'auth.preview_user' => [
-                    'username' => 'tester',
-                ],
-            ])
+            ->actingAs($this->makeUser())
             ->get('/laporan/keuangan');
 
         $response
@@ -182,14 +146,10 @@ class ExampleTest extends TestCase
             ->assertDontSee('Neraca Per Parent COA');
     }
 
-    public function test_laporan_pendapatan_page_can_be_opened_with_preview_session(): void
+    public function test_laporan_pendapatan_page_can_be_opened_with_authenticated_user(): void
     {
         $response = $this
-            ->withSession([
-                'auth.preview_user' => [
-                    'username' => 'tester',
-                ],
-            ])
+            ->actingAs($this->makeUser())
             ->get('/laporan/pendapatan');
 
         $response
@@ -199,14 +159,10 @@ class ExampleTest extends TestCase
             ->assertSee('Laporan Pendapatan Penjualan Obat');
     }
 
-    public function test_laporan_pendapatan_kunjungan_page_can_be_opened_with_preview_session(): void
+    public function test_laporan_pendapatan_kunjungan_page_can_be_opened_with_authenticated_user(): void
     {
         $response = $this
-            ->withSession([
-                'auth.preview_user' => [
-                    'username' => 'tester',
-                ],
-            ])
+            ->actingAs($this->makeUser())
             ->get('/laporan/pendapatan/kunjungan');
 
         $response
@@ -214,14 +170,10 @@ class ExampleTest extends TestCase
             ->assertSee('Laporan Pendapatan Kunjungan');
     }
 
-    public function test_laporan_pendapatan_penjualan_obat_page_can_be_opened_with_preview_session(): void
+    public function test_laporan_pendapatan_penjualan_obat_page_can_be_opened_with_authenticated_user(): void
     {
         $response = $this
-            ->withSession([
-                'auth.preview_user' => [
-                    'username' => 'tester',
-                ],
-            ])
+            ->actingAs($this->makeUser())
             ->get('/laporan/pendapatan/penjualan-obat');
 
         $response
@@ -229,4 +181,11 @@ class ExampleTest extends TestCase
             ->assertSee('Laporan Pendapatan Penjualan Obat');
     }
 
+    private function makeUser(): User
+    {
+        return User::factory()->make([
+            'name' => 'Tester',
+            'email' => 'tester@example.com',
+        ]);
+    }
 }

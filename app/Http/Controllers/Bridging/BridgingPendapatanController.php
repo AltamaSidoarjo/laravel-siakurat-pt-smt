@@ -86,7 +86,7 @@ class BridgingPendapatanController extends Controller
             $request->validated('selectedNoRawat'),
             $request->validated('jenisProses'),
             $request->validated('basisTanggalPengakuan'),
-            session('auth.preview_user.username', 'system'),
+            auth()->user()?->name ?? auth()->user()?->email ?? 'system',
         );
 
         return redirect()
@@ -99,7 +99,7 @@ class BridgingPendapatanController extends Controller
     {
         $results = $this->bridgingPendapatanService->hapusBanyak(
             $request->validated('selectedNoRawat'),
-            session('auth.preview_user.username', 'system'),
+            auth()->user()?->name ?? auth()->user()?->email ?? 'system',
         );
 
         return redirect()

@@ -110,7 +110,7 @@ class KasbankPenerimaanController extends Controller
             'kasbankPenerimaan' => $kasbankPenerimaan->load(['coa', 'rincian.coa']),
             'namaRumahSakit' => $printIdentity['namaRumahSakit'],
             'printedAt' => Carbon::now(),
-            'namaPetugas' => session('auth.preview_user.username', '(Nama Petugas)'),
+            'namaPetugas' => auth()->user()?->name ?? '(Nama Petugas)',
             'ttdDirektur' => $printIdentity['ttdDirektur'],
             'ttdKabag' => $printIdentity['ttdKabag'],
         ]);

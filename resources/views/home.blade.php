@@ -26,7 +26,7 @@
                         <h4 class="mb-0">Ringkasan kunjungan dan pendapatan SIMRS</h4>
                         <div class="text-muted">
                             Anda sedang login sebagai
-                            <strong>{{ session('auth.preview_user.username', 'preview-user') }}</strong>
+                            <strong>{{ auth()->user()?->name ?? auth()->user()?->email ?? 'user' }}</strong>
                             di aplikasi {{ config('siakurat.app_name') }}.
                         </div>
                     </div>

@@ -71,7 +71,7 @@ class BridgingPendapatanObatController extends Controller
         $results = $this->bridgingPendapatanObatService->imporBanyak(
             $request->validated('selectedNoTransaksi'),
             $request->validated('jenisProses'),
-            session('auth.preview_user.username', 'system'),
+            auth()->user()?->name ?? auth()->user()?->email ?? 'system',
         );
 
         return redirect()
@@ -84,7 +84,7 @@ class BridgingPendapatanObatController extends Controller
     {
         $results = $this->bridgingPendapatanObatService->hapusBanyak(
             $request->validated('selectedNoTransaksi'),
-            session('auth.preview_user.username', 'system'),
+            auth()->user()?->name ?? auth()->user()?->email ?? 'system',
         );
 
         return redirect()

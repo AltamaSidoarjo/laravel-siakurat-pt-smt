@@ -64,7 +64,7 @@ class PembayaranPembelianController extends Controller
 
     public function store(StorePembayaranPembelianRequest $request): RedirectResponse
     {
-        $actor = session('auth.preview_user.username', 'system');
+        $actor = auth()->user()?->name ?? auth()->user()?->email ?? 'system';
         $pembayaranPembelian = DB::transaction(fn () => $this->pembayaranPembelianService->create($request->validated(), $actor));
 
         if ($request->input('submit_action') === 'save-print') {
@@ -87,7 +87,7 @@ class PembayaranPembelianController extends Controller
 
     public function update(UpdatePembayaranPembelianRequest $request, PembayaranPembelian $pembayaranPembelian): RedirectResponse
     {
-        $actor = session('auth.preview_user.username', 'system');
+        $actor = auth()->user()?->name ?? auth()->user()?->email ?? 'system';
         $updated = DB::transaction(fn () => $this->pembayaranPembelianService->update($pembayaranPembelian, $request->validated(), $actor));
 
         if ($request->input('submit_action') === 'save-print') {
@@ -119,7 +119,7 @@ class PembayaranPembelianController extends Controller
             'pembayaranPembelian' => $pembayaranPembelian->load(['supplier', 'akunBank', 'akunHutang', 'rincian.fakturPembelian']),
             'namaRumahSakit' => $printIdentity['namaRumahSakit'],
             'printedAt' => Carbon::now(),
-            'namaPetugas' => session('auth.preview_user.username', '(Nama Petugas)'),
+            'namaPetugas' => auth()->user()?->name ?? '(Nama Petugas)',
             'ttdDirektur' => $printIdentity['ttdDirektur'],
             'ttdKabag' => $printIdentity['ttdKabag'],
         ]);

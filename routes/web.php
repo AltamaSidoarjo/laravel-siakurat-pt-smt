@@ -21,10 +21,11 @@ use App\Http\Controllers\Pengaturan\MappingPendapatanController;
 use App\Http\Controllers\Pengaturan\PenggunaController;
 use App\Http\Controllers\Pengaturan\PreferensiController;
 use App\Http\Controllers\Pengaturan\SettingRbaController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return session()->has('auth.preview_user')
+    return Auth::check()
         ? redirect()->route('home')
         : redirect()->route('login');
 });
@@ -34,7 +35,7 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'store'])->name('login.store');
 });
 
-Route::middleware('preview.auth')->group(function () {
+Route::middleware('auth')->group(function () {
     Route::get('/home', [HomeController::class, 'index'])->name('home');
     Route::get('/home/kunjungan-harian', [HomeController::class, 'kunjunganHarian'])->name('home.kunjungan-harian');
     Route::get('/home/poli', [HomeController::class, 'distribusiPoli'])->name('home.poli');

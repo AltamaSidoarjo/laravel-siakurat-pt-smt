@@ -75,7 +75,7 @@ class BridgingPembelianController extends Controller
             $request->validated('selectedNoTransaksi'),
             $request->validated('jenisProses'),
             $request->validated('metodeTanggalPengakuan'),
-            session('auth.preview_user.username', 'system'),
+            auth()->user()?->name ?? auth()->user()?->email ?? 'system',
         );
 
         return redirect()
@@ -109,7 +109,7 @@ class BridgingPembelianController extends Controller
         $results = $this->bridgingPembelianService->imporBanyakPembelianNonMedis(
             $request->validated('selectedNoTransaksi'),
             $request->validated('jenisProses'),
-            session('auth.preview_user.username', 'system'),
+            auth()->user()?->name ?? auth()->user()?->email ?? 'system',
         );
 
         return redirect()

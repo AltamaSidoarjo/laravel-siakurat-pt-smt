@@ -13,13 +13,14 @@
                     <input type="hidden" name="return_url" value="{{ request('return_url', route('home')) }}">
 
                     <div class="mb-3">
-                        <label class="form-label" for="username">Username</label>
+                        <label class="form-label" for="email">Email</label>
                         <input
-                            id="username"
-                            name="username"
+                            id="email"
+                            name="email"
+                            type="email"
                             class="form-control"
-                            autocomplete="username"
-                            value="{{ old('username') }}"
+                            autocomplete="email"
+                            value="{{ old('email') }}"
                         >
                     </div>
 

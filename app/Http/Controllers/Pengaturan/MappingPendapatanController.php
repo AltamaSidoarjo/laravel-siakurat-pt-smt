@@ -59,7 +59,7 @@ class MappingPendapatanController extends Controller
     public function store(StoreMappingPendapatanRequest $request): RedirectResponse
     {
         $selectedTypeKey = $this->mappingPendapatanTindakanService->resolveTypeKey($request->input('jenis_tindakan'));
-        $actor = session('auth.preview_user.username', 'system');
+        $actor = auth()->user()?->name ?? auth()->user()?->email ?? 'system';
 
         $result = DB::transaction(fn () => $this->mappingPendapatanTindakanService->createMappings(
             $selectedTypeKey,
