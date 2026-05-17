@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Bridging\BridgingPendapatanController;
+use App\Http\Controllers\Bridging\BridgingPendapatanObatController;
 use App\Http\Controllers\Bukubesar\CoaController;
 use App\Http\Controllers\Bukubesar\JurnalUmumController;
 use App\Http\Controllers\HomeController;
@@ -87,8 +88,18 @@ Route::middleware('preview.auth')->group(function () {
             ->name('pendapatan.data-tidak-balance');
         Route::get('/pendapatan/detect-tidak-balance', [BridgingPendapatanController::class, 'detectTidakBalance'])
             ->name('pendapatan.detect-tidak-balance');
-        Route::get('/pendapatan-obat', fn (ModulePageController $controller) => $controller->show('Bridging', 'Pendapatan Obat'))
+        Route::get('/pendapatan-obat', [BridgingPendapatanObatController::class, 'index'])
             ->name('pendapatan-obat.index');
+        Route::get('/pendapatan-obat/load-imported-data', [BridgingPendapatanObatController::class, 'loadImportedData'])
+            ->name('pendapatan-obat.load-imported-data');
+        Route::get('/pendapatan-obat/tarik-tagihan', [BridgingPendapatanObatController::class, 'tarikTagihan'])
+            ->name('pendapatan-obat.tarik-tagihan');
+        Route::get('/pendapatan-obat/load-tagihan-simrs', [BridgingPendapatanObatController::class, 'loadTagihanSimrs'])
+            ->name('pendapatan-obat.load-tagihan-simrs');
+        Route::post('/pendapatan-obat/process-import', [BridgingPendapatanObatController::class, 'processImport'])
+            ->name('pendapatan-obat.process-import');
+        Route::post('/pendapatan-obat/destroy-bulk', [BridgingPendapatanObatController::class, 'destroyBulk'])
+            ->name('pendapatan-obat.destroy-bulk');
         Route::get('/pembelian', fn (ModulePageController $controller) => $controller->show('Bridging', 'Pembelian'))
             ->name('pembelian.index');
     });

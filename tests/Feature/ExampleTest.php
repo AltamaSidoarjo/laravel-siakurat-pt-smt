@@ -28,4 +28,34 @@ class ExampleTest extends TestCase
             ->assertOk()
             ->assertSee('Bridging Pendapatan');
     }
+
+    public function test_bridging_pendapatan_obat_page_can_be_opened_with_preview_session(): void
+    {
+        $response = $this
+            ->withSession([
+                'auth.preview_user' => [
+                    'username' => 'tester',
+                ],
+            ])
+            ->get('/bridging/pendapatan-obat');
+
+        $response
+            ->assertOk()
+            ->assertSee('Bridging Pendapatan Obat');
+    }
+
+    public function test_bridging_pendapatan_obat_tarik_tagihan_page_can_be_opened_with_preview_session(): void
+    {
+        $response = $this
+            ->withSession([
+                'auth.preview_user' => [
+                    'username' => 'tester',
+                ],
+            ])
+            ->get('/bridging/pendapatan-obat/tarik-tagihan');
+
+        $response
+            ->assertOk()
+            ->assertSee('Tagihan Jual Obat SIMRS');
+    }
 }
