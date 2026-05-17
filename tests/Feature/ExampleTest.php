@@ -29,6 +29,36 @@ class ExampleTest extends TestCase
             ->assertSee('Bridging Pendapatan');
     }
 
+    public function test_home_page_can_be_opened_with_preview_session(): void
+    {
+        $response = $this
+            ->withSession([
+                'auth.preview_user' => [
+                    'username' => 'tester',
+                ],
+            ])
+            ->get('/home');
+
+        $response
+            ->assertOk()
+            ->assertSee('Ringkasan kunjungan dan pendapatan SIMRS');
+    }
+
+    public function test_home_chart_endpoint_can_be_opened_with_preview_session(): void
+    {
+        $response = $this
+            ->withSession([
+                'auth.preview_user' => [
+                    'username' => 'tester',
+                ],
+            ])
+            ->get('/home/pendapatan-harian');
+
+        $response
+            ->assertOk()
+            ->assertHeader('content-type', 'application/json');
+    }
+
     public function test_bridging_pendapatan_obat_page_can_be_opened_with_preview_session(): void
     {
         $response = $this
@@ -151,4 +181,52 @@ class ExampleTest extends TestCase
             ->assertDontSee('Laba Rugi Per Parent COA')
             ->assertDontSee('Neraca Per Parent COA');
     }
+
+    public function test_laporan_pendapatan_page_can_be_opened_with_preview_session(): void
+    {
+        $response = $this
+            ->withSession([
+                'auth.preview_user' => [
+                    'username' => 'tester',
+                ],
+            ])
+            ->get('/laporan/pendapatan');
+
+        $response
+            ->assertOk()
+            ->assertSee('Menu Laporan Pendapatan')
+            ->assertSee('Laporan Pendapatan Kunjungan')
+            ->assertSee('Laporan Pendapatan Penjualan Obat');
+    }
+
+    public function test_laporan_pendapatan_kunjungan_page_can_be_opened_with_preview_session(): void
+    {
+        $response = $this
+            ->withSession([
+                'auth.preview_user' => [
+                    'username' => 'tester',
+                ],
+            ])
+            ->get('/laporan/pendapatan/kunjungan');
+
+        $response
+            ->assertOk()
+            ->assertSee('Laporan Pendapatan Kunjungan');
+    }
+
+    public function test_laporan_pendapatan_penjualan_obat_page_can_be_opened_with_preview_session(): void
+    {
+        $response = $this
+            ->withSession([
+                'auth.preview_user' => [
+                    'username' => 'tester',
+                ],
+            ])
+            ->get('/laporan/pendapatan/penjualan-obat');
+
+        $response
+            ->assertOk()
+            ->assertSee('Laporan Pendapatan Penjualan Obat');
+    }
+
 }
