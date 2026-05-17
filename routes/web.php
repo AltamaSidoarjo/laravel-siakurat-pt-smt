@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Bridging\BridgingPendapatanController;
 use App\Http\Controllers\Bukubesar\CoaController;
 use App\Http\Controllers\Bukubesar\JurnalUmumController;
 use App\Http\Controllers\HomeController;
@@ -70,8 +71,22 @@ Route::middleware('preview.auth')->group(function () {
     });
 
     Route::prefix('bridging')->name('bridging.')->group(function () {
-        Route::get('/pendapatan', fn (ModulePageController $controller) => $controller->show('Bridging', 'Pendapatan'))
+        Route::get('/pendapatan', [BridgingPendapatanController::class, 'index'])
             ->name('pendapatan.index');
+        Route::get('/pendapatan/load-imported-data', [BridgingPendapatanController::class, 'loadImportedData'])
+            ->name('pendapatan.load-imported-data');
+        Route::get('/pendapatan/tarik-simrs', [BridgingPendapatanController::class, 'tarikBillingSimrs'])
+            ->name('pendapatan.tarik-billing-simrs');
+        Route::get('/pendapatan/load-billing-simrs', [BridgingPendapatanController::class, 'loadBillingSimrs'])
+            ->name('pendapatan.load-billing-simrs');
+        Route::post('/pendapatan/process-import', [BridgingPendapatanController::class, 'processImport'])
+            ->name('pendapatan.process-import');
+        Route::post('/pendapatan/destroy-bulk', [BridgingPendapatanController::class, 'destroyBulk'])
+            ->name('pendapatan.destroy-bulk');
+        Route::get('/pendapatan/data-tidak-balance', [BridgingPendapatanController::class, 'dataTidakBalance'])
+            ->name('pendapatan.data-tidak-balance');
+        Route::get('/pendapatan/detect-tidak-balance', [BridgingPendapatanController::class, 'detectTidakBalance'])
+            ->name('pendapatan.detect-tidak-balance');
         Route::get('/pendapatan-obat', fn (ModulePageController $controller) => $controller->show('Bridging', 'Pendapatan Obat'))
             ->name('pendapatan-obat.index');
         Route::get('/pembelian', fn (ModulePageController $controller) => $controller->show('Bridging', 'Pembelian'))
