@@ -31,10 +31,6 @@
                                             <label for="name" class="form-label">Nama</label>
                                             <input type="text" name="name" id="name" class="form-control" value="{{ old('name') }}" required>
                                         </div>
-                                        <div class="col-md-6">
-                                            <label for="member" class="form-label">Member</label>
-                                            <input type="text" name="member" id="member" class="form-control" value="{{ old('member') }}">
-                                        </div>
                                         <div class="col-12">
                                             <label for="email" class="form-label">Email</label>
                                             <input type="email" name="email" id="email" class="form-control" value="{{ old('email') }}" required>

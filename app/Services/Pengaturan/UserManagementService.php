@@ -19,10 +19,8 @@ class UserManagementService
         return User::query()->create([
             'name' => $data['name'],
             'email' => $data['email'],
-            'member' => $data['member'] ?? null,
             'password' => $data['password'],
             'email_verified_at' => now(),
-            'jumlah_ganti_password' => 0,
         ]);
     }
 
@@ -31,12 +29,10 @@ class UserManagementService
         $payload = [
             'name' => $data['name'],
             'email' => $data['email'],
-            'member' => $data['member'] ?? null,
         ];
 
         if (! empty($data['password'])) {
             $payload['password'] = $data['password'];
-            $payload['jumlah_ganti_password'] = (int) $user->jumlah_ganti_password + 1;
         }
 
         $user->fill($payload);

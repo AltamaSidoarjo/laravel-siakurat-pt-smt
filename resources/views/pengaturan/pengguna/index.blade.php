@@ -40,8 +40,6 @@
                                             <tr>
                                                 <th>Nama</th>
                                                 <th>Email</th>
-                                                <th>Member</th>
-                                                <th>Jumlah Ganti Password</th>
                                                 <th class="text-center">Aksi</th>
                                             </tr>
                                         </thead>
@@ -50,8 +48,6 @@
                                                 <tr>
                                                     <td>{{ $user->name }}</td>
                                                     <td>{{ $user->email }}</td>
-                                                    <td>{{ $user->member }}</td>
-                                                    <td class="text-center">{{ $user->jumlah_ganti_password }}</td>
                                                     <td class="text-center">
                                                         <a href="{{ route('pengaturan.pengguna.edit', $user) }}" class="btn btn-warning btn-sm">
                                                             <i class="bi bi-pencil-square"></i> Edit
