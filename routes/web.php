@@ -11,6 +11,7 @@ use App\Http\Controllers\Pembelian\InvoicePembelianController;
 use App\Http\Controllers\Pembelian\PembayaranPembelianController;
 use App\Http\Controllers\Pendapatan\InvoicePendapatanController;
 use App\Http\Controllers\Pendapatan\PenerimaanPendapatanController;
+use App\Http\Controllers\Pengaturan\MappingPendapatanController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -113,8 +114,30 @@ Route::middleware('preview.auth')->group(function () {
     });
 
     Route::prefix('pengaturan')->name('pengaturan.')->group(function () {
-        Route::get('/mapping-pendapatan', fn (ModulePageController $controller) => $controller->show('Pengaturan', 'Mapping Pendapatan'))
+        Route::get('/mapping-pendapatan', [MappingPendapatanController::class, 'index'])
             ->name('mapping-pendapatan.index');
+        Route::get('/mapping-pendapatan/create', [MappingPendapatanController::class, 'create'])
+            ->name('mapping-pendapatan.create');
+        Route::post('/mapping-pendapatan', [MappingPendapatanController::class, 'store'])
+            ->name('mapping-pendapatan.store');
+        Route::delete('/mapping-pendapatan/{mappingPendapatan}', [MappingPendapatanController::class, 'destroy'])
+            ->name('mapping-pendapatan.destroy');
+        Route::get('/mapping-pendapatan/umum', [MappingPendapatanController::class, 'indexUmum'])
+            ->name('mapping-pendapatan.umum.index');
+        Route::get('/mapping-pendapatan/umum/create', [MappingPendapatanController::class, 'createUmum'])
+            ->name('mapping-pendapatan.umum.create');
+        Route::post('/mapping-pendapatan/umum', [MappingPendapatanController::class, 'storeUmum'])
+            ->name('mapping-pendapatan.umum.store');
+        Route::delete('/mapping-pendapatan/umum/{mappingPendapatanUmum}', [MappingPendapatanController::class, 'destroyUmum'])
+            ->name('mapping-pendapatan.umum.destroy');
+        Route::get('/mapping-pendapatan/lawan-pendapatan', [MappingPendapatanController::class, 'indexLawanPendapatan'])
+            ->name('mapping-pendapatan.lawan.index');
+        Route::get('/mapping-pendapatan/lawan-pendapatan/create', [MappingPendapatanController::class, 'createLawanPendapatan'])
+            ->name('mapping-pendapatan.lawan.create');
+        Route::post('/mapping-pendapatan/lawan-pendapatan', [MappingPendapatanController::class, 'storeLawanPendapatan'])
+            ->name('mapping-pendapatan.lawan.store');
+        Route::delete('/mapping-pendapatan/lawan-pendapatan/{mappingLawanPendapatanSimrs}', [MappingPendapatanController::class, 'destroyLawanPendapatan'])
+            ->name('mapping-pendapatan.lawan.destroy');
         Route::get('/mapping-general', fn (ModulePageController $controller) => $controller->show('Pengaturan', 'Mapping General'))
             ->name('mapping-general.index');
         Route::get('/setting-rba', fn (ModulePageController $controller) => $controller->show('Pengaturan', 'Setting RBA'))
