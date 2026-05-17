@@ -39,7 +39,7 @@ class BridgingPendapatanController extends Controller
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
 
-        $query = $this->bridgingPendapatanService->getImportedQuery(
+        $query = $this->bridgingPendapatanService->getQueryDataImport(
             $startDate,
             $endDate,
             $request->string('poli')->toString(),
@@ -70,7 +70,7 @@ class BridgingPendapatanController extends Controller
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
 
-        $rows = $this->bridgingPendapatanService->getSimrsBillingCandidates(
+        $rows = $this->bridgingPendapatanService->getKandidatBillingSimrs(
             $startDate,
             $endDate,
             $request->string('poli')->toString(),
@@ -82,7 +82,7 @@ class BridgingPendapatanController extends Controller
 
     public function processImport(ImportPendapatanRequest $request): RedirectResponse
     {
-        $results = $this->bridgingPendapatanService->importMany(
+        $results = $this->bridgingPendapatanService->imporBanyak(
             $request->validated('selectedNoRawat'),
             $request->validated('jenisProses'),
             $request->validated('basisTanggalPengakuan'),
@@ -97,7 +97,7 @@ class BridgingPendapatanController extends Controller
 
     public function destroyBulk(BulkDeletePendapatanRequest $request): RedirectResponse
     {
-        $results = $this->bridgingPendapatanService->deleteMany(
+        $results = $this->bridgingPendapatanService->hapusBanyak(
             $request->validated('selectedNoRawat'),
             session('auth.preview_user.username', 'system'),
         );
@@ -126,7 +126,7 @@ class BridgingPendapatanController extends Controller
         return response()->json([
             'success' => true,
             'data' => $this->bridgingPendapatanService
-                ->detectUnbalancedJournals($startDate, $endDate)
+                ->deteksiJurnalTidakBalance($startDate, $endDate)
                 ->values()
                 ->all(),
         ]);

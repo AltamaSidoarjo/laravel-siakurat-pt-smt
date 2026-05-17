@@ -44,7 +44,7 @@ class BridgingPendapatanService
     ) {
     }
 
-    public function getImportedQuery(
+    public function getQueryDataImport(
         string $startDate,
         string $endDate,
         ?string $poli = null,
@@ -58,7 +58,7 @@ class BridgingPendapatanService
             ->orderByDesc('id');
     }
 
-    public function getSimrsBillingCandidates(
+    public function getKandidatBillingSimrs(
         string $startDate,
         string $endDate,
         ?string $poli = null,
@@ -127,7 +127,7 @@ class BridgingPendapatanService
             ->values();
     }
 
-    public function importMany(
+    public function imporBanyak(
         array $selectedNoRawat,
         string $jenisProses,
         string $basisTanggalPengakuan,
@@ -137,7 +137,7 @@ class BridgingPendapatanService
 
         foreach (array_values(array_unique($selectedNoRawat)) as $noRawat) {
             try {
-                $results[] = $this->importSingle(
+                $results[] = $this->imporSatu(
                     (string) $noRawat,
                     $jenisProses,
                     $basisTanggalPengakuan,
@@ -155,7 +155,7 @@ class BridgingPendapatanService
         return $results;
     }
 
-    public function deleteMany(array $selectedNoRawat, string $actor): array
+    public function hapusBanyak(array $selectedNoRawat, string $actor): array
     {
         $results = [];
 
@@ -220,7 +220,7 @@ class BridgingPendapatanService
         return $results;
     }
 
-    public function detectUnbalancedJournals(string $startDate, string $endDate): Collection
+    public function deteksiJurnalTidakBalance(string $startDate, string $endDate): Collection
     {
         return collect(DB::select(
             <<<'SQL'
@@ -254,7 +254,7 @@ class BridgingPendapatanService
         });
     }
 
-    private function importSingle(
+    private function imporSatu(
         string $noRawat,
         string $jenisProses,
         string $basisTanggalPengakuan,
@@ -268,7 +268,7 @@ class BridgingPendapatanService
             ];
         }
 
-        $billing = $this->getBillingHeaderByNoRawat($noRawat);
+        $billing = $this->ambilHeaderBillingByNoRawat($noRawat);
         if ($billing === null) {
             return [
                 'no_rawat' => $noRawat,
@@ -277,7 +277,7 @@ class BridgingPendapatanService
             ];
         }
 
-        $tanggalPengakuan = $this->determineTanggalPengakuan($billing, $basisTanggalPengakuan);
+        $tanggalPengakuan = $this->tentukanTanggalPengakuan($billing, $basisTanggalPengakuan);
         if ($tanggalPengakuan === null) {
             return [
                 'no_rawat' => $noRawat,
@@ -286,7 +286,7 @@ class BridgingPendapatanService
             ];
         }
 
-        $details = $this->getBillingDetailsByNoRawat($noRawat);
+        $details = $this->ambilRincianBillingByNoRawat($noRawat);
         if ($details->isEmpty()) {
             return [
                 'no_rawat' => $noRawat,
@@ -302,13 +302,16 @@ class BridgingPendapatanService
             $jenisProses,
             $actor
         ) {
-            $mappings = $this->loadMappings();
+            $mappings = $this->muatMapping();
 
             $resolvedRevenueRows = [];
             $lastKamarCoaId = null;
 
+            // Setiap rincian billing harus lebih dulu dipetakan ke COA pendapatan yang tepat
+            // sebelum jurnal atau invoice dibuat, supaya validasi bisnis berhenti di awal
+            // ketika ada mapping yang belum lengkap.
             foreach ($details as $detail) {
-                $resolvedRevenueRows[] = $this->resolveRevenueRow(
+                $resolvedRevenueRows[] = $this->petakanBarisPendapatan(
                     $billing,
                     $detail,
                     $mappings,
@@ -316,12 +319,12 @@ class BridgingPendapatanService
                 );
             }
 
-            $counterAccounts = $this->resolveCounterAccounts($billing, $details, $mappings['lawan']);
+            $counterAccounts = $this->tentukanAkunLawanPendapatan($billing, $details, $mappings['lawan']);
 
-            $this->createImportLog($billing, $actor, $jenisProses);
+            $this->simpanLogImport($billing, $actor, $jenisProses);
 
             if ($jenisProses === 'InvoicePendapatan') {
-                $this->createInvoicePendapatan(
+                $this->simpanInvoicePendapatan(
                     $billing,
                     $resolvedRevenueRows,
                     $counterAccounts,
@@ -329,7 +332,7 @@ class BridgingPendapatanService
                     $mappings['coa'],
                 );
             } else {
-                $this->createJurnalUmum(
+                $this->simpanJurnalUmum(
                     $billing,
                     $resolvedRevenueRows,
                     $counterAccounts,
@@ -345,7 +348,7 @@ class BridgingPendapatanService
         });
     }
 
-    private function createImportLog(array $billing, string $actor, string $jenisProses): void
+    private function simpanLogImport(array $billing, string $actor, string $jenisProses): void
     {
         $importKe = $jenisProses === 'InvoicePendapatan'
             ? self::IMPORT_INVOICE_PENDAPATAN
@@ -375,7 +378,7 @@ class BridgingPendapatanService
         ]);
     }
 
-    private function createJurnalUmum(
+    private function simpanJurnalUmum(
         array $billing,
         array $resolvedRevenueRows,
         array $counterAccounts,
@@ -384,7 +387,7 @@ class BridgingPendapatanService
         $jurnal = new JurnalUmum();
         $jurnal->nomer = $billing['no_rawat'];
         $jurnal->tanggal = $tanggalPengakuan;
-        $jurnal->keterangan = $this->buildNarration($billing);
+        $jurnal->keterangan = $this->buatNarasi($billing);
         $jurnal->debit = 0;
         $jurnal->kredit = 0;
         $jurnal->save();
@@ -454,14 +457,14 @@ class BridgingPendapatanService
         );
     }
 
-    private function createInvoicePendapatan(
+    private function simpanInvoicePendapatan(
         array $billing,
         array $resolvedRevenueRows,
         array $counterAccounts,
         string $tanggalPengakuan,
         Collection $coaLookup,
     ): void {
-        $pelanggan = $this->findOrCreatePelanggan(
+        $pelanggan = $this->cariAtauBuatPelanggan(
             $billing['kode_penjamin'],
             $billing['penjamin'],
         );
@@ -474,6 +477,10 @@ class BridgingPendapatanService
                 ];
             });
 
+        // Untuk invoice bridging, akun lawan dari SIMRS bisa bercampur antara kas/bank dan piutang.
+        // Dari sini kita turunkan dua informasi:
+        // 1. `sudahTerbayar` jika lawannya kas/bank
+        // 2. `akunPiutangId` jika seluruh lawannya murni piutang.
         $sudahTerbayar = $debitAccounts
             ->filter(fn (array $account) => str_starts_with((string) optional($account['coa'])->kode, '111.'))
             ->sum('debit');
@@ -491,7 +498,7 @@ class BridgingPendapatanService
         $invoice->akun_piutang_id = $akunPiutangId;
         $invoice->nomor_faktur = $billing['no_rawat'];
         $invoice->tanggal_faktur = $tanggalPengakuan;
-        $invoice->keterangan = $this->buildNarration($billing);
+        $invoice->keterangan = $this->buatNarasi($billing);
         $invoice->grandtotal = (float) $billing['total_biaya'];
         $invoice->sudah_terbayar = (float) $sudahTerbayar;
         $invoice->status_proses = 0;
@@ -521,14 +528,14 @@ class BridgingPendapatanService
             $rinci->save();
         }
 
-        $this->syncBukuBesarInvoicePendapatan(
+        $this->sinkronkanBukuBesarInvoicePendapatan(
             $invoice,
             $resolvedRevenueRows,
             $counterAccounts,
         );
     }
 
-    private function syncBukuBesarInvoicePendapatan(
+    private function sinkronkanBukuBesarInvoicePendapatan(
         FakturPenjualan $invoice,
         array $resolvedRevenueRows,
         array $counterAccounts,
@@ -575,7 +582,7 @@ class BridgingPendapatanService
         }
     }
 
-    private function findOrCreatePelanggan(string $kodePenjamin, string $namaPenjamin): Pelanggan
+    private function cariAtauBuatPelanggan(string $kodePenjamin, string $namaPenjamin): Pelanggan
     {
         $existing = Pelanggan::query()
             ->where('kode_pelanggan', $kodePenjamin)
@@ -594,7 +601,7 @@ class BridgingPendapatanService
         return $pelanggan;
     }
 
-    private function loadMappings(): array
+    private function muatMapping(): array
     {
         return [
             'tindakan' => MappingPendapatan::query()->get(),
@@ -605,7 +612,7 @@ class BridgingPendapatanService
         ];
     }
 
-    private function resolveRevenueRow(
+    private function petakanBarisPendapatan(
         array $billing,
         array $detail,
         array $mappings,
@@ -616,6 +623,9 @@ class BridgingPendapatanService
         $rawTotal = (float) $detail['total_biaya'];
         $coaId = null;
 
+        // Pola pemetaan pendapatan mengikuti dua jalur:
+        // - kategori yang butuh kode tindakan/kamar dari SIMRS
+        // - kategori umum yang langsung dibaca dari mapping pendapatan umum per penjamin
         if (in_array($status, self::KATEGORI_DENGAN_KODE, true)) {
             if ($status === 'Kamar' && $detail['pemisah'] === ':' && ! str_contains($namaPerawatan, ',')) {
                 if ($lastKamarCoaId === null) {
@@ -624,7 +634,7 @@ class BridgingPendapatanService
 
                 $coaId = $lastKamarCoaId;
             } else {
-                $kode = $this->resolveKodeKategori($status, $billing['no_rawat'], $namaPerawatan);
+                $kode = $this->tentukanKodeKategori($status, $billing['no_rawat'], $namaPerawatan);
                 if ($kode === null || $kode === '') {
                     throw new RuntimeException(sprintf(
                         'Kode tindakan tidak ditemukan untuk status "%s" dan tindakan "%s".',
@@ -646,7 +656,7 @@ class BridgingPendapatanService
                     $coaId = (int) $mapping->pendapatan_kamar_coa_id;
                     $lastKamarCoaId = $coaId;
                 } else {
-                    $source = $this->determineSumberTindakan($status);
+                    $source = $this->tentukanSumberTindakan($status);
                     $mapping = $mappings['tindakan']->first(function (MappingPendapatan $item) use ($kode, $namaPerawatan, $source) {
                         return $item->kode_jenis_perawatan === $kode
                             && $item->nm_perawatan === $namaPerawatan
@@ -690,11 +700,11 @@ class BridgingPendapatanService
             'kredit' => $rawTotal < 0 ? 0 : $amount,
             'raw_total' => $rawTotal,
             'quantity' => (float) $detail['jumlah'],
-            'catatan' => $this->buildRevenueNote($status, $namaPerawatan),
+            'catatan' => $this->buatCatatanPendapatan($status, $namaPerawatan),
         ];
     }
 
-    private function resolveCounterAccounts(
+    private function tentukanAkunLawanPendapatan(
         array $billing,
         Collection $details,
         Collection $mappingLawan,
@@ -723,6 +733,8 @@ class BridgingPendapatanService
             throw new RuntimeException('Akun lawan pendapatan tidak ditemukan di jurnal SIMRS.');
         }
 
+        // Nominal potongan/retur obat sudah diposting sebagai lawan debit di sisi pendapatan,
+        // jadi nominal yang sama perlu dikeluarkan dari jurnal SIMRS sebelum akun lawan dipilih.
         $nominalYangDiabaikan = $details
             ->filter(fn (array $item) => in_array($item['status_billing'], ['Retur Obat', 'Potongan'], true))
             ->map(fn (array $item) => abs((float) $item['total_biaya']))
@@ -745,8 +757,8 @@ class BridgingPendapatanService
             ])
             ->values();
 
-        $targetNominal = array_sum(array_map(fn (array $row) => (float) $row['kredit'], $this->normalizeRows($details)))
-            - array_sum(array_map(fn (array $row) => (float) $row['debit'], $this->normalizeRows($details)));
+        $targetNominal = array_sum(array_map(fn (array $row) => (float) $row['kredit'], $this->normalisasiBarisNominal($details)))
+            - array_sum(array_map(fn (array $row) => (float) $row['debit'], $this->normalisasiBarisNominal($details)));
 
         if (abs($grouped->sum('debet') - $targetNominal) > 0.01 && $grouped->count() === 1) {
             $grouped = collect([[
@@ -780,7 +792,7 @@ class BridgingPendapatanService
         })->all();
     }
 
-    private function normalizeRows(Collection $details): array
+    private function normalisasiBarisNominal(Collection $details): array
     {
         return $details->map(function (array $detail) {
             $total = (float) $detail['total_biaya'];
@@ -793,7 +805,7 @@ class BridgingPendapatanService
         })->all();
     }
 
-    private function determineSumberTindakan(string $status): string
+    private function tentukanSumberTindakan(string $status): string
     {
         return match ($status) {
             'Ralan Dokter', 'Ralan Dokter Paramedis', 'Ralan Paramedis' => 'Rawat Jalan',
@@ -804,12 +816,12 @@ class BridgingPendapatanService
         };
     }
 
-    private function resolveKodeKategori(string $status, string $noRawat, string $namaPerawatan): ?string
+    private function tentukanKodeKategori(string $status, string $noRawat, string $namaPerawatan): ?string
     {
         return match ($status) {
-            'Ralan Dokter', 'Ralan Dokter Paramedis', 'Ralan Paramedis' => $this->findKodeRalan($status, $noRawat, $namaPerawatan),
-            'Ranap Dokter', 'Ranap Dokter Paramedis', 'Ranap Paramedis' => $this->findKodeRanap($status, $noRawat, $namaPerawatan),
-            'Laborat' => $this->findSingleValue(
+            'Ralan Dokter', 'Ralan Dokter Paramedis', 'Ralan Paramedis' => $this->cariKodeRalan($status, $noRawat, $namaPerawatan),
+            'Ranap Dokter', 'Ranap Dokter Paramedis', 'Ranap Paramedis' => $this->cariKodeRanap($status, $noRawat, $namaPerawatan),
+            'Laborat' => $this->ambilNilaiTunggal(
                 <<<'SQL'
                 SELECT pl.kd_jenis_prw
                 FROM periksa_lab pl
@@ -820,7 +832,7 @@ class BridgingPendapatanService
                 SQL,
                 [$noRawat, $namaPerawatan]
             ),
-            'Radiologi' => $this->findSingleValue(
+            'Radiologi' => $this->ambilNilaiTunggal(
                 <<<'SQL'
                 SELECT jpr.kd_jenis_prw
                 FROM periksa_radiologi pr
@@ -831,7 +843,7 @@ class BridgingPendapatanService
                 SQL,
                 [$noRawat, $namaPerawatan]
             ),
-            'Kamar' => $this->findSingleValue(
+            'Kamar' => $this->ambilNilaiTunggal(
                 <<<'SQL'
                 SELECT ki.kd_kamar
                 FROM kamar_inap ki
@@ -848,7 +860,7 @@ class BridgingPendapatanService
         };
     }
 
-    private function findKodeRalan(string $status, string $noRawat, string $namaPerawatan): ?string
+    private function cariKodeRalan(string $status, string $noRawat, string $namaPerawatan): ?string
     {
         $table = match ($status) {
             'Ralan Dokter' => 'rawat_jl_dr',
@@ -861,7 +873,7 @@ class BridgingPendapatanService
             return null;
         }
 
-        return $this->findSingleValue(
+        return $this->ambilNilaiTunggal(
             sprintf(
                 "SELECT %s.kd_jenis_prw
                 FROM %s
@@ -880,7 +892,7 @@ class BridgingPendapatanService
         );
     }
 
-    private function findKodeRanap(string $status, string $noRawat, string $namaPerawatan): ?string
+    private function cariKodeRanap(string $status, string $noRawat, string $namaPerawatan): ?string
     {
         $table = match ($status) {
             'Ranap Dokter' => 'rawat_inap_dr',
@@ -893,7 +905,7 @@ class BridgingPendapatanService
             return null;
         }
 
-        return $this->findSingleValue(
+        return $this->ambilNilaiTunggal(
             sprintf(
                 "SELECT ri.kd_jenis_prw
                 FROM %s ri
@@ -908,7 +920,7 @@ class BridgingPendapatanService
         );
     }
 
-    private function findSingleValue(string $sql, array $bindings): ?string
+    private function ambilNilaiTunggal(string $sql, array $bindings): ?string
     {
         $row = collect(DB::connection('simrs')->select($sql, $bindings))->first();
 
@@ -923,13 +935,16 @@ class BridgingPendapatanService
             : null;
     }
 
-    private function determineTanggalPengakuan(array $billing, string $basisTanggalPengakuan): ?string
+    private function tentukanTanggalPengakuan(array $billing, string $basisTanggalPengakuan): ?string
     {
+        // Ranap bisa memakai tanggal keluar RS sebagai basis pengakuan.
+        // Selain itu, fallback-nya tetap tanggal registrasi agar proses tidak memaksa data SIMRS
+        // yang belum memiliki tanggal keluar valid.
         if ($basisTanggalPengakuan !== 'TanggalKeluarRanap' || $billing['status_lanjut'] !== 'Ranap') {
             return $billing['tanggal_registrasi'];
         }
 
-        $tanggalKeluar = $this->findSingleValue(
+        $tanggalKeluar = $this->ambilNilaiTunggal(
             <<<'SQL'
             SELECT ki.tgl_keluar
             FROM kamar_inap ki
@@ -946,7 +961,7 @@ class BridgingPendapatanService
         return $tanggalKeluar ?: $billing['tanggal_registrasi'];
     }
 
-    private function getBillingHeaderByNoRawat(string $noRawat): ?array
+    private function ambilHeaderBillingByNoRawat(string $noRawat): ?array
     {
         $row = collect(DB::connection('simrs')->select(
             <<<'SQL'
@@ -1016,7 +1031,7 @@ class BridgingPendapatanService
         ];
     }
 
-    private function getBillingDetailsByNoRawat(string $noRawat): Collection
+    private function ambilRincianBillingByNoRawat(string $noRawat): Collection
     {
         return collect(DB::connection('simrs')->select(
             <<<'SQL'
@@ -1049,7 +1064,7 @@ class BridgingPendapatanService
         ]);
     }
 
-    private function buildNarration(array $billing): string
+    private function buatNarasi(array $billing): string
     {
         return sprintf(
             'Pendapatan dari pasien %s / (%s) / (%s)',
@@ -1059,7 +1074,7 @@ class BridgingPendapatanService
         );
     }
 
-    private function buildRevenueNote(string $status, string $namaPerawatan): string
+    private function buatCatatanPendapatan(string $status, string $namaPerawatan): string
     {
         return match ($status) {
             'Registrasi' => 'Registrasi',
