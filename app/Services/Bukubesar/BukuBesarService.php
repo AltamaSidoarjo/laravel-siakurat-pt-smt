@@ -174,4 +174,43 @@ class BukuBesarService
             ],
         ]);
     }
+
+    public function syncFromPembayaranPembelian(
+        int $pembayaranPembelianId,
+        int $akunBankId,
+        int $akunHutangId,
+        string $nomer,
+        string $tanggal,
+        ?string $keterangan,
+        float $totalBayar,
+    ): void {
+        $this->deleteBySource('Pembayaran Pembelian', $pembayaranPembelianId);
+
+        BukuBesar::query()->insert([
+            [
+                'coa_id' => $akunHutangId,
+                'sumber_id' => $pembayaranPembelianId,
+                'tanggal' => $tanggal,
+                'nomer' => $nomer,
+                'sumber_transaksi' => 'Pembayaran Pembelian',
+                'nominal' => $totalBayar,
+                'tipe_mutasi' => 'D',
+                'keterangan' => $keterangan,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'coa_id' => $akunBankId,
+                'sumber_id' => $pembayaranPembelianId,
+                'tanggal' => $tanggal,
+                'nomer' => $nomer,
+                'sumber_transaksi' => 'Pembayaran Pembelian',
+                'nominal' => $totalBayar,
+                'tipe_mutasi' => 'K',
+                'keterangan' => $keterangan,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+    }
 }

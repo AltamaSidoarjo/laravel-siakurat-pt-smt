@@ -46,6 +46,13 @@
                                         <textarea class="form-control" rows="3" readonly>{{ $invoicePembelian->keterangan }}</textarea>
                                     </div>
                                 </div>
+
+                                <div class="row align-items-center mb-2">
+                                    <label class="col-12 col-sm-2 col-form-label fw-bold">Grandtotal</label>
+                                    <div class="col">
+                                        <input type="text" value="{{ number_format((float) $invoicePembelian->grandtotal, 0, ',', '.') }}" class="form-control text-end" readonly>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -62,7 +69,7 @@
                                                 <th class="text-center">Nama barang</th>
                                                 <th class="text-center">Harga barang</th>
                                                 <th class="text-center">Kuantitas</th>
-                                                <th class="text-center">Subtotal</th>
+                                                <th class="text-center">Total</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -72,14 +79,22 @@
                                                     <td>{{ $rinci->nama_barang }}</td>
                                                     <td class="text-end">{{ number_format((float) $rinci->harga_barang, 0, ',', '.') }}</td>
                                                     <td class="text-end">{{ number_format((float) $rinci->kuantitas, 0, ',', '.') }}</td>
-                                                    <td class="text-end">{{ number_format((float) $rinci->subtotal, 0, ',', '.') }}</td>
+                                                    <td class="text-end">{{ number_format((float) $rinci->total, 0, ',', '.') }}</td>
                                                 </tr>
                                             @endforeach
                                         </tbody>
                                         <tfoot>
                                             <tr>
-                                                <th colspan="4" class="text-end">Total</th>
-                                                <th class="text-end">{{ number_format((float) $invoicePembelian->rincian->sum('subtotal'), 0, ',', '.') }}</th>
+                                                <th colspan="4" class="text-end">Subtotal Netto</th>
+                                                <th class="text-end">{{ number_format((float) $invoicePembelian->rincian->sum('total'), 0, ',', '.') }}</th>
+                                            </tr>
+                                            <tr>
+                                                <th colspan="4" class="text-end">PPN</th>
+                                                <th class="text-end">{{ number_format((float) $invoicePembelian->nilai_ppn, 0, ',', '.') }}</th>
+                                            </tr>
+                                            <tr>
+                                                <th colspan="4" class="text-end">Grandtotal</th>
+                                                <th class="text-end">{{ number_format((float) $invoicePembelian->grandtotal, 0, ',', '.') }}</th>
                                             </tr>
                                         </tfoot>
                                     </table>

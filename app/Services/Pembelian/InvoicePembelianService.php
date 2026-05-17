@@ -4,6 +4,7 @@ namespace App\Services\Pembelian;
 
 use App\Models\FakturPembelian;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 class InvoicePembelianService
 {
@@ -21,5 +22,23 @@ class InvoicePembelianService
         return FakturPembelian::query()
             ->with(['supplier', 'rincian'])
             ->find($id);
+    }
+
+    public function increaseSudahTerbayar(Collection $rincian): void
+    {
+        $rincian->each(function (array $row) {
+            FakturPembelian::query()
+                ->whereKey((int) $row['faktur_pembelian_id'])
+                ->increment('sudah_terbayar', (float) $row['nominal_bayar']);
+        });
+    }
+
+    public function decreaseSudahTerbayar(Collection $rincian): void
+    {
+        $rincian->each(function (array $row) {
+            FakturPembelian::query()
+                ->whereKey((int) $row['faktur_pembelian_id'])
+                ->decrement('sudah_terbayar', (float) $row['nominal_bayar']);
+        });
     }
 }

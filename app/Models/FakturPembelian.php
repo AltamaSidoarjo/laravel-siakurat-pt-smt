@@ -38,6 +38,11 @@ class FakturPembelian extends Model
         return $this->hasMany(FakturPembelianRinci::class, 'faktur_pembelian_id');
     }
 
+    public function pembayaranPembelianRincis()
+    {
+        return $this->hasMany(PembayaranPembelianRinci::class, 'faktur_pembelian_id');
+    }
+
     public function scopeBetweenDates(Builder $query, string $startDate, string $endDate): Builder
     {
         return $query->whereBetween('tanggal_faktur', [$startDate, $endDate]);

@@ -8,6 +8,7 @@ use App\Http\Controllers\Kasbank\KasbankPembayaranController;
 use App\Http\Controllers\Kasbank\KasbankPenerimaanController;
 use App\Http\Controllers\ModulePageController;
 use App\Http\Controllers\Pembelian\InvoicePembelianController;
+use App\Http\Controllers\Pembelian\PembayaranPembelianController;
 use App\Http\Controllers\Pendapatan\InvoicePendapatanController;
 use App\Http\Controllers\Pendapatan\PenerimaanPendapatanController;
 use Illuminate\Support\Facades\Route;
@@ -92,8 +93,16 @@ Route::middleware('preview.auth')->group(function () {
         Route::get('/invoice', [InvoicePembelianController::class, 'index'])->name('invoice.index');
         Route::get('/invoice/load-data', [InvoicePembelianController::class, 'loadData'])->name('invoice.load-data');
         Route::get('/invoice/{fakturPembelian}', [InvoicePembelianController::class, 'read'])->name('invoice.read');
-        Route::get('/pembayaran', fn (ModulePageController $controller) => $controller->show('Pembelian', 'Pembayaran Pembelian'))
-            ->name('pembayaran.index');
+        Route::get('/pembayaran', [PembayaranPembelianController::class, 'index'])->name('pembayaran.index');
+        Route::get('/pembayaran/load-data', [PembayaranPembelianController::class, 'loadData'])->name('pembayaran.load-data');
+        Route::get('/pembayaran/create', [PembayaranPembelianController::class, 'create'])->name('pembayaran.create');
+        Route::post('/pembayaran', [PembayaranPembelianController::class, 'store'])->name('pembayaran.store');
+        Route::get('/pembayaran/{pembayaranPembelian}/edit', [PembayaranPembelianController::class, 'edit'])->name('pembayaran.edit');
+        Route::put('/pembayaran/{pembayaranPembelian}', [PembayaranPembelianController::class, 'update'])->name('pembayaran.update');
+        Route::delete('/pembayaran/{pembayaranPembelian}', [PembayaranPembelianController::class, 'destroy'])->name('pembayaran.destroy');
+        Route::get('/pembayaran/{pembayaranPembelian}/print', [PembayaranPembelianController::class, 'print'])->name('pembayaran.print');
+        Route::get('/pembayaran/api/invoice-by-supplier', [PembayaranPembelianController::class, 'apiGetInvBySupplier'])
+            ->name('pembayaran.api.invoice-by-supplier');
     });
 
     Route::prefix('laporan')->name('laporan.')->group(function () {
