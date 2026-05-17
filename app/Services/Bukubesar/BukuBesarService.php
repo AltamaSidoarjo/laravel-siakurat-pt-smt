@@ -89,4 +89,50 @@ class BukuBesarService
 
         BukuBesar::query()->insert([...$payload, ...$detailPayload]);
     }
+
+    public function syncFromKasbankPembayaran(
+        int $kasbankPembayaranId,
+        int $coaId,
+        string $nomer,
+        string $tanggal,
+        ?string $keterangan,
+        float $total,
+        array $rincian,
+    ): void {
+        $this->deleteBySource('Kasbank Pembayaran', $kasbankPembayaranId);
+
+        $payload = [[
+            'coa_id' => $coaId,
+            'sumber_id' => $kasbankPembayaranId,
+            'tanggal' => $tanggal,
+            'nomer' => $nomer,
+            'sumber_transaksi' => 'Kasbank Pembayaran',
+            'nominal' => $total,
+            'tipe_mutasi' => 'K',
+            'keterangan' => $keterangan,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]];
+
+        $detailPayload = collect($rincian)
+            ->filter(fn ($row) => ! empty($row['coa_id']))
+            ->map(function (array $row) use ($kasbankPembayaranId, $nomer, $tanggal) {
+                return [
+                    'coa_id' => (int) $row['coa_id'],
+                    'sumber_id' => $kasbankPembayaranId,
+                    'tanggal' => $tanggal,
+                    'nomer' => $nomer,
+                    'sumber_transaksi' => 'Kasbank Pembayaran',
+                    'nominal' => (float) ($row['nominal'] ?? 0),
+                    'tipe_mutasi' => 'D',
+                    'keterangan' => $row['catatan'] ?? null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            })
+            ->values()
+            ->all();
+
+        BukuBesar::query()->insert([...$payload, ...$detailPayload]);
+    }
 }

@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Bukubesar\CoaController;
 use App\Http\Controllers\Bukubesar\JurnalUmumController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Kasbank\KasbankPembayaranController;
 use App\Http\Controllers\Kasbank\KasbankPenerimaanController;
 use App\Http\Controllers\ModulePageController;
 use Illuminate\Support\Facades\Route;
@@ -49,8 +50,14 @@ Route::middleware('preview.auth')->group(function () {
         Route::put('/penerimaan/{kasbankPenerimaan}', [KasbankPenerimaanController::class, 'update'])->name('penerimaan.update');
         Route::delete('/penerimaan/{kasbankPenerimaan}', [KasbankPenerimaanController::class, 'destroy'])->name('penerimaan.destroy');
         Route::get('/penerimaan/{kasbankPenerimaan}/print', [KasbankPenerimaanController::class, 'print'])->name('penerimaan.print');
-        Route::get('/pembayaran', fn (ModulePageController $controller) => $controller->show('Kasbank', 'Pembayaran'))
-            ->name('pembayaran.index');
+        Route::get('/pembayaran', [KasbankPembayaranController::class, 'index'])->name('pembayaran.index');
+        Route::get('/pembayaran/load-data', [KasbankPembayaranController::class, 'loadData'])->name('pembayaran.load-data');
+        Route::get('/pembayaran/create', [KasbankPembayaranController::class, 'create'])->name('pembayaran.create');
+        Route::post('/pembayaran', [KasbankPembayaranController::class, 'store'])->name('pembayaran.store');
+        Route::get('/pembayaran/{kasbankPembayaran}/edit', [KasbankPembayaranController::class, 'edit'])->name('pembayaran.edit');
+        Route::put('/pembayaran/{kasbankPembayaran}', [KasbankPembayaranController::class, 'update'])->name('pembayaran.update');
+        Route::delete('/pembayaran/{kasbankPembayaran}', [KasbankPembayaranController::class, 'destroy'])->name('pembayaran.destroy');
+        Route::get('/pembayaran/{kasbankPembayaran}/print', [KasbankPembayaranController::class, 'print'])->name('pembayaran.print');
     });
 
     Route::prefix('bridging')->name('bridging.')->group(function () {
