@@ -26,21 +26,31 @@
                 <div class="card-body">
                     <form method="get" action="">
                         <div class="row g-3">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label class="form-label">Per tanggal</label>
                                 <input type="date" name="perDate" class="form-control" value="{{ $perDate }}">
                             </div>
-                            <div class="col-md-6 d-flex align-items-end">
+                            <div class="col-md-4 d-flex align-items-end">
                                 <button type="submit" class="btn btn-primary w-100">
                                     <i class="bi bi-funnel me-1"></i> Filter
                                 </button>
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <div class="d-flex gap-2 w-100">
+                                    <button type="button" class="btn btn-success flex-fill" onclick="printReport()">
+                                        <i class="bi bi-printer me-1"></i> Print
+                                    </button>
+                                    <button type="button" class="btn btn-outline-success flex-fill" onclick="exportTableToExcel()">
+                                        <i class="bi bi-file-earmark-excel me-1"></i> Excel
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <div class="card border-light shadow-sm">
+            <div class="card border-light shadow-sm" id="printableArea">
                 <div class="card-body">
                     <div class="laporan-header text-center mb-4">
                         @if ($logoRsUrl)
@@ -56,7 +66,7 @@
                     </div>
 
                     <div class="table-responsive">
-                        <table class="table table-sm table-bordered table-hover">
+                        <table class="table table-sm table-bordered table-hover" id="neraca-saldo-table">
                             <thead class="table-light">
                                 <tr>
                                     <th>Kode</th>
@@ -84,7 +94,7 @@
 
                     @if (count($rows) > 0)
                         <div class="table-responsive mt-3">
-                            <table class="table table-sm table-bordered mb-0">
+                            <table class="table table-sm table-bordered mb-0" id="neraca-saldo-summary-table">
                                 <tbody>
                                     <tr class="table-light fw-bold">
                                         <td>Total Debit</td>
@@ -107,6 +117,57 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        function exportTableToExcel() {
+            if (!(window.XLSX && window.XLSX.utils)) {
+                return;
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = '<table></table>';
+            const exportTable = wrapper.querySelector('table');
+            const sourceTables = [
+                document.getElementById('neraca-saldo-table'),
+                document.getElementById('neraca-saldo-summary-table')
+            ].filter(Boolean);
+
+            sourceTables.forEach(function (table, index) {
+                Array.from(table.rows).forEach(function (row) {
+                    const newRow = exportTable.insertRow(-1);
+                    Array.from(row.cells).forEach(function (cell) {
+                        const newCell = document.createElement(row.parentElement.tagName === 'THEAD' ? 'th' : 'td');
+                        newCell.textContent = cell.textContent.trim();
+                        newRow.appendChild(newCell);
+                    });
+                });
+
+                if (index < sourceTables.length - 1) {
+                    exportTable.insertRow(-1);
+                }
+            });
+
+            const worksheet = XLSX.utils.table_to_sheet(exportTable, { raw: true });
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'NeracaSaldo');
+            XLSX.writeFile(workbook, 'Neraca_Saldo_{{ $perDate }}.xlsx');
+        }
+
+        function printReport() {
+            const printableArea = document.getElementById('printableArea');
+            if (!printableArea) {
+                return;
+            }
+
+            const originalContents = document.body.innerHTML;
+            document.body.innerHTML = printableArea.innerHTML;
+            window.print();
+            document.body.innerHTML = originalContents;
+            window.location.reload();
+        }
+    </script>
+@endpush
 
 @push('styles')
     <style>

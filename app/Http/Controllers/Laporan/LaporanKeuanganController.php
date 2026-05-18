@@ -220,7 +220,11 @@ class LaporanKeuanganController extends Controller
     public function neracaRinci(Request $request): View
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
-        $tipeCoa = $request->string('tipeCoa')->toString();
+        $tipeCoaTerpilih = collect((array) $request->input('tipeCoa', []))
+            ->map(fn ($nilai) => trim((string) $nilai))
+            ->filter(fn (string $nilai) => $nilai !== '')
+            ->values()
+            ->all();
 
         return view('laporan.keuangan.neraca-rinci', array_merge(
             $this->laporanKeuanganService->getIdentitasLaporan(),
@@ -228,9 +232,9 @@ class LaporanKeuanganController extends Controller
                 'page' => 'app',
                 'startDate' => $startDate,
                 'endDate' => $endDate,
-                'selectedTipeCoa' => $tipeCoa,
+                'selectedTipeCoa' => $tipeCoaTerpilih,
                 'tipeCoaOptions' => $this->laporanKeuanganService->getDaftarTipeCoaAktif(),
-                'rows' => $this->laporanKeuanganService->getNeracaRinci($startDate, $endDate, $tipeCoa),
+                'rows' => $this->laporanKeuanganService->getNeracaRinci($startDate, $endDate, $tipeCoaTerpilih),
             ],
         ));
     }

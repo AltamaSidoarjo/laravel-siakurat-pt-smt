@@ -64,14 +64,14 @@ class BridgingPendapatanService
         ?string $poli = null,
         ?string $penjamin = null,
     ): Collection {
-        $importedSet = SimrsImportPendapatan::query()
+        $daftarNoRawatTerimpor = SimrsImportPendapatan::query()
             ->pluck('nomer_billing')
             ->filter()
             ->all();
 
-        $importedLookup = array_fill_keys($importedSet, true);
+        $lookupNoRawatTerimpor = array_fill_keys($daftarNoRawatTerimpor, true);
 
-        $rows = collect(DB::connection('simrs')->select(
+        $daftarBilling = collect(DB::connection('simrs')->select(
             <<<'SQL'
             SELECT
                 p.no_rkm_medis AS no_rekam_medis,
@@ -114,15 +114,15 @@ class BridgingPendapatanService
             [$startDate, $endDate]
         ));
 
-        return $rows
-            ->reject(fn (object $row) => isset($importedLookup[(string) $row->no_rawat]))
-            ->filter(function (object $row) use ($poli, $penjamin) {
-                $matchPoli = $poli === null || $poli === ''
-                    || str_contains(Str::lower((string) $row->nama_poli), Str::lower($poli));
-                $matchPenjamin = $penjamin === null || $penjamin === ''
-                    || str_contains(Str::lower((string) $row->penjamin), Str::lower($penjamin));
+        return $daftarBilling
+            ->reject(fn (object $baris) => isset($lookupNoRawatTerimpor[(string) $baris->no_rawat]))
+            ->filter(function (object $baris) use ($poli, $penjamin) {
+                $sesuaiPoli = $poli === null || $poli === ''
+                    || str_contains(Str::lower((string) $baris->nama_poli), Str::lower($poli));
+                $sesuaiPenjamin = $penjamin === null || $penjamin === ''
+                    || str_contains(Str::lower((string) $baris->penjamin), Str::lower($penjamin));
 
-                return $matchPoli && $matchPenjamin;
+                return $sesuaiPoli && $sesuaiPenjamin;
             })
             ->values();
     }
@@ -133,18 +133,18 @@ class BridgingPendapatanService
         string $basisTanggalPengakuan,
         string $actor,
     ): array {
-        $results = [];
+        $hasil = [];
 
         foreach (array_values(array_unique($selectedNoRawat)) as $noRawat) {
             try {
-                $results[] = $this->imporSatu(
+                $hasil[] = $this->imporSatu(
                     (string) $noRawat,
                     $jenisProses,
                     $basisTanggalPengakuan,
                     $actor,
                 );
             } catch (\Throwable $exception) {
-                $results[] = [
+                $hasil[] = [
                     'no_rawat' => (string) $noRawat,
                     'berhasil' => false,
                     'alasan_gagal' => $exception->getMessage(),
@@ -152,17 +152,17 @@ class BridgingPendapatanService
             }
         }
 
-        return $results;
+        return $hasil;
     }
 
     public function hapusBanyak(array $selectedNoRawat, string $actor): array
     {
-        $results = [];
+        $hasil = [];
 
         foreach (array_values(array_unique($selectedNoRawat)) as $noRawat) {
             try {
                 DB::transaction(function () use ($noRawat, $actor) {
-                    $imports = SimrsImportPendapatan::query()
+                    $dataImport = SimrsImportPendapatan::query()
                         ->where('nomer_billing', $noRawat)
                         ->get();
 
@@ -189,7 +189,7 @@ class BridgingPendapatanService
                         $invoice->delete();
                     }
 
-                    foreach ($imports as $import) {
+                    foreach ($dataImport as $import) {
                         LogHapusImportPendapatan::query()->create([
                             'nomer' => $import->nomer_billing,
                             'dihapus_oleh' => $actor,
@@ -203,13 +203,13 @@ class BridgingPendapatanService
                         ->delete();
                 });
 
-                $results[] = [
+                $hasil[] = [
                     'no_rawat' => (string) $noRawat,
                     'berhasil' => true,
                     'alasan_gagal' => null,
                 ];
             } catch (\Throwable $exception) {
-                $results[] = [
+                $hasil[] = [
                     'no_rawat' => (string) $noRawat,
                     'berhasil' => false,
                     'alasan_gagal' => $exception->getMessage(),
@@ -217,7 +217,7 @@ class BridgingPendapatanService
             }
         }
 
-        return $results;
+        return $hasil;
     }
 
     public function deteksiJurnalTidakBalance(string $startDate, string $endDate): Collection
@@ -240,13 +240,13 @@ class BridgingPendapatanService
             ORDER BY sip.tanggal_reg DESC, sip.nomer_billing DESC
             SQL,
             [$startDate, $endDate]
-        ))->map(function (object $row) {
-            $totalDebit = (float) $row->total_debit;
-            $totalKredit = (float) $row->total_kredit;
+        ))->map(function (object $baris) {
+            $totalDebit = (float) $baris->total_debit;
+            $totalKredit = (float) $baris->total_kredit;
 
             return [
-                'no_rawat' => (string) $row->no_rawat,
-                'tanggal_registrasi' => (string) $row->tanggal_registrasi,
+                'no_rawat' => (string) $baris->no_rawat,
+                'tanggal_registrasi' => (string) $baris->tanggal_registrasi,
                 'total_debit' => $totalDebit,
                 'total_kredit' => $totalKredit,
                 'selisih' => $totalDebit - $totalKredit,
@@ -268,9 +268,9 @@ class BridgingPendapatanService
             ];
         }
 
-        $billing = $this->ambilHeaderBillingByNoRawat($noRawat);
+        $dataBilling = $this->ambilHeaderBillingByNoRawat($noRawat);
 
-        if ($billing === null) {
+        if ($dataBilling === null) {
             return [
                 'no_rawat' => $noRawat,
                 'berhasil' => false,
@@ -278,7 +278,7 @@ class BridgingPendapatanService
             ];
         }
 
-        $tanggalPengakuan = $this->tentukanTanggalPengakuan($billing, $basisTanggalPengakuan);
+        $tanggalPengakuan = $this->tentukanTanggalPengakuan($dataBilling, $basisTanggalPengakuan);
         if ($tanggalPengakuan === null) {
             return [
                 'no_rawat' => $noRawat,
@@ -287,8 +287,8 @@ class BridgingPendapatanService
             ];
         }
 
-        $details = $this->ambilRincianBillingByNoRawat($noRawat);
-        if ($details->isEmpty()) {
+        $rincianBilling = $this->ambilRincianBillingByNoRawat($noRawat);
+        if ($rincianBilling->isEmpty()) {
             return [
                 'no_rawat' => $noRawat,
                 'berhasil' => false,
@@ -297,52 +297,52 @@ class BridgingPendapatanService
         }
 
         return DB::transaction(function () use (
-            $billing,
-            $details,
+            $dataBilling,
+            $rincianBilling,
             $tanggalPengakuan,
             $jenisProses,
             $actor
         ) {
-            $mappings = $this->muatMapping();
+            $dataMapping = $this->muatMapping();
 
-            $resolvedRevenueRows = [];
-            $lastKamarCoaId = null;
+            $barisPendapatanTerpetakan = [];
+            $coaKamarTerakhir = null;
 
             // Setiap rincian billing harus lebih dulu dipetakan ke COA pendapatan yang tepat
             // sebelum jurnal atau invoice dibuat, supaya validasi bisnis berhenti di awal
             // ketika ada mapping yang belum lengkap.
-            foreach ($details as $detail) {
-                $resolvedRevenueRows[] = $this->petakanBarisPendapatan(
-                    $billing,
-                    $detail,
-                    $mappings,
-                    $lastKamarCoaId,
+            foreach ($rincianBilling as $rincian) {
+                $barisPendapatanTerpetakan[] = $this->petakanBarisPendapatan(
+                    $dataBilling,
+                    $rincian,
+                    $dataMapping,
+                    $coaKamarTerakhir,
                 );
             }
 
-            $counterAccounts = $this->tentukanAkunLawanPendapatan($billing, $details, $mappings['lawan']);
+            $akunLawan = $this->tentukanAkunLawanPendapatan($dataBilling, $rincianBilling, $dataMapping['lawan']);
 
-            $this->simpanLogImport($billing, $actor, $jenisProses);
+            $this->simpanLogImport($dataBilling, $actor, $jenisProses);
 
             if ($jenisProses === 'InvoicePendapatan') {
                 $this->simpanInvoicePendapatan(
-                    $billing,
-                    $resolvedRevenueRows,
-                    $counterAccounts,
+                    $dataBilling,
+                    $barisPendapatanTerpetakan,
+                    $akunLawan,
                     $tanggalPengakuan,
-                    $mappings['coa'],
+                    $dataMapping['coa'],
                 );
             } else {
                 $this->simpanJurnalUmum(
-                    $billing,
-                    $resolvedRevenueRows,
-                    $counterAccounts,
+                    $dataBilling,
+                    $barisPendapatanTerpetakan,
+                    $akunLawan,
                     $tanggalPengakuan,
                 );
             }
 
             return [
-                'no_rawat' => $billing['no_rawat'],
+                'no_rawat' => $dataBilling['no_rawat'],
                 'berhasil' => true,
                 'alasan_gagal' => null,
             ];
@@ -351,7 +351,7 @@ class BridgingPendapatanService
 
     private function simpanLogImport(array $billing, string $actor, string $jenisProses): void
     {
-        $importKe = $jenisProses === 'InvoicePendapatan'
+        $tujuanImport = $jenisProses === 'InvoicePendapatan'
             ? self::IMPORT_INVOICE_PENDAPATAN
             : self::IMPORT_JURNAL_UMUM;
 
@@ -375,7 +375,7 @@ class BridgingPendapatanService
             'nama_kecamatan' => $billing['nama_kecamatan'],
             'nama_kelurahan' => $billing['nama_kelurahan'],
             'no_rekam_medis' => $billing['no_rekam_medis'],
-            'import_ke' => $importKe,
+            'import_ke' => $tujuanImport,
         ]);
     }
 
@@ -393,47 +393,47 @@ class BridgingPendapatanService
         $jurnal->kredit = 0;
         $jurnal->save();
 
-        $payload = [];
+        $muatanJurnal = [];
         $totalDebit = 0.0;
         $totalKredit = 0.0;
 
-        foreach ($resolvedRevenueRows as $row) {
-            $detail = new JurnalUmumRinci;
-            $detail->jurnal_umum_id = (int) $jurnal->id;
-            $detail->coa_id = (int) $row['coa_id'];
-            $detail->debit = $row['debit'];
-            $detail->kredit = $row['kredit'];
-            $detail->catatan = $row['catatan'];
-            $detail->save();
+        foreach ($resolvedRevenueRows as $barisPendapatan) {
+            $rincianJurnal = new JurnalUmumRinci;
+            $rincianJurnal->jurnal_umum_id = (int) $jurnal->id;
+            $rincianJurnal->coa_id = (int) $barisPendapatan['coa_id'];
+            $rincianJurnal->debit = $barisPendapatan['debit'];
+            $rincianJurnal->kredit = $barisPendapatan['kredit'];
+            $rincianJurnal->catatan = $barisPendapatan['catatan'];
+            $rincianJurnal->save();
 
-            $payload[] = [
-                'coa_id' => (int) $row['coa_id'],
-                'debit' => (float) $row['debit'],
-                'kredit' => (float) $row['kredit'],
-                'catatan' => $row['catatan'],
+            $muatanJurnal[] = [
+                'coa_id' => (int) $barisPendapatan['coa_id'],
+                'debit' => (float) $barisPendapatan['debit'],
+                'kredit' => (float) $barisPendapatan['kredit'],
+                'catatan' => $barisPendapatan['catatan'],
             ];
 
-            $totalDebit += (float) $row['debit'];
-            $totalKredit += (float) $row['kredit'];
+            $totalDebit += (float) $barisPendapatan['debit'];
+            $totalKredit += (float) $barisPendapatan['kredit'];
         }
 
-        foreach ($counterAccounts as $account) {
-            $detail = new JurnalUmumRinci;
-            $detail->jurnal_umum_id = (int) $jurnal->id;
-            $detail->coa_id = (int) $account['coa_id'];
-            $detail->debit = $account['debit'];
-            $detail->kredit = 0;
-            $detail->catatan = 'Akun lawan pendapatan';
-            $detail->save();
+        foreach ($counterAccounts as $akunLawan) {
+            $rincianJurnal = new JurnalUmumRinci;
+            $rincianJurnal->jurnal_umum_id = (int) $jurnal->id;
+            $rincianJurnal->coa_id = (int) $akunLawan['coa_id'];
+            $rincianJurnal->debit = $akunLawan['debit'];
+            $rincianJurnal->kredit = 0;
+            $rincianJurnal->catatan = 'Akun lawan pendapatan';
+            $rincianJurnal->save();
 
-            $payload[] = [
-                'coa_id' => (int) $account['coa_id'],
-                'debit' => (float) $account['debit'],
+            $muatanJurnal[] = [
+                'coa_id' => (int) $akunLawan['coa_id'],
+                'debit' => (float) $akunLawan['debit'],
                 'kredit' => 0,
                 'catatan' => 'Akun lawan pendapatan',
             ];
 
-            $totalDebit += (float) $account['debit'];
+            $totalDebit += (float) $akunLawan['debit'];
         }
 
         if (abs($totalDebit - $totalKredit) > 0.01) {
@@ -454,7 +454,7 @@ class BridgingPendapatanService
             $billing['no_rawat'],
             $tanggalPengakuan,
             $jurnal->keterangan,
-            $payload,
+            $muatanJurnal,
         );
     }
 
@@ -470,11 +470,11 @@ class BridgingPendapatanService
             $billing['penjamin'],
         );
 
-        $debitAccounts = collect($counterAccounts)
-            ->map(function (array $account) use ($coaLookup) {
+        $daftarAkunLawan = collect($counterAccounts)
+            ->map(function (array $akun) use ($coaLookup) {
                 return [
-                    ...$account,
-                    'coa' => $coaLookup->get((int) $account['coa_id']),
+                    ...$akun,
+                    'coa' => $coaLookup->get((int) $akun['coa_id']),
                 ];
             });
 
@@ -482,13 +482,13 @@ class BridgingPendapatanService
         // Dari sini kita turunkan dua informasi:
         // 1. `sudahTerbayar` jika lawannya kas/bank
         // 2. `akunPiutangId` jika seluruh lawannya murni piutang.
-        $sudahTerbayar = $debitAccounts
-            ->filter(fn (array $account) => str_starts_with((string) optional($account['coa'])->kode, '111.'))
+        $sudahTerbayar = $daftarAkunLawan
+            ->filter(fn (array $akun) => str_starts_with((string) optional($akun['coa'])->kode, '111.'))
             ->sum('debit');
 
         $akunPiutangId = null;
-        if ($debitAccounts->count() === 1) {
-            $coa = $debitAccounts->first()['coa'] ?? null;
+        if ($daftarAkunLawan->count() === 1) {
+            $coa = $daftarAkunLawan->first()['coa'] ?? null;
             if ($coa !== null && str_starts_with((string) $coa->kode, '112.')) {
                 $akunPiutangId = (int) $coa->id;
             }
@@ -519,13 +519,13 @@ class BridgingPendapatanService
         $invoice->nama_penjamin = $billing['penjamin'];
         $invoice->save();
 
-        foreach ($resolvedRevenueRows as $row) {
+        foreach ($resolvedRevenueRows as $barisPendapatan) {
             $rinci = new FakturPenjualanRinci;
             $rinci->faktur_penjualan_id = (int) $invoice->id;
-            $rinci->harga = abs((float) $row['raw_total']);
-            $rinci->kuantitas = (float) $row['quantity'];
-            $rinci->subtotal = (float) $row['raw_total'];
-            $rinci->catatan = $row['catatan'];
+            $rinci->harga = abs((float) $barisPendapatan['raw_total']);
+            $rinci->kuantitas = (float) $barisPendapatan['quantity'];
+            $rinci->subtotal = (float) $barisPendapatan['raw_total'];
+            $rinci->catatan = $barisPendapatan['catatan'];
             $rinci->save();
         }
 
@@ -546,31 +546,31 @@ class BridgingPendapatanService
             ->where('sumber_id', (int) $invoice->id)
             ->delete();
 
-        $payload = [];
+        $muatanBukuBesar = [];
 
-        foreach ($resolvedRevenueRows as $row) {
-            $payload[] = [
-                'coa_id' => (int) $row['coa_id'],
+        foreach ($resolvedRevenueRows as $barisPendapatan) {
+            $muatanBukuBesar[] = [
+                'coa_id' => (int) $barisPendapatan['coa_id'],
                 'sumber_id' => (int) $invoice->id,
                 'tanggal' => $invoice->tanggal_faktur,
                 'nomer' => $invoice->nomor_faktur,
                 'sumber_transaksi' => self::IMPORT_INVOICE_PENDAPATAN,
-                'nominal' => abs((float) $row['raw_total']),
-                'tipe_mutasi' => $row['raw_total'] < 0 ? 'D' : 'K',
-                'keterangan' => $row['catatan'],
+                'nominal' => abs((float) $barisPendapatan['raw_total']),
+                'tipe_mutasi' => $barisPendapatan['raw_total'] < 0 ? 'D' : 'K',
+                'keterangan' => $barisPendapatan['catatan'],
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
         }
 
-        foreach ($counterAccounts as $account) {
-            $payload[] = [
-                'coa_id' => (int) $account['coa_id'],
+        foreach ($counterAccounts as $akunLawan) {
+            $muatanBukuBesar[] = [
+                'coa_id' => (int) $akunLawan['coa_id'],
                 'sumber_id' => (int) $invoice->id,
                 'tanggal' => $invoice->tanggal_faktur,
                 'nomer' => $invoice->nomor_faktur,
                 'sumber_transaksi' => self::IMPORT_INVOICE_PENDAPATAN,
-                'nominal' => (float) $account['debit'],
+                'nominal' => (float) $akunLawan['debit'],
                 'tipe_mutasi' => 'D',
                 'keterangan' => 'akun lawan pendapatan',
                 'created_at' => now(),
@@ -578,19 +578,19 @@ class BridgingPendapatanService
             ];
         }
 
-        if ($payload !== []) {
-            BukuBesar::query()->insert($payload);
+        if ($muatanBukuBesar !== []) {
+            BukuBesar::query()->insert($muatanBukuBesar);
         }
     }
 
     private function cariAtauBuatPelanggan(string $kodePenjamin, string $namaPenjamin): Pelanggan
     {
-        $existing = Pelanggan::query()
+        $pelangganTersedia = Pelanggan::query()
             ->where('kode_pelanggan', $kodePenjamin)
             ->first();
 
-        if ($existing !== null) {
-            return $existing;
+        if ($pelangganTersedia !== null) {
+            return $pelangganTersedia;
         }
 
         $pelanggan = new Pelanggan;
@@ -621,7 +621,7 @@ class BridgingPendapatanService
     ): array {
         $status = (string) $detail['status_billing'];
         $namaPerawatan = trim((string) $detail['nama_perawatan']);
-        $rawTotal = (float) $detail['total_biaya'];
+        $totalMentah = (float) $detail['total_biaya'];
         $coaId = null;
 
         // Pola pemetaan pendapatan mengikuti dua jalur:
@@ -645,23 +645,23 @@ class BridgingPendapatanService
                 }
 
                 if ($status === 'Kamar') {
-                    $mapping = $mappings['kamar']->firstWhere('kode_kamar', $kode);
-                    if ($mapping === null) {
+                    $mappingKamar = $mappings['kamar']->firstWhere('kode_kamar', $kode);
+                    if ($mappingKamar === null) {
                         throw new RuntimeException(
                             'Mapping kamar belum disetting untuk kode '.$this->formatTeksTebal($kode)
                             .' - '.$this->formatTeksTebal($namaPerawatan).'.'
                         );
                     }
 
-                    $coaId = (int) $mapping->pendapatan_kamar_coa_id;
+                    $coaId = (int) $mappingKamar->pendapatan_kamar_coa_id;
                     $lastKamarCoaId = $coaId;
                 } else {
-                    $source = $this->tentukanSumberTindakan($status);
-                    $mapping = $mappings['tindakan']->first(
-                        fn (MappingPendapatan $item) => $this->mappingTindakanSesuai($item, $kode, $namaPerawatan, $source)
+                    $sumberTindakan = $this->tentukanSumberTindakan($status);
+                    $mappingTindakan = $mappings['tindakan']->first(
+                        fn (MappingPendapatan $item) => $this->mappingTindakanSesuai($item, $kode, $namaPerawatan, $sumberTindakan)
                     );
 
-                    if ($mapping === null) {
+                    if ($mappingTindakan === null) {
                         throw new RuntimeException(
                             'Mapping tindakan belum disetting untuk '.$status
                             .' / kode '.$this->formatTeksTebal($kode)
@@ -669,32 +669,32 @@ class BridgingPendapatanService
                         );
                     }
 
-                    $coaId = (int) $mapping->coa_id;
+                    $coaId = (int) $mappingTindakan->coa_id;
                 }
             }
         } else {
-            $mapping = $mappings['umum']->first(function (MappingPendapatanUmum $item) use ($status, $billing) {
+            $mappingUmum = $mappings['umum']->first(function (MappingPendapatanUmum $item) use ($status, $billing) {
                 return $item->nama === $status
                     && $item->kode_penjamin === $billing['kode_penjamin'];
             });
 
-            if ($mapping === null) {
+            if ($mappingUmum === null) {
                 throw new RuntimeException(
                     'Mapping pendapatan umum belum disetting untuk status '.$this->formatTeksTebal($status)
                     .' dan penjamin '.$this->formatTeksTebal($billing['penjamin']).'.'
                 );
             }
 
-            $coaId = (int) $mapping->coa_id;
+            $coaId = (int) $mappingUmum->coa_id;
         }
 
-        $amount = abs($rawTotal);
+        $nominal = abs($totalMentah);
 
         return [
             'coa_id' => $coaId,
-            'debit' => $rawTotal < 0 ? $amount : 0,
-            'kredit' => $rawTotal < 0 ? 0 : $amount,
-            'raw_total' => $rawTotal,
+            'debit' => $totalMentah < 0 ? $nominal : 0,
+            'kredit' => $totalMentah < 0 ? 0 : $nominal,
+            'raw_total' => $totalMentah,
             'quantity' => (float) $detail['jumlah'],
             'catatan' => $this->buatCatatanPendapatan($status, $namaPerawatan),
         ];
@@ -731,50 +731,50 @@ class BridgingPendapatanService
 
         // Nominal potongan/retur obat sudah diposting sebagai lawan debit di sisi pendapatan,
         // jadi nominal yang sama perlu dikeluarkan dari jurnal SIMRS sebelum akun lawan dipilih.
-        $nominalYangDiabaikan = $details
+        $daftarNominalYangDiabaikan = $details
             ->filter(fn (array $item) => in_array($item['status_billing'], ['Retur Obat', 'Potongan'], true))
             ->map(fn (array $item) => abs((float) $item['total_biaya']))
             ->filter(fn (float $value) => $value > 0)
             ->values()
             ->all();
 
-        foreach ($nominalYangDiabaikan as $nominal) {
+        foreach ($daftarNominalYangDiabaikan as $nominal) {
             $index = $hasilAkunLawan->search(fn (array $item) => abs($item['debet'] - $nominal) < 0.01);
             if ($index !== false) {
                 $hasilAkunLawan->forget($index);
             }
         }
 
-        $grouped = $hasilAkunLawan
+        $akunLawanTergabung = $hasilAkunLawan
             ->groupBy('kd_rek')
-            ->map(fn (Collection $rows, string $kode) => [
+            ->map(fn (Collection $baris, string $kode) => [
                 'kd_rek' => $kode,
-                'debet' => (float) $rows->sum('debet'),
+                'debet' => (float) $baris->sum('debet'),
             ])
             ->values();
 
-        $targetNominal = array_sum(array_map(fn (array $row) => (float) $row['kredit'], $this->normalisasiBarisNominal($details)))
-            - array_sum(array_map(fn (array $row) => (float) $row['debit'], $this->normalisasiBarisNominal($details)));
+        $nominalTarget = array_sum(array_map(fn (array $baris) => (float) $baris['kredit'], $this->normalisasiBarisNominal($details)))
+            - array_sum(array_map(fn (array $baris) => (float) $baris['debit'], $this->normalisasiBarisNominal($details)));
 
-        if (abs($grouped->sum('debet') - $targetNominal) > 0.01 && $grouped->count() === 1) {
-            $grouped = collect([[
-                'kd_rek' => $grouped->first()['kd_rek'],
-                'debet' => $targetNominal,
+        if (abs($akunLawanTergabung->sum('debet') - $nominalTarget) > 0.01 && $akunLawanTergabung->count() === 1) {
+            $akunLawanTergabung = collect([[
+                'kd_rek' => $akunLawanTergabung->first()['kd_rek'],
+                'debet' => $nominalTarget,
             ]]);
         }
 
-        if (abs($grouped->sum('debet') - $targetNominal) > 0.01) {
+        if (abs($akunLawanTergabung->sum('debet') - $nominalTarget) > 0.01) {
             throw new RuntimeException(sprintf(
                 'Akun lawan pendapatan SIMRS tidak cocok dengan total billing. Target %.2f, jurnal SIMRS %.2f.',
-                $targetNominal,
-                (float) $grouped->sum('debet'),
+                $nominalTarget,
+                (float) $akunLawanTergabung->sum('debet'),
             ));
         }
 
-        return $grouped->map(function (array $item) use ($mappingLawan) {
-            $mapping = $mappingLawan->firstWhere('kode_coa_simrs', $item['kd_rek']);
+        return $akunLawanTergabung->map(function (array $item) use ($mappingLawan) {
+            $mappingAkunLawan = $mappingLawan->firstWhere('kode_coa_simrs', $item['kd_rek']);
 
-            if ($mapping === null) {
+            if ($mappingAkunLawan === null) {
                 throw new RuntimeException(
                     'Mapping akun lawan pendapatan belum disetting untuk kode COA SIMRS '
                     .$this->formatTeksTebal($item['kd_rek']).'.'
@@ -782,7 +782,7 @@ class BridgingPendapatanService
             }
 
             return [
-                'coa_id' => (int) $mapping->coa_id,
+                'coa_id' => (int) $mappingAkunLawan->coa_id,
                 'debit' => (float) $item['debet'],
             ];
         })->all();
@@ -792,11 +792,11 @@ class BridgingPendapatanService
     {
         return $details->map(function (array $detail) {
             $total = (float) $detail['total_biaya'];
-            $amount = abs($total);
+            $nominal = abs($total);
 
             return [
-                'debit' => $total < 0 ? $amount : 0,
-                'kredit' => $total < 0 ? 0 : $amount,
+                'debit' => $total < 0 ? $nominal : 0,
+                'kredit' => $total < 0 ? 0 : $nominal,
             ];
         })->all();
     }
@@ -858,14 +858,14 @@ class BridgingPendapatanService
 
     private function cariKodeRalan(string $status, string $noRawat, string $namaPerawatan): ?string
     {
-        $table = match ($status) {
+        $namaTabel = match ($status) {
             'Ralan Dokter' => 'rawat_jl_dr',
             'Ralan Paramedis' => 'rawat_jl_pr',
             'Ralan Dokter Paramedis' => 'rawat_jl_drpr',
             default => null,
         };
 
-        if ($table === null) {
+        if ($namaTabel === null) {
             return null;
         }
 
@@ -878,11 +878,11 @@ class BridgingPendapatanService
                     AND billing.nm_perawatan = jns_perawatan.nm_perawatan
                 WHERE %s.no_rawat = ? AND billing.nm_perawatan = ?
                 LIMIT 1',
-                $table,
-                $table,
-                $table,
-                $table,
-                $table,
+                $namaTabel,
+                $namaTabel,
+                $namaTabel,
+                $namaTabel,
+                $namaTabel,
             ),
             [$noRawat, $namaPerawatan]
         );
@@ -890,14 +890,14 @@ class BridgingPendapatanService
 
     private function cariKodeRanap(string $status, string $noRawat, string $namaPerawatan): ?string
     {
-        $table = match ($status) {
+        $namaTabel = match ($status) {
             'Ranap Dokter' => 'rawat_inap_dr',
             'Ranap Paramedis' => 'rawat_inap_pr',
             'Ranap Dokter Paramedis' => 'rawat_inap_drpr',
             default => null,
         };
 
-        if ($table === null) {
+        if ($namaTabel === null) {
             return null;
         }
 
@@ -910,7 +910,7 @@ class BridgingPendapatanService
                     AND b.nm_perawatan = jpi.nm_perawatan
                 WHERE b.no_rawat = ? AND b.nm_perawatan = ?
                 LIMIT 1',
-                $table,
+                $namaTabel,
             ),
             [$noRawat, $namaPerawatan]
         );
@@ -918,16 +918,16 @@ class BridgingPendapatanService
 
     private function ambilNilaiTunggal(string $sql, array $bindings): ?string
     {
-        $row = collect(DB::connection('simrs')->select($sql, $bindings))->first();
+        $baris = collect(DB::connection('simrs')->select($sql, $bindings))->first();
 
-        if ($row === null) {
+        if ($baris === null) {
             return null;
         }
 
-        $value = (array) $row;
+        $nilaiBaris = (array) $baris;
 
-        return isset($value[array_key_first($value)])
-            ? (string) $value[array_key_first($value)]
+        return isset($nilaiBaris[array_key_first($nilaiBaris)])
+            ? (string) $nilaiBaris[array_key_first($nilaiBaris)]
             : null;
     }
 
@@ -959,7 +959,7 @@ class BridgingPendapatanService
 
     private function ambilHeaderBillingByNoRawat(string $noRawat): ?array
     {
-        $row = collect(DB::connection('simrs')->select(
+        $baris = collect(DB::connection('simrs')->select(
             <<<'SQL'
             SELECT
                 p.no_rkm_medis AS no_rekam_medis,
@@ -1001,29 +1001,29 @@ class BridgingPendapatanService
             [$noRawat]
         ))->first();
 
-        if ($row === null) {
+        if ($baris === null) {
             return null;
         }
 
         return [
-            'no_rekam_medis' => (string) $row->no_rekam_medis,
-            'nama_pasien' => (string) $row->nama_pasien,
-            'jenis_kelamin' => (string) $row->jenis_kelamin,
-            'alamat' => (string) ($row->alamat ?? ''),
-            'nama_kelurahan' => (string) ($row->nama_kelurahan ?? ''),
-            'nama_kecamatan' => (string) ($row->nama_kecamatan ?? ''),
-            'nama_kabupaten' => (string) ($row->nama_kabupaten ?? ''),
-            'no_rawat' => (string) $row->no_rawat,
-            'status_lanjut' => (string) $row->status_lanjut,
-            'tanggal_registrasi' => (string) $row->tanggal_registrasi,
-            'jam_registrasi' => (string) ($row->jam_registrasi ?? ''),
-            'kode_dokter' => (string) $row->kode_dokter,
-            'nama_dokter' => (string) $row->nama_dokter,
-            'kode_poli' => (string) $row->kode_poli,
-            'nama_poli' => (string) $row->nama_poli,
-            'kode_penjamin' => (string) $row->kode_penjamin,
-            'penjamin' => (string) $row->penjamin,
-            'total_biaya' => (float) $row->total_biaya,
+            'no_rekam_medis' => (string) $baris->no_rekam_medis,
+            'nama_pasien' => (string) $baris->nama_pasien,
+            'jenis_kelamin' => (string) $baris->jenis_kelamin,
+            'alamat' => (string) ($baris->alamat ?? ''),
+            'nama_kelurahan' => (string) ($baris->nama_kelurahan ?? ''),
+            'nama_kecamatan' => (string) ($baris->nama_kecamatan ?? ''),
+            'nama_kabupaten' => (string) ($baris->nama_kabupaten ?? ''),
+            'no_rawat' => (string) $baris->no_rawat,
+            'status_lanjut' => (string) $baris->status_lanjut,
+            'tanggal_registrasi' => (string) $baris->tanggal_registrasi,
+            'jam_registrasi' => (string) ($baris->jam_registrasi ?? ''),
+            'kode_dokter' => (string) $baris->kode_dokter,
+            'nama_dokter' => (string) $baris->nama_dokter,
+            'kode_poli' => (string) $baris->kode_poli,
+            'nama_poli' => (string) $baris->nama_poli,
+            'kode_penjamin' => (string) $baris->kode_penjamin,
+            'penjamin' => (string) $baris->penjamin,
+            'total_biaya' => (float) $baris->total_biaya,
         ];
     }
 
@@ -1047,16 +1047,16 @@ class BridgingPendapatanService
             ORDER BY b.totalbiaya DESC
             SQL,
             [$noRawat]
-        ))->map(fn (object $row) => [
-            'no_rawat' => (string) $row->no_rawat,
-            'tanggal_bayar' => (string) $row->tgl_byr,
-            'nama_perawatan' => (string) $row->nm_perawatan,
-            'pemisah' => (string) ($row->pemisah ?? ''),
-            'biaya' => (float) $row->biaya,
-            'jumlah' => (float) $row->jumlah,
-            'tambahan' => (float) $row->tambahan,
-            'total_biaya' => (float) $row->totalbiaya,
-            'status_billing' => (string) $row->status,
+        ))->map(fn (object $baris) => [
+            'no_rawat' => (string) $baris->no_rawat,
+            'tanggal_bayar' => (string) $baris->tgl_byr,
+            'nama_perawatan' => (string) $baris->nm_perawatan,
+            'pemisah' => (string) ($baris->pemisah ?? ''),
+            'biaya' => (float) $baris->biaya,
+            'jumlah' => (float) $baris->jumlah,
+            'tambahan' => (float) $baris->tambahan,
+            'total_biaya' => (float) $baris->totalbiaya,
+            'status_billing' => (string) $baris->status,
         ]);
     }
 
@@ -1086,19 +1086,19 @@ class BridgingPendapatanService
         return trim((string) $namaPerawatan);
     }
 
-    private function formatTeksTebal(?string $value): string
+    private function formatTeksTebal(?string $nilai): string
     {
-        return '<strong>&quot;'.e(trim((string) $value)).'&quot;</strong>';
+        return '<strong>&quot;'.e(trim((string) $nilai)).'&quot;</strong>';
     }
 
     private function mappingTindakanSesuai(
         MappingPendapatan $mapping,
         string $kode,
         string $namaPerawatan,
-        string $source,
+        string $sumberTindakan,
     ): bool {
         return $mapping->kode_jenis_perawatan === $kode
             && $this->normalisasiNamaPerawatan($mapping->nm_perawatan) === $namaPerawatan
-            && $mapping->sumber_tindakan === $source;
+            && $mapping->sumber_tindakan === $sumberTindakan;
     }
 }
