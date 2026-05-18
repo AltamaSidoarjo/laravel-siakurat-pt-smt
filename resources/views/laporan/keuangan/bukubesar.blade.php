@@ -2,8 +2,17 @@
 
 @section('title', 'Bukubesar')
 
+@php
+    use Illuminate\Support\Carbon;
+
+    $startDateCarbon = Carbon::parse($startDate);
+    $endDateCarbon = Carbon::parse($endDate);
+    $fileStartDate = $startDateCarbon->format('Ymd');
+    $fileEndDate = $endDateCarbon->format('Ymd');
+@endphp
+
 @section('content')
-    <div class="row mb-3">
+    <div class="row mb-3 no-print">
         <div class="col">
             <div class="d-flex align-items-center gap-3 fs-3">
                 <a href="{{ route('laporan.keuangan.index') }}" class="text-dark">
@@ -14,104 +23,199 @@
         </div>
     </div>
 
-    <div class="card border-muhammadiyah">
-        <div class="card-body d-flex flex-column gap-3">
-            <div class="card border-light shadow-sm">
+    <div class="row">
+        <div class="col">
+            <div class="card border-muhammadiyah mb-2">
                 <div class="card-body">
-                    <form method="get" action="">
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <label class="form-label">Dari tanggal</label>
-                                <input type="date" name="startDate" class="form-control" value="{{ $startDate }}">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Sampai tanggal</label>
-                                <input type="date" name="endDate" class="form-control" value="{{ $endDate }}">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Pilih COA</label>
-                                <select name="coaIds[]" class="form-select coa-multiselect" multiple data-placeholder="Pilih satu atau beberapa COA">
-                                    @foreach ($coaOptions as $coa)
-                                        <option value="{{ $coa['id'] }}" @selected(in_array($coa['id'], $selectedCoaIds, true))>
-                                            [{{ $coa['kode'] }}] {{ $coa['nama'] }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-md-2 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="bi bi-funnel me-1"></i> Filter
-                                </button>
-                            </div>
-                            <div class="col-md-12 d-flex justify-content-end">
-                                <div class="d-flex gap-2 w-100 w-md-auto">
-                                    <button type="button" class="btn btn-success" onclick="printReport()">
+                    <div class="d-flex flex-column gap-3">
+                        <div class="card border-light shadow-sm no-print">
+                            <div class="card-body">
+                                <form method="get" action="" id="filterForm">
+                                    <div class="row g-3">
+                                        <div class="col-md-3">
+                                            <label class="form-label">Dari tanggal</label>
+                                            <input type="date" name="startDate" class="form-control" value="{{ $startDate }}">
+                                        </div>
+
+                                        <div class="col-md-3">
+                                            <label class="form-label">Sampai tanggal</label>
+                                            <input type="date" name="endDate" class="form-control" value="{{ $endDate }}">
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <label class="form-label">Pilih COA <small class="text-muted">(opsional - kosongkan untuk semua)</small></label>
+                                            <select
+                                                name="coaIds[]"
+                                                class="form-select coa-multiselect"
+                                                id="coaSelect"
+                                                multiple
+                                                data-placeholder="Pilih COA..."
+                                            >
+                                                @foreach ($coaOptions as $coa)
+                                                    <option value="{{ $coa['id'] }}" @selected(in_array($coa['id'], $selectedCoaIds, true))>
+                                                        [{{ $coa['kode'] }}] {{ $coa['nama'] }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-2 d-flex align-items-end gap-2">
+                                            <button type="submit" class="btn btn-primary flex-grow-1">
+                                                <i class="bi bi-funnel me-1"></i>Filter
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary" onclick="resetFilter()">
+                                                <i class="bi bi-x-circle"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    @if (count($selectedCoaIds) > 0)
+                                        <div class="mt-3">
+                                            <div class="alert alert-info mb-0 d-flex align-items-center">
+                                                <i class="bi bi-info-circle me-2"></i>
+                                                <span>Menampilkan <strong>{{ count($selectedCoaIds) }} COA</strong> terpilih</span>
+                                            </div>
+                                        </div>
+                                    @endif
+                                </form>
+
+                                <div class="d-flex flex-wrap gap-2 justify-content-center mt-3">
+                                    <button type="button" class="btn btn-outline-dark" onclick="printBukubesar()">
                                         <i class="bi bi-printer me-1"></i> Print
                                     </button>
-                                    <button type="button" class="btn btn-outline-success" onclick="exportTableToExcel()">
-                                        <i class="bi bi-file-earmark-excel me-1"></i> Excel
+
+                                    <button type="button" class="btn btn-success" onclick="exportBukubesarExcel()">
+                                        <i class="bi bi-file-earmark-excel me-1"></i> Export Excel
                                     </button>
                                 </div>
                             </div>
                         </div>
-                    </form>
-                </div>
-            </div>
 
-            <div class="card border-light shadow-sm" id="printableArea">
-                <div class="card-body">
-                    <div class="laporan-header text-center mb-4">
-                        @if ($logoRsUrl)
-                            <div class="laporan-header__logo">
-                                <img src="{{ $logoRsUrl }}" alt="Logo RS" class="laporan-header__logo-image">
-                            </div>
-                        @endif
-                        <div class="laporan-header__identity">
-                            <div class="fw-bold laporan-header__title-rs">{{ $namaRumahSakit }}</div>
-                            <div class="fw-bold laporan-header__title-report">Bukubesar</div>
-                            <div class="text-muted">Periode {{ $startDate }} s/d {{ $endDate }}</div>
-                        </div>
-                    </div>
-
-                    @forelse ($rowsByCoa as $coa)
-                        <div class="card border-light shadow-sm mb-3">
+                        <div class="card border-light shadow-sm" id="printAreaStart">
                             <div class="card-body">
-                                <div class="fw-bold text-primary mb-3">[{{ $coa['kode_coa'] }}] {{ $coa['nama_coa'] }}</div>
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-bordered table-hover mb-0 exportable-table">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Tanggal</th>
-                                                <th>Nomor</th>
-                                                <th>Sumber transaksi</th>
-                                                <th>Keterangan</th>
-                                                <th class="text-end">Debit</th>
-                                                <th class="text-end">Kredit</th>
-                                                <th class="text-end">Saldo</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach ($coa['rows'] as $row)
-                                                <tr class="{{ $row['sumber_transaksi'] === 'SALDO AWAL' ? 'table-info fw-bold' : '' }}">
-                                                    <td>{{ $row['tanggal'] }}</td>
-                                                    <td>{{ $row['nomer'] }}</td>
-                                                    <td>{{ $row['sumber_transaksi'] }}</td>
-                                                    <td>{{ $row['keterangan'] }}</td>
-                                                    <td class="text-end">{{ $row['debit'] > 0 ? number_format((float) $row['debit'], 0, ',', '.') : '' }}</td>
-                                                    <td class="text-end">{{ $row['kredit'] > 0 ? number_format((float) $row['kredit'], 0, ',', '.') : '' }}</td>
-                                                    <td class="text-end fw-bold">{{ number_format((float) $row['saldo_berjalan'], 0, ',', '.') }}</td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
+                                <div class="text-center mb-3 laporan-header">
+                                    @if ($logoRsUrl)
+                                        <div class="mb-2 rs-logo no-print">
+                                            <img
+                                                src="{{ $logoRsUrl }}"
+                                                alt="Logo Rumah Sakit"
+                                                class="rs-logo__image"
+                                            />
+                                        </div>
+                                    @endif
+
+                                    @if ($namaRumahSakit)
+                                        <div class="fw-bold" id="namaRsExport" style="font-size: 20px;">
+                                            {{ $namaRumahSakit }}
+                                        </div>
+                                    @endif
+
+                                    <div class="fw-bold" id="judulExport" style="font-size: 18px;">
+                                        Bukubesar
+                                    </div>
+
+                                    <div class="text-muted" id="periodeExport" style="font-size: 14px;">
+                                        Periode {{ $startDateCarbon->translatedFormat('d F Y') }} s/d {{ $endDateCarbon->translatedFormat('d F Y') }}
+                                    </div>
+
+                                    @if (count($selectedCoaIds) > 0)
+                                        <div class="text-muted" style="font-size: 13px;">
+                                            <i class="bi bi-filter-circle"></i> Filter: {{ count($selectedCoaIds) }} COA Terpilih
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
-                    @empty
-                        <div class="text-center text-muted py-5">
-                            Tidak ada data bukubesar untuk filter yang dipilih.
+
+                        <div class="card border-light shadow-sm no-print">
+                            <div class="card-body">
+                                <div class="row g-3 align-items-end">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Cari transaksi</label>
+                                        <input
+                                            type="text"
+                                            id="globalSearch"
+                                            class="form-control"
+                                            placeholder="Cari Nomor / Sumber Transaksi / Keterangan..."
+                                        >
+                                        <small class="text-muted">Pencarian hanya memfilter data yang sedang tampil (hasil filter tanggal &amp; COA).</small>
+                                    </div>
+                                    <div class="col-md-6 text-md-end">
+                                        <div class="text-muted">
+                                            <span id="searchResultInfo"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    @endforelse
+
+                        @forelse ($rowsByCoa as $coa)
+                            @php
+                                $footerSaldo = collect($coa['rows'])->last()['saldo_berjalan'] ?? 0;
+                            @endphp
+                            <div class="card border-light shadow-sm coa-card" data-coa="{{ $coa['kode_coa'] }}">
+                                <div class="card-body">
+                                    <div class="text-center mb-3">
+                                        <div class="fw-bold text-primary coa-title" style="font-size: 16px;">
+                                            [{{ $coa['kode_coa'] }}] {{ $coa['nama_coa'] }}
+                                        </div>
+                                    </div>
+
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered table-hover mb-0 exportable-table">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th style="width: 120px;">Tanggal</th>
+                                                    <th style="width: 150px;">Nomor</th>
+                                                    <th style="width: 150px;">Sumber Transaksi</th>
+                                                    <th>Keterangan</th>
+                                                    <th style="width: 150px;" class="text-end">Debit</th>
+                                                    <th style="width: 150px;" class="text-end">Kredit</th>
+                                                    <th style="width: 150px;" class="text-end">Saldo</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="coa-tbody">
+                                                @foreach ($coa['rows'] as $row)
+                                                    <tr class="coa-row {{ $row['sumber_transaksi'] === 'SALDO AWAL' ? 'table-info fw-bold' : '' }}">
+                                                        <td class="text-nowrap">
+                                                            {{ Carbon::parse($row['tanggal'])->translatedFormat('d M Y') }}
+                                                        </td>
+                                                        <td>{{ $row['nomer'] }}</td>
+                                                        <td>{{ $row['sumber_transaksi'] }}</td>
+                                                        <td>{{ $row['keterangan'] }}</td>
+                                                        <td class="text-end">
+                                                            {{ $row['debit'] > 0 ? number_format((float) $row['debit'], 0, ',', '.') : '' }}
+                                                        </td>
+                                                        <td class="text-end">
+                                                            {{ $row['kredit'] > 0 ? number_format((float) $row['kredit'], 0, ',', '.') : '' }}
+                                                        </td>
+                                                        <td class="text-end fw-bold">
+                                                            {{ number_format((float) $row['saldo_berjalan'], 0, ',', '.') }}
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                            <tfoot class="table-secondary export-exclude print-exclude">
+                                                <tr class="fw-bold">
+                                                    <td colspan="4" class="text-end">Total</td>
+                                                    <td class="text-end">{{ number_format((float) collect($coa['rows'])->sum('debit'), 0, ',', '.') }}</td>
+                                                    <td class="text-end">{{ number_format((float) collect($coa['rows'])->sum('kredit'), 0, ',', '.') }}</td>
+                                                    <td class="text-end">{{ number_format((float) $footerSaldo, 0, ',', '.') }}</td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="card border-light shadow-sm">
+                                <div class="card-body text-center text-muted py-5">
+                                    <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                                    <p class="mb-0">Tidak ada data bukubesar untuk periode yang dipilih.</p>
+                                </div>
+                            </div>
+                        @endforelse
+                    </div>
                 </div>
             </div>
         </div>
@@ -121,64 +225,225 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            if (!(window.jQuery && window.jQuery.fn.select2)) {
-                return;
+            const $ = window.jQuery;
+
+            if ($ && $.fn.select2) {
+                $('#coaSelect').select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'Pilih COA...',
+                    allowClear: true,
+                    width: '100%',
+                    closeOnSelect: false,
+                    language: {
+                        noResults: function () {
+                            return 'COA tidak ditemukan';
+                        },
+                        searching: function () {
+                            return 'Mencari...';
+                        }
+                    }
+                });
             }
 
-            window.jQuery('.coa-multiselect').select2({
-                theme: 'bootstrap-5',
-                width: '100%',
-                placeholder: function () {
-                    return window.jQuery(this).data('placeholder');
-                },
-                closeOnSelect: false
+            function normalizeText(text) {
+                return (text || '').toString().toLowerCase().trim();
+            }
+
+            function applyGlobalSearch() {
+                const keyword = normalizeText(document.getElementById('globalSearch')?.value);
+                let totalVisibleRows = 0;
+                let totalRows = 0;
+
+                document.querySelectorAll('.coa-card').forEach(function (card) {
+                    const rows = card.querySelectorAll('tbody.coa-tbody tr.coa-row');
+                    let anyVisibleInThisCoa = false;
+
+                    totalRows += rows.length;
+
+                    rows.forEach(function (row) {
+                        const cols = row.querySelectorAll('td');
+                        const nomor = normalizeText(cols[1]?.textContent);
+                        const sumber = normalizeText(cols[2]?.textContent);
+                        const ket = normalizeText(cols[3]?.textContent);
+                        const haystack = `${nomor} ${sumber} ${ket}`;
+                        const matched = keyword === '' || haystack.includes(keyword);
+
+                        row.style.display = matched ? '' : 'none';
+
+                        if (matched) {
+                            anyVisibleInThisCoa = true;
+                            totalVisibleRows++;
+                        }
+                    });
+
+                    card.style.display = keyword !== '' && !anyVisibleInThisCoa ? 'none' : '';
+                });
+
+                const resultInfo = document.getElementById('searchResultInfo');
+                if (!resultInfo) {
+                    return;
+                }
+
+                resultInfo.textContent = keyword === ''
+                    ? ''
+                    : `Menampilkan ${totalVisibleRows} baris dari ${totalRows} baris (sesuai pencarian).`;
+            }
+
+            let searchTimer = null;
+            document.getElementById('globalSearch')?.addEventListener('input', function () {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(applyGlobalSearch, 150);
             });
         });
 
-        function exportTableToExcel() {
-            if (!(window.XLSX && window.XLSX.utils)) {
-                return;
+        function resetFilter() {
+            const coaSelect = document.getElementById('coaSelect');
+            if (window.jQuery && window.jQuery.fn.select2) {
+                window.jQuery(coaSelect).val(null).trigger('change');
+            } else if (coaSelect) {
+                Array.from(coaSelect.options).forEach(function (option) {
+                    option.selected = false;
+                });
             }
 
-            const wrapper = document.createElement('div');
-            wrapper.innerHTML = '<table></table>';
-            const exportTable = wrapper.querySelector('table');
-            const sourceTables = document.querySelectorAll('.exportable-table');
+            const now = new Date();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
 
-            sourceTables.forEach(function (table, index) {
-                const titleRow = exportTable.insertRow(-1);
-                const titleCell = titleRow.insertCell(0);
-                titleCell.textContent = table.closest('.card-body').querySelector('.text-primary')?.textContent?.trim() || `COA ${index + 1}`;
+            const formatDate = function (date) {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
 
-                Array.from(table.rows).forEach(function (row) {
-                    const newRow = exportTable.insertRow(-1);
-                    Array.from(row.cells).forEach(function (cell) {
-                        const newCell = document.createElement(row.parentElement.tagName === 'THEAD' ? 'th' : 'td');
-                        newCell.textContent = cell.textContent.trim();
-                        newRow.appendChild(newCell);
-                    });
-                });
-
-                exportTable.insertRow(-1);
-            });
-
-            const worksheet = XLSX.utils.table_to_sheet(exportTable, { raw: true });
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'Bukubesar');
-            XLSX.writeFile(workbook, 'Bukubesar_{{ $startDate }}_sampai_{{ $endDate }}.xlsx');
+            document.querySelector('input[name="startDate"]').value = formatDate(firstDay);
+            document.querySelector('input[name="endDate"]').value = formatDate(now);
+            document.getElementById('filterForm').submit();
         }
 
-        function printReport() {
-            const printableArea = document.getElementById('printableArea');
-            if (!printableArea) {
+        function printBukubesar() {
+            window.print();
+        }
+
+        function exportBukubesarExcel() {
+            if (typeof XLSX === 'undefined') {
+                alert('Library XLSX belum termuat. Pastikan CDN SheetJS dapat diakses.');
                 return;
             }
 
-            const originalContents = document.body.innerHTML;
-            document.body.innerHTML = printableArea.innerHTML;
-            window.print();
-            document.body.innerHTML = originalContents;
-            window.location.reload();
+            const namaRS = (document.getElementById('namaRsExport')?.textContent || '').trim();
+            const judul = (document.getElementById('judulExport')?.textContent || 'Bukubesar').trim();
+            const periode = (document.getElementById('periodeExport')?.textContent || '').trim();
+            const workbook = XLSX.utils.book_new();
+            const aoa = [];
+
+            if (namaRS) {
+                aoa.push([namaRS]);
+            }
+            aoa.push([judul]);
+            if (periode) {
+                aoa.push([periode]);
+            }
+            aoa.push([]);
+
+            let hasData = false;
+
+            document.querySelectorAll('.coa-card').forEach(function (card) {
+                if (card.style.display === 'none') {
+                    return;
+                }
+
+                const coaTitle = (card.querySelector('.coa-title')?.textContent || '').trim();
+                const table = card.querySelector('table');
+                if (!table) {
+                    return;
+                }
+
+                if (coaTitle) {
+                    aoa.push([coaTitle]);
+                }
+
+                const headers = Array.from(table.querySelectorAll('thead th')).map(function (th) {
+                    return (th.textContent || '').trim();
+                });
+                aoa.push(headers);
+
+                let rowCount = 0;
+                table.querySelectorAll('tbody tr').forEach(function (row) {
+                    if (row.style.display === 'none') {
+                        return;
+                    }
+
+                    const exportRow = [];
+                    row.querySelectorAll('td').forEach(function (cell, index) {
+                        const cellText = (cell.textContent || '').trim();
+                        if (index >= 4 && index <= 6) {
+                            const numericValue = Number(cellText.replace(/\./g, '').replace(',', '.'));
+                            exportRow.push(Number.isFinite(numericValue) ? numericValue : '');
+                            return;
+                        }
+
+                        exportRow.push(cellText);
+                    });
+
+                    aoa.push(exportRow);
+                    rowCount++;
+                });
+
+                aoa.push([]);
+
+                if (rowCount > 0) {
+                    hasData = true;
+                }
+            });
+
+            if (!hasData) {
+                alert('Tidak ada data yang dapat diexport (tidak ada baris transaksi yang tampil).');
+                return;
+            }
+
+            const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+            forceAllCellsAsText(worksheet);
+            worksheet['!cols'] = [
+                { wch: 14 },
+                { wch: 18 },
+                { wch: 22 },
+                { wch: 40 },
+                { wch: 16 },
+                { wch: 16 },
+                { wch: 16 }
+            ];
+
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Bukubesar');
+            XLSX.writeFile(workbook, 'Bukubesar_{{ $fileStartDate }}_{{ $fileEndDate }}.xlsx');
+        }
+
+        function forceAllCellsAsText(worksheet) {
+            const ref = worksheet['!ref'];
+            if (!ref) {
+                return;
+            }
+
+            const range = XLSX.utils.decode_range(ref);
+            const numericColumns = new Set([4, 5, 6]);
+
+            for (let row = range.s.r; row <= range.e.r; row++) {
+                for (let col = range.s.c; col <= range.e.c; col++) {
+                    const address = XLSX.utils.encode_cell({ r: row, c: col });
+                    const cell = worksheet[address];
+                    if (!cell) {
+                        continue;
+                    }
+
+                    if (numericColumns.has(col) && row > 0 && typeof cell.v === 'number') {
+                        cell.t = 'n';
+                        continue;
+                    }
+
+                    cell.t = 's';
+                    cell.v = (cell.v ?? '').toString();
+                }
+            }
         }
     </script>
 @endpush
@@ -190,31 +455,24 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 10px;
         }
 
-        .laporan-header__logo {
+        .rs-logo {
+            width: 100%;
             display: flex;
-            align-items: center;
             justify-content: center;
+            align-items: center;
+            text-align: center;
         }
 
-        .laporan-header__logo-image {
-            max-width: 100px;
-            max-height: 84px;
+        .rs-logo__image {
+            display: block;
+            max-width: 100%;
+            max-height: 80px;
             width: auto;
             height: auto;
+            margin: 0 auto;
             object-fit: contain;
-        }
-
-        .laporan-header__title-rs {
-            font-size: 20px;
-            line-height: 1.25;
-        }
-
-        .laporan-header__title-report {
-            font-size: 18px;
-            line-height: 1.2;
         }
 
         .select2-container--bootstrap-5 .select2-selection--multiple {
@@ -235,9 +493,47 @@
         }
 
         @media print {
-            .laporan-header__logo-image {
-                max-width: 90px;
-                max-height: 72px;
+            .no-print,
+            .select2-container {
+                display: none !important;
+            }
+
+            .rs-logo {
+                display: none !important;
+            }
+
+            tfoot.print-exclude {
+                display: none !important;
+            }
+
+            body {
+                background: #fff !important;
+            }
+
+            .card {
+                border: none !important;
+                box-shadow: none !important;
+            }
+
+            .table {
+                font-size: 11px !important;
+            }
+
+            thead {
+                display: table-header-group;
+            }
+
+            tr {
+                page-break-inside: avoid;
+            }
+
+            .coa-card {
+                page-break-inside: avoid;
+            }
+
+            @page {
+                size: A4 portrait;
+                margin: 12mm;
             }
         }
     </style>

@@ -367,7 +367,7 @@ class LaporanKeuanganService
             ->values();
     }
 
-    public function getNeracaRinci(string $startDate, string $endDate, ?string $tipeCoa = null): Collection
+    public function getNeracaRinci(string $startDate, string $endDate, array $tipeCoaTerpilih = []): Collection
     {
         $query = DB::table('bukubesar')
             ->join('coa', 'coa.id', '=', 'bukubesar.coa_id')
@@ -384,8 +384,8 @@ class LaporanKeuanganService
             ->orderBy('coa.tipe_coa')
             ->orderBy('coa.kode');
 
-        if ($tipeCoa !== null && $tipeCoa !== '') {
-            $query->where('coa.tipe_coa', $tipeCoa);
+        if ($tipeCoaTerpilih !== []) {
+            $query->whereIn('coa.tipe_coa', $tipeCoaTerpilih);
         }
 
         return $query->get()
@@ -403,13 +403,20 @@ class LaporanKeuanganService
 
     public function getBukubesar(string $startDate, string $endDate, array $coaIds = []): array
     {
-        $coaQuery = Coa::query()->active()->orderBy('kode');
+        $coaQuery = Coa::query()->leaf()->orderBy('kode');
         if ($coaIds !== []) {
             $coaQuery->whereIn('id', $coaIds);
         }
 
         $coaList = $coaQuery->get();
         $selectedIds = $coaList->pluck('id')->all();
+
+        if ($selectedIds === []) {
+            return [
+                'coa' => collect(),
+                'data' => collect(),
+            ];
+        }
 
         $openingRows = BukuBesar::query()
             ->selectRaw('coa_id, SUM(CASE WHEN tipe_mutasi = "D" THEN nominal ELSE -nominal END) as opening_balance')
@@ -434,15 +441,15 @@ class LaporanKeuanganService
             $runningBalance = (float) ($openingRows[$coa->id] ?? 0);
             $rows = collect();
 
-            if (abs($runningBalance) > 0.01) {
+            if ($openingRows->has($coa->id)) {
                 $rows->push([
                     'urutan' => 0,
                     'tanggal' => $startDate,
-                    'nomer' => '-',
+                    'nomer' => '',
                     'sumber_transaksi' => 'SALDO AWAL',
-                    'keterangan' => 'Saldo sebelum periode laporan',
-                    'debit' => $runningBalance > 0 ? $runningBalance : 0,
-                    'kredit' => $runningBalance < 0 ? abs($runningBalance) : 0,
+                    'keterangan' => 'Saldo awal periode',
+                    'debit' => 0,
+                    'kredit' => 0,
                     'saldo_berjalan' => $runningBalance,
                 ]);
             }
