@@ -647,30 +647,26 @@ class BridgingPendapatanService
                 if ($status === 'Kamar') {
                     $mapping = $mappings['kamar']->firstWhere('kode_kamar', $kode);
                     if ($mapping === null) {
-                        throw new RuntimeException(sprintf(
-                            'Mapping kamar belum disetting untuk kode "%s" - "%s".',
-                            $kode,
-                            $namaPerawatan,
-                        ));
+                        throw new RuntimeException(
+                            'Mapping kamar belum disetting untuk kode '.$this->formatTeksTebal($kode)
+                            .' - '.$this->formatTeksTebal($namaPerawatan).'.'
+                        );
                     }
 
                     $coaId = (int) $mapping->pendapatan_kamar_coa_id;
                     $lastKamarCoaId = $coaId;
                 } else {
                     $source = $this->tentukanSumberTindakan($status);
-                    $mapping = $mappings['tindakan']->first(function (MappingPendapatan $item) use ($kode, $namaPerawatan, $source) {
-                        return $item->kode_jenis_perawatan === $kode
-                            && $item->nm_perawatan === $namaPerawatan
-                            && $item->sumber_tindakan === $source;
-                    });
+                    $mapping = $mappings['tindakan']->first(
+                        fn (MappingPendapatan $item) => $this->mappingTindakanSesuai($item, $kode, $namaPerawatan, $source)
+                    );
 
                     if ($mapping === null) {
-                        throw new RuntimeException(sprintf(
-                            'Mapping tindakan belum disetting untuk %s / %s - %s.',
-                            $status,
-                            $kode,
-                            $namaPerawatan,
-                        ));
+                        throw new RuntimeException(
+                            'Mapping tindakan belum disetting untuk '.$status
+                            .' / kode '.$this->formatTeksTebal($kode)
+                            .' - '.$this->formatTeksTebal($namaPerawatan).'.'
+                        );
                     }
 
                     $coaId = (int) $mapping->coa_id;
@@ -683,11 +679,10 @@ class BridgingPendapatanService
             });
 
             if ($mapping === null) {
-                throw new RuntimeException(sprintf(
-                    'Mapping pendapatan umum belum disetting untuk status "%s" dan penjamin "%s".',
-                    $status,
-                    $billing['penjamin'],
-                ));
+                throw new RuntimeException(
+                    'Mapping pendapatan umum belum disetting untuk status '.$this->formatTeksTebal($status)
+                    .' dan penjamin '.$this->formatTeksTebal($billing['penjamin']).'.'
+                );
             }
 
             $coaId = (int) $mapping->coa_id;
@@ -780,10 +775,10 @@ class BridgingPendapatanService
             $mapping = $mappingLawan->firstWhere('kode_coa_simrs', $item['kd_rek']);
 
             if ($mapping === null) {
-                throw new RuntimeException(sprintf(
-                    'Mapping akun lawan pendapatan belum disetting untuk kode COA SIMRS "%s".',
-                    $item['kd_rek'],
-                ));
+                throw new RuntimeException(
+                    'Mapping akun lawan pendapatan belum disetting untuk kode COA SIMRS '
+                    .$this->formatTeksTebal($item['kd_rek']).'.'
+                );
             }
 
             return [
@@ -1084,5 +1079,26 @@ class BridgingPendapatanService
             'Retur Obat' => 'Retur Obat',
             default => $namaPerawatan !== '' && $namaPerawatan !== ':' ? $namaPerawatan : $status,
         };
+    }
+
+    private function normalisasiNamaPerawatan(?string $namaPerawatan): string
+    {
+        return trim((string) $namaPerawatan);
+    }
+
+    private function formatTeksTebal(?string $value): string
+    {
+        return '<strong>&quot;'.e(trim((string) $value)).'&quot;</strong>';
+    }
+
+    private function mappingTindakanSesuai(
+        MappingPendapatan $mapping,
+        string $kode,
+        string $namaPerawatan,
+        string $source,
+    ): bool {
+        return $mapping->kode_jenis_perawatan === $kode
+            && $this->normalisasiNamaPerawatan($mapping->nm_perawatan) === $namaPerawatan
+            && $mapping->sumber_tindakan === $source;
     }
 }

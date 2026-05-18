@@ -246,7 +246,7 @@ class MappingPendapatanTindakanService
                 'user_create' => $actor,
                 'user_edit' => $actor,
                 'sumber_tindakan' => $definition['source'],
-                'nm_perawatan' => $reference['nm_perawatan'],
+                'nm_perawatan' => trim($reference['nm_perawatan']),
             ]);
 
             $successCount++;

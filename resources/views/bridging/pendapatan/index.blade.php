@@ -95,7 +95,7 @@
                                                 @forelse ($failedResults as $item)
                                                     <li class="list-group-item list-group-item-danger">
                                                         <strong>{{ $item['no_rawat'] }}</strong>
-                                                        <div>{{ $item['alasan_gagal'] }}</div>
+                                                        <div>{!! $item['alasan_gagal'] !!}</div>
                                                     </li>
                                                 @empty
                                                     <li class="list-group-item text-muted">Tidak ada data gagal.</li>
