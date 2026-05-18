@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 class LaporanKeuanganService
 {
+    private const MAKS_LEVEL_NERACA_STANDARD = 3;
+
     private const TIPE_LABA_RUGI = [
         'Pendapatan',
         'Pendapatan lain',
@@ -600,9 +602,10 @@ class LaporanKeuanganService
 
         foreach (['AKTIVA', 'PASIVA', 'EKUITAS'] as $rootLabel) {
             $members = $groupedByType->get($rootLabel, collect());
+            $membersById = $members->keyBy(fn (Coa $coa) => (int) $coa->id);
             $topLevel = $members
-                ->filter(function (Coa $coa) use ($members) {
-                    return $coa->parent_coa === null || ! $members->has((int) $coa->parent_coa);
+                ->filter(function (Coa $coa) use ($membersById) {
+                    return $coa->parent_coa === null || ! $membersById->has((int) $coa->parent_coa);
                 })
                 ->sortBy('kode')
                 ->values();
@@ -619,15 +622,15 @@ class LaporanKeuanganService
                 'nama_coa' => $rootLabel,
                 'tipe_coa' => $rootLabel,
                 'saldo' => 0,
+                'display_saldo' => null,
                 'level' => 0,
                 'has_children' => true,
                 'is_root' => true,
             ]);
 
             foreach ($topLevel as $coa) {
-                $subtree = $this->flattenSubtree(
+                $subtree = $this->flattenSubtreeNeracaStandard(
                     coa: $coa,
-                    allCoa: $allCoa,
                     childrenMap: $childrenMap,
                     saldoPerCoa: $saldoPerCoa,
                     level: 1,
@@ -651,6 +654,7 @@ class LaporanKeuanganService
                     'nama_coa' => 'Laba Tahun Berjalan',
                     'tipe_coa' => 'EKUITAS',
                     'saldo' => $labaTahunBerjalan,
+                    'display_saldo' => $labaTahunBerjalan,
                     'level' => 1,
                     'has_children' => false,
                     'is_root' => false,
@@ -669,9 +673,8 @@ class LaporanKeuanganService
         ];
     }
 
-    private function flattenSubtree(
+    private function flattenSubtreeNeracaStandard(
         Coa $coa,
-        Collection $allCoa,
         Collection $childrenMap,
         array $saldoPerCoa,
         int $level,
@@ -687,19 +690,28 @@ class LaporanKeuanganService
         );
         $rows = collect();
         $saldoTotal = $saldoSelf;
+        $isMaxDisplayedLevel = $level >= self::MAKS_LEVEL_NERACA_STANDARD;
 
-        foreach ($children as $child) {
-            $childRows = $this->flattenSubtree(
-                coa: $child,
-                allCoa: $allCoa,
+        if (! $isMaxDisplayedLevel) {
+            foreach ($children as $child) {
+                $childRows = $this->flattenSubtreeNeracaStandard(
+                    coa: $child,
+                    childrenMap: $childrenMap,
+                    saldoPerCoa: $saldoPerCoa,
+                    level: $level + 1,
+                    tipeNeraca: $tipeNeraca,
+                );
+
+                $saldoTotal += (float) ($childRows->first()['saldo'] ?? 0);
+                $rows = $rows->concat($childRows);
+            }
+        } else {
+            $saldoTotal += $this->sumSaldoDescendantsNeracaStandard(
+                children: $children,
                 childrenMap: $childrenMap,
                 saldoPerCoa: $saldoPerCoa,
-                level: $level + 1,
                 tipeNeraca: $tipeNeraca,
             );
-
-            $saldoTotal += (float) ($childRows->first()['saldo'] ?? 0);
-            $rows = $rows->concat($childRows);
         }
 
         $current = collect([[
@@ -709,12 +721,44 @@ class LaporanKeuanganService
             'nama_coa' => (string) $coa->nama,
             'tipe_coa' => $tipeNeraca,
             'saldo' => $saldoTotal,
+            'display_saldo' => ($children->isEmpty() || $isMaxDisplayedLevel) ? $saldoTotal : null,
             'level' => $level,
             'has_children' => $children->isNotEmpty(),
             'is_root' => false,
         ]]);
 
         return $current->concat($rows);
+    }
+
+    /**
+     * Saat tampilan neraca dibatasi sampai level tertentu, seluruh nominal
+     * turunan tetap harus diakumulasikan ke baris level paling bawah yang
+     * masih ditampilkan agar subtotal tidak terhitung ganda di parent atas.
+     */
+    private function sumSaldoDescendantsNeracaStandard(
+        Collection $children,
+        Collection $childrenMap,
+        array $saldoPerCoa,
+        string $tipeNeraca,
+    ): float {
+        $total = 0.0;
+
+        foreach ($children as $child) {
+            $saldoChild = $this->normalisasiSaldoNeraca(
+                tipeNeraca: $tipeNeraca,
+                saldoRaw: (float) ($saldoPerCoa[$child->id] ?? 0),
+            );
+
+            $total += $saldoChild;
+            $total += $this->sumSaldoDescendantsNeracaStandard(
+                children: $childrenMap->get((int) $child->id, collect()),
+                childrenMap: $childrenMap,
+                saldoPerCoa: $saldoPerCoa,
+                tipeNeraca: $tipeNeraca,
+            );
+        }
+
+        return $total;
     }
 
     private function ambilMutasiPerCoa(string $startDate, string $endDate): array

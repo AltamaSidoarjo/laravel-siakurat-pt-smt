@@ -88,11 +88,10 @@
                                             <input class="form-check-input" type="radio" name="jenisProses" id="jenisJurnalUmum" value="JurnalUmum" checked>
                                             <label class="form-check-label" for="jenisJurnalUmum">Jurnal Umum</label>
                                         </div>
-                                        {{-- Hide sementara opsi Bridging Pendapatan -> Invoice Pendapatan sampai fitur dibuka lagi. --}}
-                                        {{-- <div class="form-check form-check-inline">
+                                        <div class="form-check form-check-inline">
                                             <input class="form-check-input" type="radio" name="jenisProses" id="jenisInvoicePendapatan" value="InvoicePendapatan">
                                             <label class="form-check-label" for="jenisInvoicePendapatan">Invoice Pendapatan</label>
-                                        </div> --}}
+                                        </div>
                                     </div>
 
                                     <div class="mt-3">

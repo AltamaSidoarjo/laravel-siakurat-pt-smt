@@ -88,7 +88,9 @@
                                             @endif
                                         </td>
                                         <td>{{ $row['tipe_coa'] }}</td>
-                                        <td class="text-end">{{ $row['is_root'] ? '-' : number_format((float) $row['saldo'], 0, ',', '.') }}</td>
+                                        <td class="text-end">
+                                            {{ $row['is_root'] || $row['display_saldo'] === null ? '-' : number_format((float) $row['display_saldo'], 0, ',', '.') }}
+                                        </td>
                                     </tr>
                                 @empty
                                     <tr>
