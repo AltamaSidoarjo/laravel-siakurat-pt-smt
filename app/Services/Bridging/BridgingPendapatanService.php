@@ -320,7 +320,12 @@ class BridgingPendapatanService
                 );
             }
 
-            $akunLawan = $this->tentukanAkunLawanPendapatan($dataBilling, $rincianBilling, $dataMapping['lawan']);
+            $akunLawan = $this->tentukanAkunLawanPendapatan(
+                $dataBilling,
+                $rincianBilling,
+                $dataMapping['lawan'],
+                $dataMapping['coa'],
+            );
 
             $this->simpanLogImport($dataBilling, $actor, $jenisProses);
 
@@ -704,6 +709,7 @@ class BridgingPendapatanService
         array $billing,
         Collection $details,
         Collection $mappingLawan,
+        Collection $coaLookup,
     ): array {
         $hasilAkunLawan = collect(DB::connection('simrs')->select(
             <<<'SQL'
@@ -753,15 +759,19 @@ class BridgingPendapatanService
             ])
             ->values();
 
+        $akunLawanTergabung = $this->prioritaskanAkunLawanKasAtauPiutang(
+            $akunLawanTergabung,
+            $mappingLawan,
+            $coaLookup,
+        );
+
         $nominalTarget = array_sum(array_map(fn (array $baris) => (float) $baris['kredit'], $this->normalisasiBarisNominal($details)))
             - array_sum(array_map(fn (array $baris) => (float) $baris['debit'], $this->normalisasiBarisNominal($details)));
 
-        if (abs($akunLawanTergabung->sum('debet') - $nominalTarget) > 0.01 && $akunLawanTergabung->count() === 1) {
-            $akunLawanTergabung = collect([[
-                'kd_rek' => $akunLawanTergabung->first()['kd_rek'],
-                'debet' => $nominalTarget,
-            ]]);
-        }
+        $akunLawanTergabung = $this->pilihAkunLawanPendapatanSimrs(
+            $akunLawanTergabung,
+            $nominalTarget,
+        );
 
         if (abs($akunLawanTergabung->sum('debet') - $nominalTarget) > 0.01) {
             throw new RuntimeException(sprintf(
@@ -786,6 +796,65 @@ class BridgingPendapatanService
                 'debit' => (float) $item['debet'],
             ];
         })->all();
+    }
+
+    private function prioritaskanAkunLawanKasAtauPiutang(
+        Collection $akunLawanTergabung,
+        Collection $mappingLawan,
+        Collection $coaLookup,
+    ): Collection {
+        $akunKasAtauPiutang = $akunLawanTergabung
+            ->filter(function (array $item) use ($mappingLawan, $coaLookup) {
+                $mappingAkunLawan = $mappingLawan->firstWhere('kode_coa_simrs', $item['kd_rek']);
+                if ($mappingAkunLawan === null) {
+                    return false;
+                }
+
+                $coa = $coaLookup->get((int) $mappingAkunLawan->coa_id);
+                if ($coa === null) {
+                    return false;
+                }
+
+                $tipeCoa = Str::lower((string) $coa->tipe_coa);
+                $kodeCoa = (string) $coa->kode;
+
+                return $tipeCoa === 'kasbank'
+                    || str_contains($tipeCoa, 'piutang')
+                    || str_starts_with($kodeCoa, '111.')
+                    || str_starts_with($kodeCoa, '112.');
+            })
+            ->values();
+
+        return $akunKasAtauPiutang->isNotEmpty()
+            ? $akunKasAtauPiutang
+            : $akunLawanTergabung;
+    }
+
+    private function pilihAkunLawanPendapatanSimrs(Collection $akunLawanTergabung, float $nominalTarget): Collection
+    {
+        $akunExactMatch = $akunLawanTergabung
+            ->filter(fn (array $item) => abs((float) $item['debet'] - $nominalTarget) < 0.01)
+            ->values();
+
+        if ($akunExactMatch->count() === 1) {
+            return collect([$akunExactMatch->first()]);
+        }
+
+        if ($akunExactMatch->count() > 1) {
+            throw new RuntimeException(sprintf(
+                'Ditemukan lebih dari satu akun lawan pendapatan SIMRS dengan nominal %.2f.',
+                $nominalTarget,
+            ));
+        }
+
+        if (abs($akunLawanTergabung->sum('debet') - $nominalTarget) > 0.01 && $akunLawanTergabung->count() === 1) {
+            return collect([[
+                'kd_rek' => $akunLawanTergabung->first()['kd_rek'],
+                'debet' => $nominalTarget,
+            ]]);
+        }
+
+        return $akunLawanTergabung;
     }
 
     private function normalisasiBarisNominal(Collection $details): array
