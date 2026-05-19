@@ -39,6 +39,8 @@
                                         <thead class="table-light">
                                             <tr>
                                                 <th>Nama</th>
+                                                <th>Nama Lengkap</th>
+                                                <th>Jabatan</th>
                                                 <th>Email</th>
                                                 <th>Role</th>
                                                 <th class="text-center">Aksi</th>
@@ -48,6 +50,8 @@
                                             @foreach ($users as $user)
                                                 <tr>
                                                     <td>{{ $user->name }}</td>
+                                                    <td>{{ $user->nama_lengkap ?: '-' }}</td>
+                                                    <td>{{ $user->jabatan ?: '-' }}</td>
                                                     <td>{{ $user->email }}</td>
                                                     <td>{{ $user->role?->nama ?? '-' }}</td>
                                                     <td class="text-center">

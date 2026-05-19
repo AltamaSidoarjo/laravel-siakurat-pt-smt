@@ -28,6 +28,8 @@ class UserManagementService
     {
         return User::query()->create([
             'name' => $data['name'],
+            'nama_lengkap' => $data['nama_lengkap'] ?: null,
+            'jabatan' => $data['jabatan'] ?: null,
             'email' => $data['email'],
             'role_id' => (int) $data['role_id'],
             'password' => $data['password'],
@@ -39,6 +41,8 @@ class UserManagementService
     {
         $payload = [
             'name' => $data['name'],
+            'nama_lengkap' => $data['nama_lengkap'] ?: null,
+            'jabatan' => $data['jabatan'] ?: null,
             'email' => $data['email'],
             'role_id' => (int) $data['role_id'],
         ];

@@ -55,6 +55,8 @@ class RoleAccessManagementTest extends TestCase
         Schema::create('users', function (Blueprint $table) {
             $table->increments('id');
             $table->string('name');
+            $table->string('nama_lengkap')->nullable();
+            $table->string('jabatan')->nullable();
             $table->string('email')->unique();
             $table->unsignedInteger('role_id')->nullable();
             $table->timestamp('email_verified_at')->nullable();
@@ -102,6 +104,8 @@ class RoleAccessManagementTest extends TestCase
             ->assertOk()
             ->assertSee('Daftar User')
             ->assertSee('Pengguna')
+            ->assertSee('Nama Lengkap')
+            ->assertSee('Jabatan')
             ->assertDontSee('Role Akses');
     }
 
@@ -163,6 +167,8 @@ class RoleAccessManagementTest extends TestCase
             ->actingAs($admin)
             ->post(route('pengaturan.pengguna.store'), [
                 'name' => 'User Baru',
+                'nama_lengkap' => 'User Baru Lengkap',
+                'jabatan' => 'Staf Administrasi',
                 'email' => 'baru@example.com',
                 'role_id' => $role->id,
                 'password' => 'password123',
@@ -173,6 +179,8 @@ class RoleAccessManagementTest extends TestCase
 
         $this->assertDatabaseHas('users', [
             'email' => 'baru@example.com',
+            'nama_lengkap' => 'User Baru Lengkap',
+            'jabatan' => 'Staf Administrasi',
             'role_id' => $role->id,
         ]);
     }
@@ -226,6 +234,35 @@ class RoleAccessManagementTest extends TestCase
         );
     }
 
+    public function test_admin_can_update_user_nama_lengkap_and_jabatan(): void
+    {
+        $admin = $this->makeAdminUser();
+        $user = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+            'pengaturan.pengguna' => ['view' => true],
+        ], 'pegawai@example.com');
+
+        $response = $this
+            ->actingAs($admin)
+            ->put(route('pengaturan.pengguna.update', $user), [
+                'name' => 'Pegawai',
+                'nama_lengkap' => 'Pegawai Rumah Sakit',
+                'jabatan' => 'Kepala Unit',
+                'email' => 'pegawai@example.com',
+                'role_id' => $user->role_id,
+                'password' => '',
+                'password_confirmation' => '',
+            ]);
+
+        $response->assertRedirect(route('pengaturan.pengguna.index'));
+
+        $this->assertDatabaseHas('users', [
+            'id' => $user->id,
+            'nama_lengkap' => 'Pegawai Rumah Sakit',
+            'jabatan' => 'Kepala Unit',
+        ]);
+    }
+
     private function makeAdminUser(): User
     {
         return $this->makeUserWithPermissions(
@@ -267,6 +304,8 @@ class RoleAccessManagementTest extends TestCase
 
         return User::query()->create([
             'name' => 'Tester',
+            'nama_lengkap' => 'Tester Lengkap',
+            'jabatan' => 'Tester QA',
             'email' => $email,
             'role_id' => $role->id,
             'email_verified_at' => now(),

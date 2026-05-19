@@ -31,6 +31,14 @@
                                             <label for="name" class="form-label">Nama</label>
                                             <input type="text" name="name" id="name" class="form-control" value="{{ old('name') }}" required>
                                         </div>
+                                        <div class="col-md-6">
+                                            <label for="nama_lengkap" class="form-label">Nama Lengkap</label>
+                                            <input type="text" name="nama_lengkap" id="nama_lengkap" class="form-control" value="{{ old('nama_lengkap') }}">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="jabatan" class="form-label">Jabatan</label>
+                                            <input type="text" name="jabatan" id="jabatan" class="form-control" value="{{ old('jabatan') }}">
+                                        </div>
                                         <div class="col-12">
                                             <label for="email" class="form-label">Email</label>
                                             <input type="email" name="email" id="email" class="form-control" value="{{ old('email') }}" required>
