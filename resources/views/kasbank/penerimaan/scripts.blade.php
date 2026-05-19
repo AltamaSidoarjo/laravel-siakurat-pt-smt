@@ -5,19 +5,8 @@
         let detailIndex = tableBody.querySelectorAll('tr').length;
 
         function initSelect2(scope = document) {
-            if (window.jQuery && window.jQuery.fn.select2) {
-                window.jQuery(scope).find('.select2-coa').each(function () {
-                    const $select = window.jQuery(this);
-                    const $dropdownParent = $select.closest('#table_data_detail').length
-                        ? $select.closest('#table_data_detail')
-                        : window.jQuery(document.body);
-
-                    $select.select2({
-                        theme: 'bootstrap-5',
-                        width: '100%',
-                        dropdownParent: $dropdownParent
-                    });
-                });
+            if (window.initSelect2Fields) {
+                window.initSelect2Fields(scope, '.select2-coa');
             }
         }
 

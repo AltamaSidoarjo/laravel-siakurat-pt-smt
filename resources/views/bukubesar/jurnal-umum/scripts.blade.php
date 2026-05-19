@@ -8,12 +8,8 @@
         let detailIndex = tableBody.querySelectorAll('tr').length;
 
         function initSelect2(scope = document) {
-            if (window.jQuery && window.jQuery.fn.select2) {
-                window.jQuery(scope).find('.select2-coa').select2({
-                    theme: 'bootstrap-5',
-                    width: '100%',
-                    dropdownParent: window.jQuery('#table_data_detail')
-                });
+            if (window.initSelect2Fields) {
+                window.initSelect2Fields(scope, '.select2-coa');
             }
         }
 

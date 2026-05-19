@@ -149,23 +149,11 @@
             const template = document.getElementById('detail-row-template');
 
             function initSelect2(scope = document) {
-                if (!(window.jQuery && window.jQuery.fn.select2)) {
+                if (!window.initSelect2Fields) {
                     return;
                 }
 
-                window.jQuery(scope).find('.select2-coa').each(function () {
-                    const $select = window.jQuery(this);
-
-                    if ($select.data('select2')) {
-                        return;
-                    }
-
-                    $select.select2({
-                        theme: 'bootstrap-5',
-                        width: '100%',
-                        dropdownParent: window.jQuery(document.body)
-                    });
-                });
+                window.initSelect2Fields(scope, '.select2-coa');
             }
 
             function parseAmount(value) {

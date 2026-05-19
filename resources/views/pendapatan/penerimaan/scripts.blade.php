@@ -14,22 +14,11 @@
         }
 
         function initSelect2(scope = document) {
-            if (!(window.jQuery && window.jQuery.fn.select2)) {
+            if (!window.initSelect2Fields) {
                 return;
             }
 
-            window.jQuery(scope).find('.select2-coa, .select2-pelanggan').each(function () {
-                const $select = window.jQuery(this);
-                const $dropdownParent = $select.closest('.modal').length
-                    ? $select.closest('.modal')
-                    : window.jQuery(document.body);
-
-                $select.select2({
-                    theme: 'bootstrap-5',
-                    width: '100%',
-                    dropdownParent: $dropdownParent
-                });
-            });
+            window.initSelect2Fields(scope, '.select2-coa, .select2-pelanggan');
         }
 
         function parseIdInteger(value) {

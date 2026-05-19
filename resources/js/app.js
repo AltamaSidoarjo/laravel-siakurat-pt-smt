@@ -1,12 +1,29 @@
 import './bootstrap';
 
 document.addEventListener('DOMContentLoaded', function () {
-    if (window.jQuery && window.jQuery.fn.select2) {
-        window.jQuery('.select2').select2({
-            theme: 'bootstrap-5',
-            width: '100%',
+    window.initSelect2Fields = function (scope = document, selector = '.select2') {
+        if (!(window.jQuery && window.jQuery.fn.select2)) {
+            return;
+        }
+
+        window.jQuery(scope).find(selector).each(function () {
+            const $select = window.jQuery(this);
+            if ($select.data('select2')) {
+                return;
+            }
+
+            const $modalParent = $select.closest('.modal');
+            const $dropdownParent = $modalParent.length ? $modalParent : window.jQuery(document.body);
+
+            $select.select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                dropdownParent: $dropdownParent,
+            });
         });
-    }
+    };
+
+    window.initSelect2Fields(document, '.select2');
 
     const dropdowns = document.querySelectorAll('.dropdown');
     dropdowns.forEach((dropdown) => {
