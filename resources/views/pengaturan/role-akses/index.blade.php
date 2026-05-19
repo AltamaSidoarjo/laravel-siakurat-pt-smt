@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Pengguna')
+@section('title', 'Role Akses')
 
 @section('content')
     <div class="row mb-3">
@@ -9,7 +9,7 @@
                 <a href="{{ route('home') }}" class="text-dark">
                     <i class="bi bi-arrow-left"></i>
                 </a>
-                <span class="fw-bold">Daftar User</span>
+                <span class="fw-bold">Role Akses</span>
             </div>
         </div>
     </div>
@@ -25,8 +25,8 @@
                         <div class="card border-light shadow-sm">
                             <div class="card-body">
                                 <div class="d-flex justify-content-end gap-3 align-items-center">
-                                    <a href="{{ route('pengaturan.pengguna.create') }}" class="btn btn-success fw-bold">
-                                        <i class="bi bi-plus-circle-fill"></i> Tambah
+                                    <a href="{{ route('pengaturan.role-akses.create') }}" class="btn btn-success fw-bold">
+                                        <i class="bi bi-plus-circle-fill"></i> Tambah Role
                                     </a>
                                 </div>
                             </div>
@@ -39,21 +39,34 @@
                                         <thead class="table-light">
                                             <tr>
                                                 <th>Nama</th>
-                                                <th>Email</th>
-                                                <th>Role</th>
+                                                <th>Kode</th>
+                                                <th>Deskripsi</th>
+                                                <th>User</th>
                                                 <th class="text-center">Aksi</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @foreach ($users as $user)
+                                            @foreach ($roles as $role)
                                                 <tr>
-                                                    <td>{{ $user->name }}</td>
-                                                    <td>{{ $user->email }}</td>
-                                                    <td>{{ $user->role?->nama ?? '-' }}</td>
+                                                    <td>
+                                                        {{ $role->nama }}
+                                                        @if ($role->is_system)
+                                                            <span class="badge bg-secondary ms-1">System</span>
+                                                        @endif
+                                                    </td>
+                                                    <td>{{ $role->kode }}</td>
+                                                    <td>{{ $role->deskripsi ?: '-' }}</td>
+                                                    <td>{{ $role->users_count }}</td>
                                                     <td class="text-center">
-                                                        <a href="{{ route('pengaturan.pengguna.edit', $user) }}" class="btn btn-warning btn-sm">
-                                                            <i class="bi bi-pencil-square"></i> Edit
-                                                        </a>
+                                                        @if (! $role->is_system)
+                                                            <a href="{{ route('pengaturan.role-akses.edit', $role) }}" class="btn btn-warning btn-sm">
+                                                                <i class="bi bi-pencil-square"></i> Edit
+                                                            </a>
+                                                        @else
+                                                            <button type="button" class="btn btn-secondary btn-sm" disabled>
+                                                                <i class="bi bi-lock-fill"></i> Terkunci
+                                                            </button>
+                                                        @endif
                                                     </td>
                                                 </tr>
                                             @endforeach

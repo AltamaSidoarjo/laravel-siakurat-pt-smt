@@ -29,6 +29,7 @@ class PenggunaController extends Controller
     {
         return view('pengaturan.pengguna.create', [
             'page' => 'app',
+            'roles' => $this->userManagementService->getRoleOptions(),
         ]);
     }
 
@@ -46,6 +47,7 @@ class PenggunaController extends Controller
         return view('pengaturan.pengguna.edit', [
             'page' => 'app',
             'user' => $user,
+            'roles' => $this->userManagementService->getRoleOptions(),
         ]);
     }
 

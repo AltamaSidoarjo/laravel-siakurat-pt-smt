@@ -37,6 +37,17 @@
                                             <input type="email" name="email" id="email" class="form-control" value="{{ old('email', $user->email) }}" required>
                                         </div>
                                         <div class="col-md-6">
+                                            <label for="role_id" class="form-label">Role Akses</label>
+                                            <select name="role_id" id="role_id" class="form-select" required>
+                                                <option value="">Pilih role</option>
+                                                @foreach ($roles as $role)
+                                                    <option value="{{ $role->id }}" @selected((string) old('role_id', $user->role_id) === (string) $role->id)>
+                                                        {{ $role->nama }} ({{ $role->kode }})
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
                                             <label for="password" class="form-label">Password Baru</label>
                                             <input type="password" name="password" id="password" class="form-control">
                                             <div class="form-text">Kosongkan jika tidak ingin mengganti password. Minimal 8 karakter.</div>
