@@ -89,11 +89,20 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            if (!window.initSelect2Fields) {
+            if (window.initSelect2Fields) {
+                window.initSelect2Fields(document, '.select2-basic');
                 return;
             }
 
-            window.initSelect2Fields(document, '.select2-basic');
+            if (!(window.jQuery && window.jQuery.fn.select2)) {
+                return;
+            }
+
+            window.jQuery('.select2-basic').select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                dropdownParent: window.jQuery(document.body)
+            });
         });
     </script>
 @endpush

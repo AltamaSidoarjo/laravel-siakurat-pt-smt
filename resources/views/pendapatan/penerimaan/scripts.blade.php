@@ -14,11 +14,27 @@
         }
 
         function initSelect2(scope = document) {
-            if (!window.initSelect2Fields) {
+            if (window.initSelect2Fields) {
+                window.initSelect2Fields(scope, '.select2-coa, .select2-pelanggan');
                 return;
             }
 
-            window.initSelect2Fields(scope, '.select2-coa, .select2-pelanggan');
+            if (!(window.jQuery && window.jQuery.fn.select2)) {
+                return;
+            }
+
+            window.jQuery(scope).find('.select2-coa, .select2-pelanggan').each(function () {
+                const $select = window.jQuery(this);
+                if ($select.data('select2')) {
+                    return;
+                }
+
+                $select.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    dropdownParent: window.jQuery(document.body)
+                });
+            });
         }
 
         function parseIdInteger(value) {

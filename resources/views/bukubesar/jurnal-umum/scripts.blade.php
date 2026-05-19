@@ -10,6 +10,22 @@
         function initSelect2(scope = document) {
             if (window.initSelect2Fields) {
                 window.initSelect2Fields(scope, '.select2-coa');
+                return;
+            }
+
+            if (window.jQuery && window.jQuery.fn.select2) {
+                window.jQuery(scope).find('.select2-coa').each(function () {
+                    const $select = window.jQuery(this);
+                    if ($select.data('select2')) {
+                        return;
+                    }
+
+                    $select.select2({
+                        theme: 'bootstrap-5',
+                        width: '100%',
+                        dropdownParent: window.jQuery(document.body),
+                    });
+                });
             }
         }
 
