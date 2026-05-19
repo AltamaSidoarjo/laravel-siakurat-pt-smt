@@ -1,15 +1,14 @@
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    window.jQuery(function () {
         const tableBody = document.querySelector('#table_data_detail tbody');
         const totalInput = document.getElementById('input_total');
+        if (!tableBody || !totalInput) {
+            return;
+        }
+
         let detailIndex = tableBody.querySelectorAll('tr').length;
 
         function initSelect2(scope = document) {
-            if (window.initSelect2Fields) {
-                window.initSelect2Fields(scope, '.select2-coa');
-                return;
-            }
-
             if (window.jQuery && window.jQuery.fn.select2) {
                 window.jQuery(scope).find('.select2-coa').each(function () {
                     const $select = window.jQuery(this);
