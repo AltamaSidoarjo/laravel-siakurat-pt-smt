@@ -1,5 +1,5 @@
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    window.jQuery(function () {
         const supplierSelect = document.getElementById('select_supplier');
         const table = document.getElementById('table_data_detail');
         const tableBody = table?.querySelector('tbody');
@@ -14,11 +14,6 @@
         }
 
         function initSelect2(scope = document) {
-            if (window.initSelect2Fields) {
-                window.initSelect2Fields(scope, '.select2-coa, .select2-supplier');
-                return;
-            }
-
             if (!(window.jQuery && window.jQuery.fn.select2)) {
                 return;
             }

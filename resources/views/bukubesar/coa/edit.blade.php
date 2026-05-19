@@ -58,7 +58,7 @@
 
 @push('scripts')
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        window.jQuery(function () {
             if (window.jQuery && window.jQuery.fn.select2) {
                 window.jQuery('#status_aktif').select2({
                     theme: 'bootstrap-5',

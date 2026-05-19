@@ -143,17 +143,16 @@
 
 @push('scripts')
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        window.jQuery(function () {
             const tableBody = document.querySelector('#table_rba_item tbody');
             const addButton = document.getElementById('btn_add_item');
             const template = document.getElementById('detail-row-template');
 
-            function initSelect2(scope = document) {
-                if (window.initSelect2Fields) {
-                    window.initSelect2Fields(scope, '.select2-coa');
-                    return;
-                }
+            if (!tableBody) {
+                return;
+            }
 
+            function initSelect2(scope = document) {
                 if (!(window.jQuery && window.jQuery.fn.select2)) {
                     return;
                 }

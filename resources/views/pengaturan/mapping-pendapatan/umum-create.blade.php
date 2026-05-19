@@ -88,12 +88,7 @@
 
 @push('scripts')
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            if (window.initSelect2Fields) {
-                window.initSelect2Fields(document, '.select2-basic');
-                return;
-            }
-
+        window.jQuery(function () {
             if (!(window.jQuery && window.jQuery.fn.select2)) {
                 return;
             }

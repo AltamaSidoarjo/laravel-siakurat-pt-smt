@@ -151,18 +151,17 @@
 
 @push('scripts')
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        window.jQuery(function () {
             const table = document.getElementById('table_data_detail');
             const tableBody = table?.querySelector('tbody');
             const addButton = document.getElementById('btn_add_detail');
             const template = document.getElementById('detail-row-template');
 
-            function initSelect2(scope = document) {
-                if (window.initSelect2Fields) {
-                    window.initSelect2Fields(scope, '.select2-tindakan, .select2-coa');
-                    return;
-                }
+            if (!table || !tableBody) {
+                return;
+            }
 
+            function initSelect2(scope = document) {
                 if (!(window.jQuery && window.jQuery.fn.select2)) {
                     return;
                 }
