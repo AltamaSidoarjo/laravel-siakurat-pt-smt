@@ -157,11 +157,12 @@ class LaporanKeuanganService
 
         $mutasiPerCoa = $this->ambilMutasiPerCoa($startDate, $endDate);
         $rbaPerCoa = $this->ambilRbaPerCoa($targetCoa->pluck('id')->all(), $startDate, $endDate);
-        $childrenMap = $targetCoa->groupBy(fn (Coa $coa) => (int) ($coa->parent_coa ?? 0));
         $groupedByRoot = $targetCoa->groupBy(fn (Coa $coa) => $this->urutanLabaRugi((string) $coa->tipe_coa));
 
         $hasil = collect();
         foreach ($groupedByRoot->sortKeys() as $rootOrder => $items) {
+            $itemsById = $items->keyBy(fn (Coa $coa) => (int) $coa->id);
+            $childrenMap = $items->groupBy(fn (Coa $coa) => (int) ($coa->parent_coa ?? 0));
             $membersById = $items->keyBy(fn (Coa $coa) => (int) $coa->id);
             $topLevelRows = $items
                 ->filter(fn (Coa $coa) => $coa->parent_coa === null || ! $membersById->has((int) $coa->parent_coa))
@@ -172,6 +173,7 @@ class LaporanKeuanganService
             foreach ($topLevelRows as $coa) {
                 $childRows = $childRows->concat($this->flattenSubtreeLabaRugiStandard(
                     coa: $coa,
+                    allCoa: $itemsById,
                     childrenMap: $childrenMap,
                     mutasiPerCoa: $mutasiPerCoa,
                     rbaPerCoa: $rbaPerCoa,
@@ -238,21 +240,18 @@ class LaporanKeuanganService
         $rbaPerCoa = $this->ambilRbaPerCoa($allCoa->keys()->all(), $startDate, $endDate);
 
         $rows = $children->map(function (Coa $child) use ($allCoa, $childrenMap, $mutasiPerCoa, $rbaPerCoa) {
-            $descendantIds = $this->kumpulkanDescendantCoaIds((int) $child->id, $childrenMap);
-            $nominal = collect($descendantIds)->sum(function (int $descendantId) use ($allCoa, $mutasiPerCoa) {
-                $coa = $allCoa->get($descendantId);
-                if ($coa === null) {
-                    return 0;
-                }
+            $nominal = $this->hitungNominalSubtreeLabaRugiLeaf(
+                coaId: (int) $child->id,
+                allCoa: $allCoa,
+                childrenMap: $childrenMap,
+                mutasiPerCoa: $mutasiPerCoa,
+            );
 
-                return $this->hitungSaldoLabaRugi(
-                    tipeCoa: (string) $coa->tipe_coa,
-                    debit: (float) ($mutasiPerCoa[$descendantId]['debit'] ?? 0),
-                    kredit: (float) ($mutasiPerCoa[$descendantId]['kredit'] ?? 0),
-                );
-            });
-
-            $rbaNominal = collect($descendantIds)->sum(fn (int $descendantId) => (float) ($rbaPerCoa[$descendantId] ?? 0));
+            $rbaNominal = $this->hitungRbaSubtreeLabaRugiLeaf(
+                coaId: (int) $child->id,
+                childrenMap: $childrenMap,
+                rbaPerCoa: $rbaPerCoa,
+            );
 
             return [
                 'kode' => (string) $child->kode,
@@ -843,8 +842,54 @@ class LaporanKeuanganService
         return array_values(array_unique($hasil));
     }
 
+    private function kumpulkanLeafDescendantCoaIds(int $coaId, Collection $childrenMap): array
+    {
+        $children = $childrenMap->get($coaId, collect());
+        if ($children->isEmpty()) {
+            return [$coaId];
+        }
+
+        $hasil = [];
+        foreach ($children as $child) {
+            $hasil = array_merge($hasil, $this->kumpulkanLeafDescendantCoaIds((int) $child->id, $childrenMap));
+        }
+
+        return array_values(array_unique($hasil));
+    }
+
+    private function hitungNominalSubtreeLabaRugiLeaf(
+        int $coaId,
+        Collection $allCoa,
+        Collection $childrenMap,
+        array $mutasiPerCoa,
+    ): float {
+        return collect($this->kumpulkanLeafDescendantCoaIds($coaId, $childrenMap))
+            ->sum(function (int $descendantId) use ($allCoa, $mutasiPerCoa) {
+                $coa = $allCoa->get($descendantId);
+                if ($coa === null) {
+                    return 0;
+                }
+
+                return $this->hitungSaldoLabaRugi(
+                    tipeCoa: (string) $coa->tipe_coa,
+                    debit: (float) ($mutasiPerCoa[$descendantId]['debit'] ?? 0),
+                    kredit: (float) ($mutasiPerCoa[$descendantId]['kredit'] ?? 0),
+                );
+            });
+    }
+
+    private function hitungRbaSubtreeLabaRugiLeaf(
+        int $coaId,
+        Collection $childrenMap,
+        array $rbaPerCoa,
+    ): float {
+        return collect($this->kumpulkanLeafDescendantCoaIds($coaId, $childrenMap))
+            ->sum(fn (int $descendantId) => (float) ($rbaPerCoa[$descendantId] ?? 0));
+    }
+
     private function flattenSubtreeLabaRugiStandard(
         Coa $coa,
+        Collection $allCoa,
         Collection $childrenMap,
         array $mutasiPerCoa,
         array $rbaPerCoa,
@@ -858,12 +903,17 @@ class LaporanKeuanganService
         $rows = collect([[
             'kode' => (string) $coa->kode,
             'deskripsi' => (string) $coa->nama,
-            'nominal' => $this->hitungSaldoLabaRugi(
-                tipeCoa: (string) $coa->tipe_coa,
-                debit: (float) ($mutasiPerCoa[$coa->id]['debit'] ?? 0),
-                kredit: (float) ($mutasiPerCoa[$coa->id]['kredit'] ?? 0),
+            'nominal' => $this->hitungNominalSubtreeLabaRugiLeaf(
+                coaId: (int) $coa->id,
+                allCoa: $allCoa,
+                childrenMap: $childrenMap,
+                mutasiPerCoa: $mutasiPerCoa,
             ),
-            'rba_nominal' => (float) ($rbaPerCoa[$coa->id] ?? 0),
+            'rba_nominal' => $this->hitungRbaSubtreeLabaRugiLeaf(
+                coaId: (int) $coa->id,
+                childrenMap: $childrenMap,
+                rbaPerCoa: $rbaPerCoa,
+            ),
             'sort_level' => $level,
             'level' => $level,
             'coa_id' => (int) $coa->id,
@@ -876,6 +926,7 @@ class LaporanKeuanganService
         foreach ($children as $child) {
             $rows = $rows->concat($this->flattenSubtreeLabaRugiStandard(
                 coa: $child,
+                allCoa: $allCoa,
                 childrenMap: $childrenMap,
                 mutasiPerCoa: $mutasiPerCoa,
                 rbaPerCoa: $rbaPerCoa,
@@ -899,14 +950,13 @@ class LaporanKeuanganService
     }
 
     /**
-     * Neraca standard di aplikasi lama membandingkan selisih dengan laba rugi
-     * periode berjalan, bukan akumulasi sejak awal tahun. Karena itu kita
-     * ambil mutasi dari awal bulan sampai tanggal laporan, dan hanya dari akun
-     * child paling bawah agar parent tidak menambah hitungan ganda.
+     * Laba Tahun Berjalan pada neraca standard harus mencerminkan akumulasi
+     * laba rugi sejak awal tahun kalender sampai tanggal laporan. Perhitungan
+     * tetap memakai akun leaf agar parent tidak menambah hitungan ganda.
      */
     private function hitungLabaTahunBerjalan(string $perDate): float
     {
-        $startOfPeriod = substr($perDate, 0, 8).'01';
+        $startOfPeriod = substr($perDate, 0, 4).'-01-01';
         $mutasiPerCoa = $this->ambilMutasiPerCoa($startOfPeriod, $perDate);
 
         return $this->queryCoaLabaRugiLeafAktif()

@@ -16,6 +16,8 @@ class LaporanKeuanganBukubesarTest extends TestCase
         parent::setUp();
 
         Schema::dropIfExists('bukubesar');
+        Schema::dropIfExists('setting_rba');
+        Schema::dropIfExists('tipe_coa');
         Schema::dropIfExists('coa');
 
         Schema::create('coa', function (Blueprint $table) {
@@ -30,6 +32,13 @@ class LaporanKeuanganBukubesarTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('tipe_coa', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('nama');
+            $table->integer('status_aktif')->default(1);
+            $table->timestamps();
+        });
+
         Schema::create('bukubesar', function (Blueprint $table) {
             $table->increments('id');
             $table->unsignedInteger('coa_id');
@@ -40,6 +49,16 @@ class LaporanKeuanganBukubesarTest extends TestCase
             $table->decimal('nominal', 15, 2);
             $table->string('tipe_mutasi', 1);
             $table->string('keterangan')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('setting_rba', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('coa_id');
+            $table->integer('tahun');
+            $table->decimal('total_nominal', 15, 2)->default(0);
+            $table->string('catatan')->nullable();
+            $table->boolean('is_rinci')->default(false);
             $table->timestamps();
         });
     }
@@ -132,5 +151,336 @@ class LaporanKeuanganBukubesarTest extends TestCase
         $this->assertSame(0, $zeroOpeningRows['rows'][0]['debit']);
         $this->assertSame(0, $zeroOpeningRows['rows'][0]['kredit']);
         $this->assertSame(0.0, $zeroOpeningRows['rows'][0]['saldo_berjalan']);
+    }
+
+    public function test_neraca_standard_accumulates_laba_tahun_berjalan_since_start_of_year(): void
+    {
+        foreach (['Kasbank', 'Ekuitas', 'Pendapatan', 'Beban'] as $namaTipeCoa) {
+            \App\Models\TipeCoa::query()->create([
+                'nama' => $namaTipeCoa,
+                'status_aktif' => 1,
+            ]);
+        }
+
+        $kas = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '110.00',
+            'nama' => 'Kas',
+            'is_postable' => false,
+        ]);
+
+        $kasOperasional = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $kas->id,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '110.01',
+            'nama' => 'Kas Operasional',
+            'is_postable' => true,
+        ]);
+
+        $ekuitas = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Ekuitas',
+            'kode' => '310.00',
+            'nama' => 'Modal',
+            'is_postable' => true,
+        ]);
+
+        $pendapatanParent = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Pendapatan',
+            'kode' => '410.00',
+            'nama' => 'Pendapatan',
+            'is_postable' => false,
+        ]);
+
+        $pendapatanLeaf = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $pendapatanParent->id,
+            'tipe_coa' => 'Pendapatan',
+            'kode' => '410.01',
+            'nama' => 'Pendapatan Rawat Jalan',
+            'is_postable' => true,
+        ]);
+
+        $bebanLeaf = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Beban',
+            'kode' => '510.01',
+            'nama' => 'Beban Operasional',
+            'is_postable' => true,
+        ]);
+
+        BukuBesar::query()->create([
+            'coa_id' => $kasOperasional->id,
+            'tanggal' => '2026-01-02',
+            'nomer' => 'BB-MODAL-KAS-001',
+            'sumber_transaksi' => 'Jurnal Umum',
+            'nominal' => 500,
+            'tipe_mutasi' => 'D',
+            'keterangan' => 'Setoran modal ke kas',
+        ]);
+
+        BukuBesar::query()->create([
+            'coa_id' => $ekuitas->id,
+            'tanggal' => '2026-01-02',
+            'nomer' => 'BB-EKUITAS-001',
+            'sumber_transaksi' => 'Jurnal Umum',
+            'nominal' => 500,
+            'tipe_mutasi' => 'K',
+            'keterangan' => 'Setoran modal awal',
+        ]);
+
+        foreach ([
+            ['2025-12-31', $pendapatanLeaf->id, 999, 'K', 'Pendapatan tahun lalu'],
+            ['2026-01-10', $pendapatanLeaf->id, 100, 'K', 'Pendapatan Januari'],
+            ['2026-02-15', $pendapatanLeaf->id, 200, 'K', 'Pendapatan Februari'],
+            ['2026-05-19', $pendapatanLeaf->id, 50, 'K', 'Pendapatan Mei'],
+            ['2026-05-19', $pendapatanParent->id, 1000, 'K', 'Posting parent yang harus diabaikan'],
+            ['2026-01-10', $bebanLeaf->id, 30, 'D', 'Beban Januari'],
+            ['2026-02-15', $bebanLeaf->id, 20, 'D', 'Beban Februari'],
+            ['2026-05-19', $bebanLeaf->id, 10, 'D', 'Beban Mei'],
+        ] as [$tanggal, $coaId, $nominal, $tipeMutasi, $keterangan]) {
+            BukuBesar::query()->create([
+                'coa_id' => $coaId,
+                'tanggal' => $tanggal,
+                'nomer' => 'BB-'.str_replace('-', '', $tanggal).'-'.$coaId,
+                'sumber_transaksi' => 'Jurnal Umum',
+                'nominal' => $nominal,
+                'tipe_mutasi' => $tipeMutasi,
+                'keterangan' => $keterangan,
+            ]);
+        }
+
+        foreach ([
+            ['2026-01-10', 100, 'D'],
+            ['2026-02-15', 200, 'D'],
+            ['2026-05-19', 50, 'D'],
+            ['2026-01-10', 30, 'K'],
+            ['2026-02-15', 20, 'K'],
+            ['2026-05-19', 10, 'K'],
+        ] as [$tanggal, $nominal, $tipeMutasi]) {
+            BukuBesar::query()->create([
+                'coa_id' => $kasOperasional->id,
+                'tanggal' => $tanggal,
+                'nomer' => 'BB-KAS-'.str_replace('-', '', $tanggal).'-'.$nominal,
+                'sumber_transaksi' => 'Jurnal Umum',
+                'nominal' => $nominal,
+                'tipe_mutasi' => $tipeMutasi,
+                'keterangan' => 'Lawan transaksi operasional',
+            ]);
+        }
+
+        $service = app(LaporanKeuanganService::class);
+        $result = $service->getNeracaStandard('2026-05-19');
+        $labaRugiRows = $service->getLabaRugiStandard('2026-01-01', '2026-05-19');
+        $labaRugiTotal = (float) $labaRugiRows
+            ->where('sort_level', '>', 0)
+            ->filter(fn (array $row) => !($row['has_children'] ?? false))
+            ->sum(function (array $row) {
+                $tipeCoa = (string) ($row['tipe_coa'] ?? '');
+
+                if (in_array($tipeCoa, ['Pendapatan', 'Pendapatan lain'], true)) {
+                    return (float) $row['nominal'];
+                }
+
+                if (in_array($tipeCoa, ['Beban Pokok Penjualan', 'Beban', 'Beban lain'], true)) {
+                    return (float) $row['nominal'] * -1;
+                }
+
+                return 0;
+            });
+
+        $labaTahunBerjalanRow = collect($result['rows'])->firstWhere('nama_coa', 'Laba Tahun Berjalan');
+
+        $this->assertNotNull($labaTahunBerjalanRow);
+        $this->assertSame($labaRugiTotal, (float) $labaTahunBerjalanRow['saldo']);
+        $this->assertSame($result['subtotalAktiva'], $result['subtotalPasivaEkuitas']);
+    }
+
+    public function test_laba_rugi_standard_and_per_parent_only_count_leaf_accounts(): void
+    {
+        foreach (['Kasbank', 'Ekuitas', 'Pendapatan', 'Beban'] as $namaTipeCoa) {
+            \App\Models\TipeCoa::query()->create([
+                'nama' => $namaTipeCoa,
+                'status_aktif' => 1,
+            ]);
+        }
+
+        $kas = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '110.00',
+            'nama' => 'Kas',
+            'is_postable' => false,
+        ]);
+
+        $kasOperasional = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $kas->id,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '110.01',
+            'nama' => 'Kas Operasional',
+            'is_postable' => true,
+        ]);
+
+        $ekuitas = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Ekuitas',
+            'kode' => '310.00',
+            'nama' => 'Modal',
+            'is_postable' => true,
+        ]);
+
+        $pendapatanParent = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Pendapatan',
+            'kode' => '410.00',
+            'nama' => 'Pendapatan',
+            'is_postable' => false,
+        ]);
+
+        $pendapatanLeaf = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $pendapatanParent->id,
+            'tipe_coa' => 'Pendapatan',
+            'kode' => '410.01',
+            'nama' => 'Pendapatan Rawat Jalan',
+            'is_postable' => true,
+        ]);
+
+        $bebanParent = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Beban',
+            'kode' => '510.00',
+            'nama' => 'Beban',
+            'is_postable' => false,
+        ]);
+
+        $bebanLeaf = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $bebanParent->id,
+            'tipe_coa' => 'Beban',
+            'kode' => '510.01',
+            'nama' => 'Beban Operasional',
+            'is_postable' => true,
+        ]);
+
+        foreach ([
+            [$kasOperasional->id, '2026-01-02', 500, 'D', 'Setoran modal ke kas'],
+            [$ekuitas->id, '2026-01-02', 500, 'K', 'Setoran modal awal'],
+            [$pendapatanLeaf->id, '2025-12-31', 999, 'K', 'Pendapatan tahun lalu'],
+            [$pendapatanLeaf->id, '2026-01-10', 100, 'K', 'Pendapatan Januari'],
+            [$pendapatanLeaf->id, '2026-02-15', 200, 'K', 'Pendapatan Februari'],
+            [$pendapatanLeaf->id, '2026-05-19', 50, 'K', 'Pendapatan Mei'],
+            [$pendapatanParent->id, '2026-05-19', 1000, 'K', 'Posting parent pendapatan yang diabaikan'],
+            [$bebanLeaf->id, '2026-01-10', 30, 'D', 'Beban Januari'],
+            [$bebanLeaf->id, '2026-02-15', 20, 'D', 'Beban Februari'],
+            [$bebanLeaf->id, '2026-05-19', 10, 'D', 'Beban Mei'],
+            [$bebanParent->id, '2026-05-19', 400, 'D', 'Posting parent beban yang diabaikan'],
+            [$kasOperasional->id, '2026-01-10', 100, 'D', 'Kas masuk Januari'],
+            [$kasOperasional->id, '2026-02-15', 200, 'D', 'Kas masuk Februari'],
+            [$kasOperasional->id, '2026-05-19', 50, 'D', 'Kas masuk Mei'],
+            [$kasOperasional->id, '2026-01-10', 30, 'K', 'Kas keluar Januari'],
+            [$kasOperasional->id, '2026-02-15', 20, 'K', 'Kas keluar Februari'],
+            [$kasOperasional->id, '2026-05-19', 10, 'K', 'Kas keluar Mei'],
+        ] as [$coaId, $tanggal, $nominal, $tipeMutasi, $keterangan]) {
+            BukuBesar::query()->create([
+                'coa_id' => $coaId,
+                'tanggal' => $tanggal,
+                'nomer' => 'BB-'.str_replace('-', '', $tanggal).'-'.$coaId.'-'.$nominal,
+                'sumber_transaksi' => 'Jurnal Umum',
+                'nominal' => $nominal,
+                'tipe_mutasi' => $tipeMutasi,
+                'keterangan' => $keterangan,
+            ]);
+        }
+
+        $service = app(LaporanKeuanganService::class);
+        $labaRugiStandard = $service->getLabaRugiStandard('2026-01-01', '2026-05-19');
+        $neracaStandard = $service->getNeracaStandard('2026-05-19');
+        $labaRugiPerParent = $service->getLabaRugiPerParentCoa('2026-01-01', '2026-05-19', $pendapatanParent->id);
+
+        $pendapatanParentRow = $labaRugiStandard
+            ->where('sort_level', '>', 0)
+            ->firstWhere('coa_id', $pendapatanParent->id);
+        $pendapatanLeafRow = $labaRugiStandard
+            ->where('sort_level', '>', 0)
+            ->firstWhere('coa_id', $pendapatanLeaf->id);
+        $perParentPendapatanRow = collect($labaRugiPerParent['rows'])->firstWhere('coa_id', $pendapatanLeaf->id);
+        $this->assertNotNull($pendapatanParentRow);
+        $this->assertNotNull($pendapatanLeafRow);
+        $this->assertNotNull($perParentPendapatanRow);
+        $this->assertGreaterThan(0, (float) $pendapatanLeafRow['nominal']);
+        $this->assertSame((float) $pendapatanLeafRow['nominal'], (float) $pendapatanParentRow['nominal']);
+        $this->assertSame((float) $pendapatanLeafRow['nominal'], (float) $perParentPendapatanRow['nominal']);
+    }
+
+    public function test_laba_rugi_standard_does_not_duplicate_cross_type_children_between_roots(): void
+    {
+        foreach (['Pendapatan', 'Pendapatan lain'] as $namaTipeCoa) {
+            \App\Models\TipeCoa::query()->create([
+                'nama' => $namaTipeCoa,
+                'status_aktif' => 1,
+            ]);
+        }
+
+        $pendapatanLainParent = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Pendapatan lain',
+            'kode' => '800.00',
+            'nama' => 'Pendapatan Lain Parent',
+            'is_postable' => false,
+        ]);
+
+        $crossTypeLeaf = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $pendapatanLainParent->id,
+            'tipe_coa' => 'Pendapatan',
+            'kode' => '801.03',
+            'nama' => 'Bunga Mandiri',
+            'is_postable' => true,
+        ]);
+
+        BukuBesar::query()->create([
+            'coa_id' => $crossTypeLeaf->id,
+            'tanggal' => '2026-01-15',
+            'nomer' => 'BB-80103-001',
+            'sumber_transaksi' => 'Jurnal Umum',
+            'nominal' => 105152,
+            'tipe_mutasi' => 'K',
+            'keterangan' => 'Bunga Januari',
+        ]);
+
+        $service = app(LaporanKeuanganService::class);
+        $rows = $service->getLabaRugiStandard('2026-01-01', '2026-01-31');
+        $matchingRows = $rows
+            ->where('sort_level', '>', 0)
+            ->where('coa_id', $crossTypeLeaf->id)
+            ->values();
+        $total = (float) $rows
+            ->where('sort_level', '>', 0)
+            ->filter(fn (array $row) => !($row['has_children'] ?? false))
+            ->sum(function (array $row) {
+                $tipeCoa = (string) ($row['tipe_coa'] ?? '');
+
+                return in_array($tipeCoa, ['Pendapatan', 'Pendapatan lain'], true)
+                    ? (float) ($row['nominal'] ?? 0)
+                    : 0;
+            });
+
+        $this->assertCount(1, $matchingRows);
+        $this->assertSame(1, $matchingRows->first()['root_order']);
+        $this->assertSame(105152.0, $total);
     }
 }

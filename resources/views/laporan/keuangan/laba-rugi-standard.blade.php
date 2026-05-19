@@ -7,6 +7,7 @@
     $rootRows = $rowsCollection->where('sort_level', 0)->values();
     $viewRows = collect();
     $rowIsVisible = fn (array $item) => $item['has_children'] || abs((float) $item['nominal']) > 0.01 || abs((float) $item['rba_nominal']) > 0.01;
+    $isLeafRow = fn (array $item) => !($item['has_children'] ?? false);
 
     foreach ($rootRows as $rootIndex => $rootRow) {
         $nextRoot = $rootRows[$rootIndex + 1] ?? null;
@@ -24,8 +25,9 @@
             continue;
         }
 
-        $rootRow['nominal'] = (float) $childRows->sum('nominal');
-        $rootRow['rba_nominal'] = (float) $childRows->sum('rba_nominal');
+        $leafChildRows = $childRows->filter($isLeafRow)->values();
+        $rootRow['nominal'] = (float) $leafChildRows->sum('nominal');
+        $rootRow['rba_nominal'] = (float) $leafChildRows->sum('rba_nominal');
 
         $viewRows->push($rootRow);
         foreach ($childRows as $childRow) {
@@ -37,8 +39,9 @@
     $isBiaya = fn (array $item) => str_contains(strtolower((string) ($item['tipe_coa'] ?? '')), 'beban')
         || str_contains(strtolower((string) ($item['tipe_coa'] ?? '')), 'biaya');
     $visibleChildren = $viewRows->where('sort_level', '>', 0)->values();
-    $labaRugi = (float) $visibleChildren->sum(fn (array $item) => $isPendapatan($item) ? (float) $item['nominal'] : ($isBiaya($item) ? (float) $item['nominal'] * -1 : 0));
-    $labaRugiRba = (float) $visibleChildren->sum(fn (array $item) => $isPendapatan($item) ? (float) $item['rba_nominal'] : ($isBiaya($item) ? (float) $item['rba_nominal'] * -1 : 0));
+    $visibleLeafChildren = $visibleChildren->filter($isLeafRow)->values();
+    $labaRugi = (float) $visibleLeafChildren->sum(fn (array $item) => $isPendapatan($item) ? (float) $item['nominal'] : ($isBiaya($item) ? (float) $item['nominal'] * -1 : 0));
+    $labaRugiRba = (float) $visibleLeafChildren->sum(fn (array $item) => $isPendapatan($item) ? (float) $item['rba_nominal'] : ($isBiaya($item) ? (float) $item['rba_nominal'] * -1 : 0));
     $formatPersentase = function (float $capaian, float $rba): string {
         if (abs($rba) <= 0.01) {
             return abs($capaian) <= 0.01 ? '0%' : '-';
@@ -125,6 +128,7 @@
                                 @forelse ($viewRows as $index => $row)
                                     @php
                                         $isRoot = $row['sort_level'] === 0;
+                                        $isParent = !$isRoot && $row['has_children'];
                                         $indentLevel = max(((int) ($row['level'] ?? 0)) - 1, 0);
                                         $selisih = (float) $row['nominal'] - (float) $row['rba_nominal'];
                                     @endphp
@@ -146,10 +150,10 @@
                                                 @endif
                                             </div>
                                         </td>
-                                        <td class="text-end">{{ $isRoot ? '' : number_format((float) $row['rba_nominal'], 0, ',', '.') }}</td>
-                                        <td class="text-end">{{ $isRoot ? '' : number_format((float) $row['nominal'], 0, ',', '.') }}</td>
-                                        <td class="text-end">{{ $isRoot ? '' : number_format($selisih, 0, ',', '.') }}</td>
-                                        <td class="text-end">{{ $isRoot ? '' : $formatPersentase((float) $row['nominal'], (float) $row['rba_nominal']) }}</td>
+                                        <td class="text-end">{{ $isRoot || $isParent ? '' : number_format((float) $row['rba_nominal'], 0, ',', '.') }}</td>
+                                        <td class="text-end">{{ $isRoot || $isParent ? '' : number_format((float) $row['nominal'], 0, ',', '.') }}</td>
+                                        <td class="text-end">{{ $isRoot || $isParent ? '' : number_format($selisih, 0, ',', '.') }}</td>
+                                        <td class="text-end">{{ $isRoot || $isParent ? '' : $formatPersentase((float) $row['nominal'], (float) $row['rba_nominal']) }}</td>
                                     </tr>
                                     @php
                                         $nextRow = $viewRows[$index + 1] ?? null;
@@ -157,15 +161,23 @@
                                     @if (!$isRoot && ($nextRow === null || $nextRow['sort_level'] === 0))
                                         @php
                                             $rootRow = $viewRows->take($index + 1)->last(fn (array $item) => $item['sort_level'] === 0);
-                                            $subtotalSelisih = (float) $rootRow['nominal'] - (float) $rootRow['rba_nominal'];
+                                            $rootLeafRows = $viewRows
+                                                ->take($index + 1)
+                                                ->reverse()
+                                                ->takeWhile(fn (array $item) => $item['sort_level'] !== 0)
+                                                ->filter($isLeafRow)
+                                                ->values();
+                                            $subtotalNominal = (float) $rootLeafRows->sum('nominal');
+                                            $subtotalRba = (float) $rootLeafRows->sum('rba_nominal');
+                                            $subtotalSelisih = $subtotalNominal - $subtotalRba;
                                         @endphp
                                         <tr class="table-light fw-bold">
                                             <td></td>
                                             <td class="text-end">Subtotal</td>
-                                            <td class="text-end">{{ number_format((float) $rootRow['rba_nominal'], 0, ',', '.') }}</td>
-                                            <td class="text-end">{{ number_format((float) $rootRow['nominal'], 0, ',', '.') }}</td>
+                                            <td class="text-end">{{ number_format($subtotalRba, 0, ',', '.') }}</td>
+                                            <td class="text-end">{{ number_format($subtotalNominal, 0, ',', '.') }}</td>
                                             <td class="text-end">{{ number_format($subtotalSelisih, 0, ',', '.') }}</td>
-                                            <td class="text-end">{{ $formatPersentase((float) $rootRow['nominal'], (float) $rootRow['rba_nominal']) }}</td>
+                                            <td class="text-end">{{ $formatPersentase($subtotalNominal, $subtotalRba) }}</td>
                                         </tr>
                                     @endif
                                 @empty
