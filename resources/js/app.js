@@ -1,6 +1,29 @@
 import './bootstrap';
 
 document.addEventListener('DOMContentLoaded', function () {
+    window.getSelect2Options = function (element) {
+        const $select = window.jQuery(element);
+        const $modalParent = $select.closest('.modal');
+        const $dropdownParent = $modalParent.length ? $modalParent : window.jQuery(document.body);
+        const placeholder = $select.data('placeholder')
+            || $select.attr('placeholder')
+            || $select.find('option[value=""]').first().text().trim()
+            || undefined;
+
+        const options = {
+            theme: 'bootstrap-5',
+            width: '100%',
+            dropdownParent: $dropdownParent,
+        };
+
+        if (placeholder) {
+            options.placeholder = placeholder;
+            options.allowClear = !$select.prop('required');
+        }
+
+        return options;
+    };
+
     window.initSelect2Fields = function (scope = document, selector = '.select2') {
         if (!(window.jQuery && window.jQuery.fn.select2)) {
             return;
@@ -12,14 +35,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            const $modalParent = $select.closest('.modal');
-            const $dropdownParent = $modalParent.length ? $modalParent : window.jQuery(document.body);
-
-            $select.select2({
-                theme: 'bootstrap-5',
-                width: '100%',
-                dropdownParent: $dropdownParent,
-            });
+            $select.select2(window.getSelect2Options(this));
         });
     };
 

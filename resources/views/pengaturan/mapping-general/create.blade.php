@@ -95,10 +95,17 @@
                 return;
             }
 
-            window.jQuery('.select2-basic').select2({
-                theme: 'bootstrap-5',
-                width: '100%',
-                dropdownParent: window.jQuery(document.body)
+            window.jQuery('.select2-basic').each(function () {
+                const $select = window.jQuery(this);
+                const placeholder = $select.find('option[value=""]').first().text().trim() || undefined;
+
+                $select.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    dropdownParent: window.jQuery(document.body),
+                    placeholder: placeholder,
+                    allowClear: !$select.prop('required'),
+                });
             });
         });
     </script>

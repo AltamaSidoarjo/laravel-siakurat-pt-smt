@@ -29,10 +29,14 @@
                     return;
                 }
 
+                const placeholder = $select.find('option[value=""]').first().text().trim() || undefined;
+
                 $select.select2({
                     theme: 'bootstrap-5',
                     width: '100%',
-                    dropdownParent: window.jQuery(document.body)
+                    dropdownParent: window.jQuery(document.body),
+                    placeholder: placeholder,
+                    allowClear: !$select.prop('required'),
                 });
             });
         }
