@@ -157,53 +157,46 @@ class LaporanKeuanganService
 
         $mutasiPerCoa = $this->ambilMutasiPerCoa($startDate, $endDate);
         $rbaPerCoa = $this->ambilRbaPerCoa($targetCoa->pluck('id')->all(), $startDate, $endDate);
-
-        $childRows = $targetCoa
-            ->map(function (Coa $coa) use ($mutasiPerCoa, $rbaPerCoa) {
-                $rootOrder = $this->urutanLabaRugi((string) $coa->tipe_coa);
-
-                return [
-                    'kode' => (string) $coa->kode,
-                    'deskripsi' => (string) $coa->nama,
-                    'nominal' => $this->hitungSaldoLabaRugi(
-                        tipeCoa: (string) $coa->tipe_coa,
-                        debit: (float) ($mutasiPerCoa[$coa->id]['debit'] ?? 0),
-                        kredit: (float) ($mutasiPerCoa[$coa->id]['kredit'] ?? 0),
-                    ),
-                    'rba_nominal' => (float) ($rbaPerCoa[$coa->id] ?? 0),
-                    'sort_level' => 1,
-                    'coa_id' => (int) $coa->id,
-                    'tipe_coa' => (string) $coa->tipe_coa,
-                    'root_order' => $rootOrder,
-                    'has_children' => Coa::query()->where('parent_coa', $coa->id)->exists(),
-                ];
-            })
-            ->sortBy(['root_order', 'kode'])
-            ->values();
-
-        $rootRows = $childRows
-            ->groupBy('root_order')
-            ->map(function (Collection $items, int $rootOrder) {
-                return [
-                    'kode' => $this->kodeRootLabaRugi($rootOrder),
-                    'deskripsi' => $this->labelRootLabaRugi($rootOrder),
-                    'nominal' => (float) $items->sum('nominal'),
-                    'rba_nominal' => (float) $items->sum('rba_nominal'),
-                    'sort_level' => 0,
-                    'coa_id' => $rootOrder,
-                    'tipe_coa' => $this->labelRootLabaRugi($rootOrder),
-                    'root_order' => $rootOrder,
-                    'has_children' => true,
-                ];
-            })
-            ->sortBy('root_order')
-            ->values();
+        $childrenMap = $targetCoa->groupBy(fn (Coa $coa) => (int) ($coa->parent_coa ?? 0));
+        $groupedByRoot = $targetCoa->groupBy(fn (Coa $coa) => $this->urutanLabaRugi((string) $coa->tipe_coa));
 
         $hasil = collect();
-        foreach ($rootRows as $rootRow) {
+        foreach ($groupedByRoot->sortKeys() as $rootOrder => $items) {
+            $membersById = $items->keyBy(fn (Coa $coa) => (int) $coa->id);
+            $topLevelRows = $items
+                ->filter(fn (Coa $coa) => $coa->parent_coa === null || ! $membersById->has((int) $coa->parent_coa))
+                ->sortBy('kode')
+                ->values();
+
+            $childRows = collect();
+            foreach ($topLevelRows as $coa) {
+                $childRows = $childRows->concat($this->flattenSubtreeLabaRugiStandard(
+                    coa: $coa,
+                    childrenMap: $childrenMap,
+                    mutasiPerCoa: $mutasiPerCoa,
+                    rbaPerCoa: $rbaPerCoa,
+                    level: 1,
+                    rootOrder: (int) $rootOrder,
+                ));
+            }
+
+            $rootRow = [
+                'kode' => $this->kodeRootLabaRugi((int) $rootOrder),
+                'deskripsi' => $this->labelRootLabaRugi((int) $rootOrder),
+                'nominal' => (float) $childRows->sum('nominal'),
+                'rba_nominal' => (float) $childRows->sum('rba_nominal'),
+                'sort_level' => 0,
+                'level' => 0,
+                'coa_id' => (int) $rootOrder,
+                'parent_coa' => null,
+                'tipe_coa' => $this->labelRootLabaRugi((int) $rootOrder),
+                'root_order' => (int) $rootOrder,
+                'has_children' => $childRows->isNotEmpty(),
+            ];
+
             $hasil->push($rootRow);
 
-            foreach ($childRows->where('root_order', $rootRow['root_order'])->values() as $childRow) {
+            foreach ($childRows as $childRow) {
                 $hasil->push($childRow);
             }
         }
@@ -848,6 +841,50 @@ class LaporanKeuanganService
         }
 
         return array_values(array_unique($hasil));
+    }
+
+    private function flattenSubtreeLabaRugiStandard(
+        Coa $coa,
+        Collection $childrenMap,
+        array $mutasiPerCoa,
+        array $rbaPerCoa,
+        int $level,
+        int $rootOrder,
+    ): Collection {
+        $children = $childrenMap->get((int) $coa->id, collect())
+            ->sortBy('kode')
+            ->values();
+
+        $rows = collect([[
+            'kode' => (string) $coa->kode,
+            'deskripsi' => (string) $coa->nama,
+            'nominal' => $this->hitungSaldoLabaRugi(
+                tipeCoa: (string) $coa->tipe_coa,
+                debit: (float) ($mutasiPerCoa[$coa->id]['debit'] ?? 0),
+                kredit: (float) ($mutasiPerCoa[$coa->id]['kredit'] ?? 0),
+            ),
+            'rba_nominal' => (float) ($rbaPerCoa[$coa->id] ?? 0),
+            'sort_level' => $level,
+            'level' => $level,
+            'coa_id' => (int) $coa->id,
+            'parent_coa' => $coa->parent_coa ? (int) $coa->parent_coa : null,
+            'tipe_coa' => (string) $coa->tipe_coa,
+            'root_order' => $rootOrder,
+            'has_children' => $children->isNotEmpty(),
+        ]]);
+
+        foreach ($children as $child) {
+            $rows = $rows->concat($this->flattenSubtreeLabaRugiStandard(
+                coa: $child,
+                childrenMap: $childrenMap,
+                mutasiPerCoa: $mutasiPerCoa,
+                rbaPerCoa: $rbaPerCoa,
+                level: $level + 1,
+                rootOrder: $rootOrder,
+            ));
+        }
+
+        return $rows;
     }
 
     private function ambilSaldoSampaiTanggal(string $perDate): array

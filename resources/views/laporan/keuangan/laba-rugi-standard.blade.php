@@ -6,12 +6,18 @@
     $rowsCollection = collect($rows);
     $rootRows = $rowsCollection->where('sort_level', 0)->values();
     $viewRows = collect();
+    $rowIsVisible = fn (array $item) => $item['has_children'] || abs((float) $item['nominal']) > 0.01 || abs((float) $item['rba_nominal']) > 0.01;
 
-    foreach ($rootRows as $rootRow) {
+    foreach ($rootRows as $rootIndex => $rootRow) {
+        $nextRoot = $rootRows[$rootIndex + 1] ?? null;
+        $nextRootPosition = $nextRoot === null
+            ? $rowsCollection->count()
+            : $rowsCollection->search(fn (array $item) => $item['sort_level'] === 0 && $item['root_order'] === $nextRoot['root_order']);
+
+        $rootPosition = $rowsCollection->search(fn (array $item) => $item['sort_level'] === 0 && $item['root_order'] === $rootRow['root_order']);
         $childRows = $rowsCollection
-            ->where('sort_level', 1)
-            ->where('root_order', $rootRow['root_order'])
-            ->filter(fn (array $item) => $item['has_children'] || abs((float) $item['nominal']) > 0.01 || abs((float) $item['rba_nominal']) > 0.01)
+            ->slice($rootPosition + 1, $nextRootPosition - $rootPosition - 1)
+            ->filter($rowIsVisible)
             ->values();
 
         if ($childRows->isEmpty()) {
@@ -30,7 +36,7 @@
     $isPendapatan = fn (array $item) => str_contains(strtolower((string) ($item['tipe_coa'] ?? '')), 'pendapatan');
     $isBiaya = fn (array $item) => str_contains(strtolower((string) ($item['tipe_coa'] ?? '')), 'beban')
         || str_contains(strtolower((string) ($item['tipe_coa'] ?? '')), 'biaya');
-    $visibleChildren = $viewRows->where('sort_level', 1)->values();
+    $visibleChildren = $viewRows->where('sort_level', '>', 0)->values();
     $labaRugi = (float) $visibleChildren->sum(fn (array $item) => $isPendapatan($item) ? (float) $item['nominal'] : ($isBiaya($item) ? (float) $item['nominal'] * -1 : 0));
     $labaRugiRba = (float) $visibleChildren->sum(fn (array $item) => $isPendapatan($item) ? (float) $item['rba_nominal'] : ($isBiaya($item) ? (float) $item['rba_nominal'] * -1 : 0));
     $formatPersentase = function (float $capaian, float $rba): string {
@@ -119,18 +125,26 @@
                                 @forelse ($viewRows as $index => $row)
                                     @php
                                         $isRoot = $row['sort_level'] === 0;
+                                        $indentLevel = max(((int) ($row['level'] ?? 0)) - 1, 0);
                                         $selisih = (float) $row['nominal'] - (float) $row['rba_nominal'];
                                     @endphp
                                     <tr class="{{ $isRoot ? 'table-light fw-bold' : '' }}">
                                         <td>{{ $row['kode'] }}</td>
                                         <td>
-                                            @if (!$isRoot && $row['has_children'])
-                                                <a href="{{ route('laporan.keuangan.laba-rugi-per-parent-coa', ['coaId' => $row['coa_id'], 'startDate' => $startDate, 'endDate' => $endDate]) }}" class="text-decoration-none">
+                                            <div
+                                                class="laporan-row-label{{ $isRoot ? '' : ' laporan-row-label--child' }}"
+                                                @if (!$isRoot)
+                                                    style="padding-left: {{ $indentLevel * 1.5 }}rem;"
+                                                @endif
+                                            >
+                                                @if (!$isRoot && $row['has_children'])
+                                                    <a href="{{ route('laporan.keuangan.laba-rugi-per-parent-coa', ['coaId' => $row['coa_id'], 'startDate' => $startDate, 'endDate' => $endDate]) }}" class="text-decoration-none">
+                                                        {{ $row['deskripsi'] }}
+                                                    </a>
+                                                @else
                                                     {{ $row['deskripsi'] }}
-                                                </a>
-                                            @else
-                                                {{ $row['deskripsi'] }}
-                                            @endif
+                                                @endif
+                                            </div>
                                         </td>
                                         <td class="text-end">{{ $isRoot ? '' : number_format((float) $row['rba_nominal'], 0, ',', '.') }}</td>
                                         <td class="text-end">{{ $isRoot ? '' : number_format((float) $row['nominal'], 0, ',', '.') }}</td>
@@ -254,6 +268,10 @@
         .laporan-header__title-report {
             font-size: 18px;
             line-height: 1.2;
+        }
+
+        .laporan-row-label {
+            display: block;
         }
 
         @media print {
