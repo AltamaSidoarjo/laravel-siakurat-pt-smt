@@ -64,6 +64,10 @@ class CoaService
     {
         return Coa::query()
             ->when($excludeId, fn ($query) => $query->where('id', '!=', $excludeId))
+            ->where(function ($query) {
+                $query->whereHas('children')
+                    ->orWhereDoesntHave('bukuBesar');
+            })
             ->orderBy('kode')
             ->get(['id', 'kode', 'nama']);
     }
@@ -86,6 +90,15 @@ class CoaService
     public function hasChildren(int $id): bool
     {
         return Coa::query()->where('parent_coa', $id)->exists();
+    }
+
+    public function cannotBeSelectedAsParent(int $coaId): bool
+    {
+        return Coa::query()
+            ->whereKey($coaId)
+            ->whereDoesntHave('children')
+            ->whereHas('bukuBesar')
+            ->exists();
     }
 
     public function create(array $data): Coa

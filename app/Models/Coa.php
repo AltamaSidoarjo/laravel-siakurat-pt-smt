@@ -43,6 +43,11 @@ class Coa extends Model
         return $this->hasMany(self::class, 'parent_coa');
     }
 
+    public function bukuBesar()
+    {
+        return $this->hasMany(BukuBesar::class, 'coa_id');
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status_aktif', 1);

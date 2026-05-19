@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Bukubesar;
 
+use App\Services\Bukubesar\CoaService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -33,6 +34,26 @@ class StoreCoaRequest extends FormRequest
             'kode' => 'Kode',
             'nama' => 'Nama',
             'deskripsi' => 'Deskripsi',
+        ];
+    }
+
+    public function after(): array
+    {
+        return [
+            function ($validator): void {
+                $parentId = $this->integer('parent_id');
+
+                if (! $parentId) {
+                    return;
+                }
+
+                if (app(CoaService::class)->cannotBeSelectedAsParent($parentId)) {
+                    $validator->errors()->add(
+                        'parent_id',
+                        'COA child level paling bawah yang sudah memiliki transaksi bukubesar tidak dapat dijadikan parent.'
+                    );
+                }
+            },
         ];
     }
 }
