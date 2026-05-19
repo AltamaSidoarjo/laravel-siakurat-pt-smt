@@ -192,6 +192,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module.access:pembelian.invoice,view')->group(function () {
             Route::get('/invoice', [InvoicePembelianController::class, 'index'])->name('invoice.index');
             Route::get('/invoice/load-data', [InvoicePembelianController::class, 'loadData'])->name('invoice.load-data');
+            Route::get('/invoice/{fakturPembelian}/print', [InvoicePembelianController::class, 'print'])->name('invoice.print');
             Route::get('/invoice/{fakturPembelian}', [InvoicePembelianController::class, 'read'])->name('invoice.read');
         });
 

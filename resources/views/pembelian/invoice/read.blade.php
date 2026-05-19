@@ -108,6 +108,9 @@
                                     <a href="{{ route('pembelian.invoice.index') }}" class="btn btn-light fw-bold">
                                         <i class="bi bi-x-circle-fill"></i> Kembali
                                     </a>
+                                    <a href="{{ route('pembelian.invoice.print', $invoicePembelian) }}" class="btn btn-outline-primary fw-bold" target="_blank">
+                                        <i class="bi bi-printer-fill"></i> Print
+                                    </a>
                                     <button type="button" class="btn btn-success fw-bold" id="btn_export_excel">
                                         <i class="bi bi-file-earmark-excel-fill"></i> Export Excel
                                     </button>

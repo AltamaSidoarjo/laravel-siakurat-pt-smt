@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Pembelian;
 use App\Http\Controllers\Controller;
 use App\Models\FakturPembelian;
 use App\Services\Pembelian\InvoicePembelianService;
+use App\Services\PreferensiPerusahaanService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -14,6 +16,7 @@ class InvoicePembelianController extends Controller
 {
     public function __construct(
         private readonly InvoicePembelianService $invoicePembelianService,
+        private readonly PreferensiPerusahaanService $preferensiPerusahaanService,
     ) {
     }
 
@@ -56,6 +59,19 @@ class InvoicePembelianController extends Controller
         return view('pembelian.invoice.read', [
             'page' => 'app',
             'invoicePembelian' => $fakturPembelian->load(['supplier', 'rincian']),
+        ]);
+    }
+
+    public function print(FakturPembelian $fakturPembelian): View
+    {
+        $printIdentity = $this->preferensiPerusahaanService->getPrintIdentity();
+
+        return view('pembelian.invoice.print', [
+            'page' => 'app',
+            'invoicePembelian' => $fakturPembelian->load(['supplier', 'rincian']),
+            'namaRumahSakit' => $printIdentity['namaRumahSakit'],
+            'printedAt' => Carbon::now(),
+            'namaPetugas' => auth()->user()?->name ?? '(Nama Petugas)',
         ]);
     }
 }
