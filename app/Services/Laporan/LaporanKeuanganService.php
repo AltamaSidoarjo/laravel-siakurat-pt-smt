@@ -395,12 +395,24 @@ class LaporanKeuanganService
 
     public function getBukubesar(string $startDate, string $endDate, array $coaIds = []): array
     {
-        $coaQuery = Coa::query()->leaf()->orderBy('kode');
-        if ($coaIds !== []) {
-            $coaQuery->whereIn('id', $coaIds);
+        $selectedIds = collect($coaIds)
+            ->map(fn ($value) => (int) $value)
+            ->filter(fn (int $value) => $value > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($selectedIds === []) {
+            return [
+                'coa' => collect(),
+                'data' => collect(),
+            ];
         }
 
-        $coaList = $coaQuery->get();
+        $coaList = $this->queryBukubesarSelectableCoa()
+            ->whereIn('id', $selectedIds)
+            ->get();
+
         $selectedIds = $coaList->pluck('id')->all();
 
         if ($selectedIds === []) {
@@ -418,7 +430,6 @@ class LaporanKeuanganService
             ->pluck('opening_balance', 'coa_id');
 
         $transactions = BukuBesar::query()
-            ->with('coa:id,kode,nama')
             ->whereIn('coa_id', $selectedIds)
             ->whereBetween('tanggal', [$startDate, $endDate])
             ->orderBy('coa_id')
@@ -482,6 +493,52 @@ class LaporanKeuanganService
             ]),
             'data' => $hasil->values(),
         ];
+    }
+
+    public function getBukubesarSelectedCoaOptions(array $coaIds = []): Collection
+    {
+        $selectedIds = collect($coaIds)
+            ->map(fn ($value) => (int) $value)
+            ->filter(fn (int $value) => $value > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($selectedIds === []) {
+            return collect();
+        }
+
+        return $this->queryBukubesarSelectableCoa()
+            ->whereIn('id', $selectedIds)
+            ->get()
+            ->map(fn (Coa $coa) => [
+                'id' => (int) $coa->id,
+                'kode' => (string) $coa->kode,
+                'nama' => (string) $coa->nama,
+            ])
+            ->values();
+    }
+
+    public function searchBukubesarCoaOptions(?string $keyword = null, int $limit = 30): Collection
+    {
+        $normalizedKeyword = trim((string) $keyword);
+
+        return $this->queryBukubesarSelectableCoa()
+            ->when($normalizedKeyword !== '', function (Builder $query) use ($normalizedKeyword) {
+                $query->where(function (Builder $innerQuery) use ($normalizedKeyword) {
+                    $innerQuery
+                        ->where('kode', 'like', '%'.$normalizedKeyword.'%')
+                        ->orWhere('nama', 'like', '%'.$normalizedKeyword.'%');
+                });
+            })
+            ->limit($limit)
+            ->get()
+            ->map(fn (Coa $coa) => [
+                'id' => (int) $coa->id,
+                'kode' => (string) $coa->kode,
+                'nama' => (string) $coa->nama,
+            ])
+            ->values();
     }
 
     public function getArusKas(string $startDate, string $endDate): array
@@ -778,6 +835,13 @@ class LaporanKeuanganService
                 ],
             ])
             ->all();
+    }
+
+    private function queryBukubesarSelectableCoa(): Builder
+    {
+        return Coa::query()
+            ->leaf()
+            ->orderBy('kode');
     }
 
     /**

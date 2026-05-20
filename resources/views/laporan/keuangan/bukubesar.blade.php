@@ -43,13 +43,13 @@
                                         </div>
 
                                         <div class="col-md-4">
-                                            <label class="form-label">Pilih COA <small class="text-muted">(opsional - kosongkan untuk semua)</small></label>
+                                            <label class="form-label">Pilih COA <small class="text-muted">(wajib pilih minimal 1 akun)</small></label>
                                             <select
                                                 name="coaIds[]"
                                                 class="form-select coa-multiselect"
                                                 id="coaSelect"
                                                 multiple
-                                                data-placeholder="Pilih COA..."
+                                                data-placeholder="Cari dan pilih COA..."
                                             >
                                                 @foreach ($coaOptions as $coa)
                                                     <option value="{{ $coa['id'] }}" @selected(in_array($coa['id'], $selectedCoaIds, true))>
@@ -74,6 +74,13 @@
                                             <div class="alert alert-info mb-0 d-flex align-items-center">
                                                 <i class="bi bi-info-circle me-2"></i>
                                                 <span>Menampilkan <strong>{{ count($selectedCoaIds) }} COA</strong> terpilih</span>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <div class="mt-3">
+                                            <div class="alert alert-warning mb-0 d-flex align-items-center">
+                                                <i class="bi bi-exclamation-circle me-2"></i>
+                                                <span>Pilih minimal satu COA terlebih dulu agar bukubesar tidak memuat seluruh akun sekaligus.</span>
                                             </div>
                                         </div>
                                     @endif
@@ -149,6 +156,15 @@
                             </div>
                         </div>
 
+                        @if (count($selectedCoaIds) === 0)
+                            <div class="card border-light shadow-sm">
+                                <div class="card-body text-center text-muted py-5">
+                                    <i class="bi bi-funnel fs-1 d-block mb-3"></i>
+                                    <p class="mb-1 fw-semibold">Pilih minimal satu COA untuk menampilkan bukubesar.</p>
+                                    <p class="mb-0">Gunakan kolom pencarian COA di atas agar halaman tetap ringan saat data akun banyak.</p>
+                                </div>
+                            </div>
+                        @else
                         @forelse ($rowsByCoa as $coa)
                             @php
                                 $footerSaldo = collect($coa['rows'])->last()['saldo_berjalan'] ?? 0;
@@ -211,10 +227,12 @@
                             <div class="card border-light shadow-sm">
                                 <div class="card-body text-center text-muted py-5">
                                     <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                                    <p class="mb-0">Tidak ada data bukubesar untuk periode yang dipilih.</p>
+                                    <p class="mb-1 fw-semibold">Tidak ada data bukubesar untuk COA yang dipilih.</p>
+                                    <p class="mb-0">Coba ganti rentang tanggal atau pilih COA lain.</p>
                                 </div>
                             </div>
                         @endforelse
+                        @endif
                     </div>
                 </div>
             </div>
@@ -230,16 +248,34 @@
             if ($ && $.fn.select2) {
                 $('#coaSelect').select2({
                     theme: 'bootstrap-5',
-                    placeholder: 'Pilih COA...',
+                    placeholder: 'Cari dan pilih COA...',
                     allowClear: true,
                     width: '100%',
                     closeOnSelect: false,
+                    minimumInputLength: 1,
+                    ajax: {
+                        url: '{{ route('laporan.keuangan.bukubesar.search-coa') }}',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                q: params.term || ''
+                            };
+                        },
+                        processResults: function (data) {
+                            return data;
+                        },
+                        cache: true
+                    },
                     language: {
                         noResults: function () {
                             return 'COA tidak ditemukan';
                         },
                         searching: function () {
                             return 'Mencari...';
+                        },
+                        inputTooShort: function () {
+                            return 'Ketik minimal 1 huruf untuk mencari COA';
                         }
                     }
                 });

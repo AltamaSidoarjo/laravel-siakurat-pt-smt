@@ -134,7 +134,7 @@ class LaporanKeuanganBukubesarTest extends TestCase
         ]);
 
         $service = app(LaporanKeuanganService::class);
-        $result = $service->getBukubesar('2026-05-01', '2026-05-31');
+        $result = $service->getBukubesar('2026-05-01', '2026-05-31', [$inactiveLeaf->id, $zeroOpeningLeaf->id]);
 
         $this->assertContains($inactiveLeaf->id, collect($result['coa'])->pluck('id')->all());
 
@@ -151,6 +151,64 @@ class LaporanKeuanganBukubesarTest extends TestCase
         $this->assertSame(0, $zeroOpeningRows['rows'][0]['debit']);
         $this->assertSame(0, $zeroOpeningRows['rows'][0]['kredit']);
         $this->assertSame(0.0, $zeroOpeningRows['rows'][0]['saldo_berjalan']);
+    }
+
+    public function test_bukubesar_returns_empty_data_when_no_coa_is_selected(): void
+    {
+        Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '100.01',
+            'nama' => 'Kas Operasional',
+            'is_postable' => true,
+        ]);
+
+        $service = app(LaporanKeuanganService::class);
+        $result = $service->getBukubesar('2026-05-01', '2026-05-31', []);
+
+        $this->assertCount(0, $result['coa']);
+        $this->assertCount(0, $result['data']);
+    }
+
+    public function test_search_bukubesar_coa_options_filters_leaf_accounts_by_keyword(): void
+    {
+        $parent = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '100.00',
+            'nama' => 'Kas Parent',
+            'is_postable' => false,
+        ]);
+
+        $matchingLeaf = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $parent->id,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '100.01',
+            'nama' => 'Kas Operasional',
+            'is_postable' => true,
+        ]);
+
+        Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '200.01',
+            'nama' => 'Bank Lain',
+            'is_postable' => true,
+        ]);
+
+        $service = app(LaporanKeuanganService::class);
+
+        $byName = $service->searchBukubesarCoaOptions('Operasional');
+        $byCode = $service->searchBukubesarCoaOptions('100.01');
+
+        $this->assertCount(1, $byName);
+        $this->assertSame($matchingLeaf->id, $byName->first()['id']);
+        $this->assertCount(1, $byCode);
+        $this->assertSame($matchingLeaf->id, $byCode->first()['id']);
     }
 
     public function test_neraca_standard_accumulates_laba_tahun_berjalan_since_start_of_year(): void

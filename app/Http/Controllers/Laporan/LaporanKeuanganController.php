@@ -182,11 +182,24 @@ class LaporanKeuanganController extends Controller
                 'page' => 'app',
                 'startDate' => $startDate,
                 'endDate' => $endDate,
-                'coaOptions' => $data['coa'],
+                'coaOptions' => $this->laporanKeuanganService->getBukubesarSelectedCoaOptions($coaIds),
                 'selectedCoaIds' => $coaIds,
                 'rowsByCoa' => $data['data'],
             ],
         ));
+    }
+
+    public function searchBukubesarCoa(Request $request): JsonResponse
+    {
+        $keyword = $request->string('q')->toString();
+        $items = $this->laporanKeuanganService->searchBukubesarCoaOptions($keyword);
+
+        return response()->json([
+            'results' => $items->map(fn (array $coa) => [
+                'id' => $coa['id'],
+                'text' => '['.$coa['kode'].'] '.$coa['nama'],
+            ])->values(),
+        ]);
     }
 
     public function neracaSaldo(Request $request): View
