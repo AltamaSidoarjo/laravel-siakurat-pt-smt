@@ -6,10 +6,12 @@
         const totalHutangAwalInput = document.getElementById('input_total_hutang_awal');
         const totalHutangSisaInput = document.getElementById('input_total_hutang_sisa');
         const totalPembayaranInput = document.getElementById('input_total_pembayaran');
+        const potonganAdminInput = document.getElementById('input_potongan_admin');
+        const nominalBankKeluarInput = document.getElementById('input_nominal_bank_keluar');
         const template = document.getElementById('detail-row-template');
         const invoiceAlert = document.getElementById('invoice_alert');
 
-        if (!table || !tableBody || !totalHutangAwalInput || !totalHutangSisaInput || !totalPembayaranInput || !template) {
+        if (!table || !tableBody || !totalHutangAwalInput || !totalHutangSisaInput || !totalPembayaranInput || !potonganAdminInput || !nominalBankKeluarInput || !template) {
             return;
         }
 
@@ -111,6 +113,15 @@
             totalHutangAwalInput.value = formatIdInteger(totalHutangAwal);
             totalHutangSisaInput.value = formatIdInteger(totalHutangSisa);
             totalPembayaranInput.value = formatIdInteger(totalPembayaran);
+            updateNominalBankKeluar();
+        }
+
+        function updateNominalBankKeluar() {
+            const totalPembayaran = parseAmount(totalPembayaranInput.value);
+            const potonganAdmin = parseAmount(potonganAdminInput.value);
+            const nominalBankKeluar = Math.max(totalPembayaran - potonganAdmin, 0);
+
+            nominalBankKeluarInput.value = formatIdInteger(nominalBankKeluar);
         }
 
         function showTable() {
@@ -238,6 +249,16 @@
             }
         });
 
+        potonganAdminInput.addEventListener('input', function (event) {
+            event.target.value = event.target.value.replace(/[^\d]/g, '');
+            updateNominalBankKeluar();
+        });
+
+        potonganAdminInput.addEventListener('focusout', function (event) {
+            event.target.value = formatIdInteger(event.target.value);
+            updateNominalBankKeluar();
+        });
+
         if (supplierSelect) {
             supplierSelect.addEventListener('change', async function () {
                 try {
@@ -281,9 +302,11 @@
                     input.value = parseAmount(input.value).toString();
                 });
 
+                potonganAdminInput.value = parseAmount(potonganAdminInput.value).toString();
                 totalPembayaranInput.value = parseAmount(totalPembayaranInput.value).toString();
                 totalHutangAwalInput.value = parseAmount(totalHutangAwalInput.value).toString();
                 totalHutangSisaInput.value = parseAmount(totalHutangSisaInput.value).toString();
+                nominalBankKeluarInput.value = parseAmount(nominalBankKeluarInput.value).toString();
             });
         });
 
@@ -291,6 +314,7 @@
             input.value = formatIdInteger(input.value);
         });
 
+        potonganAdminInput.value = formatIdInteger(potonganAdminInput.value);
         initSelect2(document);
         updateTotals();
     });

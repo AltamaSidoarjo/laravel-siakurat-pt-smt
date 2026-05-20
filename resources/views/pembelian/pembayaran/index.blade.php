@@ -66,6 +66,7 @@
                                                 <th class="text-center align-middle" style="min-width: 180px;">Supplier</th>
                                                 <th class="text-center align-middle" style="min-width: 180px;">Akun Bank</th>
                                                 <th class="text-center align-middle" style="min-width: 180px;">Jumlah Pembayaran</th>
+                                                <th class="text-center align-middle" style="min-width: 180px;">Potongan Admin</th>
                                                 <th class="text-center align-middle" style="min-width: 220px;">Keterangan</th>
                                                 <th class="text-center align-middle" style="min-width: 120px;">Aksi</th>
                                             </tr>
@@ -136,6 +137,11 @@
                     {
                         data: 'total_bayar_display',
                         name: 'total_bayar',
+                        className: 'text-end'
+                    },
+                    {
+                        data: 'potongan_admin_display',
+                        name: 'potongan_admin',
                         className: 'text-end'
                     },
                     {

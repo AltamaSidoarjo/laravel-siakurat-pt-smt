@@ -179,14 +179,17 @@ class BukuBesarService
         int $pembayaranPembelianId,
         int $akunBankId,
         int $akunHutangId,
+        ?int $akunPotonganAdminId,
         string $nomer,
         string $tanggal,
         ?string $keterangan,
         float $totalBayar,
+        float $potonganAdmin = 0,
     ): void {
         $this->deleteBySource('Pembayaran Pembelian', $pembayaranPembelianId);
 
-        BukuBesar::query()->insert([
+        $nominalBank = $totalBayar - $potonganAdmin;
+        $payload = [
             [
                 'coa_id' => $akunHutangId,
                 'sumber_id' => $pembayaranPembelianId,
@@ -205,12 +208,29 @@ class BukuBesarService
                 'tanggal' => $tanggal,
                 'nomer' => $nomer,
                 'sumber_transaksi' => 'Pembayaran Pembelian',
-                'nominal' => $totalBayar,
+                'nominal' => $nominalBank,
                 'tipe_mutasi' => 'K',
                 'keterangan' => $keterangan,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ]);
+        ];
+
+        if ($potonganAdmin > 0 && $akunPotonganAdminId !== null) {
+            $payload[] = [
+                'coa_id' => $akunPotonganAdminId,
+                'sumber_id' => $pembayaranPembelianId,
+                'tanggal' => $tanggal,
+                'nomer' => $nomer,
+                'sumber_transaksi' => 'Pembayaran Pembelian',
+                'nominal' => $potonganAdmin,
+                'tipe_mutasi' => 'K',
+                'keterangan' => $keterangan,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        BukuBesar::query()->insert($payload);
     }
 }

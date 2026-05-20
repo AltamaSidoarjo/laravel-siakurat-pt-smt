@@ -25,6 +25,7 @@ class PembayaranPembelianService
             ->with([
                 'supplier:id,kode_supplier,nama_supplier',
                 'akunBank:id,kode,nama',
+                'akunPotonganAdmin:id,kode,nama',
             ])
             ->betweenDates($startDate, $endDate)
             ->orderByDesc('tanggal')
@@ -84,9 +85,11 @@ class PembayaranPembelianService
             'supplier_id' => $data['supplier_id'],
             'akun_bank_id' => $data['akun_bank_id'],
             'akun_hutang_id' => $data['akun_hutang_id'],
+            'akun_potongan_admin_id' => $data['akun_potongan_admin_id'] ?? null,
             'nomer_pembayaran' => $data['nomer_pembayaran'],
             'tanggal' => $data['tanggal'],
             'total_bayar' => $data['total_bayar'],
+            'potongan_admin' => $data['potongan_admin'] ?? 0,
             'keterangan' => $data['keterangan'] ?? null,
             'created_by' => $actor,
             'updated_by' => $actor,
@@ -102,16 +105,19 @@ class PembayaranPembelianService
             (int) $pembayaranPembelian->id,
             (int) $pembayaranPembelian->akun_bank_id,
             (int) $pembayaranPembelian->akun_hutang_id,
+            $pembayaranPembelian->akun_potongan_admin_id ? (int) $pembayaranPembelian->akun_potongan_admin_id : null,
             $pembayaranPembelian->nomer_pembayaran,
             $pembayaranPembelian->tanggal->format('Y-m-d'),
             $pembayaranPembelian->keterangan,
             (float) $pembayaranPembelian->total_bayar,
+            (float) $pembayaranPembelian->potongan_admin,
         );
 
         return $pembayaranPembelian->load([
             'supplier',
             'akunBank',
             'akunHutang',
+            'akunPotonganAdmin',
             'rincian.fakturPembelian',
         ]);
     }
@@ -130,9 +136,11 @@ class PembayaranPembelianService
         $pembayaranPembelian->update([
             'akun_bank_id' => $data['akun_bank_id'],
             'akun_hutang_id' => $data['akun_hutang_id'],
+            'akun_potongan_admin_id' => $data['akun_potongan_admin_id'] ?? null,
             'nomer_pembayaran' => $data['nomer_pembayaran'],
             'tanggal' => $data['tanggal'],
             'total_bayar' => $data['total_bayar'],
+            'potongan_admin' => $data['potongan_admin'] ?? 0,
             'keterangan' => $data['keterangan'] ?? null,
             'updated_by' => $actor,
         ]);
@@ -149,16 +157,19 @@ class PembayaranPembelianService
             (int) $pembayaranPembelian->id,
             (int) $pembayaranPembelian->akun_bank_id,
             (int) $pembayaranPembelian->akun_hutang_id,
+            $pembayaranPembelian->akun_potongan_admin_id ? (int) $pembayaranPembelian->akun_potongan_admin_id : null,
             $pembayaranPembelian->nomer_pembayaran,
             $pembayaranPembelian->tanggal->format('Y-m-d'),
             $pembayaranPembelian->keterangan,
             (float) $pembayaranPembelian->total_bayar,
+            (float) $pembayaranPembelian->potongan_admin,
         );
 
         return $pembayaranPembelian->load([
             'supplier',
             'akunBank',
             'akunHutang',
+            'akunPotonganAdmin',
             'rincian.fakturPembelian',
         ]);
     }

@@ -42,6 +42,8 @@
         return max($grandTotal - $sudahTerbayar + $nominalBayar, 0);
     });
     $totalBayar = $rincianPrint->sum(fn ($item) => (float) $item->nominal_bayar);
+    $potonganAdmin = (float) $pembayaranPembelian->potongan_admin;
+    $nominalBankKeluar = max($totalBayar - $potonganAdmin, 0);
     $terbilangRupiah = $totalBayar <= 0 ? 'Nol' : ucfirst(trim($terbilang((int) round($totalBayar))));
 @endphp
 
@@ -176,9 +178,26 @@
                         {{ $pembayaranPembelian->akunHutang?->kode }} - {{ $pembayaranPembelian->akunHutang?->nama }}
                     </td>
                     <td class="wrap-text">
-                        <span class="label-strong">Nominal:</span><br>
+                        <span class="label-strong">Total Pelunasan:</span><br>
                         {{ $formatRupiah($totalBayar) }}
                     </td>
+                </tr>
+                <tr>
+                    <td class="wrap-text">
+                        <span class="label-strong">Akun Potongan:</span><br>
+                        {{ $pembayaranPembelian->akunPotonganAdmin?->kode ? $pembayaranPembelian->akunPotonganAdmin->kode.' - '.$pembayaranPembelian->akunPotonganAdmin->nama : '-' }}
+                    </td>
+                    <td class="wrap-text">
+                        <span class="label-strong">Nominal Bank:</span><br>
+                        {{ $formatRupiah($nominalBankKeluar) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="wrap-text">
+                        <span class="label-strong">Potongan Admin:</span><br>
+                        {{ $formatRupiah($potonganAdmin) }}
+                    </td>
+                    <td class="wrap-text"></td>
                 </tr>
             </tbody>
         </table>

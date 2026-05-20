@@ -48,6 +48,7 @@ class PembayaranPembelianController extends Controller
             ->addColumn('supplier_display', fn (PembayaranPembelian $item) => trim(($item->supplier?->kode_supplier ?? '').' - '.($item->supplier?->nama_supplier ?? '')))
             ->addColumn('akun_bank_display', fn (PembayaranPembelian $item) => trim(($item->akunBank?->kode ?? '').' - '.($item->akunBank?->nama ?? '')))
             ->addColumn('total_bayar_display', fn (PembayaranPembelian $item) => number_format((float) $item->total_bayar, 0, ',', '.'))
+            ->addColumn('potongan_admin_display', fn (PembayaranPembelian $item) => number_format((float) $item->potongan_admin, 0, ',', '.'))
             ->addColumn('nomer_link', fn (PembayaranPembelian $item) => route('pembelian.pembayaran.edit', $item))
             ->addColumn('print_link', fn (PembayaranPembelian $item) => route('pembelian.pembayaran.print', $item))
             ->toJson();
@@ -80,7 +81,7 @@ class PembayaranPembelianController extends Controller
     {
         return view('pembelian.pembayaran.edit', [
             'page' => 'app',
-            'pembayaranPembelian' => $pembayaranPembelian->load(['supplier', 'akunBank', 'akunHutang', 'rincian.fakturPembelian']),
+            'pembayaranPembelian' => $pembayaranPembelian->load(['supplier', 'akunBank', 'akunHutang', 'akunPotonganAdmin', 'rincian.fakturPembelian']),
             'coaOptions' => $this->pembayaranPembelianService->getCoaOptions(),
         ]);
     }
@@ -116,7 +117,7 @@ class PembayaranPembelianController extends Controller
 
         return view('pembelian.pembayaran.print', [
             'page' => 'app',
-            'pembayaranPembelian' => $pembayaranPembelian->load(['supplier', 'akunBank', 'akunHutang', 'rincian.fakturPembelian']),
+            'pembayaranPembelian' => $pembayaranPembelian->load(['supplier', 'akunBank', 'akunHutang', 'akunPotonganAdmin', 'rincian.fakturPembelian']),
             'namaRumahSakit' => $printIdentity['namaRumahSakit'],
             'printedAt' => Carbon::now(),
             'namaPetugas' => auth()->user()?->name ?? '(Nama Petugas)',

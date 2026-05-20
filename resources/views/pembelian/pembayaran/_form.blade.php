@@ -1,6 +1,9 @@
 @php
     $isEdit = isset($pembayaranPembelian);
     $currentSupplierId = old('supplier_id', $pembayaranPembelian->supplier_id ?? '');
+    $currentPotonganAdmin = (float) old('potongan_admin', $pembayaranPembelian->potongan_admin ?? 0);
+    $currentTotalBayar = (float) old('total_bayar', $pembayaranPembelian->total_bayar ?? 0);
+    $currentNominalBank = max($currentTotalBayar - $currentPotonganAdmin, 0);
     $selectedRows = old('rincian');
 
     if ($selectedRows === null && $isEdit) {
@@ -102,6 +105,15 @@
                     <textarea name="keterangan" id="input_keterangan" class="form-control" rows="3">{{ old('keterangan', $pembayaranPembelian->keterangan ?? '') }}</textarea>
                 </div>
             </div>
+
+            <div class="row align-items-center mb-2">
+                <label for="input_potongan_admin" class="col-12 col-sm-2 col-form-label fw-bold">
+                    Potongan Admin
+                </label>
+                <div class="col">
+                    <input type="text" name="potongan_admin" id="input_potongan_admin" class="form-control text-end" value="{{ number_format($currentPotonganAdmin, 0, ',', '.') }}">
+                </div>
+            </div>
         </div>
     </div>
 
@@ -200,6 +212,31 @@
                             </option>
                         @endforeach
                     </select>
+                </div>
+            </div>
+
+            <div class="row align-items-center mb-2">
+                <label for="select_akun_potongan_admin" class="col-12 col-sm-2 col-form-label fw-bold">
+                    Akun Potongan
+                </label>
+                <div class="col">
+                    <select name="akun_potongan_admin_id" id="select_akun_potongan_admin" class="form-select select2-coa">
+                        <option value="">Pilih Akun</option>
+                        @foreach ($coaOptions as $coa)
+                            <option value="{{ $coa->id }}" @selected((string) old('akun_potongan_admin_id', $pembayaranPembelian->akun_potongan_admin_id ?? '') === (string) $coa->id)>
+                                {{ $coa->kode }} - {{ $coa->nama }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
+            <div class="row align-items-center mb-2">
+                <label for="input_nominal_bank_keluar" class="col-12 col-sm-2 col-form-label fw-bold">
+                    Nominal Bank
+                </label>
+                <div class="col">
+                    <input type="text" id="input_nominal_bank_keluar" class="form-control text-end" value="{{ number_format($currentNominalBank, 0, ',', '.') }}" readonly>
                 </div>
             </div>
         </div>
