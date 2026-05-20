@@ -224,7 +224,7 @@
 
 @push('scripts')
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        window.jQuery(function () {
             const $ = window.jQuery;
 
             if ($ && $.fn.select2) {
