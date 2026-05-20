@@ -22,9 +22,11 @@ class UpdatePenerimaanPendapatanRequest extends FormRequest
             'pelanggan_id' => ['required', 'integer', 'exists:pelanggan,id'],
             'akun_bank_id' => ['required', 'integer', 'exists:coa,id'],
             'akun_piutang_id' => ['required', 'integer', 'exists:coa,id'],
+            'akun_potongan_admin_id' => ['nullable', 'integer', 'exists:coa,id'],
             'nomer' => ['required', 'string', 'max:50', Rule::unique('penerimaan_penjualan', 'nomer')->ignore($penerimaanPenjualan->id)],
             'tanggal' => ['required', 'date'],
             'jumlah_pembayaran' => ['required', 'numeric', 'min:0'],
+            'potongan_admin' => ['nullable', 'numeric', 'min:0'],
             'keterangan' => ['nullable', 'string', 'max:255'],
             'rincian' => ['required', 'array', 'min:1'],
             'rincian.*.faktur_penjualan_id' => ['required', 'integer', 'exists:faktur_penjualan,id'],
@@ -51,6 +53,11 @@ class UpdatePenerimaanPendapatanRequest extends FormRequest
 
                 if (abs($calculated - $total) > 0.00001) {
                     $validator->errors()->add('jumlah_pembayaran', 'Jumlah pembayaran harus sama dengan total rincian terpilih.');
+                }
+
+                $potonganAdmin = (float) $this->input('potongan_admin', 0);
+                if ($potonganAdmin > 0 && empty($this->input('akun_potongan_admin_id'))) {
+                    $validator->errors()->add('akun_potongan_admin_id', 'Akun potongan wajib dipilih jika potongan admin diisi.');
                 }
             },
         ];

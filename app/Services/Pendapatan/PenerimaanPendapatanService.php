@@ -85,9 +85,11 @@ class PenerimaanPendapatanService
             'pelanggan_id' => $data['pelanggan_id'],
             'akun_bank_id' => $data['akun_bank_id'],
             'akun_piutang_id' => $data['akun_piutang_id'],
+            'akun_potongan_admin_id' => $data['akun_potongan_admin_id'] ?? null,
             'nomer' => $data['nomer'],
             'tanggal' => $data['tanggal'],
             'jumlah_pembayaran' => $data['jumlah_pembayaran'],
+            'potongan_admin' => $data['potongan_admin'] ?? 0,
             'keterangan' => $data['keterangan'] ?? null,
             'created_by' => $actor,
             'updated_by' => $actor,
@@ -103,16 +105,19 @@ class PenerimaanPendapatanService
             (int) $penerimaanPenjualan->id,
             (int) $penerimaanPenjualan->akun_bank_id,
             (int) $penerimaanPenjualan->akun_piutang_id,
+            $penerimaanPenjualan->akun_potongan_admin_id ? (int) $penerimaanPenjualan->akun_potongan_admin_id : null,
             $penerimaanPenjualan->nomer,
             $penerimaanPenjualan->tanggal->format('Y-m-d'),
             $penerimaanPenjualan->keterangan,
             (float) $penerimaanPenjualan->jumlah_pembayaran,
+            (float) $penerimaanPenjualan->potongan_admin,
         );
 
         return $penerimaanPenjualan->load([
             'pelanggan',
             'akunBank',
             'akunPiutang',
+            'akunPotonganAdmin',
             'rincian.fakturPenjualan',
         ]);
     }
@@ -131,9 +136,11 @@ class PenerimaanPendapatanService
         $penerimaanPenjualan->update([
             'akun_bank_id' => $data['akun_bank_id'],
             'akun_piutang_id' => $data['akun_piutang_id'],
+            'akun_potongan_admin_id' => $data['akun_potongan_admin_id'] ?? null,
             'nomer' => $data['nomer'],
             'tanggal' => $data['tanggal'],
             'jumlah_pembayaran' => $data['jumlah_pembayaran'],
+            'potongan_admin' => $data['potongan_admin'] ?? 0,
             'keterangan' => $data['keterangan'] ?? null,
             'updated_by' => $actor,
         ]);
@@ -150,16 +157,19 @@ class PenerimaanPendapatanService
             (int) $penerimaanPenjualan->id,
             (int) $penerimaanPenjualan->akun_bank_id,
             (int) $penerimaanPenjualan->akun_piutang_id,
+            $penerimaanPenjualan->akun_potongan_admin_id ? (int) $penerimaanPenjualan->akun_potongan_admin_id : null,
             $penerimaanPenjualan->nomer,
             $penerimaanPenjualan->tanggal->format('Y-m-d'),
             $penerimaanPenjualan->keterangan,
             (float) $penerimaanPenjualan->jumlah_pembayaran,
+            (float) $penerimaanPenjualan->potongan_admin,
         );
 
         return $penerimaanPenjualan->load([
             'pelanggan',
             'akunBank',
             'akunPiutang',
+            'akunPotonganAdmin',
             'rincian.fakturPenjualan',
         ]);
     }

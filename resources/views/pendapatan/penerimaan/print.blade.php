@@ -42,7 +42,9 @@
         return max($grandTotal - $sudahTerbayar + $nominalBayar, 0);
     });
     $totalBayar = $rincianPrint->sum(fn ($item) => (float) $item->nominal_bayar);
-    $terbilangRupiah = $totalBayar <= 0 ? 'Nol' : ucfirst(trim($terbilang((int) round($totalBayar))));
+    $potonganAdmin = (float) ($penerimaanPendapatan->potongan_admin ?? 0);
+    $nominalBank = max($totalBayar - $potonganAdmin, 0);
+    $terbilangNominalBank = $nominalBank <= 0 ? 'Nol' : ucfirst(trim($terbilang((int) round($nominalBank))));
 @endphp
 
 <!DOCTYPE html>
@@ -176,10 +178,29 @@
                         {{ $penerimaanPendapatan->akunPiutang?->kode }} - {{ $penerimaanPendapatan->akunPiutang?->nama }}
                     </td>
                     <td class="wrap-text">
-                        <span class="label-strong">Nominal:</span><br>
+                        <span class="label-strong">Total Pembayaran:</span><br>
                         {{ $formatRupiah($totalBayar) }}
                     </td>
                 </tr>
+                @if ($potonganAdmin > 0)
+                <tr>
+                    <td class="wrap-text">
+                        <span class="label-strong">Akun Potongan:</span><br>
+                        {{ $penerimaanPendapatan->akunPotonganAdmin?->kode }} - {{ $penerimaanPendapatan->akunPotonganAdmin?->nama }}
+                    </td>
+                    <td class="wrap-text">
+                        <span class="label-strong">Potongan Admin:</span><br>
+                        {{ $formatRupiah($potonganAdmin) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="wrap-text"></td>
+                    <td class="wrap-text">
+                        <span class="label-strong">Nominal Bank:</span><br>
+                        {{ $formatRupiah($nominalBank) }}
+                    </td>
+                </tr>
+                @endif
             </tbody>
         </table>
 
@@ -190,7 +211,7 @@
                         <span class="label-strong">Keterangan:</span><br>
                         {{ $penerimaanPendapatan->keterangan }}
                         <br><br>
-                        <span class="label-strong">Terbilang:</span> {{ $terbilangRupiah }} Rupiah
+                        <span class="label-strong">Terbilang:</span> {{ $terbilangNominalBank }} Rupiah
                     </td>
                 </tr>
             </tbody>

@@ -6,6 +6,8 @@
         const totalPiutangAwalInput = document.getElementById('input_total_piutang_awal');
         const totalPiutangSisaInput = document.getElementById('input_total_piutang_sisa');
         const totalPembayaranInput = document.getElementById('input_total_pembayaran');
+        const potonganAdminInput = document.getElementById('input_potongan_admin');
+        const nominalBankInput = document.getElementById('input_nominal_bank');
         const template = document.getElementById('detail-row-template');
         const invoiceAlert = document.getElementById('invoice_alert');
 
@@ -59,6 +61,16 @@
             });
         }
 
+        function updateNominalBank() {
+            const totalPembayaran = parseIdInteger(totalPembayaranInput.value);
+            const potonganAdmin = parseIdInteger(potonganAdminInput?.value);
+            const nominalBank = Math.max(totalPembayaran - potonganAdmin, 0);
+
+            if (nominalBankInput) {
+                nominalBankInput.value = formatIdInteger(nominalBank);
+            }
+        }
+
         function updateTotals() {
             let totalPiutangAwal = 0;
             let totalPiutangSisa = 0;
@@ -77,6 +89,7 @@
             totalPiutangAwalInput.value = formatIdInteger(totalPiutangAwal);
             totalPiutangSisaInput.value = formatIdInteger(totalPiutangSisa);
             totalPembayaranInput.value = formatIdInteger(totalPembayaran);
+            updateNominalBank();
         }
 
         function showTable() {
@@ -209,6 +222,18 @@
             }
         });
 
+        if (potonganAdminInput) {
+            potonganAdminInput.addEventListener('input', function () {
+                this.value = this.value.replace(/[^\d]/g, '');
+                updateNominalBank();
+            });
+
+            potonganAdminInput.addEventListener('focusout', function () {
+                this.value = formatIdInteger(this.value);
+                updateNominalBank();
+            });
+        }
+
         if (pelangganSelect) {
             pelangganSelect.addEventListener('change', async function () {
                 try {
@@ -255,6 +280,10 @@
                 totalPembayaranInput.value = parseIdInteger(totalPembayaranInput.value).toString();
                 totalPiutangAwalInput.value = parseIdInteger(totalPiutangAwalInput.value).toString();
                 totalPiutangSisaInput.value = parseIdInteger(totalPiutangSisaInput.value).toString();
+
+                if (potonganAdminInput) {
+                    potonganAdminInput.value = parseIdInteger(potonganAdminInput.value).toString();
+                }
             });
         });
 

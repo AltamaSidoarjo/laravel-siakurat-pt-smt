@@ -140,21 +140,24 @@ class BukuBesarService
         int $penerimaanPenjualanId,
         int $akunBankId,
         int $akunPiutangId,
+        ?int $akunPotonganAdminId,
         string $nomer,
         string $tanggal,
         ?string $keterangan,
         float $jumlahPembayaran,
+        float $potonganAdmin = 0,
     ): void {
         $this->deleteBySource('Penerimaan Pendapatan', $penerimaanPenjualanId);
 
-        BukuBesar::query()->insert([
+        $nominalBank = $jumlahPembayaran - $potonganAdmin;
+        $payload = [
             [
                 'coa_id' => $akunBankId,
                 'sumber_id' => $penerimaanPenjualanId,
                 'tanggal' => $tanggal,
                 'nomer' => $nomer,
                 'sumber_transaksi' => 'Penerimaan Pendapatan',
-                'nominal' => $jumlahPembayaran,
+                'nominal' => $nominalBank,
                 'tipe_mutasi' => 'D',
                 'keterangan' => $keterangan,
                 'created_at' => now(),
@@ -172,7 +175,24 @@ class BukuBesarService
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
-        ]);
+        ];
+
+        if ($potonganAdmin > 0 && $akunPotonganAdminId !== null) {
+            $payload[] = [
+                'coa_id' => $akunPotonganAdminId,
+                'sumber_id' => $penerimaanPenjualanId,
+                'tanggal' => $tanggal,
+                'nomer' => $nomer,
+                'sumber_transaksi' => 'Penerimaan Pendapatan',
+                'nominal' => $potonganAdmin,
+                'tipe_mutasi' => 'D',
+                'keterangan' => $keterangan,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        BukuBesar::query()->insert($payload);
     }
 
     public function syncFromPembayaranPembelian(

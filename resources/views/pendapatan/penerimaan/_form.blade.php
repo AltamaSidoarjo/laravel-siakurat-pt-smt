@@ -1,6 +1,9 @@
 @php
     $isEdit = isset($penerimaanPendapatan);
     $currentPelangganId = old('pelanggan_id', $penerimaanPendapatan->pelanggan_id ?? '');
+    $currentPotonganAdmin = (float) old('potongan_admin', $penerimaanPendapatan->potongan_admin ?? 0);
+    $currentJumlahPembayaran = (float) old('jumlah_pembayaran', $penerimaanPendapatan->jumlah_pembayaran ?? 0);
+    $currentNominalBank = max($currentJumlahPembayaran - $currentPotonganAdmin, 0);
     $selectedRows = old('rincian');
 
     if ($selectedRows === null && $isEdit) {
@@ -104,6 +107,15 @@
                     <textarea name="keterangan" id="input_keterangan" class="form-control" rows="3">{{ old('keterangan', $penerimaanPendapatan->keterangan ?? '') }}</textarea>
                 </div>
             </div>
+
+            <div class="row align-items-center mb-2">
+                <label for="input_potongan_admin" class="col-12 col-sm-2 col-form-label fw-bold">
+                    Potongan Admin
+                </label>
+                <div class="col">
+                    <input type="text" name="potongan_admin" id="input_potongan_admin" class="form-control text-end" value="{{ number_format($currentPotonganAdmin, 0, ',', '.') }}">
+                </div>
+            </div>
         </div>
     </div>
 
@@ -184,7 +196,7 @@
 
     <div class="card border-light shadow-sm">
         <div class="card-body">
-            <div class="row align-items-center mb-3">
+            <div class="row align-items-center mb-2">
                 <label for="select_akun_piutang" class="col-12 col-sm-2 col-form-label fw-bold">
                     Akun Piutang<span class="text-danger">*</span>
                 </label>
@@ -197,6 +209,31 @@
                             </option>
                         @endforeach
                     </select>
+                </div>
+            </div>
+
+            <div class="row align-items-center mb-2">
+                <label for="select_akun_potongan_admin" class="col-12 col-sm-2 col-form-label fw-bold">
+                    Akun Potongan
+                </label>
+                <div class="col">
+                    <select name="akun_potongan_admin_id" id="select_akun_potongan_admin" class="form-select select2-coa">
+                        <option value="">Pilih Akun</option>
+                        @foreach ($coaOptions as $coa)
+                            <option value="{{ $coa->id }}" @selected((string) old('akun_potongan_admin_id', $penerimaanPendapatan->akun_potongan_admin_id ?? '') === (string) $coa->id)>
+                                {{ $coa->kode }} - {{ $coa->nama }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
+            <div class="row align-items-center mb-3">
+                <label for="input_nominal_bank" class="col-12 col-sm-2 col-form-label fw-bold">
+                    Nominal Bank
+                </label>
+                <div class="col">
+                    <input type="text" id="input_nominal_bank" class="form-control text-end" value="{{ number_format($currentNominalBank, 0, ',', '.') }}" readonly>
                 </div>
             </div>
 
