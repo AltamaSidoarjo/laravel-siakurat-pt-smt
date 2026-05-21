@@ -22,7 +22,7 @@ class StorePenerimaanPendapatanRequest extends FormRequest
             'nomer' => ['required', 'string', 'max:50', Rule::unique('penerimaan_penjualan', 'nomer')],
             'tanggal' => ['required', 'date'],
             'jumlah_pembayaran' => ['required', 'numeric', 'min:0'],
-            'selisih_tarif' => ['nullable', 'numeric', 'min:0'],
+            'selisih_tarif' => ['nullable', 'numeric'],
             'keterangan' => ['nullable', 'string', 'max:255'],
             'rincian' => ['required', 'array', 'min:1'],
             'rincian.*.faktur_penjualan_id' => ['required', 'integer', 'exists:faktur_penjualan,id'],
@@ -52,7 +52,7 @@ class StorePenerimaanPendapatanRequest extends FormRequest
                     $validator->errors()->add('jumlah_pembayaran', 'Jumlah pembayaran harus sama dengan total rincian terpilih ditambah selisih tarif.');
                 }
 
-                if ($selisihTarif > 0 && empty($this->input('akun_selisih_tarif_id'))) {
+                if ($selisihTarif != 0 && empty($this->input('akun_selisih_tarif_id'))) {
                     $validator->errors()->add('akun_selisih_tarif_id', 'Akun selisih tarif wajib dipilih jika selisih tarif diisi.');
                 }
             },

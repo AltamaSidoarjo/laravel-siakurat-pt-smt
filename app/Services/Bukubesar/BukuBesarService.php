@@ -179,15 +179,15 @@ class BukuBesarService
             ],
         ];
 
-        if ($selisihTarif > 0 && $akunSelisihTarifId !== null) {
+        if ($selisihTarif != 0 && $akunSelisihTarifId !== null) {
             $payload[] = [
                 'coa_id' => $akunSelisihTarifId,
                 'sumber_id' => $penerimaanPenjualanId,
                 'tanggal' => $tanggal,
                 'nomer' => $nomer,
                 'sumber_transaksi' => 'Penerimaan Pendapatan',
-                'nominal' => $selisihTarif,
-                'tipe_mutasi' => 'K',
+                'nominal' => abs($selisihTarif),
+                'tipe_mutasi' => $selisihTarif > 0 ? 'K' : 'D',
                 'keterangan' => $keterangan,
                 'created_at' => now(),
                 'updated_at' => now(),

@@ -51,7 +51,9 @@
         }
 
         function formatIdInteger(value) {
-            return parseIdInteger(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            const num = parseIdInteger(value);
+            const prefix = num < 0 ? '-' : '';
+            return prefix + Math.abs(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         }
 
         function reindexRows() {
@@ -228,7 +230,7 @@
 
         if (selisihTarifInput) {
             selisihTarifInput.addEventListener('input', function () {
-                this.value = this.value.replace(/[^\d]/g, '');
+                this.value = this.value.replace(/[^\d-]/g, '').replace(/(?!^)-/g, '');
                 updateNominalBank();
             });
 
