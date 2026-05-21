@@ -18,11 +18,11 @@ class StorePenerimaanPendapatanRequest extends FormRequest
             'pelanggan_id' => ['required', 'integer', 'exists:pelanggan,id'],
             'akun_bank_id' => ['required', 'integer', 'exists:coa,id'],
             'akun_piutang_id' => ['required', 'integer', 'exists:coa,id'],
-            'akun_potongan_admin_id' => ['nullable', 'integer', 'exists:coa,id'],
+            'akun_selisih_tarif_id' => ['nullable', 'integer', 'exists:coa,id'],
             'nomer' => ['required', 'string', 'max:50', Rule::unique('penerimaan_penjualan', 'nomer')],
             'tanggal' => ['required', 'date'],
             'jumlah_pembayaran' => ['required', 'numeric', 'min:0'],
-            'potongan_admin' => ['nullable', 'numeric', 'min:0'],
+            'selisih_tarif' => ['nullable', 'numeric', 'min:0'],
             'keterangan' => ['nullable', 'string', 'max:255'],
             'rincian' => ['required', 'array', 'min:1'],
             'rincian.*.faktur_penjualan_id' => ['required', 'integer', 'exists:faktur_penjualan,id'],
@@ -44,16 +44,16 @@ class StorePenerimaanPendapatanRequest extends FormRequest
                     return;
                 }
 
-                $calculated = (float) $checkedRows->sum(fn ($row) => (float) ($row['nominal_bayar'] ?? 0));
-                $total = (float) $this->input('jumlah_pembayaran', 0);
+                $totalRincian = (float) $checkedRows->sum(fn ($row) => (float) ($row['nominal_bayar'] ?? 0));
+                $selisihTarif = (float) $this->input('selisih_tarif', 0);
+                $jumlahPembayaran = (float) $this->input('jumlah_pembayaran', 0);
 
-                if (abs($calculated - $total) > 0.00001) {
-                    $validator->errors()->add('jumlah_pembayaran', 'Jumlah pembayaran harus sama dengan total rincian terpilih.');
+                if (abs($jumlahPembayaran - ($totalRincian + $selisihTarif)) > 0.00001) {
+                    $validator->errors()->add('jumlah_pembayaran', 'Jumlah pembayaran harus sama dengan total rincian terpilih ditambah selisih tarif.');
                 }
 
-                $potonganAdmin = (float) $this->input('potongan_admin', 0);
-                if ($potonganAdmin > 0 && empty($this->input('akun_potongan_admin_id'))) {
-                    $validator->errors()->add('akun_potongan_admin_id', 'Akun potongan wajib dipilih jika potongan admin diisi.');
+                if ($selisihTarif > 0 && empty($this->input('akun_selisih_tarif_id'))) {
+                    $validator->errors()->add('akun_selisih_tarif_id', 'Akun selisih tarif wajib dipilih jika selisih tarif diisi.');
                 }
             },
         ];

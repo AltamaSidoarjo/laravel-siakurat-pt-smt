@@ -140,16 +140,18 @@ class BukuBesarService
         int $penerimaanPenjualanId,
         int $akunBankId,
         int $akunPiutangId,
-        ?int $akunPotonganAdminId,
+        ?int $akunSelisihTarifId,
         string $nomer,
         string $tanggal,
         ?string $keterangan,
         float $jumlahPembayaran,
-        float $potonganAdmin = 0,
+        float $selisihTarif = 0,
     ): void {
         $this->deleteBySource('Penerimaan Pendapatan', $penerimaanPenjualanId);
 
-        $nominalBank = $jumlahPembayaran - $potonganAdmin;
+        // Kasbank D = jumlah_pembayaran (total kasbank diterima, sudah termasuk selisih tarif)
+        // Piutang K = jumlah_pembayaran - selisih_tarif (= total rincian piutang)
+        // Selisih Tarif K = selisih_tarif (jika ada)
         $payload = [
             [
                 'coa_id' => $akunBankId,
@@ -157,7 +159,7 @@ class BukuBesarService
                 'tanggal' => $tanggal,
                 'nomer' => $nomer,
                 'sumber_transaksi' => 'Penerimaan Pendapatan',
-                'nominal' => $nominalBank,
+                'nominal' => $jumlahPembayaran,
                 'tipe_mutasi' => 'D',
                 'keterangan' => $keterangan,
                 'created_at' => now(),
@@ -169,7 +171,7 @@ class BukuBesarService
                 'tanggal' => $tanggal,
                 'nomer' => $nomer,
                 'sumber_transaksi' => 'Penerimaan Pendapatan',
-                'nominal' => $jumlahPembayaran,
+                'nominal' => $jumlahPembayaran - $selisihTarif,
                 'tipe_mutasi' => 'K',
                 'keterangan' => $keterangan,
                 'created_at' => now(),
@@ -177,15 +179,15 @@ class BukuBesarService
             ],
         ];
 
-        if ($potonganAdmin > 0 && $akunPotonganAdminId !== null) {
+        if ($selisihTarif > 0 && $akunSelisihTarifId !== null) {
             $payload[] = [
-                'coa_id' => $akunPotonganAdminId,
+                'coa_id' => $akunSelisihTarifId,
                 'sumber_id' => $penerimaanPenjualanId,
                 'tanggal' => $tanggal,
                 'nomer' => $nomer,
                 'sumber_transaksi' => 'Penerimaan Pendapatan',
-                'nominal' => $potonganAdmin,
-                'tipe_mutasi' => 'D',
+                'nominal' => $selisihTarif,
+                'tipe_mutasi' => 'K',
                 'keterangan' => $keterangan,
                 'created_at' => now(),
                 'updated_at' => now(),

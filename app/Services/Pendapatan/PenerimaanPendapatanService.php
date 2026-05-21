@@ -85,11 +85,11 @@ class PenerimaanPendapatanService
             'pelanggan_id' => $data['pelanggan_id'],
             'akun_bank_id' => $data['akun_bank_id'],
             'akun_piutang_id' => $data['akun_piutang_id'],
-            'akun_potongan_admin_id' => $data['akun_potongan_admin_id'] ?? null,
+            'akun_selisih_tarif_id' => $data['akun_selisih_tarif_id'] ?? null,
             'nomer' => $data['nomer'],
             'tanggal' => $data['tanggal'],
             'jumlah_pembayaran' => $data['jumlah_pembayaran'],
-            'potongan_admin' => $data['potongan_admin'] ?? 0,
+            'selisih_tarif' => $data['selisih_tarif'] ?? 0,
             'keterangan' => $data['keterangan'] ?? null,
             'created_by' => $actor,
             'updated_by' => $actor,
@@ -102,22 +102,22 @@ class PenerimaanPendapatanService
 
         $this->invoicePendapatanService->increaseSudahTerbayar($selectedRincian);
         $this->bukuBesarService->syncFromPenerimaanPendapatan(
-            (int) $penerimaanPenjualan->id,
-            (int) $penerimaanPenjualan->akun_bank_id,
-            (int) $penerimaanPenjualan->akun_piutang_id,
-            $penerimaanPenjualan->akun_potongan_admin_id ? (int) $penerimaanPenjualan->akun_potongan_admin_id : null,
-            $penerimaanPenjualan->nomer,
-            $penerimaanPenjualan->tanggal->format('Y-m-d'),
-            $penerimaanPenjualan->keterangan,
-            (float) $penerimaanPenjualan->jumlah_pembayaran,
-            (float) $penerimaanPenjualan->potongan_admin,
+            penerimaanPenjualanId: (int) $penerimaanPenjualan->id,
+            akunBankId: (int) $penerimaanPenjualan->akun_bank_id,
+            akunPiutangId: (int) $penerimaanPenjualan->akun_piutang_id,
+            akunSelisihTarifId: $penerimaanPenjualan->akun_selisih_tarif_id ? (int) $penerimaanPenjualan->akun_selisih_tarif_id : null,
+            nomer: $penerimaanPenjualan->nomer,
+            tanggal: $penerimaanPenjualan->tanggal->format('Y-m-d'),
+            keterangan: $penerimaanPenjualan->keterangan,
+            jumlahPembayaran: (float) $penerimaanPenjualan->jumlah_pembayaran,
+            selisihTarif: (float) $penerimaanPenjualan->selisih_tarif,
         );
 
         return $penerimaanPenjualan->load([
             'pelanggan',
             'akunBank',
             'akunPiutang',
-            'akunPotonganAdmin',
+            'akunSelisihTarif',
             'rincian.fakturPenjualan',
         ]);
     }
@@ -136,11 +136,11 @@ class PenerimaanPendapatanService
         $penerimaanPenjualan->update([
             'akun_bank_id' => $data['akun_bank_id'],
             'akun_piutang_id' => $data['akun_piutang_id'],
-            'akun_potongan_admin_id' => $data['akun_potongan_admin_id'] ?? null,
+            'akun_selisih_tarif_id' => $data['akun_selisih_tarif_id'] ?? null,
             'nomer' => $data['nomer'],
             'tanggal' => $data['tanggal'],
             'jumlah_pembayaran' => $data['jumlah_pembayaran'],
-            'potongan_admin' => $data['potongan_admin'] ?? 0,
+            'selisih_tarif' => $data['selisih_tarif'] ?? 0,
             'keterangan' => $data['keterangan'] ?? null,
             'updated_by' => $actor,
         ]);
@@ -154,22 +154,22 @@ class PenerimaanPendapatanService
 
         $this->invoicePendapatanService->increaseSudahTerbayar($selectedRincian);
         $this->bukuBesarService->syncFromPenerimaanPendapatan(
-            (int) $penerimaanPenjualan->id,
-            (int) $penerimaanPenjualan->akun_bank_id,
-            (int) $penerimaanPenjualan->akun_piutang_id,
-            $penerimaanPenjualan->akun_potongan_admin_id ? (int) $penerimaanPenjualan->akun_potongan_admin_id : null,
-            $penerimaanPenjualan->nomer,
-            $penerimaanPenjualan->tanggal->format('Y-m-d'),
-            $penerimaanPenjualan->keterangan,
-            (float) $penerimaanPenjualan->jumlah_pembayaran,
-            (float) $penerimaanPenjualan->potongan_admin,
+            penerimaanPenjualanId: (int) $penerimaanPenjualan->id,
+            akunBankId: (int) $penerimaanPenjualan->akun_bank_id,
+            akunPiutangId: (int) $penerimaanPenjualan->akun_piutang_id,
+            akunSelisihTarifId: $penerimaanPenjualan->akun_selisih_tarif_id ? (int) $penerimaanPenjualan->akun_selisih_tarif_id : null,
+            nomer: $penerimaanPenjualan->nomer,
+            tanggal: $penerimaanPenjualan->tanggal->format('Y-m-d'),
+            keterangan: $penerimaanPenjualan->keterangan,
+            jumlahPembayaran: (float) $penerimaanPenjualan->jumlah_pembayaran,
+            selisihTarif: (float) $penerimaanPenjualan->selisih_tarif,
         );
 
         return $penerimaanPenjualan->load([
             'pelanggan',
             'akunBank',
             'akunPiutang',
-            'akunPotonganAdmin',
+            'akunSelisihTarif',
             'rincian.fakturPenjualan',
         ]);
     }

@@ -42,8 +42,8 @@
         return max($grandTotal - $sudahTerbayar + $nominalBayar, 0);
     });
     $totalBayar = $rincianPrint->sum(fn ($item) => (float) $item->nominal_bayar);
-    $potonganAdmin = (float) ($penerimaanPendapatan->potongan_admin ?? 0);
-    $nominalBank = max($totalBayar - $potonganAdmin, 0);
+    $selisihTarif = (float) ($penerimaanPendapatan->selisih_tarif ?? 0);
+    $nominalBank = $totalBayar + $selisihTarif;
     $terbilangNominalBank = $nominalBank <= 0 ? 'Nol' : ucfirst(trim($terbilang((int) round($nominalBank))));
 @endphp
 
@@ -182,15 +182,15 @@
                         {{ $formatRupiah($totalBayar) }}
                     </td>
                 </tr>
-                @if ($potonganAdmin > 0)
+                @if ($selisihTarif > 0)
                 <tr>
                     <td class="wrap-text">
-                        <span class="label-strong">Akun Potongan:</span><br>
-                        {{ $penerimaanPendapatan->akunPotonganAdmin?->kode }} - {{ $penerimaanPendapatan->akunPotonganAdmin?->nama }}
+                        <span class="label-strong">Akun Selisih Tarif:</span><br>
+                        {{ $penerimaanPendapatan->akunSelisihTarif?->kode }} - {{ $penerimaanPendapatan->akunSelisihTarif?->nama }}
                     </td>
                     <td class="wrap-text">
-                        <span class="label-strong">Potongan Admin:</span><br>
-                        {{ $formatRupiah($potonganAdmin) }}
+                        <span class="label-strong">Selisih Tarif:</span><br>
+                        {{ $formatRupiah($selisihTarif) }}
                     </td>
                 </tr>
                 <tr>

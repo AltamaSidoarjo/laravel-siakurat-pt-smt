@@ -1,9 +1,9 @@
 @php
     $isEdit = isset($penerimaanPendapatan);
     $currentPelangganId = old('pelanggan_id', $penerimaanPendapatan->pelanggan_id ?? '');
-    $currentPotonganAdmin = (float) old('potongan_admin', $penerimaanPendapatan->potongan_admin ?? 0);
+    $currentSelisihTarif = (float) old('selisih_tarif', $penerimaanPendapatan->selisih_tarif ?? 0);
     $currentJumlahPembayaran = (float) old('jumlah_pembayaran', $penerimaanPendapatan->jumlah_pembayaran ?? 0);
-    $currentNominalBank = max($currentJumlahPembayaran - $currentPotonganAdmin, 0);
+    $currentNominalBank = $currentJumlahPembayaran;
     $selectedRows = old('rincian');
 
     if ($selectedRows === null && $isEdit) {
@@ -109,11 +109,11 @@
             </div>
 
             <div class="row align-items-center mb-2">
-                <label for="input_potongan_admin" class="col-12 col-sm-2 col-form-label fw-bold">
-                    Potongan Admin
+                <label for="input_selisih_tarif" class="col-12 col-sm-2 col-form-label fw-bold">
+                    Selisih Tarif
                 </label>
                 <div class="col">
-                    <input type="text" name="potongan_admin" id="input_potongan_admin" class="form-control text-end" value="{{ number_format($currentPotonganAdmin, 0, ',', '.') }}">
+                    <input type="text" name="selisih_tarif" id="input_selisih_tarif" class="form-control text-end" value="{{ number_format($currentSelisihTarif, 0, ',', '.') }}">
                 </div>
             </div>
         </div>
@@ -184,7 +184,7 @@
                                 <input type="text" class="form-control text-end" id="input_total_piutang_sisa" readonly>
                             </td>
                             <td>
-                                <input type="text" name="jumlah_pembayaran" id="input_total_pembayaran" class="form-control text-end" value="{{ number_format((float) old('jumlah_pembayaran', $penerimaanPendapatan->jumlah_pembayaran ?? 0), 0, ',', '.') }}" readonly>
+                                <input type="text" id="input_total_rincian_piutang" class="form-control text-end" value="{{ number_format((float) old('jumlah_pembayaran', $penerimaanPendapatan->jumlah_pembayaran ?? 0), 0, ',', '.') }}" readonly>
                             </td>
                             <td></td>
                         </tr>
@@ -213,14 +213,14 @@
             </div>
 
             <div class="row align-items-center mb-2">
-                <label for="select_akun_potongan_admin" class="col-12 col-sm-2 col-form-label fw-bold">
-                    Akun Potongan
+                <label for="select_akun_selisih_tarif" class="col-12 col-sm-2 col-form-label fw-bold">
+                    Akun Selisih Tarif
                 </label>
                 <div class="col">
-                    <select name="akun_potongan_admin_id" id="select_akun_potongan_admin" class="form-select select2-coa">
+                    <select name="akun_selisih_tarif_id" id="select_akun_selisih_tarif" class="form-select select2-coa">
                         <option value="">Pilih Akun</option>
                         @foreach ($coaOptions as $coa)
-                            <option value="{{ $coa->id }}" @selected((string) old('akun_potongan_admin_id', $penerimaanPendapatan->akun_potongan_admin_id ?? '') === (string) $coa->id)>
+                            <option value="{{ $coa->id }}" @selected((string) old('akun_selisih_tarif_id', $penerimaanPendapatan->akun_selisih_tarif_id ?? '') === (string) $coa->id)>
                                 {{ $coa->kode }} - {{ $coa->nama }}
                             </option>
                         @endforeach
@@ -236,6 +236,8 @@
                     <input type="text" id="input_nominal_bank" class="form-control text-end" value="{{ number_format($currentNominalBank, 0, ',', '.') }}" readonly>
                 </div>
             </div>
+
+            <input type="hidden" name="jumlah_pembayaran" id="hidden_jumlah_pembayaran" value="{{ number_format($currentJumlahPembayaran, 0, ',', '.') }}">
 
             <div class="d-flex {{ $isEdit ? 'justify-content-between' : 'justify-content-end' }} gap-3">
                 @if ($isEdit)

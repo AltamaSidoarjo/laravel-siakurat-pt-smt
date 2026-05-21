@@ -71,7 +71,7 @@ class PenerimaanPendapatanController extends Controller
     {
         return view('pendapatan.penerimaan.edit', [
             'page' => 'app',
-            'penerimaanPendapatan' => $penerimaanPenjualan->load(['pelanggan', 'akunBank', 'akunPiutang', 'akunPotonganAdmin', 'rincian.fakturPenjualan']),
+            'penerimaanPendapatan' => $penerimaanPenjualan->load(['pelanggan', 'akunBank', 'akunPiutang', 'akunSelisihTarif', 'rincian.fakturPenjualan']),
             'coaOptions' => $this->penerimaanPendapatanService->getCoaOptions(),
         ]);
     }
@@ -107,7 +107,7 @@ class PenerimaanPendapatanController extends Controller
 
         return view('pendapatan.penerimaan.print', [
             'page' => 'app',
-            'penerimaanPendapatan' => $penerimaanPenjualan->load(['pelanggan', 'akunBank', 'akunPiutang', 'akunPotonganAdmin', 'rincian.fakturPenjualan']),
+            'penerimaanPendapatan' => $penerimaanPenjualan->load(['pelanggan', 'akunBank', 'akunPiutang', 'akunSelisihTarif', 'rincian.fakturPenjualan']),
             'namaRumahSakit' => $printIdentity['namaRumahSakit'],
             'printedAt' => Carbon::now(),
             'namaPetugas' => auth()->user()?->name ?? '(Nama Petugas)',
