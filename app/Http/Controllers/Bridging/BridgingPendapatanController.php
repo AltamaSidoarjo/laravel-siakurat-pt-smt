@@ -7,6 +7,7 @@ use App\Http\Requests\Bridging\BulkDeletePendapatanRequest;
 use App\Http\Requests\Bridging\ImportPendapatanRequest;
 use App\Models\SimrsImportPendapatan;
 use App\Services\Bridging\BridgingPendapatanService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,8 +18,7 @@ class BridgingPendapatanController extends Controller
 {
     public function __construct(
         private readonly BridgingPendapatanService $bridgingPendapatanService,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): View
     {
@@ -39,17 +39,24 @@ class BridgingPendapatanController extends Controller
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
 
-        $query = $this->bridgingPendapatanService->getQueryDataImport(
+        $baseQuery = $this->bridgingPendapatanService->getQueryDataImport(
             $startDate,
             $endDate,
             $request->string('poli')->toString(),
             $request->string('penjamin')->toString(),
         );
 
-        return DataTables::eloquent($query)
+        $grandTotalQuery = clone $baseQuery;
+        $this->applyDataTableSearch($grandTotalQuery, $request);
+
+        return DataTables::eloquent($baseQuery)
+            ->filter(function (Builder $query) use ($request) {
+                $this->applyDataTableSearch($query, $request);
+            }, false)
             ->addColumn('checkbox', fn (SimrsImportPendapatan $item) => $item->nomer_billing)
             ->addColumn('tanggal_reg_display', fn (SimrsImportPendapatan $item) => optional($item->tanggal_reg)->format('Y-m-d'))
             ->addColumn('total_tagihan_display', fn (SimrsImportPendapatan $item) => number_format((float) $item->total_tagihan, 0, ',', '.'))
+            ->with('grandTotal', fn () => (float) $grandTotalQuery->sum('total_tagihan'))
             ->toJson();
     }
 
@@ -138,5 +145,29 @@ class BridgingPendapatanController extends Controller
         $endDate = $request->date('endDate')?->format('Y-m-d') ?? now()->format('Y-m-d');
 
         return [$startDate, $endDate];
+    }
+
+    private function applyDataTableSearch(Builder $query, Request $request): void
+    {
+        $searchValue = trim($request->input('search.value', ''));
+
+        if ($searchValue === '') {
+            return;
+        }
+
+        $likeSearch = '%'.$searchValue.'%';
+
+        $query->where(function (Builder $searchQuery) use ($likeSearch) {
+            $searchQuery
+                ->where('nomer_billing', 'like', $likeSearch)
+                ->orWhere('tanggal_reg', 'like', $likeSearch)
+                ->orWhere('nama_pasien', 'like', $likeSearch)
+                ->orWhere('dokter', 'like', $likeSearch)
+                ->orWhere('poli', 'like', $likeSearch)
+                ->orWhere('status_layanan', 'like', $likeSearch)
+                ->orWhere('penjamin', 'like', $likeSearch)
+                ->orWhere('import_ke', 'like', $likeSearch)
+                ->orWhereRaw('CAST(total_tagihan AS CHAR) like ?', [$likeSearch]);
+        });
     }
 }
