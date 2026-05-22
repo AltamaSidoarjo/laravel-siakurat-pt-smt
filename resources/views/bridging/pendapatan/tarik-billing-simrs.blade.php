@@ -169,7 +169,7 @@
                         name: 'total_biaya',
                         className: 'text-end',
                         render: function (data) {
-                            return Number(data).toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            return Number(data).toLocaleString('id-ID');
                         }
                     }
                 ]

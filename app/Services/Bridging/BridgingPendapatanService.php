@@ -718,6 +718,10 @@ class BridgingPendapatanService
                 SELECT j.no_jurnal
                 FROM jurnal j
                 WHERE j.no_bukti = ?
+                AND (
+                    j.keterangan LIKE 'PEMBAYARAN%'
+                    OR j.keterangan LIKE 'PIUTANG%'
+                )
                 ORDER BY j.no_jurnal DESC
                 LIMIT 1
             ) last_jurnal
