@@ -8,6 +8,7 @@ use App\Models\FakturPembelianRinci;
 use App\Models\MappingCoaSimrs;
 use App\Models\Supplier;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -70,6 +71,35 @@ class BridgingPembelianService
                 'ppn' => (float) ($row->ppn ?? 0),
                 'tagihan' => (float) ($row->tagihan ?? 0),
             ]);
+    }
+
+    public function getKandidatPembelianObatQuery(string $startDate, string $endDate): QueryBuilder
+    {
+        $nomerFakturTerpakai = array_keys($this->ambilLookupFakturTerpakai($startDate, $endDate));
+
+        $query = DB::connection('simrs')
+            ->table('pemesanan as p')
+            ->leftJoin('datasuplier as s', 's.kode_suplier', '=', 'p.kode_suplier')
+            ->whereBetween('p.tgl_faktur', [$startDate, $endDate])
+            ->select([
+                'p.no_faktur',
+                'p.no_order',
+                'p.tgl_faktur',
+                'p.tgl_pesan',
+                'p.tgl_tempo',
+                'p.kode_suplier',
+                's.nama_suplier',
+                'p.kd_bangsal',
+                'p.status',
+                'p.ppn',
+                'p.tagihan',
+            ]);
+
+        if ($nomerFakturTerpakai !== []) {
+            $query->whereNotIn('p.no_faktur', $nomerFakturTerpakai);
+        }
+
+        return $query;
     }
 
     public function getKandidatPembelianNonMedis(string $startDate, string $endDate): Collection

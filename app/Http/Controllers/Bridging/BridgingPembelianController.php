@@ -8,6 +8,7 @@ use App\Http\Requests\Bridging\ImportPembelianNonMedisRequest;
 use App\Http\Requests\Bridging\ImportPembelianObatRequest;
 use App\Models\FakturPembelian;
 use App\Services\Bridging\BridgingPembelianService;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -64,9 +65,13 @@ class BridgingPembelianController extends Controller
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
 
-        return DataTables::collection(
-            $this->bridgingPembelianService->getKandidatPembelianObat($startDate, $endDate)
-        )->toJson();
+        $query = $this->bridgingPembelianService->getKandidatPembelianObatQuery($startDate, $endDate);
+
+        return DataTables::of($query)
+            ->filter(function (Builder $query) use ($request) {
+                $this->applyTagihanObatDataTableSearch($query, $request);
+            }, false)
+            ->toJson();
     }
 
     public function processImportObat(ImportPembelianObatRequest $request): RedirectResponse
@@ -136,5 +141,70 @@ class BridgingPembelianController extends Controller
         $endDate = $request->date('endDate')?->format('Y-m-d') ?? now()->format('Y-m-d');
 
         return [$startDate, $endDate];
+    }
+
+    private function applyTagihanObatDataTableSearch(Builder $query, Request $request): void
+    {
+        $globalSearch = trim($request->input('search.value', ''));
+
+        if ($globalSearch !== '') {
+            $this->applyTagihanObatSearchTerm($query, $globalSearch);
+        }
+
+        foreach ($this->tagihanObatSearchableColumns() as $index => $column) {
+            $columnSearch = trim((string) $request->input("columns.$index.search.value", ''));
+
+            if ($columnSearch === '') {
+                continue;
+            }
+
+            $this->applyTagihanObatColumnSearch($query, $column, $columnSearch);
+        }
+    }
+
+    private function applyTagihanObatSearchTerm(Builder $query, string $searchValue): void
+    {
+        $likeSearch = '%'.$searchValue.'%';
+
+        $query->where(function (Builder $searchQuery) use ($likeSearch) {
+            $searchQuery
+                ->where('p.no_faktur', 'like', $likeSearch)
+                ->orWhere('p.no_order', 'like', $likeSearch)
+                ->orWhere('p.tgl_faktur', 'like', $likeSearch)
+                ->orWhere('p.tgl_pesan', 'like', $likeSearch)
+                ->orWhere('p.tgl_tempo', 'like', $likeSearch)
+                ->orWhere('s.nama_suplier', 'like', $likeSearch)
+                ->orWhere('p.kd_bangsal', 'like', $likeSearch)
+                ->orWhere('p.status', 'like', $likeSearch)
+                ->orWhereRaw('CAST(p.tagihan AS CHAR) like ?', [$likeSearch]);
+        });
+    }
+
+    private function applyTagihanObatColumnSearch(Builder $query, string $column, string $searchValue): void
+    {
+        $likeSearch = '%'.$searchValue.'%';
+
+        if ($column === 'tagihan') {
+            $query->whereRaw('CAST(p.tagihan AS CHAR) like ?', [$likeSearch]);
+
+            return;
+        }
+
+        $query->where($column, 'like', $likeSearch);
+    }
+
+    private function tagihanObatSearchableColumns(): array
+    {
+        return [
+            1 => 'p.no_faktur',
+            2 => 'p.no_order',
+            3 => 'p.tgl_faktur',
+            4 => 'p.tgl_pesan',
+            5 => 'p.tgl_tempo',
+            6 => 's.nama_suplier',
+            7 => 'p.kd_bangsal',
+            8 => 'p.status',
+            9 => 'tagihan',
+        ];
     }
 }

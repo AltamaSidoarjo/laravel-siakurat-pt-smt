@@ -71,6 +71,18 @@
                                                     <th>Status</th>
                                                     <th>Grandtotal</th>
                                                 </tr>
+                                                <tr>
+                                                    <th></th>
+                                                    <th><input type="text" class="form-control form-control-sm column-search" data-column-index="1" placeholder="Cari nomer"></th>
+                                                    <th><input type="text" class="form-control form-control-sm column-search" data-column-index="2" placeholder="Cari no. order"></th>
+                                                    <th><input type="text" class="form-control form-control-sm column-search" data-column-index="3" placeholder="Cari tanggal"></th>
+                                                    <th><input type="text" class="form-control form-control-sm column-search" data-column-index="4" placeholder="Cari tgl barang datang"></th>
+                                                    <th><input type="text" class="form-control form-control-sm column-search" data-column-index="5" placeholder="Cari tgl jth tempo"></th>
+                                                    <th><input type="text" class="form-control form-control-sm column-search" data-column-index="6" placeholder="Cari supplier"></th>
+                                                    <th><input type="text" class="form-control form-control-sm column-search" data-column-index="7" placeholder="Cari kode bangsal"></th>
+                                                    <th><input type="text" class="form-control form-control-sm column-search" data-column-index="8" placeholder="Cari status"></th>
+                                                    <th><input type="text" class="form-control form-control-sm column-search" data-column-index="9" placeholder="Cari grandtotal"></th>
+                                                </tr>
                                             </thead>
                                         </table>
                                     </div>
@@ -129,6 +141,7 @@
                 serverSide: true,
                 autoWidth: false,
                 scrollX: true,
+                orderCellsTop: true,
                 order: [[3, 'desc']],
                 lengthMenu: [[10, 25, 50, 100, 1000], [10, 25, 50, 100, 1000]],
                 ajax: {
@@ -149,23 +162,88 @@
                             return `<input type="checkbox" class="row-checkbox" name="selectedNoTransaksi[]" value="${data}">`;
                         }
                     },
-                    { data: 'no_faktur', name: 'no_faktur' },
-                    { data: 'no_order', name: 'no_order' },
-                    { data: 'tgl_faktur', name: 'tgl_faktur' },
-                    { data: 'tgl_pesan', name: 'tgl_pesan' },
-                    { data: 'tgl_tempo', name: 'tgl_tempo' },
-                    { data: 'nama_suplier', name: 'nama_suplier' },
-                    { data: 'kd_bangsal', name: 'kd_bangsal' },
-                    { data: 'status', name: 'status' },
+                    { data: 'no_faktur', name: 'p.no_faktur' },
+                    { data: 'no_order', name: 'p.no_order' },
+                    { data: 'tgl_faktur', name: 'p.tgl_faktur' },
+                    { data: 'tgl_pesan', name: 'p.tgl_pesan' },
+                    { data: 'tgl_tempo', name: 'p.tgl_tempo' },
+                    { data: 'nama_suplier', name: 's.nama_suplier' },
+                    { data: 'kd_bangsal', name: 'p.kd_bangsal' },
+                    { data: 'status', name: 'p.status' },
                     {
                         data: 'tagihan',
-                        name: 'tagihan',
+                        name: 'p.tagihan',
                         className: 'text-end',
                         render: function (data) {
                             return formatNominal(data);
                         }
                     }
                 ]
+            });
+
+            const searchInputsSelector = '.column-search';
+
+            const syncColumnSearchInputs = (columnIndex, value, sourceInput) => {
+                document.querySelectorAll(`${searchInputsSelector}[data-column-index="${columnIndex}"]`).forEach((input) => {
+                    if (input !== sourceInput) {
+                        input.value = value;
+                    }
+                });
+            };
+
+            const triggerColumnSearch = (input) => {
+                const columnIndex = Number(input.dataset.columnIndex);
+                if (!Number.isInteger(columnIndex)) {
+                    return;
+                }
+
+                const value = input.value;
+                const column = table.column(columnIndex);
+
+                syncColumnSearchInputs(columnIndex, value, input);
+
+                if (column.search() === value) {
+                    return;
+                }
+
+                column.search(value).draw();
+            };
+
+            const tableContainer = table.table().container();
+
+            tableContainer.addEventListener('input', function (event) {
+                if (!event.target.matches(searchInputsSelector)) {
+                    return;
+                }
+
+                triggerColumnSearch(event.target);
+            });
+
+            tableContainer.addEventListener('change', function (event) {
+                if (!event.target.matches(searchInputsSelector)) {
+                    return;
+                }
+
+                triggerColumnSearch(event.target);
+            });
+
+            tableContainer.addEventListener('click', function (event) {
+                if (event.target.matches(searchInputsSelector)) {
+                    event.stopPropagation();
+                }
+            });
+
+            tableContainer.addEventListener('keydown', function (event) {
+                if (!event.target.matches(searchInputsSelector)) {
+                    return;
+                }
+
+                event.stopPropagation();
+
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    triggerColumnSearch(event.target);
+                }
             });
 
             table.on('draw', function () {
