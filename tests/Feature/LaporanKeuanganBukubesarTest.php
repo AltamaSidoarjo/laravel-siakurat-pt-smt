@@ -361,6 +361,114 @@ class LaporanKeuanganBukubesarTest extends TestCase
         $this->assertSame($result['subtotalAktiva'], $result['subtotalPasivaEkuitas']);
     }
 
+    public function test_neraca_per_parent_coa_returns_preorder_subtree_with_accumulated_balances(): void
+    {
+        foreach (['Kasbank', 'Ekuitas'] as $namaTipeCoa) {
+            \App\Models\TipeCoa::query()->create([
+                'nama' => $namaTipeCoa,
+                'status_aktif' => 1,
+            ]);
+        }
+
+        $aktivaParent = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '110.00',
+            'nama' => 'Kas',
+            'is_postable' => false,
+        ]);
+
+        $aktivaChild = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $aktivaParent->id,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '110.01',
+            'nama' => 'Kas Operasional',
+            'is_postable' => false,
+        ]);
+
+        $aktivaGrandchild = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $aktivaChild->id,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '110.01.01',
+            'nama' => 'Kas Kecil',
+            'is_postable' => true,
+        ]);
+
+        $pasivaParent = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Ekuitas',
+            'kode' => '310.00',
+            'nama' => 'Modal',
+            'is_postable' => false,
+        ]);
+
+        $pasivaChild = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $pasivaParent->id,
+            'tipe_coa' => 'Ekuitas',
+            'kode' => '310.01',
+            'nama' => 'Modal Disetor',
+            'is_postable' => true,
+        ]);
+
+        foreach ([
+            [$aktivaParent->id, 100, 'D', 'Posting parent aktiva'],
+            [$aktivaChild->id, 50, 'D', 'Posting child aktiva'],
+            [$aktivaGrandchild->id, 25, 'D', 'Posting grandchild aktiva'],
+            [$pasivaParent->id, 80, 'K', 'Posting parent ekuitas'],
+            [$pasivaChild->id, 20, 'K', 'Posting child ekuitas'],
+        ] as [$coaId, $nominal, $tipeMutasi, $keterangan]) {
+            BukuBesar::query()->create([
+                'coa_id' => $coaId,
+                'tanggal' => '2026-05-21',
+                'nomer' => 'BB-NERACA-'.$coaId.'-'.$nominal,
+                'sumber_transaksi' => 'Jurnal Umum',
+                'nominal' => $nominal,
+                'tipe_mutasi' => $tipeMutasi,
+                'keterangan' => $keterangan,
+            ]);
+        }
+
+        $service = app(LaporanKeuanganService::class);
+
+        $aktivaResult = $service->getNeracaPerParentCoa('2026-05-22', $aktivaParent->id);
+        $pasivaResult = $service->getNeracaPerParentCoa('2026-05-22', $pasivaParent->id);
+        $aktivaRows = collect($aktivaResult['rows'])->values();
+        $pasivaRows = collect($pasivaResult['rows'])->values();
+
+        $this->assertSame([$aktivaParent->id, $aktivaChild->id, $aktivaGrandchild->id], $aktivaRows->pluck('coa_id')->all());
+        $this->assertSame([0, 1, 2], $aktivaRows->pluck('level')->all());
+        $this->assertTrue((bool) $aktivaRows[0]['has_children']);
+        $this->assertTrue((bool) $aktivaRows[1]['has_children']);
+        $this->assertFalse((bool) $aktivaRows[2]['has_children']);
+        $this->assertSame(175.0, (float) $aktivaRows[0]['saldo']);
+        $this->assertSame(75.0, (float) $aktivaRows[1]['saldo']);
+        $this->assertSame(25.0, (float) $aktivaRows[2]['saldo']);
+
+        $this->assertSame([$pasivaParent->id, $pasivaChild->id], $pasivaRows->pluck('coa_id')->all());
+        $this->assertSame('EKUITAS', $pasivaRows[0]['tipe_coa']);
+        $this->assertSame(100.0, (float) $pasivaRows[0]['saldo']);
+        $this->assertSame(20.0, (float) $pasivaRows[1]['saldo']);
+    }
+
+    public function test_neraca_per_parent_coa_returns_empty_rows_for_unknown_coa(): void
+    {
+        \App\Models\TipeCoa::query()->create([
+            'nama' => 'Kasbank',
+            'status_aktif' => 1,
+        ]);
+
+        $service = app(LaporanKeuanganService::class);
+        $result = $service->getNeracaPerParentCoa('2026-05-22', 999999);
+
+        $this->assertNull($result['parent']);
+        $this->assertCount(0, $result['rows']);
+    }
+
     public function test_laba_rugi_standard_and_per_parent_only_count_leaf_accounts(): void
     {
         foreach (['Kasbank', 'Ekuitas', 'Pendapatan', 'Beban'] as $namaTipeCoa) {

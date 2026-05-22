@@ -297,9 +297,8 @@ class LaporanKeuanganService
 
         return [
             'parent' => $target,
-            'rows' => $this->flattenSubtree(
+            'rows' => $this->flattenSubtreeNeracaPerParentCoa(
                 coa: $target,
-                allCoa: $allCoa,
                 childrenMap: $childrenMap,
                 saldoPerCoa: $saldoPerCoa,
                 level: 0,
@@ -781,6 +780,50 @@ class LaporanKeuanganService
             'level' => $level,
             'has_children' => $children->isNotEmpty(),
             'is_root' => false,
+        ]]);
+
+        return $current->concat($rows);
+    }
+
+    private function flattenSubtreeNeracaPerParentCoa(
+        Coa $coa,
+        Collection $childrenMap,
+        array $saldoPerCoa,
+        int $level,
+        string $tipeNeraca,
+    ): Collection {
+        $children = $childrenMap->get((int) $coa->id, collect())
+            ->sortBy('kode')
+            ->values();
+
+        $rows = collect();
+        $saldoTotal = $this->normalisasiSaldoNeraca(
+            tipeNeraca: $tipeNeraca,
+            saldoRaw: (float) ($saldoPerCoa[$coa->id] ?? 0),
+        );
+
+        foreach ($children as $child) {
+            $childRows = $this->flattenSubtreeNeracaPerParentCoa(
+                coa: $child,
+                childrenMap: $childrenMap,
+                saldoPerCoa: $saldoPerCoa,
+                level: $level + 1,
+                tipeNeraca: $tipeNeraca,
+            );
+
+            $saldoTotal += (float) ($childRows->first()['saldo'] ?? 0);
+            $rows = $rows->concat($childRows);
+        }
+
+        $current = collect([[
+            'coa_id' => (int) $coa->id,
+            'parent_coa' => $coa->parent_coa ? (int) $coa->parent_coa : null,
+            'kode_coa' => (string) $coa->kode,
+            'nama_coa' => (string) $coa->nama,
+            'tipe_coa' => $tipeNeraca,
+            'saldo' => $saldoTotal,
+            'level' => $level,
+            'has_children' => $children->isNotEmpty(),
         ]]);
 
         return $current->concat($rows);

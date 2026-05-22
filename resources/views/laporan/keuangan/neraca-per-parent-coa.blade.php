@@ -22,15 +22,17 @@
 
             <div class="card border-light shadow-sm">
                 <div class="card-body">
-                    <div class="text-center mb-4">
+                    <div class="laporan-header text-center mb-4">
                         @if ($logoRsUrl)
-                            <div class="mb-2">
-                                <img src="{{ $logoRsUrl }}" alt="Logo RS" style="max-height: 80px; object-fit: contain;">
+                            <div class="laporan-header__logo">
+                                <img src="{{ $logoRsUrl }}" alt="Logo RS" class="laporan-header__logo-image">
                             </div>
                         @endif
-                        <div class="fw-bold" style="font-size: 20px;">{{ $namaRumahSakit }}</div>
-                        <div class="fw-bold" style="font-size: 18px;">Neraca Per Parent COA</div>
-                        <div class="text-muted">Per {{ $perDate }}</div>
+                        <div class="laporan-header__identity">
+                            <div class="fw-bold laporan-header__title-rs">{{ $namaRumahSakit }}</div>
+                            <div class="fw-bold laporan-header__title-report">Neraca Per Parent COA</div>
+                            <div class="text-muted">Per {{ $perDate }}</div>
+                        </div>
                     </div>
 
                     <div class="table-responsive">
@@ -64,3 +66,48 @@
         </div>
     </div>
 @endsection
+
+@push('styles')
+    <style>
+        .laporan-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .laporan-header__logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .laporan-header__logo-image {
+            display: block;
+            max-width: 100px;
+            max-height: 84px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            margin: 0 auto;
+        }
+
+        .laporan-header__title-rs {
+            font-size: 20px;
+            line-height: 1.25;
+        }
+
+        .laporan-header__title-report {
+            font-size: 18px;
+            line-height: 1.2;
+        }
+
+        @media print {
+            .laporan-header__logo-image {
+                max-width: 90px;
+                max-height: 72px;
+            }
+        }
+    </style>
+@endpush
