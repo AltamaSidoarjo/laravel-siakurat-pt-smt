@@ -151,7 +151,7 @@
 
 @push('scripts')
     <script>
-        window.jQuery(function () {
+        $(document).ready(function () {
             const table = document.getElementById('table_data_detail');
             const tableBody = table?.querySelector('tbody');
             const addButton = document.getElementById('btn_add_detail');

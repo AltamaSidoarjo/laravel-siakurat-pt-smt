@@ -117,7 +117,7 @@
 
 @push('scripts')
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        $(document).ready(function () {
             const filterSelect = document.getElementById('select_jenis_tindakan');
 
             if (filterSelect) {
@@ -126,15 +126,11 @@
                 });
             }
 
-            if (window.jQuery && window.jQuery.fn.DataTable) {
-                window.jQuery('#datatable').DataTable({
-                    autoWidth: false,
-                    scrollX: true,
-                    dom: 'Bfrtip',
-                    buttons: ['csv', 'excel', 'pdf', 'print'],
-                    order: [[1, 'asc']]
-                });
-            }
+            $('#datatable').DataTable({
+                dom: 'Bfrtip',
+                buttons: ['csv', 'excel', 'pdf', 'print'],
+                lengthMenu: [[10, 50, 100, -1], [10, 50, 100, 'All']]
+            });
         });
     </script>
 @endpush

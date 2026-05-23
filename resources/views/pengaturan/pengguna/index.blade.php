@@ -75,12 +75,12 @@
 
 @push('scripts')
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        $(document).ready(function () {
             if (!(window.jQuery && window.jQuery.fn.DataTable)) {
                 return;
             }
 
-            window.jQuery('#datatable').DataTable({
+            $('#datatable').DataTable({
                 autoWidth: false,
                 scrollX: true,
                 dom: 'Bfrtip',

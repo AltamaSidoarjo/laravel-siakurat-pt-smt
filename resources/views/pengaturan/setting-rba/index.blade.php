@@ -90,12 +90,12 @@
 
 @push('scripts')
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        $(document).ready(function () {
             if (!(window.jQuery && window.jQuery.fn.DataTable)) {
                 return;
             }
 
-            const datatable = window.jQuery('#datatable').DataTable({
+            const datatable = $('#datatable').DataTable({
                 autoWidth: false,
                 scrollX: true,
                 scrollCollapse: true,

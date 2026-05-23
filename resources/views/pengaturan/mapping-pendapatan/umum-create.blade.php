@@ -88,7 +88,7 @@
 
 @push('scripts')
     <script>
-        window.jQuery(function () {
+        $(document).ready(function () {
             if (!(window.jQuery && window.jQuery.fn.select2)) {
                 return;
             }

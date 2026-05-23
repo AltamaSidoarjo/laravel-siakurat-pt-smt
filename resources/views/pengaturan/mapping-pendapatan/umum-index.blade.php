@@ -86,16 +86,12 @@
 
 @push('scripts')
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            if (window.jQuery && window.jQuery.fn.DataTable) {
-                window.jQuery('#datatable').DataTable({
-                    autoWidth: false,
-                    scrollX: true,
-                    dom: 'Bfrtip',
-                    buttons: ['csv', 'excel', 'pdf', 'print'],
-                    order: [[0, 'asc']]
-                });
-            }
+        $(document).ready(function () {
+            $('#datatable').DataTable({
+                dom: 'Bfrtip',
+                buttons: ['csv', 'excel', 'pdf', 'print'],
+                lengthMenu: [[10, 50, 100, -1], [10, 50, 100, 'All']]
+            });
         });
     </script>
 @endpush

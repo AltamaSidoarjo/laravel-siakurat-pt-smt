@@ -143,7 +143,7 @@
 
 @push('scripts')
     <script>
-        window.jQuery(function () {
+        $(document).ready(function () {
             const tableBody = document.querySelector('#table_rba_item tbody');
             const addButton = document.getElementById('btn_add_item');
             const template = document.getElementById('detail-row-template');
