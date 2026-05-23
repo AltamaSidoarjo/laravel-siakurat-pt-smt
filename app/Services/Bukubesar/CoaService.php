@@ -4,11 +4,17 @@ namespace App\Services\Bukubesar;
 
 use App\Models\Coa;
 use App\Models\TipeCoa;
+use App\Services\LogAktifitasService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class CoaService
 {
+    public function __construct(
+        private readonly LogAktifitasService $logService,
+    ) {
+    }
+
     public function getTreeRows(): array
     {
         $sql = <<<'SQL'
@@ -103,7 +109,7 @@ class CoaService
 
     public function create(array $data): Coa
     {
-        return Coa::query()->create([
+        $coa = Coa::query()->create([
             'status_aktif' => (int) $data['status_aktif'],
             'parent_coa' => $data['parent_id'] ?: null,
             'tipe_coa' => $data['tipe_coa'],
@@ -112,10 +118,16 @@ class CoaService
             'deskripsi' => $data['deskripsi'] ?: null,
             'is_postable' => false,
         ]);
+
+        $this->logService->log('COA', 'create', null, $coa->only($this->loggableFields()));
+
+        return $coa;
     }
 
     public function update(Coa $coa, array $data): Coa
     {
+        $original = $coa->only($this->loggableFields());
+
         $coa->fill([
             'status_aktif' => (int) $data['status_aktif'],
             'parent_coa' => $data['parent_id'] ?: null,
@@ -125,13 +137,30 @@ class CoaService
             'deskripsi' => $data['deskripsi'] ?: null,
         ]);
 
+        $changes = $coa->getDirty();
         $coa->save();
+
+        if ($changes) {
+            $this->logService->log(
+                'COA',
+                'update',
+                array_intersect_key($original, $changes),
+                $changes,
+            );
+        }
 
         return $coa->refresh();
     }
 
     public function delete(Coa $coa): void
     {
+        $this->logService->log('COA', 'delete', $coa->only($this->loggableFields()));
+
         $coa->delete();
+    }
+
+    private function loggableFields(): array
+    {
+        return ['kode', 'nama', 'tipe_coa', 'parent_coa', 'status_aktif', 'deskripsi'];
     }
 }
