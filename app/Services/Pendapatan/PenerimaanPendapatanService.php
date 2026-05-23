@@ -7,6 +7,7 @@ use App\Models\FakturPenjualan;
 use App\Models\Pelanggan;
 use App\Models\PenerimaanPenjualan;
 use App\Services\Bukubesar\BukuBesarService;
+use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as SupportCollection;
@@ -16,6 +17,7 @@ class PenerimaanPendapatanService
     public function __construct(
         private readonly BukuBesarService $bukuBesarService,
         private readonly InvoicePendapatanService $invoicePendapatanService,
+        private readonly LogAktifitasService $logService,
     ) {
     }
 
@@ -113,6 +115,15 @@ class PenerimaanPendapatanService
             selisihTarif: (float) $penerimaanPenjualan->selisih_tarif,
         );
 
+        $this->logService->log('Penerimaan Pendapatan', 'create', null, [
+            'nomer' => $penerimaanPenjualan->nomer,
+            'tanggal' => $penerimaanPenjualan->tanggal->format('Y-m-d'),
+            'pelanggan_id' => $penerimaanPenjualan->pelanggan_id,
+            'jumlah_pembayaran' => $penerimaanPenjualan->jumlah_pembayaran,
+            'selisih_tarif' => $penerimaanPenjualan->selisih_tarif,
+            'keterangan' => $penerimaanPenjualan->keterangan,
+        ]);
+
         return $penerimaanPenjualan->load([
             'pelanggan',
             'akunBank',
@@ -124,6 +135,14 @@ class PenerimaanPendapatanService
 
     public function update(PenerimaanPenjualan $penerimaanPenjualan, array $data, string $actor = 'system'): PenerimaanPenjualan
     {
+        $oldData = [
+            'nomer' => $penerimaanPenjualan->nomer,
+            'tanggal' => $penerimaanPenjualan->tanggal->format('Y-m-d'),
+            'jumlah_pembayaran' => $penerimaanPenjualan->jumlah_pembayaran,
+            'selisih_tarif' => $penerimaanPenjualan->selisih_tarif,
+            'keterangan' => $penerimaanPenjualan->keterangan,
+        ];
+
         $oldRincian = $penerimaanPenjualan->rincian()
             ->get(['faktur_penjualan_id', 'nominal_bayar'])
             ->map(fn ($item) => [
@@ -165,6 +184,14 @@ class PenerimaanPendapatanService
             selisihTarif: (float) $penerimaanPenjualan->selisih_tarif,
         );
 
+        $this->logService->log('Penerimaan Pendapatan', 'update', $oldData, [
+            'nomer' => $penerimaanPenjualan->nomer,
+            'tanggal' => $penerimaanPenjualan->tanggal->format('Y-m-d'),
+            'jumlah_pembayaran' => $penerimaanPenjualan->jumlah_pembayaran,
+            'selisih_tarif' => $penerimaanPenjualan->selisih_tarif,
+            'keterangan' => $penerimaanPenjualan->keterangan,
+        ]);
+
         return $penerimaanPenjualan->load([
             'pelanggan',
             'akunBank',
@@ -176,6 +203,15 @@ class PenerimaanPendapatanService
 
     public function delete(PenerimaanPenjualan $penerimaanPenjualan): void
     {
+        $this->logService->log('Penerimaan Pendapatan', 'delete', [
+            'nomer' => $penerimaanPenjualan->nomer,
+            'tanggal' => $penerimaanPenjualan->tanggal->format('Y-m-d'),
+            'pelanggan_id' => $penerimaanPenjualan->pelanggan_id,
+            'jumlah_pembayaran' => $penerimaanPenjualan->jumlah_pembayaran,
+            'selisih_tarif' => $penerimaanPenjualan->selisih_tarif,
+            'keterangan' => $penerimaanPenjualan->keterangan,
+        ]);
+
         $rincian = $penerimaanPenjualan->rincian()
             ->get(['faktur_penjualan_id', 'nominal_bayar'])
             ->map(fn ($item) => [

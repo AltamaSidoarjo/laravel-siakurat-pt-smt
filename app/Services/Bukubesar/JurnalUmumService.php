@@ -6,11 +6,13 @@ use App\Models\Coa;
 use App\Models\JurnalUmum;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Builder;
+use App\Services\LogAktifitasService;
 
 class JurnalUmumService
 {
     public function __construct(
         private readonly BukuBesarService $bukuBesarService,
+        private readonly LogAktifitasService $logAktivitasService,
     ) {
     }
 
@@ -49,11 +51,29 @@ class JurnalUmumService
             $rincianPayload,
         );
 
+        $this->logAktivitasService->log('Jurnal Umum', 'create', null, [
+            'nomer' => $jurnal->nomer,
+            'tanggal' => $jurnal->tanggal->format('Y-m-d'),
+            'keterangan' => $jurnal->keterangan,
+            'debit' => $jurnal->debit,
+            'kredit' => $jurnal->kredit,
+            'rincian' => $rincianPayload,
+        ]);
+
         return $jurnal->load('rincian.coa');
     }
 
     public function update(JurnalUmum $jurnalUmum, array $data): JurnalUmum
     {
+        $oldData = [
+            'nomer' => $jurnalUmum->nomer,
+            'tanggal' => $jurnalUmum->tanggal->format('Y-m-d'),
+            'keterangan' => $jurnalUmum->keterangan,
+            'debit' => $jurnalUmum->debit,
+            'kredit' => $jurnalUmum->kredit,
+            'rincian' => $jurnalUmum->rincian->map->only(['coa_id', 'debit', 'kredit', 'catatan'])->all(),
+        ];
+
         $jurnalUmum->update([
             'nomer' => $data['nomer'],
             'tanggal' => $data['tanggal'],
@@ -73,11 +93,28 @@ class JurnalUmumService
             $rincianPayload,
         );
 
+        $this->logAktivitasService->log('Jurnal Umum', 'update', $oldData, [
+            'nomer' => $jurnalUmum->nomer,
+            'tanggal' => $jurnalUmum->tanggal->format('Y-m-d'),
+            'keterangan' => $jurnalUmum->keterangan,
+            'debit' => $jurnalUmum->debit,
+            'kredit' => $jurnalUmum->kredit,
+            'rincian' => $rincianPayload,
+        ]);
+
         return $jurnalUmum->load('rincian.coa');
     }
 
     public function delete(JurnalUmum $jurnalUmum): void
     {
+        $this->logAktivitasService->log('Jurnal Umum', 'delete', [
+            'nomer' => $jurnalUmum->nomer,
+            'tanggal' => $jurnalUmum->tanggal->format('Y-m-d'),
+            'keterangan' => $jurnalUmum->keterangan,
+            'debit' => $jurnalUmum->debit,
+            'kredit' => $jurnalUmum->kredit,
+        ]);
+
         $this->bukuBesarService->deleteBySource('Jurnal Umum', (int) $jurnalUmum->id);
         $jurnalUmum->rincian()->delete();
         $jurnalUmum->delete();

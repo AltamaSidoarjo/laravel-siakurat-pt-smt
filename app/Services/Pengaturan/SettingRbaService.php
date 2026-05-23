@@ -4,11 +4,16 @@ namespace App\Services\Pengaturan;
 
 use App\Models\Coa;
 use App\Models\SettingRba;
+use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
 class SettingRbaService
 {
+    public function __construct(
+        private readonly LogAktifitasService $logService,
+    ) {
+    }
     public function getIndexQuery(?int $yearFrom, ?int $yearTo): Builder
     {
         return SettingRba::query()
@@ -37,6 +42,11 @@ class SettingRbaService
             ]);
         });
 
+        $this->logService->log('Setting RBA', 'create', null, [
+            'tahun' => (int) $data['tahun'],
+            'jumlah_item' => $rows->count(),
+        ]);
+
         return SettingRba::query()
             ->with('coa:id,kode,nama')
             ->whereIn('id', $rows->pluck('id'))
@@ -45,6 +55,12 @@ class SettingRbaService
 
     public function delete(SettingRba $settingRba): void
     {
+        $this->logService->log('Setting RBA', 'delete', [
+            'tahun' => $settingRba->tahun,
+            'coa_id' => $settingRba->coa_id,
+            'total_nominal' => $settingRba->total_nominal,
+        ]);
+
         $settingRba->rincian()->delete();
         $settingRba->delete();
     }

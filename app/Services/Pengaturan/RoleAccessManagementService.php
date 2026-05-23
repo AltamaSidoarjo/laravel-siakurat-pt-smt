@@ -4,11 +4,16 @@ namespace App\Services\Pengaturan;
 
 use App\Models\AccessModule;
 use App\Models\Role;
+use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 class RoleAccessManagementService
 {
+    public function __construct(
+        private readonly LogAktifitasService $logService,
+    ) {
+    }
     public function getAll(): Collection
     {
         return Role::query()
@@ -38,6 +43,11 @@ class RoleAccessManagementService
 
             $this->syncPermissions($role, $data['permissions'] ?? []);
 
+            $this->logService->log('Role Access', 'create', null, [
+                'nama' => $role->nama,
+                'kode' => $role->kode,
+            ]);
+
             return $role->load('permissions.accessModule');
         });
     }
@@ -45,6 +55,8 @@ class RoleAccessManagementService
     public function update(Role $role, array $data): Role
     {
         return DB::transaction(function () use ($role, $data) {
+            $oldData = ['nama' => $role->nama, 'kode' => $role->kode];
+
             $role->fill([
                 'nama' => $data['nama'],
                 'kode' => $data['kode'],
@@ -53,6 +65,11 @@ class RoleAccessManagementService
             $role->save();
 
             $this->syncPermissions($role, $data['permissions'] ?? []);
+
+            $this->logService->log('Role Access', 'update', $oldData, [
+                'nama' => $role->nama,
+                'kode' => $role->kode,
+            ]);
 
             return $role->load('permissions.accessModule');
         });

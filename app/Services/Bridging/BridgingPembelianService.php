@@ -7,6 +7,7 @@ use App\Models\FakturPembelian;
 use App\Models\FakturPembelianRinci;
 use App\Models\MappingCoaSimrs;
 use App\Models\Supplier;
+use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
@@ -21,6 +22,11 @@ class BridgingPembelianService
     private const IMPORT_INVOICE_PEMBELIAN = 'InvoicePembelian';
     private const METODE_TANGGAL_INVOICE = 'TanggalInvoice';
     private const METODE_TANGGAL_BARANG_DATANG = 'TanggalBarangDatang';
+
+    public function __construct(
+        private readonly LogAktifitasService $logService,
+    ) {
+    }
 
     public function getQueryHasilImport(string $startDate, string $endDate): Builder
     {
@@ -226,6 +232,10 @@ class BridgingPembelianService
                     $faktur->delete();
                 });
 
+                $this->logService->log('Bridging Pembelian', 'delete', [
+                    'nomer_transaksi' => (string) $nomerTransaksi,
+                ]);
+
                 $hasil[] = [
                     'nomer_transaksi' => (string) $nomerTransaksi,
                     'berhasil' => true,
@@ -358,7 +368,7 @@ class BridgingPembelianService
             ];
         }
 
-        return DB::transaction(function () use (
+        $result = DB::transaction(function () use (
             $tagihan,
             $rincian,
             $kategoriSupplier,
@@ -437,6 +447,14 @@ class BridgingPembelianService
                 'alasan_gagal' => null,
             ];
         });
+
+        $this->logService->log('Bridging Pembelian', 'create', null, [
+            'nomer_transaksi' => $tagihan['no_faktur'],
+            'kategori' => $kategoriFaktur,
+            'tagihan' => $tagihan['tagihan'],
+        ]);
+
+        return $result;
     }
 
     private function ambilLookupFakturTerpakai(string $startDate, string $endDate): array

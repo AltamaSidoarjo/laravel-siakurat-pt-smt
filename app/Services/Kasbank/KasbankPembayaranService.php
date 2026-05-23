@@ -5,6 +5,7 @@ namespace App\Services\Kasbank;
 use App\Models\Coa;
 use App\Models\KasbankPembayaran;
 use App\Services\Bukubesar\BukuBesarService;
+use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -12,6 +13,7 @@ class KasbankPembayaranService
 {
     public function __construct(
         private readonly BukuBesarService $bukuBesarService,
+        private readonly LogAktifitasService $logService,
     ) {
     }
 
@@ -54,11 +56,29 @@ class KasbankPembayaranService
             $rincianPayload,
         );
 
+        $this->logService->log('Kasbank Pembayaran', 'create', null, [
+            'nomer' => $kasbankPembayaran->nomer,
+            'tanggal' => $kasbankPembayaran->tanggal->format('Y-m-d'),
+            'coa_id' => $kasbankPembayaran->coa_id,
+            'keterangan' => $kasbankPembayaran->keterangan,
+            'total' => $kasbankPembayaran->total,
+            'rincian' => $rincianPayload,
+        ]);
+
         return $kasbankPembayaran->load(['coa', 'rincian.coa']);
     }
 
     public function update(KasbankPembayaran $kasbankPembayaran, array $data): KasbankPembayaran
     {
+        $oldData = [
+            'nomer' => $kasbankPembayaran->nomer,
+            'tanggal' => $kasbankPembayaran->tanggal->format('Y-m-d'),
+            'coa_id' => $kasbankPembayaran->coa_id,
+            'keterangan' => $kasbankPembayaran->keterangan,
+            'total' => $kasbankPembayaran->total,
+            'rincian' => $kasbankPembayaran->rincian->map->only(['coa_id', 'nominal', 'catatan'])->all(),
+        ];
+
         $kasbankPembayaran->update([
             'coa_id' => $data['coa_id'],
             'nomer' => $data['nomer'],
@@ -81,11 +101,28 @@ class KasbankPembayaranService
             $rincianPayload,
         );
 
+        $this->logService->log('Kasbank Pembayaran', 'update', $oldData, [
+            'nomer' => $kasbankPembayaran->nomer,
+            'tanggal' => $kasbankPembayaran->tanggal->format('Y-m-d'),
+            'coa_id' => $kasbankPembayaran->coa_id,
+            'keterangan' => $kasbankPembayaran->keterangan,
+            'total' => $kasbankPembayaran->total,
+            'rincian' => $rincianPayload,
+        ]);
+
         return $kasbankPembayaran->load(['coa', 'rincian.coa']);
     }
 
     public function delete(KasbankPembayaran $kasbankPembayaran): void
     {
+        $this->logService->log('Kasbank Pembayaran', 'delete', [
+            'nomer' => $kasbankPembayaran->nomer,
+            'tanggal' => $kasbankPembayaran->tanggal->format('Y-m-d'),
+            'coa_id' => $kasbankPembayaran->coa_id,
+            'keterangan' => $kasbankPembayaran->keterangan,
+            'total' => $kasbankPembayaran->total,
+        ]);
+
         $this->bukuBesarService->deleteBySource('Kasbank Pembayaran', (int) $kasbankPembayaran->id);
         $kasbankPembayaran->rincian()->delete();
         $kasbankPembayaran->delete();

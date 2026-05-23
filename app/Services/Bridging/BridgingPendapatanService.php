@@ -16,6 +16,7 @@ use App\Models\MappingPendapatanUmum;
 use App\Models\Pelanggan;
 use App\Models\SimrsImportPendapatan;
 use App\Services\Bukubesar\BukuBesarService;
+use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -42,6 +43,7 @@ class BridgingPendapatanService
 
     public function __construct(
         private readonly BukuBesarService $bukuBesarService,
+        private readonly LogAktifitasService $logService,
     ) {}
 
     public function getQueryDataImport(
@@ -203,6 +205,10 @@ class BridgingPendapatanService
                         ->delete();
                 });
 
+                $this->logService->log('Bridging Pendapatan', 'delete', [
+                    'no_rawat' => (string) $noRawat,
+                ]);
+
                 $hasil[] = [
                     'no_rawat' => (string) $noRawat,
                     'berhasil' => true,
@@ -345,6 +351,14 @@ class BridgingPendapatanService
                     $tanggalPengakuan,
                 );
             }
+
+            $this->logService->log('Bridging Pendapatan', 'create', null, [
+                'no_rawat' => $dataBilling['no_rawat'],
+                'nama_pasien' => $dataBilling['nama_pasien'],
+                'penjamin' => $dataBilling['penjamin'],
+                'total_biaya' => $dataBilling['total_biaya'],
+                'jenis_proses' => $jenisProses,
+            ]);
 
             return [
                 'no_rawat' => $dataBilling['no_rawat'],

@@ -7,6 +7,7 @@ use App\Models\MappingLawanPendapatanSimrs;
 use App\Models\MappingPendapatan;
 use App\Models\MappingPendapatanKamar;
 use App\Models\MappingPendapatanUmum;
+use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,10 @@ use InvalidArgumentException;
 
 class MappingPendapatanTindakanService
 {
+    public function __construct(
+        private readonly LogAktifitasService $logService,
+    ) {
+    }
     private const HIDDEN_TYPE_OPTIONS = [
         // Sementara sembunyikan dari UI, backend definisinya tetap dipertahankan
         // agar mudah diaktifkan kembali tanpa membongkar flow yang lain.
@@ -252,6 +257,13 @@ class MappingPendapatanTindakanService
             $successCount++;
         }
 
+        if ($successCount > 0) {
+            $this->logService->log('Mapping Pendapatan Tindakan', 'create', null, [
+                'tipe' => $definition['source'],
+                'jumlah' => $successCount,
+            ]);
+        }
+
         return [
             'success' => $successCount,
             'failed' => $failedCount,
@@ -260,11 +272,22 @@ class MappingPendapatanTindakanService
 
     public function delete(MappingPendapatan $mappingPendapatan): void
     {
+        $this->logService->log('Mapping Pendapatan Tindakan', 'delete', [
+            'kode_jenis_perawatan' => $mappingPendapatan->kode_jenis_perawatan,
+            'nm_perawatan' => $mappingPendapatan->nm_perawatan,
+            'sumber_tindakan' => $mappingPendapatan->sumber_tindakan,
+        ]);
+
         $mappingPendapatan->delete();
     }
 
     public function deleteKamar(MappingPendapatanKamar $mappingPendapatanKamar): void
     {
+        $this->logService->log('Mapping Pendapatan Kamar', 'delete', [
+            'kode_kamar' => $mappingPendapatanKamar->kode_kamar,
+            'nama_kamar' => $mappingPendapatanKamar->nama_kamar,
+        ]);
+
         $mappingPendapatanKamar->delete();
     }
 
@@ -294,15 +317,28 @@ class MappingPendapatanTindakanService
 
     public function createUmumMapping(array $data): MappingPendapatanUmum
     {
-        return MappingPendapatanUmum::query()->create([
+        $mapping = MappingPendapatanUmum::query()->create([
             'nama' => $data['nama'],
             'kode_penjamin' => $data['kode_penjamin'],
             'coa_id' => (int) $data['coa_id'],
         ]);
+
+        $this->logService->log('Mapping Pendapatan Umum', 'create', null, [
+            'nama' => $mapping->nama,
+            'kode_penjamin' => $mapping->kode_penjamin,
+            'coa_id' => $mapping->coa_id,
+        ]);
+
+        return $mapping;
     }
 
     public function deleteUmum(MappingPendapatanUmum $mappingPendapatanUmum): void
     {
+        $this->logService->log('Mapping Pendapatan Umum', 'delete', [
+            'nama' => $mappingPendapatanUmum->nama,
+            'kode_penjamin' => $mappingPendapatanUmum->kode_penjamin,
+        ]);
+
         $mappingPendapatanUmum->delete();
     }
 
@@ -337,15 +373,27 @@ class MappingPendapatanTindakanService
             [$data['kode_coa_simrs']]
         ))->first();
 
-        return MappingLawanPendapatanSimrs::query()->create([
+        $mapping = MappingLawanPendapatanSimrs::query()->create([
             'kode_coa_simrs' => $data['kode_coa_simrs'],
             'nama_coa_simrs' => (string) ($namaCoaSimrs->nama_rekening ?? ''),
             'coa_id' => (int) $data['coa_id'],
         ]);
+
+        $this->logService->log('Mapping Lawan Pendapatan', 'create', null, [
+            'kode_coa_simrs' => $mapping->kode_coa_simrs,
+            'coa_id' => $mapping->coa_id,
+        ]);
+
+        return $mapping;
     }
 
     public function deleteLawanPendapatan(MappingLawanPendapatanSimrs $mappingLawanPendapatanSimrs): void
     {
+        $this->logService->log('Mapping Lawan Pendapatan', 'delete', [
+            'kode_coa_simrs' => $mappingLawanPendapatanSimrs->kode_coa_simrs,
+            'nama_coa_simrs' => $mappingLawanPendapatanSimrs->nama_coa_simrs,
+        ]);
+
         $mappingLawanPendapatanSimrs->delete();
     }
 

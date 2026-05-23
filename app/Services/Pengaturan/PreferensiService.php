@@ -3,12 +3,17 @@
 namespace App\Services\Pengaturan;
 
 use App\Models\PreferensiPerusahaan;
+use App\Services\LogAktifitasService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 class PreferensiService
 {
+    public function __construct(
+        private readonly LogAktifitasService $logService,
+    ) {
+    }
     public function getFormData(): PreferensiPerusahaan
     {
         return PreferensiPerusahaan::query()->first() ?? new PreferensiPerusahaan([
@@ -41,6 +46,10 @@ class PreferensiService
         ]);
 
         $preferensi->save();
+
+        $this->logService->log('Preferensi', 'update', null, [
+            'nama_perusahaan' => $preferensi->nama_perusahaan,
+        ]);
 
         return $preferensi->refresh();
     }

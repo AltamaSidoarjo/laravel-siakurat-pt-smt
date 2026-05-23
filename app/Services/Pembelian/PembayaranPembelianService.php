@@ -7,6 +7,7 @@ use App\Models\FakturPembelian;
 use App\Models\PembayaranPembelian;
 use App\Models\Supplier;
 use App\Services\Bukubesar\BukuBesarService;
+use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as SupportCollection;
@@ -16,6 +17,7 @@ class PembayaranPembelianService
     public function __construct(
         private readonly BukuBesarService $bukuBesarService,
         private readonly InvoicePembelianService $invoicePembelianService,
+        private readonly LogAktifitasService $logService,
     ) {
     }
 
@@ -113,6 +115,15 @@ class PembayaranPembelianService
             (float) $pembayaranPembelian->potongan_admin,
         );
 
+        $this->logService->log('Pembayaran Pembelian', 'create', null, [
+            'nomer_pembayaran' => $pembayaranPembelian->nomer_pembayaran,
+            'tanggal' => $pembayaranPembelian->tanggal->format('Y-m-d'),
+            'supplier_id' => $pembayaranPembelian->supplier_id,
+            'total_bayar' => $pembayaranPembelian->total_bayar,
+            'potongan_admin' => $pembayaranPembelian->potongan_admin,
+            'keterangan' => $pembayaranPembelian->keterangan,
+        ]);
+
         return $pembayaranPembelian->load([
             'supplier',
             'akunBank',
@@ -124,6 +135,14 @@ class PembayaranPembelianService
 
     public function update(PembayaranPembelian $pembayaranPembelian, array $data, string $actor = 'system'): PembayaranPembelian
     {
+        $oldData = [
+            'nomer_pembayaran' => $pembayaranPembelian->nomer_pembayaran,
+            'tanggal' => $pembayaranPembelian->tanggal->format('Y-m-d'),
+            'total_bayar' => $pembayaranPembelian->total_bayar,
+            'potongan_admin' => $pembayaranPembelian->potongan_admin,
+            'keterangan' => $pembayaranPembelian->keterangan,
+        ];
+
         $oldRincian = $pembayaranPembelian->rincian()
             ->get(['faktur_pembelian_id', 'nominal_bayar'])
             ->map(fn ($item) => [
@@ -165,6 +184,14 @@ class PembayaranPembelianService
             (float) $pembayaranPembelian->potongan_admin,
         );
 
+        $this->logService->log('Pembayaran Pembelian', 'update', $oldData, [
+            'nomer_pembayaran' => $pembayaranPembelian->nomer_pembayaran,
+            'tanggal' => $pembayaranPembelian->tanggal->format('Y-m-d'),
+            'total_bayar' => $pembayaranPembelian->total_bayar,
+            'potongan_admin' => $pembayaranPembelian->potongan_admin,
+            'keterangan' => $pembayaranPembelian->keterangan,
+        ]);
+
         return $pembayaranPembelian->load([
             'supplier',
             'akunBank',
@@ -176,6 +203,15 @@ class PembayaranPembelianService
 
     public function delete(PembayaranPembelian $pembayaranPembelian): void
     {
+        $this->logService->log('Pembayaran Pembelian', 'delete', [
+            'nomer_pembayaran' => $pembayaranPembelian->nomer_pembayaran,
+            'tanggal' => $pembayaranPembelian->tanggal->format('Y-m-d'),
+            'supplier_id' => $pembayaranPembelian->supplier_id,
+            'total_bayar' => $pembayaranPembelian->total_bayar,
+            'potongan_admin' => $pembayaranPembelian->potongan_admin,
+            'keterangan' => $pembayaranPembelian->keterangan,
+        ]);
+
         $rincian = $pembayaranPembelian->rincian()
             ->get(['faktur_pembelian_id', 'nominal_bayar'])
             ->map(fn ($item) => [

@@ -8,6 +8,7 @@ use App\Models\JurnalUmumRinci;
 use App\Models\LogHapusImportPendapatan;
 use App\Models\MappingCoaSimrs;
 use App\Models\SimrsImportPendapatanJualObat;
+use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,11 @@ class BridgingPendapatanObatService
     private const IMPORT_JURNAL_UMUM = 'JurnalUmum';
     private const SUMBER_LOG = 'Jual Obat';
     private const SUMBER_TRANSAKSI_JURNAL = 'Jurnal Umum';
+
+    public function __construct(
+        private readonly LogAktifitasService $logService,
+    ) {
+    }
 
     public function getQueryDataImport(string $startDate, string $endDate): Builder
     {
@@ -144,6 +150,10 @@ class BridgingPendapatanObatService
                         ->delete();
                 });
 
+                $this->logService->log('Bridging Pendapatan Obat', 'delete', [
+                    'nomer_transaksi' => (string) $nomerTransaksi,
+                ]);
+
                 $hasil[] = [
                     'nomer_transaksi' => (string) $nomerTransaksi,
                     'berhasil' => true,
@@ -215,7 +225,7 @@ class BridgingPendapatanObatService
             ];
         }
 
-        return DB::transaction(function () use ($tagihan, $rincianTagihan, $rincianJurnalSimrs, $actor) {
+        $result = DB::transaction(function () use ($tagihan, $rincianTagihan, $rincianJurnalSimrs, $actor) {
             $mappingGeneral = MappingCoaSimrs::query()->get();
 
             $this->simpanHasilImport($tagihan);
@@ -280,6 +290,12 @@ class BridgingPendapatanObatService
                 'actor' => $actor,
             ];
         });
+
+        $this->logService->log('Bridging Pendapatan Obat', 'create', null, [
+            'nomer_transaksi' => $nomerTransaksi,
+        ]);
+
+        return $result;
     }
 
     private function simpanHasilImport(array $tagihan): void

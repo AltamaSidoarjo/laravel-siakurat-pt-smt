@@ -4,12 +4,17 @@ namespace App\Services\Pengaturan;
 
 use App\Models\Coa;
 use App\Models\MappingCoaSimrs;
+use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class MappingGeneralService
 {
+    public function __construct(
+        private readonly LogAktifitasService $logService,
+    ) {
+    }
     public function getIndexData(): EloquentCollection
     {
         return MappingCoaSimrs::query()
@@ -50,17 +55,32 @@ class MappingGeneralService
             [$data['kode_rekening']]
         ))->first();
 
-        return MappingCoaSimrs::query()->create([
+        $mapping = MappingCoaSimrs::query()->create([
             'kode_rekening' => $data['kode_rekening'],
             'coa_id' => (int) $data['coa_id'],
             'kode_coa' => $coa->kode,
             'nama_coa' => $coa->nama,
             'nama_rekening' => (string) ($rekening->nama_rekening ?? ''),
         ]);
+
+        $this->logService->log('Mapping General', 'create', null, [
+            'kode_rekening' => $mapping->kode_rekening,
+            'coa_id' => $mapping->coa_id,
+            'kode_coa' => $mapping->kode_coa,
+            'nama_coa' => $mapping->nama_coa,
+        ]);
+
+        return $mapping;
     }
 
     public function delete(MappingCoaSimrs $mappingCoaSimrs): void
     {
+        $this->logService->log('Mapping General', 'delete', [
+            'kode_rekening' => $mappingCoaSimrs->kode_rekening,
+            'kode_coa' => $mappingCoaSimrs->kode_coa,
+            'nama_coa' => $mappingCoaSimrs->nama_coa,
+        ]);
+
         $mappingCoaSimrs->delete();
     }
 }
