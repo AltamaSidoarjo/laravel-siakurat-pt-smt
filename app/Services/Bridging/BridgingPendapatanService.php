@@ -683,7 +683,7 @@ class BridgingPendapatanService
                     if ($mappingTindakan === null) {
                         throw new RuntimeException(
                             'Mapping tindakan belum disetting untuk '.$status
-                            .' / kode '.$this->formatTeksTebal($kode)
+                            .', kode '.$this->formatTeksTebal($kode)
                             .' - '.$this->formatTeksTebal($namaPerawatan).'.'
                         );
                     }
@@ -1175,7 +1175,8 @@ class BridgingPendapatanService
 
     private function formatTeksTebal(?string $nilai): string
     {
-        return '<strong>&quot;'.e(trim((string) $nilai)).'&quot;</strong>';
+        //return '<strong>&quot;'.e(trim((string) $nilai)).'&quot;</strong>';
+        return '<strong>&quot;'.e((string) $nilai).'&quot;</strong>';
     }
 
     private function mappingTindakanSesuai(
