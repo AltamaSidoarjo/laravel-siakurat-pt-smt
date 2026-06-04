@@ -45,13 +45,24 @@ class UpdateCoaRequest extends FormRequest
     {
         return [
             function ($validator): void {
+                /** @var Coa $coa */
+                $coa = $this->route('coa');
                 $parentId = $this->integer('parent_id');
 
                 if (! $parentId) {
                     return;
                 }
 
-                if (app(CoaService::class)->cannotBeSelectedAsParent($parentId)) {
+                $coaService = app(CoaService::class);
+
+                if ($coaService->wouldCreateHierarchyCycle((int) $coa->id, $parentId)) {
+                    $validator->errors()->add(
+                        'parent_id',
+                        'Parent COA tidak boleh menggunakan akun turunan dari COA ini.'
+                    );
+                }
+
+                if ($coaService->cannotBeSelectedAsParent($parentId)) {
                     $validator->errors()->add(
                         'parent_id',
                         'COA child level paling bawah yang sudah memiliki transaksi bukubesar tidak dapat dijadikan parent.'

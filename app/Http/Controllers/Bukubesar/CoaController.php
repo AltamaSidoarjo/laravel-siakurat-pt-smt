@@ -48,12 +48,10 @@ class CoaController extends Controller
 
     public function edit(Coa $coa): View
     {
-        $hasChild = $this->coaService->hasChildren((int) $coa->id);
-
         return view('bukubesar.coa.edit', [
             'page' => 'app',
             'coa' => $coa,
-            'hasChild' => $hasChild,
+            'hasChild' => $this->coaService->hasChildren((int) $coa->id),
             'parentOptions' => $this->coaService->getParentOptions((int) $coa->id),
             'tipeOptions' => $this->coaService->getTipeOptions(),
         ]);
@@ -61,16 +59,7 @@ class CoaController extends Controller
 
     public function update(UpdateCoaRequest $request, Coa $coa): RedirectResponse
     {
-        $hasChild = $this->coaService->hasChildren((int) $coa->id);
-
         $data = $request->validated();
-
-        if ($hasChild) {
-            $data['parent_id'] = $coa->parent_coa;
-            $data['tipe_coa'] = $coa->tipe_coa;
-            $data['kode'] = $coa->kode;
-            $data['nama'] = $coa->nama;
-        }
 
         DB::transaction(function () use ($coa, $data) {
             $this->coaService->update($coa, $data);

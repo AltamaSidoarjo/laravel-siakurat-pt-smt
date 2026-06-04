@@ -68,8 +68,14 @@ class CoaService
 
     public function getParentOptions(?int $excludeId = null): Collection
     {
+        $excludedIds = collect();
+
+        if ($excludeId !== null) {
+            $excludedIds = $this->getDescendantIds($excludeId)->push($excludeId);
+        }
+
         return Coa::query()
-            ->when($excludeId, fn ($query) => $query->where('id', '!=', $excludeId))
+            ->when($excludedIds->isNotEmpty(), fn ($query) => $query->whereNotIn('id', $excludedIds->all()))
             ->where(function ($query) {
                 $query->whereHas('children')
                     ->orWhereDoesntHave('bukuBesar');
@@ -105,6 +111,35 @@ class CoaService
             ->whereDoesntHave('children')
             ->whereHas('bukuBesar')
             ->exists();
+    }
+
+    public function getDescendantIds(int $coaId): Collection
+    {
+        $sql = <<<'SQL'
+            WITH RECURSIVE coa_descendants AS (
+                SELECT id, parent_coa
+                FROM coa
+                WHERE parent_coa = ?
+
+                UNION ALL
+
+                SELECT child.id, child.parent_coa
+                FROM coa child
+                INNER JOIN coa_descendants descendants ON child.parent_coa = descendants.id
+            )
+            SELECT id
+            FROM coa_descendants
+        SQL;
+
+        return collect(DB::select($sql, [$coaId]))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values();
+    }
+
+    public function wouldCreateHierarchyCycle(int $coaId, int $parentId): bool
+    {
+        return $this->getDescendantIds($coaId)->contains($parentId);
     }
 
     public function create(array $data): Coa

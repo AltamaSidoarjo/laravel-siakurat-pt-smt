@@ -16,6 +16,7 @@ class CoaParentValidationTest extends TestCase
         parent::setUp();
 
         Schema::dropIfExists('bukubesar');
+        Schema::dropIfExists('log_aktifitas');
         Schema::dropIfExists('tipe_coa');
         Schema::dropIfExists('coa');
 
@@ -51,6 +52,15 @@ class CoaParentValidationTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('log_aktifitas', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('nama_user')->nullable();
+            $table->string('modul');
+            $table->string('tipe');
+            $table->text('payload')->nullable();
+            $table->timestamps();
+        });
+
     }
 
     public function test_create_form_filters_out_leaf_coa_that_already_has_transactions(): void
@@ -66,6 +76,49 @@ class CoaParentValidationTest extends TestCase
             ->assertOk()
             ->assertDontSee($blockedParent->kode.' - '.$blockedParent->nama)
             ->assertSee($allowedParent->kode.' - '.$allowedParent->nama);
+    }
+
+    public function test_edit_form_excludes_current_coa_and_descendants_from_parent_options(): void
+    {
+        $parent = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '210.00',
+            'nama' => 'Parent Edit',
+            'is_postable' => false,
+        ]);
+
+        $child = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $parent->id,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '210.01',
+            'nama' => 'Child Edit',
+            'is_postable' => false,
+        ]);
+
+        $grandChild = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $child->id,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '210.01.01',
+            'nama' => 'Grandchild Edit',
+            'is_postable' => true,
+        ]);
+
+        $otherParent = $this->createCoaWithChild('220.00', 'Parent Lain');
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get(route('bukubesar.coa.edit', $parent));
+
+        $response
+            ->assertOk()
+            ->assertDontSee($parent->kode.' - '.$parent->nama)
+            ->assertDontSee($child->kode.' - '.$child->nama)
+            ->assertDontSee($grandChild->kode.' - '.$grandChild->nama)
+            ->assertSee($otherParent->kode.' - '.$otherParent->nama);
     }
 
     public function test_store_rejects_leaf_coa_with_existing_bukubesar_transaction_as_parent(): void
@@ -123,6 +176,82 @@ class CoaParentValidationTest extends TestCase
             ->assertSessionHasErrors('parent_id');
 
         $this->assertSame(null, $editableCoa->fresh()->parent_coa);
+    }
+
+    public function test_parent_coa_can_still_be_edited_when_it_has_children(): void
+    {
+        $parent = $this->createCoaWithChild('310.00', 'Parent Lama');
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->put(route('bukubesar.coa.update', $parent), [
+                'status_aktif' => 0,
+                'parent_id' => null,
+                'tipe_coa' => 'Kewajiban',
+                'kode' => '310.99',
+                'nama' => 'Parent Baru',
+                'deskripsi' => 'Sudah diperbarui',
+            ]);
+
+        $response->assertRedirect(route('bukubesar.coa.index'));
+
+        $this->assertDatabaseHas('coa', [
+            'id' => $parent->id,
+            'status_aktif' => 0,
+            'parent_coa' => null,
+            'tipe_coa' => 'Kewajiban',
+            'kode' => '310.99',
+            'nama' => 'Parent Baru',
+            'deskripsi' => 'Sudah diperbarui',
+        ]);
+    }
+
+    public function test_update_rejects_descendant_as_parent_to_prevent_cycle(): void
+    {
+        $parent = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '410.00',
+            'nama' => 'Parent Cycle',
+            'is_postable' => false,
+        ]);
+
+        $child = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $parent->id,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '410.01',
+            'nama' => 'Child Cycle',
+            'is_postable' => false,
+        ]);
+
+        $grandChild = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $child->id,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '410.01.01',
+            'nama' => 'Grandchild Cycle',
+            'is_postable' => true,
+        ]);
+
+        $response = $this
+            ->from(route('bukubesar.coa.edit', $parent))
+            ->actingAs($this->makeUser())
+            ->put(route('bukubesar.coa.update', $parent), [
+                'status_aktif' => 1,
+                'parent_id' => $grandChild->id,
+                'tipe_coa' => 'Kasbank',
+                'kode' => '410.00',
+                'nama' => 'Parent Cycle',
+                'deskripsi' => 'Mencoba loop',
+            ]);
+
+        $response
+            ->assertRedirect(route('bukubesar.coa.edit', $parent))
+            ->assertSessionHasErrors('parent_id');
+
+        $this->assertSame(null, $parent->fresh()->parent_coa);
     }
 
     public function test_update_allows_parent_that_already_has_children_even_if_it_has_transactions(): void
