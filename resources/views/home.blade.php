@@ -101,6 +101,20 @@
             const defaultStartDate = '{{ $defaultStartDate }}';
             const defaultEndDate = '{{ $defaultEndDate }}';
             const chartInstances = {};
+            const penjaminChartPalette = [
+                '#2563eb',
+                '#dc2626',
+                '#16a34a',
+                '#d97706',
+                '#7c3aed',
+                '#0891b2',
+                '#db2777',
+                '#65a30d',
+                '#ea580c',
+                '#4f46e5',
+                '#0f766e',
+                '#be123c',
+            ];
 
             const chartConfigs = {
                 kunjunganHarianChart: {
@@ -219,15 +233,22 @@
                 },
                 penjaminChart: {
                     endpoint: '{{ route('home.penjamin') }}',
-                    transform: (rows) => ({
-                        labels: rows.map(row => row.penjamin),
-                        datasets: [{
-                            label: 'Total',
-                            data: rows.map(row => Number(row.total) || 0),
-                            backgroundColor: ['#4338ca', '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#312e81'],
-                            borderWidth: 0,
-                        }],
-                    }),
+                    transform: (rows) => {
+                        const labels = rows.map(row => row.penjamin);
+                        const backgroundColors = labels.map((_, index) => penjaminChartPalette[index % penjaminChartPalette.length]);
+
+                        return {
+                            labels,
+                            datasets: [{
+                                label: 'Total',
+                                data: rows.map(row => Number(row.total) || 0),
+                                backgroundColor: backgroundColors,
+                                borderColor: '#ffffff',
+                                borderWidth: 2,
+                                hoverOffset: 8,
+                            }],
+                        };
+                    },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
