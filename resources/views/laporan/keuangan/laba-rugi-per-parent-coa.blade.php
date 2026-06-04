@@ -4,9 +4,8 @@
 
 @php
     $viewRows = collect($rows)->filter(fn (array $item) => $item['has_children'] || abs((float) $item['nominal']) > 0.01 || abs((float) $item['rba_nominal']) > 0.01)->values();
-    $leafRows = $viewRows->filter(fn (array $item) => !($item['has_children'] ?? false))->values();
-    $totalNominal = (float) $leafRows->sum('nominal');
-    $totalRba = (float) $leafRows->sum('rba_nominal');
+    $totalNominal = (float) $viewRows->sum('nominal');
+    $totalRba = (float) $viewRows->sum('rba_nominal');
     $formatPersentase = function (float $capaian, float $rba): string {
         if (abs($rba) <= 0.01) {
             return abs($capaian) <= 0.01 ? '0%' : '-';
@@ -84,7 +83,7 @@
                             <tbody>
                                 @forelse ($viewRows as $row)
                                     @php
-                                        $isParent = $row['has_children'];
+                                        $selisih = (float) $row['nominal'] - (float) $row['rba_nominal'];
                                     @endphp
                                     <tr>
                                         <td>{{ $row['kode'] }}</td>
@@ -97,9 +96,9 @@
                                                 {{ $row['deskripsi'] }}
                                             @endif
                                         </td>
-                                        <td class="text-end">{{ $isParent ? '' : number_format((float) $row['rba_nominal'], 0, ',', '.') }}</td>
-                                        <td class="text-end">{{ $isParent ? '' : number_format((float) $row['nominal'], 0, ',', '.') }}</td>
-                                        <td class="text-end">{{ $isParent ? '' : $formatPersentase((float) $row['nominal'], (float) $row['rba_nominal']) }}</td>
+                                        <td class="text-end">{{ number_format((float) $row['rba_nominal'], 0, ',', '.') }}</td>
+                                        <td class="text-end">{{ number_format((float) $row['nominal'], 0, ',', '.') }}</td>
+                                        <td class="text-end">{{ $formatPersentase((float) $row['nominal'], (float) $row['rba_nominal']) }}</td>
                                     </tr>
                                 @empty
                                     <tr>

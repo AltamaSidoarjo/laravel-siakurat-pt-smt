@@ -339,7 +339,6 @@ class LaporanKeuanganBukubesarTest extends TestCase
         $labaRugiRows = $service->getLabaRugiStandard('2026-01-01', '2026-05-19');
         $labaRugiTotal = (float) $labaRugiRows
             ->where('sort_level', '>', 0)
-            ->filter(fn (array $row) => !($row['has_children'] ?? false))
             ->sum(function (array $row) {
                 $tipeCoa = (string) ($row['tipe_coa'] ?? '');
 
@@ -519,6 +518,15 @@ class LaporanKeuanganBukubesarTest extends TestCase
             'parent_coa' => $pendapatanParent->id,
             'tipe_coa' => 'Pendapatan',
             'kode' => '410.01',
+            'nama' => 'Pendapatan Operasional',
+            'is_postable' => false,
+        ]);
+
+        $pendapatanGrandchildLeaf = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => $pendapatanLeaf->id,
+            'tipe_coa' => 'Pendapatan',
+            'kode' => '410.01.01',
             'nama' => 'Pendapatan Rawat Jalan',
             'is_postable' => true,
         ]);
@@ -544,10 +552,10 @@ class LaporanKeuanganBukubesarTest extends TestCase
         foreach ([
             [$kasOperasional->id, '2026-01-02', 500, 'D', 'Setoran modal ke kas'],
             [$ekuitas->id, '2026-01-02', 500, 'K', 'Setoran modal awal'],
-            [$pendapatanLeaf->id, '2025-12-31', 999, 'K', 'Pendapatan tahun lalu'],
-            [$pendapatanLeaf->id, '2026-01-10', 100, 'K', 'Pendapatan Januari'],
-            [$pendapatanLeaf->id, '2026-02-15', 200, 'K', 'Pendapatan Februari'],
-            [$pendapatanLeaf->id, '2026-05-19', 50, 'K', 'Pendapatan Mei'],
+            [$pendapatanGrandchildLeaf->id, '2025-12-31', 999, 'K', 'Pendapatan tahun lalu'],
+            [$pendapatanGrandchildLeaf->id, '2026-01-10', 100, 'K', 'Pendapatan Januari'],
+            [$pendapatanGrandchildLeaf->id, '2026-02-15', 200, 'K', 'Pendapatan Februari'],
+            [$pendapatanGrandchildLeaf->id, '2026-05-19', 50, 'K', 'Pendapatan Mei'],
             [$pendapatanParent->id, '2026-05-19', 1000, 'K', 'Posting parent pendapatan yang diabaikan'],
             [$bebanLeaf->id, '2026-01-10', 30, 'D', 'Beban Januari'],
             [$bebanLeaf->id, '2026-02-15', 20, 'D', 'Beban Februari'],
@@ -579,16 +587,16 @@ class LaporanKeuanganBukubesarTest extends TestCase
         $pendapatanParentRow = $labaRugiStandard
             ->where('sort_level', '>', 0)
             ->firstWhere('coa_id', $pendapatanParent->id);
-        $pendapatanLeafRow = $labaRugiStandard
+        $pendapatanChildRow = collect($labaRugiPerParent['rows'])->firstWhere('coa_id', $pendapatanLeaf->id);
+        $pendapatanGrandchildRow = $labaRugiStandard
             ->where('sort_level', '>', 0)
-            ->firstWhere('coa_id', $pendapatanLeaf->id);
-        $perParentPendapatanRow = collect($labaRugiPerParent['rows'])->firstWhere('coa_id', $pendapatanLeaf->id);
+            ->firstWhere('coa_id', $pendapatanGrandchildLeaf->id);
         $this->assertNotNull($pendapatanParentRow);
-        $this->assertNotNull($pendapatanLeafRow);
-        $this->assertNotNull($perParentPendapatanRow);
-        $this->assertGreaterThan(0, (float) $pendapatanLeafRow['nominal']);
-        $this->assertSame((float) $pendapatanLeafRow['nominal'], (float) $pendapatanParentRow['nominal']);
-        $this->assertSame((float) $pendapatanLeafRow['nominal'], (float) $perParentPendapatanRow['nominal']);
+        $this->assertNotNull($pendapatanChildRow);
+        $this->assertNull($pendapatanGrandchildRow);
+        $this->assertGreaterThan(0, (float) $pendapatanChildRow['nominal']);
+        $this->assertSame((float) $pendapatanChildRow['nominal'], (float) $pendapatanParentRow['nominal']);
+        $this->assertTrue((bool) $pendapatanChildRow['has_children']);
     }
 
     public function test_laba_rugi_standard_does_not_duplicate_cross_type_children_between_roots(): void
@@ -636,7 +644,6 @@ class LaporanKeuanganBukubesarTest extends TestCase
             ->values();
         $total = (float) $rows
             ->where('sort_level', '>', 0)
-            ->filter(fn (array $row) => !($row['has_children'] ?? false))
             ->sum(function (array $row) {
                 $tipeCoa = (string) ($row['tipe_coa'] ?? '');
 

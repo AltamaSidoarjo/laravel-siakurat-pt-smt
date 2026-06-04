@@ -169,9 +169,8 @@ class LaporanKeuanganService
                 ->sortBy('kode')
                 ->values();
 
-            $childRows = collect();
-            foreach ($topLevelRows as $coa) {
-                $childRows = $childRows->concat($this->flattenSubtreeLabaRugiStandard(
+            $childRows = $topLevelRows
+                ->map(fn (Coa $coa) => $this->buildLabaRugiAggregateRow(
                     coa: $coa,
                     allCoa: $itemsById,
                     childrenMap: $childrenMap,
@@ -179,8 +178,8 @@ class LaporanKeuanganService
                     rbaPerCoa: $rbaPerCoa,
                     level: 1,
                     rootOrder: (int) $rootOrder,
-                ));
-            }
+                ))
+                ->values();
 
             $rootRow = [
                 'kode' => $this->kodeRootLabaRugi((int) $rootOrder),
@@ -240,29 +239,15 @@ class LaporanKeuanganService
         $rbaPerCoa = $this->ambilRbaPerCoa($allCoa->keys()->all(), $startDate, $endDate);
 
         $rows = $children->map(function (Coa $child) use ($allCoa, $childrenMap, $mutasiPerCoa, $rbaPerCoa) {
-            $nominal = $this->hitungNominalSubtreeLabaRugiLeaf(
-                coaId: (int) $child->id,
+            return $this->buildLabaRugiAggregateRow(
+                coa: $child,
                 allCoa: $allCoa,
                 childrenMap: $childrenMap,
                 mutasiPerCoa: $mutasiPerCoa,
-            );
-
-            $rbaNominal = $this->hitungRbaSubtreeLabaRugiLeaf(
-                coaId: (int) $child->id,
-                childrenMap: $childrenMap,
                 rbaPerCoa: $rbaPerCoa,
+                level: 1,
+                rootOrder: $this->urutanLabaRugi((string) $child->tipe_coa),
             );
-
-            return [
-                'kode' => (string) $child->kode,
-                'deskripsi' => (string) $child->nama,
-                'nominal' => (float) $nominal,
-                'rba_nominal' => (float) $rbaNominal,
-                'sort_level' => 1,
-                'coa_id' => (int) $child->id,
-                'tipe_coa' => (string) $child->tipe_coa,
-                'has_children' => $childrenMap->has((int) $child->id),
-            ];
         })->values();
 
         return [
@@ -994,7 +979,7 @@ class LaporanKeuanganService
             ->sum(fn (int $descendantId) => (float) ($rbaPerCoa[$descendantId] ?? 0));
     }
 
-    private function flattenSubtreeLabaRugiStandard(
+    private function buildLabaRugiAggregateRow(
         Coa $coa,
         Collection $allCoa,
         Collection $childrenMap,
@@ -1002,12 +987,10 @@ class LaporanKeuanganService
         array $rbaPerCoa,
         int $level,
         int $rootOrder,
-    ): Collection {
-        $children = $childrenMap->get((int) $coa->id, collect())
-            ->sortBy('kode')
-            ->values();
+    ): array {
+        $children = $childrenMap->get((int) $coa->id, collect());
 
-        $rows = collect([[
+        return [
             'kode' => (string) $coa->kode,
             'deskripsi' => (string) $coa->nama,
             'nominal' => $this->hitungNominalSubtreeLabaRugiLeaf(
@@ -1028,21 +1011,7 @@ class LaporanKeuanganService
             'tipe_coa' => (string) $coa->tipe_coa,
             'root_order' => $rootOrder,
             'has_children' => $children->isNotEmpty(),
-        ]]);
-
-        foreach ($children as $child) {
-            $rows = $rows->concat($this->flattenSubtreeLabaRugiStandard(
-                coa: $child,
-                allCoa: $allCoa,
-                childrenMap: $childrenMap,
-                mutasiPerCoa: $mutasiPerCoa,
-                rbaPerCoa: $rbaPerCoa,
-                level: $level + 1,
-                rootOrder: $rootOrder,
-            ));
-        }
-
-        return $rows;
+        ];
     }
 
     private function ambilSaldoSampaiTanggal(string $perDate): array
