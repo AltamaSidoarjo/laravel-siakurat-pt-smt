@@ -39,7 +39,7 @@
     <img src="{{ asset('assets/logo-jrsma.png') }}" alt="Logo">
     <div class="sidebar-brand-text">
         <span class="sidebar-brand-name">{{ config('siakurat.app_name') }}</span>
-        <span class="sidebar-brand-rs">{{ config('siakurat.rs_name') }}</span>
+        <span class="sidebar-brand-rs">{{ $brandCompanyName }}</span>
     </div>
 </div>
 

@@ -12,7 +12,7 @@
             {{ config('siakurat.app_name') }}
         </span>
         <span class="m-0" style="line-height: 1.1; font-size: 0.85rem;">
-            {{ config('siakurat.rs_name') }}
+            {{ $brandCompanyName }}
         </span>
     </div>
 </a>

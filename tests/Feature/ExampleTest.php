@@ -46,6 +46,44 @@ class ExampleTest extends TestCase
             ->assertSee('Ringkasan kunjungan dan pendapatan SIMRS');
     }
 
+    public function test_home_page_displays_company_name_from_preferences(): void
+    {
+        $this->preparePreferensiPerusahaanTable();
+
+        \DB::table('preferensi_perusahaan')->insert([
+            'nama_perusahaan' => 'RS Contoh Sehat',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get('/home');
+
+        $response
+            ->assertOk()
+            ->assertSee('RS Contoh Sehat');
+    }
+
+    public function test_home_page_displays_fallback_company_name_when_preferences_empty(): void
+    {
+        $this->preparePreferensiPerusahaanTable();
+
+        \DB::table('preferensi_perusahaan')->insert([
+            'nama_perusahaan' => '',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get('/home');
+
+        $response
+            ->assertOk()
+            ->assertSee(config('siakurat.rs_name'));
+    }
+
     public function test_home_chart_endpoint_can_be_opened_with_authenticated_user(): void
     {
         $response = $this
@@ -219,15 +257,7 @@ class ExampleTest extends TestCase
 
     private function prepareBukubesarTables(): void
     {
-        if (! Schema::hasTable('preferensi_perusahaan')) {
-            Schema::create('preferensi_perusahaan', function (Blueprint $table) {
-                $table->increments('id');
-                $table->unsignedInteger('coa_id')->nullable();
-                $table->string('nama_perusahaan')->nullable();
-                $table->string('logo_perusahaan')->nullable();
-                $table->timestamps();
-            });
-        }
+        $this->preparePreferensiPerusahaanTable();
 
         if (! Schema::hasTable('coa')) {
             Schema::create('coa', function (Blueprint $table) {
@@ -276,5 +306,20 @@ class ExampleTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function preparePreferensiPerusahaanTable(): void
+    {
+        if (! Schema::hasTable('preferensi_perusahaan')) {
+            Schema::create('preferensi_perusahaan', function (Blueprint $table) {
+                $table->increments('id');
+                $table->unsignedInteger('coa_id')->nullable();
+                $table->string('nama_perusahaan')->nullable();
+                $table->string('logo_perusahaan')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        \DB::table('preferensi_perusahaan')->delete();
     }
 }
