@@ -1,6 +1,8 @@
 import './bootstrap';
 
 document.addEventListener('DOMContentLoaded', function () {
+    // ─── Select2 helpers ─────────────────────────────────────────────
+
     window.getSelect2Options = function (element) {
         const $select = window.jQuery(element);
         const $modalParent = $select.closest('.modal');
@@ -41,24 +43,41 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.initSelect2Fields(document, '.select2');
 
-    const dropdowns = document.querySelectorAll('.dropdown');
-    dropdowns.forEach((dropdown) => {
-        dropdown.addEventListener('hide.bs.dropdown', function () {
-            const shownSubmenus = this.querySelectorAll('.dropdown-submenu.show, .dropdown-menu.show');
-            shownSubmenus.forEach((submenu) => submenu.classList.remove('show'));
-        });
-    });
+    // ─── Sidebar: desktop toggle (collapse) ──────────────────────────
 
-    const submenuToggles = document.querySelectorAll('.dropdown-submenu > .dropdown-toggle');
-    submenuToggles.forEach((toggle) => {
-        toggle.addEventListener('click', function (event) {
-            if (window.innerWidth >= 1200) {
-                return;
-            }
-
-            event.preventDefault();
-            event.stopPropagation();
-            this.parentElement.classList.toggle('show');
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+    if (sidebarToggleBtn) {
+        sidebarToggleBtn.addEventListener('click', function () {
+            document.body.classList.toggle('sidebar-collapsed');
         });
-    });
+    }
+
+    // ─── Sidebar: mobile open / close ────────────────────────────────
+
+    const mobileSidebarToggle = document.getElementById('mobile-sidebar-toggle');
+    const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+
+    if (mobileSidebarToggle) {
+        mobileSidebarToggle.addEventListener('click', function () {
+            document.body.classList.add('sidebar-open');
+        });
+    }
+
+    if (sidebarBackdrop) {
+        sidebarBackdrop.addEventListener('click', function () {
+            document.body.classList.remove('sidebar-open');
+        });
+    }
+
+    // Auto-close sidebar on mobile when a sub-link is clicked
+    const appSidebar = document.getElementById('app-sidebar');
+    if (appSidebar) {
+        appSidebar.querySelectorAll('a.sidebar-sublink').forEach(function (link) {
+            link.addEventListener('click', function () {
+                if (window.innerWidth < 992) {
+                    document.body.classList.remove('sidebar-open');
+                }
+            });
+        });
+    }
 });

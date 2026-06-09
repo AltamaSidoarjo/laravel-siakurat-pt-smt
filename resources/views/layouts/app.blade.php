@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-100">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,30 +17,33 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
 </head>
-<body class="d-flex flex-column h-100 bg-light {{ ($page ?? '') === 'login' ? 'auth-page' : 'app-page' }}">
+<body class="{{ ($page ?? '') === 'login' ? 'auth-page' : 'app-page' }}">
+
     @if (($page ?? '') !== 'login')
-        <header>
-            <nav class="navbar fixed-top navbar-expand-lg navbar-toggleable navbar-dark mb-3 top-navbar">
-                <div class="container-fluid">
-                    @include('partials.header')
-                </div>
-            </nav>
-        </header>
+        <aside id="app-sidebar">
+            @include('partials.sidebar')
+        </aside>
+        <div id="sidebar-backdrop"></div>
+        <button id="mobile-sidebar-toggle" aria-label="Buka Menu">
+            <i class="bi bi-list"></i>
+        </button>
     @endif
 
-    <main class="flex-shrink-0">
-        <div class="container-fluid {{ ($page ?? '') === 'login' ? '' : 'my-3' }}">
-            @yield('content')
-        </div>
-    </main>
-
-    @if (($page ?? '') !== 'login')
-        <footer class="border-top footer text-muted mt-auto py-3">
-            <div class="container-fluid">
-                &copy; 2025 - {{ config('siakurat.app_name') }}
+    <div id="{{ ($page ?? '') !== 'login' ? 'app-content' : '' }}">
+        <main>
+            <div class="container-fluid {{ ($page ?? '') === 'login' ? '' : 'my-3' }}">
+                @yield('content')
             </div>
-        </footer>
-    @endif
+        </main>
+
+        @if (($page ?? '') !== 'login')
+            <footer class="border-top footer text-muted py-2">
+                <div class="container-fluid">
+                    &copy; 2025 - {{ config('siakurat.app_name') }}
+                </div>
+            </footer>
+        @endif
+    </div>
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jquery-ui-dist@1.13.3/jquery-ui.min.js"></script>
