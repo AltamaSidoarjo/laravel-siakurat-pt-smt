@@ -58,9 +58,15 @@ class CoaService
                     FROM coa c2
                     WHERE c2.parent_coa = t.id
                     LIMIT 1
-                ) AS is_parent
+                ) AS is_parent,
+                EXISTS (
+                    SELECT 1
+                    FROM coa c3
+                    WHERE c3.parent_coa = t.id
+                    LIMIT 1
+                ) AS has_children
             FROM coa_tree t
-            ORDER BY t.kode ASC
+            ORDER BY t.sort_path ASC
         SQL;
 
         return DB::select($sql);
