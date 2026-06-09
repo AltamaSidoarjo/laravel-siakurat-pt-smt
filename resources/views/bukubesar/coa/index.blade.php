@@ -81,8 +81,9 @@
                                                     $level = (int) ($coa->level ?? 0);
                                                     $indentPx = max(0, $level) * 16;
                                                     $hasChildren = (int) ($coa->has_children ?? $coa->is_parent ?? 0) === 1;
-                                                    $isVisible = $level === 0;
+                                                    $isVisible = $level <= 1;
                                                     $parentId = filled($coa->parent_coa) ? (int) $coa->parent_coa : null;
+                                                    $isExpanded = $hasChildren && $level === 0;
                                                 @endphp
                                                 <tr
                                                     class="coa-row"
@@ -90,7 +91,7 @@
                                                     data-parent-id="{{ $parentId }}"
                                                     data-level="{{ $level }}"
                                                     data-has-children="{{ $hasChildren ? 1 : 0 }}"
-                                                    data-expanded="0"
+                                                    data-expanded="{{ $isExpanded ? 1 : 0 }}"
                                                     @unless ($isVisible) style="display: none;" @endunless
                                                 >
                                                     <td class="text-start">
@@ -100,10 +101,10 @@
                                                                     type="button"
                                                                     class="btn btn-sm btn-link text-decoration-none text-dark p-0 me-2 coa-toggle"
                                                                     data-id="{{ $coa->id }}"
-                                                                    aria-expanded="false"
-                                                                    aria-label="Expand {{ $coa->nama }}"
+                                                                    aria-expanded="{{ $isExpanded ? 'true' : 'false' }}"
+                                                                    aria-label="{{ $isExpanded ? 'Collapse' : 'Expand' }} {{ $coa->nama }}"
                                                                 >
-                                                                    <i class="bi bi-caret-right-fill"></i>
+                                                                    <i class="bi {{ $isExpanded ? 'bi-caret-down-fill' : 'bi-caret-right-fill' }}"></i>
                                                                 </button>
                                                             @else
                                                                 <span class="d-inline-block me-2 coa-toggle-spacer"></span>
@@ -209,11 +210,11 @@
 
             function collapseAll() {
                 treeRows.forEach(function (row) {
-                    const isRoot = row.dataset.level === '0';
-                    row.style.display = isRoot ? '' : 'none';
+                    const level = Number(row.dataset.level || 0);
+                    row.style.display = level <= 1 ? '' : 'none';
 
                     if (row.dataset.hasChildren === '1') {
-                        setToggleState(row, false);
+                        setToggleState(row, level === 0);
                     }
                 });
             }
@@ -244,6 +245,8 @@
             document.getElementById('collapseAllButton')?.addEventListener('click', function () {
                 collapseAll();
             });
+
+            collapseAll();
 
             function buildExportData() {
                 return [
