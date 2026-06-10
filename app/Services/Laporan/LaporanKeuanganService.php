@@ -1095,10 +1095,10 @@ class LaporanKeuanganService
     {
         return match ($rootOrder) {
             1 => '4',
-            2 => '8',
+            2 => '4',
             3 => '5',
-            4 => '6',
-            5 => '9',
+            4 => '5',
+            5 => '5',
             default => '0',
         };
     }
