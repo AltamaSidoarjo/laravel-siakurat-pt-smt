@@ -704,12 +704,32 @@ class LaporanKeuanganService
             }
         }
 
+        $summary = $this->ringkasStatusNeraca(
+            subtotalAktiva: $totals['aktiva'],
+            subtotalPasiva: $totals['pasiva'],
+            subtotalEkuitas: $totals['ekuitas'],
+        );
+
         return [
             'rows' => $rows->values(),
             'subtotalAktiva' => $totals['aktiva'],
             'subtotalPasiva' => $totals['pasiva'],
             'subtotalEkuitas' => $totals['ekuitas'],
-            'subtotalPasivaEkuitas' => $totals['pasiva'] + $totals['ekuitas'],
+            'subtotalPasivaEkuitas' => $summary['subtotalPasivaEkuitas'],
+            'selisih' => $summary['selisih'],
+            'isBalance' => $summary['isBalance'],
+        ];
+    }
+
+    private function ringkasStatusNeraca(float $subtotalAktiva, float $subtotalPasiva, float $subtotalEkuitas): array
+    {
+        $subtotalPasivaEkuitas = $subtotalPasiva + $subtotalEkuitas;
+        $selisih = round($subtotalAktiva - $subtotalPasivaEkuitas, 2);
+
+        return [
+            'subtotalPasivaEkuitas' => $subtotalPasivaEkuitas,
+            'selisih' => $selisih,
+            'isBalance' => abs($selisih) <= 0.01,
         ];
     }
 

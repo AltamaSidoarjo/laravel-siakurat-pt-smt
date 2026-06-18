@@ -144,6 +144,8 @@ class LaporanKeuanganController extends Controller
                 'subtotalPasiva' => $data['subtotalPasiva'],
                 'subtotalEkuitas' => $data['subtotalEkuitas'],
                 'subtotalPasivaEkuitas' => $data['subtotalPasivaEkuitas'],
+                'selisih' => $data['selisih'],
+                'isBalance' => $data['isBalance'],
             ],
         ));
     }

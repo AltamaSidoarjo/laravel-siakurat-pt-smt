@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\BukuBesar;
 use App\Models\Coa;
 use App\Services\Laporan\LaporanKeuanganService;
+use ReflectionMethod;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -466,6 +467,45 @@ class LaporanKeuanganBukubesarTest extends TestCase
 
         $this->assertNull($result['parent']);
         $this->assertCount(0, $result['rows']);
+    }
+
+    public function test_neraca_standard_rounds_small_float_noise_before_marking_balance(): void
+    {
+        $method = new ReflectionMethod(LaporanKeuanganService::class, 'ringkasStatusNeraca');
+        $method->setAccessible(true);
+        $result = $method->invoke(app(LaporanKeuanganService::class), 0.33, 0.32, 0.0);
+
+        $this->assertSame(0.01, $result['selisih']);
+        $this->assertTrue($result['isBalance']);
+    }
+
+    public function test_neraca_standard_marks_material_difference_as_not_balance(): void
+    {
+        $method = new ReflectionMethod(LaporanKeuanganService::class, 'ringkasStatusNeraca');
+        $method->setAccessible(true);
+        $result = $method->invoke(app(LaporanKeuanganService::class), 0.33, 0.31, 0.0);
+
+        $this->assertSame(0.02, $result['selisih']);
+        $this->assertFalse($result['isBalance']);
+    }
+
+    public function test_neraca_standard_view_shows_balance_status_using_two_decimal_difference(): void
+    {
+        $response = $this->view('laporan.keuangan.neraca-standard', [
+            'logoRsUrl' => '',
+            'namaRumahSakit' => 'RS Test',
+            'page' => 'app',
+            'perDate' => '2026-06-18',
+            'rows' => collect(),
+            'subtotalAktiva' => 0.33,
+            'subtotalPasiva' => 0.32,
+            'subtotalEkuitas' => 0.00,
+            'subtotalPasivaEkuitas' => 0.32,
+            'selisih' => 0.01,
+            'isBalance' => true,
+        ]);
+
+        $response->assertSee('BALANCE | Selisih 0,01', false);
     }
 
     public function test_laba_rugi_standard_and_per_parent_only_count_leaf_accounts(): void
