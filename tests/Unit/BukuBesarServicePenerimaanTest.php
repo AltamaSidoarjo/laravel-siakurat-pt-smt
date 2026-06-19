@@ -23,6 +23,8 @@ class BukuBesarServicePenerimaanTest extends TestCase
             $table->unsignedBigInteger('coa_id');
             $table->unsignedBigInteger('sumber_id');
             $table->date('tanggal');
+            $table->unsignedSmallInteger('periode_tahun')->nullable();
+            $table->unsignedTinyInteger('periode_bulan')->nullable();
             $table->string('nomer')->nullable();
             $table->string('sumber_transaksi')->nullable();
             $table->decimal('nominal', 15, 2)->default(0);
@@ -58,8 +60,20 @@ class BukuBesarServicePenerimaanTest extends TestCase
         );
 
         $this->assertDatabaseCount('bukubesar', 2);
-        $this->assertDatabaseHas('bukubesar', ['coa_id' => 10, 'nominal' => 5_000_000, 'tipe_mutasi' => 'D']);
-        $this->assertDatabaseHas('bukubesar', ['coa_id' => 20, 'nominal' => 5_000_000, 'tipe_mutasi' => 'K']);
+        $this->assertDatabaseHas('bukubesar', [
+            'coa_id' => 10,
+            'nominal' => 5_000_000,
+            'tipe_mutasi' => 'D',
+            'periode_tahun' => 2026,
+            'periode_bulan' => 5,
+        ]);
+        $this->assertDatabaseHas('bukubesar', [
+            'coa_id' => 20,
+            'nominal' => 5_000_000,
+            'tipe_mutasi' => 'K',
+            'periode_tahun' => 2026,
+            'periode_bulan' => 5,
+        ]);
     }
 
     public function test_sync_with_selisih_creates_three_rows_with_correct_logic(): void
@@ -80,11 +94,11 @@ class BukuBesarServicePenerimaanTest extends TestCase
 
         $this->assertDatabaseCount('bukubesar', 3);
         // Kasbank D = jumlah_pembayaran (full)
-        $this->assertDatabaseHas('bukubesar', ['coa_id' => 10, 'nominal' => 5_000_000, 'tipe_mutasi' => 'D']);
+        $this->assertDatabaseHas('bukubesar', ['coa_id' => 10, 'nominal' => 5_000_000, 'tipe_mutasi' => 'D', 'periode_tahun' => 2026, 'periode_bulan' => 5]);
         // Piutang K = jumlah_pembayaran - selisih_tarif
-        $this->assertDatabaseHas('bukubesar', ['coa_id' => 20, 'nominal' => 4_500_000, 'tipe_mutasi' => 'K']);
+        $this->assertDatabaseHas('bukubesar', ['coa_id' => 20, 'nominal' => 4_500_000, 'tipe_mutasi' => 'K', 'periode_tahun' => 2026, 'periode_bulan' => 5]);
         // Selisih Tarif K (bukan D)
-        $this->assertDatabaseHas('bukubesar', ['coa_id' => 30, 'nominal' => 500_000, 'tipe_mutasi' => 'K']);
+        $this->assertDatabaseHas('bukubesar', ['coa_id' => 30, 'nominal' => 500_000, 'tipe_mutasi' => 'K', 'periode_tahun' => 2026, 'periode_bulan' => 5]);
     }
 
     public function test_sync_replaces_existing_rows_on_resync(): void
@@ -96,6 +110,12 @@ class BukuBesarServicePenerimaanTest extends TestCase
 
         $service->syncFromPenerimaanPendapatan(1, 10, 20, 30, 'PPD-001', '2026-05-21', null, 5_500_000, 500_000);
         $this->assertDatabaseCount('bukubesar', 3);
-        $this->assertDatabaseHas('bukubesar', ['coa_id' => 10, 'nominal' => 5_500_000, 'tipe_mutasi' => 'D']);
+        $this->assertDatabaseHas('bukubesar', [
+            'coa_id' => 10,
+            'nominal' => 5_500_000,
+            'tipe_mutasi' => 'D',
+            'periode_tahun' => 2026,
+            'periode_bulan' => 5,
+        ]);
     }
 }

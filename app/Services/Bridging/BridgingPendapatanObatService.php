@@ -8,6 +8,7 @@ use App\Models\JurnalUmumRinci;
 use App\Models\LogHapusImportPendapatan;
 use App\Models\MappingCoaSimrs;
 use App\Models\SimrsImportPendapatanJualObat;
+use App\Services\Bukubesar\BukuBesarService;
 use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -263,6 +264,7 @@ class BridgingPendapatanObatService
                     'coa_id' => (int) $mapping->coa_id,
                     'sumber_id' => (int) $jurnal->id,
                     'tanggal' => $tagihan['tanggal'],
+                    ...BukuBesarService::resolvePeriode($tagihan['tanggal']),
                     'nomer' => $tagihan['nomer_transaksi'],
                     'sumber_transaksi' => self::SUMBER_TRANSAKSI_JURNAL,
                     'nominal' => $debit > 0 ? $debit : $kredit,

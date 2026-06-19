@@ -88,6 +88,8 @@ class PenerimaanPendapatanSelisihTarifTest extends TestCase
             $table->unsignedBigInteger('coa_id');
             $table->unsignedBigInteger('sumber_id');
             $table->date('tanggal');
+            $table->unsignedSmallInteger('periode_tahun')->nullable();
+            $table->unsignedTinyInteger('periode_bulan')->nullable();
             $table->string('nomer')->nullable();
             $table->string('sumber_transaksi')->nullable();
             $table->decimal('nominal', 15, 2)->default(0);
@@ -154,6 +156,8 @@ class PenerimaanPendapatanSelisihTarifTest extends TestCase
             'coa_id' => $akunBankId,
             'nominal' => 5_000_000,
             'tipe_mutasi' => 'D',
+            'periode_tahun' => 2026,
+            'periode_bulan' => 5,
         ]);
         $this->assertDatabaseHas('bukubesar', [
             'sumber_id' => $penerimaanId,
@@ -161,6 +165,8 @@ class PenerimaanPendapatanSelisihTarifTest extends TestCase
             'coa_id' => $akunPiutangId,
             'nominal' => 5_000_000,
             'tipe_mutasi' => 'K',
+            'periode_tahun' => 2026,
+            'periode_bulan' => 5,
         ]);
     }
 
@@ -198,18 +204,24 @@ class PenerimaanPendapatanSelisihTarifTest extends TestCase
             'coa_id' => $akunBankId,
             'nominal' => 5_000_000,
             'tipe_mutasi' => 'D',
+            'periode_tahun' => 2026,
+            'periode_bulan' => 5,
         ]);
         $this->assertDatabaseHas('bukubesar', [
             'sumber_id' => $penerimaanId,
             'coa_id' => $akunPiutangId,
             'nominal' => 4_500_000,
             'tipe_mutasi' => 'K',
+            'periode_tahun' => 2026,
+            'periode_bulan' => 5,
         ]);
         $this->assertDatabaseHas('bukubesar', [
             'sumber_id' => $penerimaanId,
             'coa_id' => $akunSelisihId,
             'nominal' => 500_000,
             'tipe_mutasi' => 'K',
+            'periode_tahun' => 2026,
+            'periode_bulan' => 5,
         ]);
     }
 
@@ -261,18 +273,24 @@ class PenerimaanPendapatanSelisihTarifTest extends TestCase
             'coa_id' => $akunBankId,
             'nominal' => 5_500_000,
             'tipe_mutasi' => 'D',
+            'periode_tahun' => 2026,
+            'periode_bulan' => 5,
         ]);
         $this->assertDatabaseHas('bukubesar', [
             'sumber_id' => $penerimaanId,
             'coa_id' => $akunPiutangId,
             'nominal' => 5_000_000,
             'tipe_mutasi' => 'K',
+            'periode_tahun' => 2026,
+            'periode_bulan' => 5,
         ]);
         $this->assertDatabaseHas('bukubesar', [
             'sumber_id' => $penerimaanId,
             'coa_id' => $akunSelisihId,
             'nominal' => 500_000,
             'tipe_mutasi' => 'K',
+            'periode_tahun' => 2026,
+            'periode_bulan' => 5,
         ]);
     }
 
