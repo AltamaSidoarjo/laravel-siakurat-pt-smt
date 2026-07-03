@@ -932,8 +932,8 @@ class BridgingPendapatanService
                 <<<'SQL'
                 SELECT ki.kd_kamar
                 FROM kamar_inap ki
-                JOIN kamar k ON k.kd_kamar = ki.kd_kamar
-                JOIN bangsal bs ON bs.kd_bangsal = k.kd_bangsal
+                JOIN kamar_old k ON k.kd_kamar = ki.kd_kamar
+                JOIN bangsal_old bs ON bs.kd_bangsal = k.kd_bangsal
                 JOIN billing b ON b.no_rawat = ki.no_rawat
                     AND b.nm_perawatan = CONCAT(ki.kd_kamar, ', ', bs.nm_bangsal)
                 WHERE ki.no_rawat = ? AND b.nm_perawatan = ?
