@@ -5,6 +5,7 @@ namespace App\Services\Laporan;
 use App\Models\SimrsImportPendapatan;
 use App\Models\SimrsImportPendapatanJualObat;
 use Illuminate\Database\Eloquent\Builder;
+use RuntimeException;
 
 class LaporanPendapatanService
 {
@@ -28,5 +29,67 @@ class LaporanPendapatanService
             ->betweenDates($startDate, $endDate)
             ->orderByDesc('tanggal')
             ->orderByDesc('id');
+    }
+
+    public function streamKunjunganCsv(string $startDate, string $endDate): void
+    {
+        $handle = fopen('php://output', 'wb');
+
+        if ($handle === false) {
+            throw new RuntimeException('Gagal membuka output stream CSV.');
+        }
+
+        fwrite($handle, "\xEF\xBB\xBF");
+
+        fputcsv($handle, [
+            'No. Billing',
+            'Tanggal Registrasi',
+            'Pasien',
+            'Status Layanan',
+            'Dokter',
+            'Poli',
+            'Penjamin',
+            'Nominal',
+        ]);
+
+        $this->getQueryKunjunganForExport($startDate, $endDate)
+            ->lazyById(1000, 'id')
+            ->each(function (SimrsImportPendapatan $row) use ($handle) {
+                fputcsv($handle, [
+                    (string) $row->nomer_billing,
+                    optional($row->tanggal_reg)->format('Y-m-d'),
+                    (string) ($row->nama_pasien ?? ''),
+                    (string) ($row->status_layanan ?? ''),
+                    (string) ($row->dokter ?? ''),
+                    (string) ($row->poli ?? ''),
+                    (string) ($row->penjamin ?? ''),
+                    $this->formatCsvNumber($row->total_tagihan),
+                ]);
+            });
+
+        fclose($handle);
+    }
+
+    private function getQueryKunjunganForExport(string $startDate, string $endDate): Builder
+    {
+        return SimrsImportPendapatan::query()
+            ->select([
+                'id',
+                'nomer_billing',
+                'tanggal_reg',
+                'nama_pasien',
+                'status_layanan',
+                'dokter',
+                'poli',
+                'penjamin',
+                'total_tagihan',
+            ])
+            ->betweenDates($startDate, $endDate)
+            ->orderBy('id');
+    }
+
+    private function formatCsvNumber(mixed $value): string
+    {
+        return number_format((float) $value, 2, '.', '');
     }
 }

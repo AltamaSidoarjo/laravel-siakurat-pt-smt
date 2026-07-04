@@ -8,6 +8,7 @@ use App\Services\Laporan\LaporanPendapatanService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\Facades\DataTables;
 
 class LaporanPendapatanController extends Controller
@@ -61,6 +62,31 @@ class LaporanPendapatanController extends Controller
             ->editColumn('total_tagihan', fn ($row) => number_format((float) $row->total_tagihan, 0, ',', '.'))
             ->with('grandTotal', fn () => (float) $grandTotalQuery->sum('total_tagihan'))
             ->toJson();
+    }
+
+    public function exportKunjunganCsv(Request $request): StreamedResponse
+    {
+        $validated = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+        ]);
+
+        $fileName = sprintf(
+            'pendapatan-kunjungan-%s-%s.csv',
+            str_replace('-', '', $validated['startDate']),
+            str_replace('-', '', $validated['endDate'])
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPendapatanService->streamKunjunganCsv(
+                startDate: $validated['startDate'],
+                endDate: $validated['endDate'],
+            ),
+            $fileName,
+            [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+            ]
+        );
     }
 
     public function penjualanObat(Request $request): View

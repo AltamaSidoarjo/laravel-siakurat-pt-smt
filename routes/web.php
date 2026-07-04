@@ -239,6 +239,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/pendapatan', [LaporanPendapatanController::class, 'index'])->name('pendapatan.index');
             Route::get('/pendapatan/kunjungan', [LaporanPendapatanController::class, 'kunjungan'])->name('pendapatan.kunjungan');
             Route::get('/pendapatan/kunjungan/load-data', [LaporanPendapatanController::class, 'loadKunjungan'])->name('pendapatan.kunjungan.load-data');
+            Route::get('/pendapatan/kunjungan/export-csv', [LaporanPendapatanController::class, 'exportKunjunganCsv'])->name('pendapatan.kunjungan.export-csv');
             Route::get('/pendapatan/penjualan-obat', [LaporanPendapatanController::class, 'penjualanObat'])->name('pendapatan.penjualan-obat');
             Route::get('/pendapatan/penjualan-obat/load-data', [LaporanPendapatanController::class, 'loadPenjualanObat'])->name('pendapatan.penjualan-obat.load-data');
         });
