@@ -341,7 +341,7 @@ class LaporanKeuanganBukubesarTest extends TestCase
         $result = $service->getNeracaStandard('2026-05-19');
         $labaRugiRows = $service->getLabaRugiStandard('2026-01-01', '2026-05-19');
         $labaRugiTotal = (float) $labaRugiRows
-            ->where('sort_level', '>', 0)
+            ->where('sort_level', 1)
             ->sum(function (array $row) {
                 $tipeCoa = (string) ($row['tipe_coa'] ?? '');
 
@@ -630,14 +630,28 @@ class LaporanKeuanganBukubesarTest extends TestCase
             ->where('sort_level', '>', 0)
             ->firstWhere('coa_id', $pendapatanParent->id);
         $pendapatanChildRow = collect($labaRugiPerParent['rows'])->firstWhere('coa_id', $pendapatanLeaf->id);
+        $pendapatanStandardChildRow = $labaRugiStandard
+            ->where('sort_level', '>', 0)
+            ->firstWhere('coa_id', $pendapatanLeaf->id);
         $pendapatanGrandchildRow = $labaRugiStandard
             ->where('sort_level', '>', 0)
             ->firstWhere('coa_id', $pendapatanGrandchildLeaf->id);
+        $pendapatanRootRow = $labaRugiStandard->firstWhere('kode', '4');
+        $pendapatanLevelOneTotal = (float) $labaRugiStandard
+            ->where('root_order', 1)
+            ->where('sort_level', 1)
+            ->sum('nominal');
+
         $this->assertNotNull($pendapatanParentRow);
         $this->assertNotNull($pendapatanChildRow);
+        $this->assertNotNull($pendapatanStandardChildRow);
         $this->assertNull($pendapatanGrandchildRow);
         $this->assertGreaterThan(0, (float) $pendapatanChildRow['nominal']);
         $this->assertSame((float) $pendapatanChildRow['nominal'], (float) $pendapatanParentRow['nominal']);
+        $this->assertSame((float) $pendapatanParentRow['nominal'], (float) $pendapatanStandardChildRow['nominal']);
+        $this->assertSame(2, (int) $pendapatanStandardChildRow['sort_level']);
+        $this->assertSame(2, (int) $pendapatanStandardChildRow['level']);
+        $this->assertSame((float) $pendapatanRootRow['nominal'], $pendapatanLevelOneTotal);
         $this->assertTrue((bool) $pendapatanChildRow['has_children']);
     }
 

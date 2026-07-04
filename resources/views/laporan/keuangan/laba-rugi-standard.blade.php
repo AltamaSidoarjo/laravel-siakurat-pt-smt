@@ -14,7 +14,7 @@
     $isPendapatan = fn (array $item) => str_contains(strtolower((string) ($item['tipe_coa'] ?? '')), 'pendapatan');
     $isBiaya = fn (array $item) => str_contains(strtolower((string) ($item['tipe_coa'] ?? '')), 'beban')
         || str_contains(strtolower((string) ($item['tipe_coa'] ?? '')), 'biaya');
-    $visibleChildren = $viewRows->where('sort_level', '>', 0)->values();
+    $visibleChildren = $viewRows->where('sort_level', 1)->values();
     $labaRugi = (float) $visibleChildren->sum(fn (array $item) => $isPendapatan($item) ? (float) $item['nominal'] : ($isBiaya($item) ? (float) $item['nominal'] * -1 : 0));
     $labaRugiRba = (float) $visibleChildren->sum(fn (array $item) => $isPendapatan($item) ? (float) $item['rba_nominal'] : ($isBiaya($item) ? (float) $item['rba_nominal'] * -1 : 0));
     $formatPersentase = function (float $capaian, float $rba): string {
@@ -103,18 +103,22 @@
                                 @forelse ($viewRows as $index => $row)
                                     @php
                                         $isRoot = $row['sort_level'] === 0;
-                                        $indentLevel = max(((int) ($row['level'] ?? 0)) - 1, 0);
+                                        $indentLevel = max((int) ($row['level'] ?? 0), 0);
                                         $selisih = (float) $row['nominal'] - (float) $row['rba_nominal'];
                                     @endphp
                                     <tr class="{{ $isRoot ? 'table-light fw-bold' : '' }}">
                                         <td>
-                                            <div class="{{ $isRoot ? '' : 'laporan-row-code laporan-row-code--child' }}">
+                                            <div
+                                                class="{{ $isRoot ? '' : 'laporan-row-code laporan-row-code--child' }}"
+                                                @if (!$isRoot) style="margin-left: {{ $indentLevel * 1.5 }}rem;" @endif
+                                            >
                                                 {{ $row['kode'] }}
                                             </div>
                                         </td>
                                         <td>
                                             <div
                                                 class="laporan-row-label{{ $isRoot ? '' : ' laporan-row-label--child' }}"
+                                                @if (!$isRoot) style="margin-left: {{ $indentLevel * 1.5 }}rem;" @endif
                                             >
                                                 @if (!$isRoot && $row['has_children'])
                                                     <a href="{{ route('laporan.keuangan.laba-rugi-per-parent-coa', ['coaId' => $row['coa_id'], 'startDate' => $startDate, 'endDate' => $endDate]) }}" class="text-decoration-none">
@@ -139,6 +143,7 @@
                                                 ->take($index + 1)
                                                 ->reverse()
                                                 ->takeWhile(fn (array $item) => $item['sort_level'] !== 0)
+                                                ->filter(fn (array $item) => (int) $item['sort_level'] === 1)
                                                 ->values();
                                             $subtotalNominal = (float) $rootChildRows->sum('nominal');
                                             $subtotalRba = (float) $rootChildRows->sum('rba_nominal');
