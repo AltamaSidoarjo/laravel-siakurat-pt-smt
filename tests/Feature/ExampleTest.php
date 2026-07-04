@@ -249,6 +249,8 @@ class ExampleTest extends TestCase
         $response
             ->assertOk()
             ->assertSee('Laporan Pendapatan Penjualan Obat')
+            ->assertSee('Grand Total Tagihan')
+            ->assertSee('grandTotalValue', false)
             ->assertSee("dom: 'Bfrltip'", false)
             ->assertSee('pageLength: 10', false);
     }

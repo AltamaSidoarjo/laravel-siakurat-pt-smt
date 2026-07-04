@@ -60,6 +60,10 @@
                             <tbody></tbody>
                         </table>
                     </div>
+
+                    <div class="alert alert-success fw-bold mt-3" id="grandTotalInfo">
+                        Grand Total Tagihan: <span id="grandTotalValue">0</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -69,7 +73,7 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            window.jQuery('#datatable').DataTable({
+            const table = window.jQuery('#datatable').DataTable({
                 processing: true,
                 serverSide: true,
                 scrollX: true,
@@ -100,6 +104,13 @@
                 ],
                 language: {
                     emptyTable: 'Belum ada data pendapatan penjualan obat pada rentang ini.'
+                }
+            });
+
+            table.on('xhr', function (e, settings, json) {
+                if (json && json.grandTotal !== undefined) {
+                    const formatted = Number(json.grandTotal).toLocaleString('id-ID');
+                    document.getElementById('grandTotalValue').textContent = 'Rp ' + formatted;
                 }
             });
         });

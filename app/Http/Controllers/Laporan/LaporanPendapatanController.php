@@ -78,35 +78,23 @@ class LaporanPendapatanController extends Controller
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
 
-        $query = $this->laporanPendapatanService->getQueryPenjualanObat(
+        $baseQuery = $this->laporanPendapatanService->getQueryPenjualanObat(
             startDate: $startDate,
             endDate: $endDate,
         );
 
-        return DataTables::eloquent($query)
-            ->filter(function ($query) use ($request) {
-                $search = trim((string) $request->input('search.value', ''));
-                if ($search === '') {
-                    return;
-                }
+        $grandTotalQuery = clone $baseQuery;
+        $this->applyPenjualanObatDataTableSearch($grandTotalQuery, $request);
 
-                $query->where(function ($innerQuery) use ($search) {
-                    $innerQuery
-                        ->where('nomer_transaksi', 'like', "%{$search}%")
-                        ->orWhere('nama_pelanggan', 'like', "%{$search}%")
-                        ->orWhere('jenis_jual', 'like', "%{$search}%")
-                        ->orWhere('kode_gudang', 'like', "%{$search}%")
-                        ->orWhere('nama_rekening', 'like', "%{$search}%")
-                        ->orWhere('keterangan', 'like', "%{$search}%")
-                        ->orWhereRaw('CAST(ongkir AS CHAR) like ?', ["%{$search}%"])
-                        ->orWhereRaw('CAST(ppn AS CHAR) like ?', ["%{$search}%"])
-                        ->orWhereRaw('CAST(grandtotal AS CHAR) like ?', ["%{$search}%"]);
-                });
-            })
+        return DataTables::eloquent($baseQuery)
+            ->filter(function (Builder $query) use ($request) {
+                $this->applyPenjualanObatDataTableSearch($query, $request);
+            }, false)
             ->editColumn('tanggal', fn ($row) => optional($row->tanggal)->format('Y-m-d'))
             ->editColumn('ongkir', fn ($row) => number_format((float) $row->ongkir, 0, ',', '.'))
             ->editColumn('ppn', fn ($row) => number_format((float) $row->ppn, 0, ',', '.'))
             ->editColumn('grandtotal', fn ($row) => number_format((float) $row->grandtotal, 0, ',', '.'))
+            ->with('grandTotal', fn () => (float) $grandTotalQuery->sum('grandtotal'))
             ->toJson();
     }
 
@@ -137,6 +125,30 @@ class LaporanPendapatanController extends Controller
                 ->orWhere('poli', 'like', $likeSearch)
                 ->orWhere('penjamin', 'like', $likeSearch)
                 ->orWhereRaw('CAST(total_tagihan AS CHAR) like ?', [$likeSearch]);
+        });
+    }
+
+    private function applyPenjualanObatDataTableSearch(Builder $query, Request $request): void
+    {
+        $searchValue = trim((string) $request->input('search.value', ''));
+
+        if ($searchValue === '') {
+            return;
+        }
+
+        $likeSearch = '%'.$searchValue.'%';
+
+        $query->where(function (Builder $searchQuery) use ($likeSearch) {
+            $searchQuery
+                ->where('nomer_transaksi', 'like', $likeSearch)
+                ->orWhere('nama_pelanggan', 'like', $likeSearch)
+                ->orWhere('jenis_jual', 'like', $likeSearch)
+                ->orWhere('kode_gudang', 'like', $likeSearch)
+                ->orWhere('nama_rekening', 'like', $likeSearch)
+                ->orWhere('keterangan', 'like', $likeSearch)
+                ->orWhereRaw('CAST(ongkir AS CHAR) like ?', [$likeSearch])
+                ->orWhereRaw('CAST(ppn AS CHAR) like ?', [$likeSearch])
+                ->orWhereRaw('CAST(grandtotal AS CHAR) like ?', [$likeSearch]);
         });
     }
 }
