@@ -47,7 +47,7 @@ class InvoicePembelianController extends Controller
             ->addColumn('grandtotal_display', fn (FakturPembelian $fakturPembelian) => number_format((float) $fakturPembelian->grandtotal, 0, ',', '.'))
             ->addColumn('sudah_terbayar_display', fn (FakturPembelian $fakturPembelian) => number_format((float) $fakturPembelian->sudah_terbayar, 0, ',', '.'))
             ->addColumn('status_text', function (FakturPembelian $fakturPembelian) {
-                return (float) $fakturPembelian->sudah_terbayar >= (float) $fakturPembelian->grandtotal
+                return (int) $fakturPembelian->sudah_terbayar >= (int) $fakturPembelian->grandtotal
                     ? 'Sudah Lunas'
                     : 'Belum Lunas';
             })

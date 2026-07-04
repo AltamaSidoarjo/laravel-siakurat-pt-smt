@@ -2,19 +2,24 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnsureModuleAccess;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class InvoicePembelianPrintTest extends TestCase
 {
-    use RefreshDatabase;
-
     protected function setUp(): void
     {
         parent::setUp();
+
+        Schema::disableForeignKeyConstraints();
+        Schema::dropIfExists('preferensi_perusahaan');
+        Schema::dropIfExists('faktur_pembelian_rinci');
+        Schema::dropIfExists('faktur_pembelian');
+        Schema::dropIfExists('supplier');
+        Schema::enableForeignKeyConstraints();
 
         Schema::create('supplier', function (Blueprint $table) {
             $table->id();
@@ -79,6 +84,18 @@ class InvoicePembelianPrintTest extends TestCase
         });
     }
 
+    protected function tearDown(): void
+    {
+        Schema::disableForeignKeyConstraints();
+        Schema::dropIfExists('preferensi_perusahaan');
+        Schema::dropIfExists('faktur_pembelian_rinci');
+        Schema::dropIfExists('faktur_pembelian');
+        Schema::dropIfExists('supplier');
+        Schema::enableForeignKeyConstraints();
+
+        parent::tearDown();
+    }
+
     public function test_invoice_pembelian_print_page_renders_header_and_detail(): void
     {
         $supplierId = \DB::table('supplier')->insertGetId([
@@ -133,6 +150,41 @@ class InvoicePembelianPrintTest extends TestCase
             ->assertSee('PT Supplier Utama')
             ->assertSee('Paracetamol')
             ->assertSee('57.500');
+    }
+
+    public function test_invoice_index_status_ignores_decimal_fraction_when_checking_paid_status(): void
+    {
+        $supplierId = \DB::table('supplier')->insertGetId([
+            'status_aktif' => true,
+            'kode_supplier' => 'SUP-001',
+            'nama_supplier' => 'PT Supplier Utama',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        \DB::table('faktur_pembelian')->insert([
+            'supplier_id' => $supplierId,
+            'nomer_faktur' => 'BSP1872',
+            'tanggal_faktur' => '2026-02-04',
+            'tanggal_jatuh_tempo' => '2026-02-05',
+            'sudah_terbayar' => 2_431_578,
+            'grandtotal' => 2_431_578.21,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this
+            ->withoutMiddleware(EnsureModuleAccess::class)
+            ->actingAs($this->makeUser())
+            ->getJson(route('pembelian.invoice.load-data', [
+                'startDate' => '2026-02-01',
+                'endDate' => '2026-02-28',
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.0.nomer_faktur', 'BSP1872')
+            ->assertJsonPath('data.0.status_text', 'Sudah Lunas');
     }
 
     private function makeUser(): User
