@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Laporan;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Database\Eloquent\Builder;
 use App\Services\Laporan\LaporanPendapatanService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,33 +43,23 @@ class LaporanPendapatanController extends Controller
         $poli = $request->string('poli')->trim()->toString();
         $penjamin = $request->string('penjamin')->trim()->toString();
 
-        $query = $this->laporanPendapatanService->getQueryKunjungan(
+        $baseQuery = $this->laporanPendapatanService->getQueryKunjungan(
             startDate: $startDate,
             endDate: $endDate,
             poli: $poli,
             penjamin: $penjamin,
         );
 
-        return DataTables::eloquent($query)
-            ->filter(function ($query) use ($request) {
-                $search = trim((string) $request->input('search.value', ''));
-                if ($search === '') {
-                    return;
-                }
+        $grandTotalQuery = clone $baseQuery;
+        $this->applyKunjunganDataTableSearch($grandTotalQuery, $request);
 
-                $query->where(function ($innerQuery) use ($search) {
-                    $innerQuery
-                        ->where('nomer_billing', 'like', "%{$search}%")
-                        ->orWhere('nama_pasien', 'like', "%{$search}%")
-                        ->orWhere('status_layanan', 'like', "%{$search}%")
-                        ->orWhere('dokter', 'like', "%{$search}%")
-                        ->orWhere('poli', 'like', "%{$search}%")
-                        ->orWhere('penjamin', 'like', "%{$search}%")
-                        ->orWhereRaw('CAST(total_tagihan AS CHAR) like ?', ["%{$search}%"]);
-                });
-            })
+        return DataTables::eloquent($baseQuery)
+            ->filter(function (Builder $query) use ($request) {
+                $this->applyKunjunganDataTableSearch($query, $request);
+            }, false)
             ->editColumn('tanggal_reg', fn ($row) => optional($row->tanggal_reg)->format('Y-m-d'))
             ->editColumn('total_tagihan', fn ($row) => number_format((float) $row->total_tagihan, 0, ',', '.'))
+            ->with('grandTotal', fn () => (float) $grandTotalQuery->sum('total_tagihan'))
             ->toJson();
     }
 
@@ -125,5 +116,27 @@ class LaporanPendapatanController extends Controller
         $endDate = $request->date('endDate')?->format('Y-m-d') ?? now()->format('Y-m-d');
 
         return [$startDate, $endDate];
+    }
+
+    private function applyKunjunganDataTableSearch(Builder $query, Request $request): void
+    {
+        $searchValue = trim((string) $request->input('search.value', ''));
+
+        if ($searchValue === '') {
+            return;
+        }
+
+        $likeSearch = '%'.$searchValue.'%';
+
+        $query->where(function (Builder $searchQuery) use ($likeSearch) {
+            $searchQuery
+                ->where('nomer_billing', 'like', $likeSearch)
+                ->orWhere('nama_pasien', 'like', $likeSearch)
+                ->orWhere('status_layanan', 'like', $likeSearch)
+                ->orWhere('dokter', 'like', $likeSearch)
+                ->orWhere('poli', 'like', $likeSearch)
+                ->orWhere('penjamin', 'like', $likeSearch)
+                ->orWhereRaw('CAST(total_tagihan AS CHAR) like ?', [$likeSearch]);
+        });
     }
 }
