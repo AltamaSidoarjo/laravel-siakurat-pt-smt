@@ -93,8 +93,7 @@
                         d.penjamin = document.querySelector('[name="penjamin"]').value;
                     }
                 },
-                dom: 'Bfrltip',
-                buttons: ['csv', 'excel', 'pdf', 'print'],
+                dom: 'frltip',
                 order: [[1, 'desc']],
                 lengthMenu: [[10, 25, 50, 100, 1000], [10, 25, 50, 100, 1000]],
                 pageLength: 10,
