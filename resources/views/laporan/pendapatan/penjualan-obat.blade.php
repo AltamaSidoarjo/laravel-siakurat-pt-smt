@@ -81,10 +81,11 @@
                         d.endDate = '{{ $endDate }}';
                     }
                 },
-                dom: "<'row mb-2'<'col-md-6'B><'col-md-6'f>>rt<'row mt-2'<'col-md-6'l><'col-md-6'p>>",
+                dom: 'Bfrltip',
                 buttons: ['csv', 'excel', 'pdf', 'print'],
                 order: [[1, 'desc']],
                 lengthMenu: [[10, 25, 50, 100, 1000], [10, 25, 50, 100, 1000]],
+                pageLength: 10,
                 columns: [
                     { data: 'nomer_transaksi', name: 'nomer_transaksi' },
                     { data: 'tanggal', name: 'tanggal' },

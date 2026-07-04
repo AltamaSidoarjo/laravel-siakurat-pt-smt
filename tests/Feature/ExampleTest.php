@@ -233,7 +233,9 @@ class ExampleTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Laporan Pendapatan Kunjungan');
+            ->assertSee('Laporan Pendapatan Kunjungan')
+            ->assertSee("dom: 'Bfrltip'", false)
+            ->assertSee('pageLength: 10', false);
     }
 
     public function test_laporan_pendapatan_penjualan_obat_page_can_be_opened_with_authenticated_user(): void
@@ -244,7 +246,9 @@ class ExampleTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Laporan Pendapatan Penjualan Obat');
+            ->assertSee('Laporan Pendapatan Penjualan Obat')
+            ->assertSee("dom: 'Bfrltip'", false)
+            ->assertSee('pageLength: 10', false);
     }
 
     private function makeUser(): User
