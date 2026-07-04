@@ -17,6 +17,7 @@ use App\Http\Controllers\Pendapatan\InvoicePendapatanController;
 use App\Http\Controllers\Pendapatan\PenerimaanPendapatanController;
 use App\Http\Controllers\Pengaturan\MappingGeneralController;
 use App\Http\Controllers\Pengaturan\MappingPendapatanController;
+use App\Http\Controllers\Pengaturan\KonversiFileController;
 use App\Http\Controllers\Pengaturan\PenggunaController;
 use App\Http\Controllers\Pengaturan\PreferensiController;
 use App\Http\Controllers\Pengaturan\RoleAksesController;
@@ -318,6 +319,13 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module.access:pengaturan.role-akses,update')->group(function () {
             Route::get('/role-akses/{role}/edit', [RoleAksesController::class, 'edit'])->name('role-akses.edit');
             Route::put('/role-akses/{role}', [RoleAksesController::class, 'update'])->name('role-akses.update');
+        });
+
+        Route::middleware('module.access:pengaturan.konversi-file,view')->group(function () {
+            Route::get('/konversi-file', [KonversiFileController::class, 'index'])->name('konversi-file.index');
+        });
+        Route::middleware('module.access:pengaturan.konversi-file,create')->group(function () {
+            Route::post('/konversi-file/csv-ke-xlsx', [KonversiFileController::class, 'convertCsvToXlsx'])->name('konversi-file.csv-ke-xlsx');
         });
     });
 });
