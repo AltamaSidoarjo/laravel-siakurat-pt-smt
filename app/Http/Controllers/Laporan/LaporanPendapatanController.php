@@ -124,6 +124,31 @@ class LaporanPendapatanController extends Controller
             ->toJson();
     }
 
+    public function exportPenjualanObatCsv(Request $request): StreamedResponse
+    {
+        $validated = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+        ]);
+
+        $fileName = sprintf(
+            'pendapatan-penjualan-obat-%s-%s.csv',
+            str_replace('-', '', $validated['startDate']),
+            str_replace('-', '', $validated['endDate'])
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPendapatanService->streamPenjualanObatCsv(
+                startDate: $validated['startDate'],
+                endDate: $validated['endDate'],
+            ),
+            $fileName,
+            [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+            ]
+        );
+    }
+
     private function resolveDateRange(Request $request): array
     {
         $startDate = $request->date('startDate')?->format('Y-m-d') ?? now()->startOfMonth()->format('Y-m-d');

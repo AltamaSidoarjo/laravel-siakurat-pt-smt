@@ -70,6 +70,49 @@ class LaporanPendapatanService
         fclose($handle);
     }
 
+    public function streamPenjualanObatCsv(string $startDate, string $endDate): void
+    {
+        $handle = fopen('php://output', 'wb');
+
+        if ($handle === false) {
+            throw new RuntimeException('Gagal membuka output stream CSV.');
+        }
+
+        fwrite($handle, "\xEF\xBB\xBF");
+
+        fputcsv($handle, [
+            'No. Transaksi',
+            'Tanggal',
+            'Pelanggan',
+            'Jenis',
+            'Gudang',
+            'Rekening',
+            'Keterangan',
+            'Ongkir',
+            'PPN',
+            'Nominal',
+        ]);
+
+        $this->getQueryPenjualanObatForExport($startDate, $endDate)
+            ->lazyById(1000, 'id')
+            ->each(function (SimrsImportPendapatanJualObat $row) use ($handle) {
+                fputcsv($handle, [
+                    (string) $row->nomer_transaksi,
+                    optional($row->tanggal)->format('Y-m-d'),
+                    (string) ($row->nama_pelanggan ?? ''),
+                    (string) ($row->jenis_jual ?? ''),
+                    (string) ($row->kode_gudang ?? ''),
+                    (string) ($row->nama_rekening ?? ''),
+                    (string) ($row->keterangan ?? ''),
+                    $this->formatCsvNumber($row->ongkir),
+                    $this->formatCsvNumber($row->ppn),
+                    $this->formatCsvNumber($row->grandtotal),
+                ]);
+            });
+
+        fclose($handle);
+    }
+
     private function getQueryKunjunganForExport(string $startDate, string $endDate): Builder
     {
         return SimrsImportPendapatan::query()
@@ -83,6 +126,26 @@ class LaporanPendapatanService
                 'poli',
                 'penjamin',
                 'total_tagihan',
+            ])
+            ->betweenDates($startDate, $endDate)
+            ->orderBy('id');
+    }
+
+    private function getQueryPenjualanObatForExport(string $startDate, string $endDate): Builder
+    {
+        return SimrsImportPendapatanJualObat::query()
+            ->select([
+                'id',
+                'nomer_transaksi',
+                'tanggal',
+                'nama_pelanggan',
+                'jenis_jual',
+                'kode_gudang',
+                'nama_rekening',
+                'keterangan',
+                'ongkir',
+                'ppn',
+                'grandtotal',
             ])
             ->betweenDates($startDate, $endDate)
             ->orderBy('id');

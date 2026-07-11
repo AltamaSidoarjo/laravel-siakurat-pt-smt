@@ -243,6 +243,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/pendapatan/kunjungan/export-csv', [LaporanPendapatanController::class, 'exportKunjunganCsv'])->name('pendapatan.kunjungan.export-csv');
             Route::get('/pendapatan/penjualan-obat', [LaporanPendapatanController::class, 'penjualanObat'])->name('pendapatan.penjualan-obat');
             Route::get('/pendapatan/penjualan-obat/load-data', [LaporanPendapatanController::class, 'loadPenjualanObat'])->name('pendapatan.penjualan-obat.load-data');
+            Route::get('/pendapatan/penjualan-obat/export-csv', [LaporanPendapatanController::class, 'exportPenjualanObatCsv'])->name('pendapatan.penjualan-obat.export-csv');
         });
     });
 
