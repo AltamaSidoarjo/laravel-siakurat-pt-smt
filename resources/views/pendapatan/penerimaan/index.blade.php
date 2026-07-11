@@ -22,19 +22,27 @@
                     @include('partials.validation-errors')
 
                     <div class="d-flex flex-column gap-3">
-                            <div class="card border-light shadow-sm">
-                                <div class="card-body">
+                        <div class="card border-light shadow-sm">
+                            <div class="card-body">
                                 <form method="get" action="">
                                     <div class="row g-3">
-                                        <div class="col-md-4"><label class="form-label">Dari tanggal</label><input type="date" name="startDate" class="form-control" value="{{ $startDate }}"></div>
-                                        <div class="col-md-4"><label class="form-label">Sampai tanggal</label><input type="date" name="endDate" class="form-control" value="{{ $endDate }}"></div>
-                                        <div class="col-md-4 d-flex align-items-end gap-2"><a href="{{ route('pendapatan.penerimaan.index') }}" class="btn btn-light">Reset</a><button type="submit" class="btn btn-primary"><i class="bi bi-funnel me-1"></i>Filter</button><button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#exportCsvModal"><i class="bi bi-filetype-csv me-1"></i>Export CSV</button></div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Dari tanggal</label>
+                                            <input type="date" name="startDate" class="form-control" value="{{ $startDate }}">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Sampai tanggal</label>
+                                            <input type="date" name="endDate" class="form-control" value="{{ $endDate }}">
+                                        </div>
+                                        <div class="col-md-4 d-flex align-items-end justify-content-end gap-2 flex-wrap">
+                                            <a href="{{ route('pendapatan.penerimaan.index') }}" class="btn btn-light">Reset</a>
+                                            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel me-1"></i>Filter</button>
+                                            <button type="button" class="btn btn-outline-success text-nowrap" data-bs-toggle="modal" data-bs-target="#exportCsvModal"><i class="bi bi-filetype-csv me-1"></i>Export CSV</button>
+                                        </div>
                                     </div>
                                 </form>
-                                <div class="d-flex justify-content-end gap-3 align-items-center mt-3">
-                                    <a href="{{ route('pendapatan.penerimaan.create') }}" class="btn btn-success fw-bold">
-                                        <i class="bi bi-plus-circle-fill"></i> Tambah
-                                    </a>
+                                <div class="d-flex justify-content-end mt-3">
+                                    <a href="{{ route('pendapatan.penerimaan.create') }}" class="btn btn-success fw-bold"><i class="bi bi-plus-circle-fill"></i> Tambah</a>
                                 </div>
                             </div>
                         </div>

@@ -26,24 +26,22 @@
 
                                 <form method="get" action="">
                                     <div class="row g-3">
-                                        <div class="col-md-3">
+                                        <div class="col-md-4">
                                             <label class="form-label">Dari tanggal</label>
                                             <input type="date" name="startDate" class="form-control" value="{{ $startDate }}">
                                         </div>
 
-                                        <div class="col-md-3">
+                                        <div class="col-md-4">
                                             <label class="form-label">Sampai tanggal</label>
                                             <input type="date" name="endDate" class="form-control" value="{{ $endDate }}">
                                         </div>
 
-                                        <hr>
-
-                                        <div class="d-flex justify-content-end mt-0">
-                                            <a href="{{ route('pembelian.invoice.index') }}" class="btn btn-light me-2">Reset</a>
+                                        <div class="col-md-4 d-flex align-items-end justify-content-end gap-2 flex-wrap">
+                                            <a href="{{ route('pembelian.invoice.index') }}" class="btn btn-light">Reset</a>
                                             <button type="submit" class="btn btn-primary">
                                                 <i class="bi bi-funnel me-1"></i> Filter
                                             </button>
-                                            <button type="button" class="btn btn-outline-success ms-2" data-bs-toggle="modal" data-bs-target="#exportCsvModal"><i class="bi bi-filetype-csv me-1"></i>Export CSV</button>
+                                            <button type="button" class="btn btn-outline-success text-nowrap" data-bs-toggle="modal" data-bs-target="#exportCsvModal"><i class="bi bi-filetype-csv me-1"></i>Export CSV</button>
                                         </div>
                                     </div>
                                 </form>
