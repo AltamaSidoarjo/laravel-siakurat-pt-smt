@@ -103,7 +103,9 @@ class ExampleTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Bridging Pendapatan Obat');
+            ->assertSee('Bridging Pendapatan Obat')
+            ->assertSee('Grand Total Tagihan')
+            ->assertSee('grandTotalValue', false);
     }
 
     public function test_bridging_pendapatan_obat_tarik_tagihan_page_can_be_opened_with_authenticated_user(): void
@@ -125,7 +127,9 @@ class ExampleTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Bridging Pembelian');
+            ->assertSee('Bridging Pembelian')
+            ->assertSee('Grand Total Tagihan')
+            ->assertSee('grandTotalValue', false);
     }
 
     public function test_bridging_pembelian_tarik_obat_page_can_be_opened_with_authenticated_user(): void
