@@ -43,6 +43,7 @@
                                             <button type="submit" class="btn btn-primary">
                                                 <i class="bi bi-funnel me-1"></i> Filter
                                             </button>
+                                            <button type="button" class="btn btn-outline-success ms-2" data-bs-toggle="modal" data-bs-target="#exportCsvModal"><i class="bi bi-filetype-csv me-1"></i>Export CSV</button>
                                         </div>
                                     </div>
                                 </form>
@@ -75,6 +76,7 @@
             </div>
         </div>
     </div>
+    @include('partials.export-csv-modal', ['exportRoute' => route('pembelian.invoice.export-csv'), 'exportTitle' => 'Invoice Pembelian', 'startDate' => $startDate, 'endDate' => $endDate])
 @endsection
 
 @push('scripts')
@@ -89,8 +91,7 @@
                 serverSide: true,
                 autoWidth: false,
                 scrollX: true,
-                dom: 'Bfrltip',
-                buttons: ['excel', 'pdf'],
+                dom: 'frltip',
                 ajax: {
                     url: '{{ route('pembelian.invoice.load-data') }}',
                     type: 'GET',

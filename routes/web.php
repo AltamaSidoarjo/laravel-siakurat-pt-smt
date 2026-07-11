@@ -51,6 +51,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module.access:bukubesar.jurnal-umum,view')->group(function () {
             Route::get('/jurnal-umum', [JurnalUmumController::class, 'index'])->name('jurnal-umum.index');
             Route::get('/jurnal-umum/load-data', [JurnalUmumController::class, 'loadData'])->name('jurnal-umum.load-data');
+            Route::get('/jurnal-umum/export-csv', [JurnalUmumController::class, 'exportCsv'])->name('jurnal-umum.export-csv');
             Route::get('/jurnal-umum/{jurnalUmum}/print', [JurnalUmumController::class, 'print'])->name('jurnal-umum.print');
         });
         Route::middleware('module.access:bukubesar.jurnal-umum,create')->group(function () {
@@ -85,6 +86,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module.access:kasbank.penerimaan,view')->group(function () {
             Route::get('/penerimaan', [KasbankPenerimaanController::class, 'index'])->name('penerimaan.index');
             Route::get('/penerimaan/load-data', [KasbankPenerimaanController::class, 'loadData'])->name('penerimaan.load-data');
+            Route::get('/penerimaan/export-csv', [KasbankPenerimaanController::class, 'exportCsv'])->name('penerimaan.export-csv');
             Route::get('/penerimaan/{kasbankPenerimaan}/print', [KasbankPenerimaanController::class, 'print'])->name('penerimaan.print');
         });
         Route::middleware('module.access:kasbank.penerimaan,create')->group(function () {
@@ -102,6 +104,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module.access:kasbank.pembayaran,view')->group(function () {
             Route::get('/pembayaran', [KasbankPembayaranController::class, 'index'])->name('pembayaran.index');
             Route::get('/pembayaran/load-data', [KasbankPembayaranController::class, 'loadData'])->name('pembayaran.load-data');
+            Route::get('/pembayaran/export-csv', [KasbankPembayaranController::class, 'exportCsv'])->name('pembayaran.export-csv');
             Route::get('/pembayaran/{kasbankPembayaran}/print', [KasbankPembayaranController::class, 'print'])->name('pembayaran.print');
         });
         Route::middleware('module.access:kasbank.pembayaran,create')->group(function () {
@@ -167,12 +170,14 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module.access:pendapatan.invoice,view')->group(function () {
             Route::get('/invoice', [InvoicePendapatanController::class, 'index'])->name('invoice.index');
             Route::get('/invoice/load-data', [InvoicePendapatanController::class, 'loadData'])->name('invoice.load-data');
+            Route::get('/invoice/export-csv', [InvoicePendapatanController::class, 'exportCsv'])->name('invoice.export-csv');
             Route::get('/invoice/{fakturPenjualan}', [InvoicePendapatanController::class, 'read'])->name('invoice.read');
         });
 
         Route::middleware('module.access:pendapatan.penerimaan,view')->group(function () {
             Route::get('/penerimaan', [PenerimaanPendapatanController::class, 'index'])->name('penerimaan.index');
             Route::get('/penerimaan/load-data', [PenerimaanPendapatanController::class, 'loadData'])->name('penerimaan.load-data');
+            Route::get('/penerimaan/export-csv', [PenerimaanPendapatanController::class, 'exportCsv'])->name('penerimaan.export-csv');
             Route::get('/penerimaan/{penerimaanPenjualan}/print', [PenerimaanPendapatanController::class, 'print'])->name('penerimaan.print');
             Route::get('/penerimaan/api/invoice-by-pelanggan', [PenerimaanPendapatanController::class, 'apiGetInvByPelanggan'])->name('penerimaan.api.invoice-by-pelanggan');
         });
@@ -193,6 +198,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module.access:pembelian.invoice,view')->group(function () {
             Route::get('/invoice', [InvoicePembelianController::class, 'index'])->name('invoice.index');
             Route::get('/invoice/load-data', [InvoicePembelianController::class, 'loadData'])->name('invoice.load-data');
+            Route::get('/invoice/export-csv', [InvoicePembelianController::class, 'exportCsv'])->name('invoice.export-csv');
             Route::get('/invoice/{fakturPembelian}/print', [InvoicePembelianController::class, 'print'])->name('invoice.print');
             Route::get('/invoice/{fakturPembelian}', [InvoicePembelianController::class, 'read'])->name('invoice.read');
         });
@@ -200,6 +206,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module.access:pembelian.pembayaran,view')->group(function () {
             Route::get('/pembayaran', [PembayaranPembelianController::class, 'index'])->name('pembayaran.index');
             Route::get('/pembayaran/load-data', [PembayaranPembelianController::class, 'loadData'])->name('pembayaran.load-data');
+            Route::get('/pembayaran/export-csv', [PembayaranPembelianController::class, 'exportCsv'])->name('pembayaran.export-csv');
             Route::get('/pembayaran/{pembayaranPembelian}/print', [PembayaranPembelianController::class, 'print'])->name('pembayaran.print');
             Route::get('/pembayaran/api/invoice-by-supplier', [PembayaranPembelianController::class, 'apiGetInvBySupplier'])->name('pembayaran.api.invoice-by-supplier');
         });

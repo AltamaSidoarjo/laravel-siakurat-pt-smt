@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Pembelian;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\StreamsCsvExport;
 use App\Models\FakturPembelian;
 use App\Services\Pembelian\InvoicePembelianService;
 use App\Services\PreferensiPerusahaanService;
@@ -10,10 +11,12 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\Facades\DataTables;
 
 class InvoicePembelianController extends Controller
 {
+    use StreamsCsvExport;
     public function __construct(
         private readonly InvoicePembelianService $invoicePembelianService,
         private readonly PreferensiPerusahaanService $preferensiPerusahaanService,
@@ -52,6 +55,12 @@ class InvoicePembelianController extends Controller
                     : 'Belum Lunas';
             })
             ->toJson();
+    }
+
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $data = $request->validate(['startDate' => ['required', 'date_format:Y-m-d'], 'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate']]);
+        return $this->streamCsvExport($request, $this->invoicePembelianService->getIndexQuery($data['startDate'], $data['endDate']), 'invoice-pembelian', ['Nomor faktur', 'Tanggal faktur', 'Tgl jatuh tempo', 'Supplier', 'Kode bangsal', 'Kategori faktur', 'Grandtotal', 'Sudah terbayar', 'Status'], fn (FakturPembelian $item) => [(string) $item->nomer_faktur, optional($item->tanggal_faktur)->format('Y-m-d'), optional($item->tanggal_jatuh_tempo)->format('Y-m-d'), (string) ($item->supplier?->nama_supplier ?? ''), (string) $item->kode_bangsal, (string) $item->kategori_faktur, $this->csvNumber($item->grandtotal), $this->csvNumber($item->sudah_terbayar), (float) $item->sudah_terbayar >= (float) $item->grandtotal ? 'Sudah Lunas' : 'Belum Lunas']);
     }
 
     public function read(FakturPembelian $fakturPembelian): View

@@ -22,9 +22,16 @@
                     @include('partials.validation-errors')
 
                     <div class="d-flex flex-column gap-3">
-                        <div class="card border-light shadow-sm">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-end gap-3 align-items-center">
+                            <div class="card border-light shadow-sm">
+                                <div class="card-body">
+                                <form method="get" action="">
+                                    <div class="row g-3">
+                                        <div class="col-md-4"><label class="form-label">Dari tanggal</label><input type="date" name="startDate" class="form-control" value="{{ $startDate }}"></div>
+                                        <div class="col-md-4"><label class="form-label">Sampai tanggal</label><input type="date" name="endDate" class="form-control" value="{{ $endDate }}"></div>
+                                        <div class="col-md-4 d-flex align-items-end gap-2"><a href="{{ route('pendapatan.penerimaan.index') }}" class="btn btn-light">Reset</a><button type="submit" class="btn btn-primary"><i class="bi bi-funnel me-1"></i>Filter</button><button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#exportCsvModal"><i class="bi bi-filetype-csv me-1"></i>Export CSV</button></div>
+                                    </div>
+                                </form>
+                                <div class="d-flex justify-content-end gap-3 align-items-center mt-3">
                                     <a href="{{ route('pendapatan.penerimaan.create') }}" class="btn btn-success fw-bold">
                                         <i class="bi bi-plus-circle-fill"></i> Tambah
                                     </a>
@@ -55,6 +62,7 @@
             </div>
         </div>
     </div>
+    @include('partials.export-csv-modal', ['exportRoute' => route('pendapatan.penerimaan.export-csv'), 'exportTitle' => 'Penerimaan Pendapatan', 'startDate' => $startDate, 'endDate' => $endDate])
 @endsection
 
 @push('scripts')
@@ -70,8 +78,7 @@
                 autoWidth: false,
                 scrollX: true,
                 scrollCollapse: true,
-                dom: 'Bfrltip',
-                buttons: ['csv', 'excel', 'pdf', 'print'],
+                dom: 'frltip',
                 lengthMenu: [
                     [10, 50, 1000, -1],
                     [10, 50, 1000, 'All']
@@ -80,7 +87,8 @@
                 order: [[1, 'desc']],
                 ajax: {
                     url: '{{ route('pendapatan.penerimaan.load-data') }}',
-                    type: 'GET'
+                    type: 'GET',
+                    data: { startDate: '{{ $startDate }}', endDate: '{{ $endDate }}' }
                 },
                 columns: [
                     {

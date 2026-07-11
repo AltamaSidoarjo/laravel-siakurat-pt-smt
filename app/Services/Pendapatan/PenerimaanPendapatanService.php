@@ -21,13 +21,14 @@ class PenerimaanPendapatanService
     ) {
     }
 
-    public function getIndexQuery(): Builder
+    public function getIndexQuery(?string $startDate = null, ?string $endDate = null): Builder
     {
         return PenerimaanPenjualan::query()
             ->with([
                 'pelanggan:id,kode_pelanggan,nama_pelanggan',
                 'akunBank:id,kode,nama',
             ])
+            ->when($startDate !== null && $endDate !== null, fn (Builder $query) => $query->whereBetween('tanggal', [$startDate, $endDate]))
             ->orderByDesc('tanggal')
             ->orderByDesc('id');
     }
