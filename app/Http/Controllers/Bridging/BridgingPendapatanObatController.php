@@ -7,6 +7,7 @@ use App\Http\Requests\Bridging\BulkDeletePendapatanObatRequest;
 use App\Http\Requests\Bridging\ImportPendapatanObatRequest;
 use App\Models\SimrsImportPendapatanJualObat;
 use App\Services\Bridging\BridgingPendapatanObatService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,12 +38,19 @@ class BridgingPendapatanObatController extends Controller
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
 
-        $query = $this->bridgingPendapatanObatService->getQueryDataImport($startDate, $endDate);
+        $baseQuery = $this->bridgingPendapatanObatService->getQueryDataImport($startDate, $endDate);
 
-        return DataTables::eloquent($query)
+        $grandTotalQuery = clone $baseQuery;
+        $this->applyDataTableSearch($grandTotalQuery, $request);
+
+        return DataTables::eloquent($baseQuery)
+            ->filter(function (Builder $query) use ($request) {
+                $this->applyDataTableSearch($query, $request);
+            }, false)
             ->addColumn('checkbox', fn (SimrsImportPendapatanJualObat $item) => $item->nomer_transaksi)
             ->addColumn('tanggal_display', fn (SimrsImportPendapatanJualObat $item) => optional($item->tanggal)->format('Y-m-d'))
             ->addColumn('grandtotal_display', fn (SimrsImportPendapatanJualObat $item) => number_format((float) $item->grandtotal, 0, ',', '.'))
+            ->with('grandTotal', fn () => (float) $grandTotalQuery->sum('grandtotal'))
             ->toJson();
     }
 
@@ -99,5 +107,26 @@ class BridgingPendapatanObatController extends Controller
         $endDate = $request->date('endDate')?->format('Y-m-d') ?? now()->format('Y-m-d');
 
         return [$startDate, $endDate];
+    }
+
+    private function applyDataTableSearch(Builder $query, Request $request): void
+    {
+        $searchValue = trim($request->input('search.value', ''));
+
+        if ($searchValue === '') {
+            return;
+        }
+
+        $likeSearch = '%'.$searchValue.'%';
+
+        $query->where(function (Builder $searchQuery) use ($likeSearch) {
+            $searchQuery
+                ->where('nomer_transaksi', 'like', $likeSearch)
+                ->orWhere('tanggal', 'like', $likeSearch)
+                ->orWhere('nama_pelanggan', 'like', $likeSearch)
+                ->orWhere('jenis_jual', 'like', $likeSearch)
+                ->orWhere('keterangan', 'like', $likeSearch)
+                ->orWhereRaw('CAST(grandtotal AS CHAR) like ?', [$likeSearch]);
+        });
     }
 }

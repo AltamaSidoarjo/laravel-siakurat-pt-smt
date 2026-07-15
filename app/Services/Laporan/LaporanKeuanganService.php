@@ -15,6 +15,8 @@ class LaporanKeuanganService
 {
     private const MAKS_LEVEL_NERACA_STANDARD = 3;
 
+    private const MAKS_LEVEL_LABA_RUGI_STANDARD = 2;
+
     private const TIPE_LABA_RUGI = [
         'Pendapatan',
         'Pendapatan lain',
@@ -169,8 +171,10 @@ class LaporanKeuanganService
                 ->sortBy('kode')
                 ->values();
 
-            $childRows = $topLevelRows
-                ->map(fn (Coa $coa) => $this->buildLabaRugiAggregateRow(
+            $childRows = collect();
+            $displayRows = collect();
+            foreach ($topLevelRows as $coa) {
+                $childRow = $this->buildLabaRugiAggregateRow(
                     coa: $coa,
                     allCoa: $itemsById,
                     childrenMap: $childrenMap,
@@ -178,8 +182,23 @@ class LaporanKeuanganService
                     rbaPerCoa: $rbaPerCoa,
                     level: 1,
                     rootOrder: (int) $rootOrder,
-                ))
-                ->values();
+                );
+
+                $childRows->push($childRow);
+                $displayRows->push($childRow);
+
+                foreach ($this->labaRugiStandardChildRows(
+                    coa: $coa,
+                    allCoa: $itemsById,
+                    childrenMap: $childrenMap,
+                    mutasiPerCoa: $mutasiPerCoa,
+                    rbaPerCoa: $rbaPerCoa,
+                    level: 2,
+                    rootOrder: (int) $rootOrder,
+                ) as $descendantRow) {
+                    $displayRows->push($descendantRow);
+                }
+            }
 
             $rootRow = [
                 'kode' => $this->kodeRootLabaRugi((int) $rootOrder),
@@ -197,7 +216,7 @@ class LaporanKeuanganService
 
             $hasil->push($rootRow);
 
-            foreach ($childRows as $childRow) {
+            foreach ($displayRows as $childRow) {
                 $hasil->push($childRow);
             }
         }
@@ -1032,6 +1051,34 @@ class LaporanKeuanganService
             'root_order' => $rootOrder,
             'has_children' => $children->isNotEmpty(),
         ];
+    }
+
+    private function labaRugiStandardChildRows(
+        Coa $coa,
+        Collection $allCoa,
+        Collection $childrenMap,
+        array $mutasiPerCoa,
+        array $rbaPerCoa,
+        int $level,
+        int $rootOrder,
+    ): Collection {
+        if ($level > self::MAKS_LEVEL_LABA_RUGI_STANDARD) {
+            return collect();
+        }
+
+        return $childrenMap
+            ->get((int) $coa->id, collect())
+            ->sortBy('kode')
+            ->values()
+            ->map(fn (Coa $child) => $this->buildLabaRugiAggregateRow(
+                coa: $child,
+                allCoa: $allCoa,
+                childrenMap: $childrenMap,
+                mutasiPerCoa: $mutasiPerCoa,
+                rbaPerCoa: $rbaPerCoa,
+                level: $level,
+                rootOrder: $rootOrder,
+            ));
     }
 
     private function ambilSaldoSampaiTanggal(string $perDate): array

@@ -990,7 +990,7 @@ class BridgingPendapatanService
             return null;
         }
 
-        return $this->ambilNilaiTunggal(
+        $kodeLangsung = $this->ambilNilaiTunggal(
             sprintf(
                 'SELECT ri.kd_jenis_prw
                 FROM %s ri
@@ -998,6 +998,23 @@ class BridgingPendapatanService
                 JOIN billing b ON b.no_rawat = ri.no_rawat
                     AND b.nm_perawatan = jpi.nm_perawatan
                 WHERE b.no_rawat = ? AND b.nm_perawatan = ?
+                LIMIT 1',
+                $namaTabel,
+            ),
+            [$noRawat, $namaPerawatan]
+        );
+
+        if ($kodeLangsung !== null && $kodeLangsung !== '') {
+            return $kodeLangsung;
+        }
+
+        return $this->ambilNilaiTunggal(
+            sprintf(
+                'SELECT ri.kd_jenis_prw
+                FROM ranap_gabung rg
+                JOIN %s ri ON ri.no_rawat = rg.no_rawat2
+                JOIN jns_perawatan_inap jpi ON jpi.kd_jenis_prw = ri.kd_jenis_prw
+                WHERE rg.no_rawat = ? AND jpi.nm_perawatan = ?
                 LIMIT 1',
                 $namaTabel,
             ),

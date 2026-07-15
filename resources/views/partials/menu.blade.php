@@ -24,6 +24,7 @@
     $canPengaturanPreferensi = $can('pengaturan.preferensi');
     $canPengaturanPengguna = $can('pengaturan.pengguna');
     $canPengaturanRoleAkses = $can('pengaturan.role-akses');
+    $canPengaturanKonversiFile = $can('pengaturan.konversi-file');
 
     $canSeeKeuangan = $canBukubesarJurnalUmum
         || $canBukubesarCoa
@@ -44,7 +45,8 @@
         || $canPengaturanSettingRba
         || $canPengaturanPreferensi
         || $canPengaturanPengguna
-        || $canPengaturanRoleAkses;
+        || $canPengaturanRoleAkses
+        || $canPengaturanKonversiFile;
 
     $isHome = request()->routeIs('home');
     $isKeuanganActive = $canSeeKeuangan && (
@@ -282,7 +284,7 @@
                     </a>
                 </li>
             @endif
-            @if ($canPengaturanMappingPendapatan && ($canPengaturanMappingGeneral || $canPengaturanSettingRba || $canPengaturanPreferensi || $canPengaturanPengguna || $canPengaturanRoleAkses))
+            @if ($canPengaturanMappingPendapatan && ($canPengaturanMappingGeneral || $canPengaturanSettingRba || $canPengaturanPreferensi || $canPengaturanPengguna || $canPengaturanRoleAkses || $canPengaturanKonversiFile))
                 <li><hr class="dropdown-divider"></li>
             @endif
             @if ($canPengaturanMappingGeneral)
@@ -293,7 +295,7 @@
                     </a>
                 </li>
             @endif
-            @if ($canPengaturanMappingGeneral && ($canPengaturanSettingRba || $canPengaturanPreferensi || $canPengaturanPengguna || $canPengaturanRoleAkses))
+            @if ($canPengaturanMappingGeneral && ($canPengaturanSettingRba || $canPengaturanPreferensi || $canPengaturanPengguna || $canPengaturanRoleAkses || $canPengaturanKonversiFile))
                 <li><hr class="dropdown-divider"></li>
             @endif
             @if ($canPengaturanSettingRba)
@@ -304,7 +306,7 @@
                     </a>
                 </li>
             @endif
-            @if ($canPengaturanSettingRba && ($canPengaturanPreferensi || $canPengaturanPengguna || $canPengaturanRoleAkses))
+            @if ($canPengaturanSettingRba && ($canPengaturanPreferensi || $canPengaturanPengguna || $canPengaturanRoleAkses || $canPengaturanKonversiFile))
                 <li><hr class="dropdown-divider"></li>
             @endif
             @if ($canPengaturanPreferensi)
@@ -315,7 +317,7 @@
                     </a>
                 </li>
             @endif
-            @if ($canPengaturanPreferensi && ($canPengaturanPengguna || $canPengaturanRoleAkses))
+            @if ($canPengaturanPreferensi && ($canPengaturanPengguna || $canPengaturanRoleAkses || $canPengaturanKonversiFile))
                 <li><hr class="dropdown-divider"></li>
             @endif
             @if ($canPengaturanPengguna)
@@ -326,7 +328,7 @@
                     </a>
                 </li>
             @endif
-            @if ($canPengaturanPengguna && $canPengaturanRoleAkses)
+            @if ($canPengaturanPengguna && ($canPengaturanRoleAkses || $canPengaturanKonversiFile))
                 <li><hr class="dropdown-divider"></li>
             @endif
             @if ($canPengaturanRoleAkses)
@@ -334,6 +336,17 @@
                     <a class="dropdown-item {{ str_starts_with($path, '/pengaturan/role-akses') ? 'active fw-bold bg-success-subtle text-success' : 'fw-semibold' }}"
                         href="{{ route('pengaturan.role-akses.index') }}">
                         Role Akses
+                    </a>
+                </li>
+            @endif
+            @if ($canPengaturanRoleAkses && $canPengaturanKonversiFile)
+                <li><hr class="dropdown-divider"></li>
+            @endif
+            @if ($canPengaturanKonversiFile)
+                <li>
+                    <a class="dropdown-item {{ str_starts_with($path, '/pengaturan/konversi-file') ? 'active fw-bold bg-success-subtle text-success' : 'fw-semibold' }}"
+                        href="{{ route('pengaturan.konversi-file.index') }}">
+                        Konversi File
                     </a>
                 </li>
             @endif

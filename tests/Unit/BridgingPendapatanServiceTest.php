@@ -2,11 +2,12 @@
 
 namespace Tests\Unit;
 
-use App\Models\MappingPendapatan;
-use App\Models\MappingLawanPendapatanSimrs;
 use App\Models\Coa;
+use App\Models\MappingLawanPendapatanSimrs;
+use App\Models\MappingPendapatan;
 use App\Services\Bridging\BridgingPendapatanService;
 use App\Services\Bukubesar\BukuBesarService;
+use App\Services\LogAktifitasService;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
@@ -16,7 +17,8 @@ class BridgingPendapatanServiceTest extends TestCase
     public function test_mapping_tindakan_sesuai_mengabaikan_spasi_belakang_pada_nama_perawatan(): void
     {
         $service = new BridgingPendapatanService(
-            $this->getMockBuilder(BukuBesarService::class)->disableOriginalConstructor()->getMock()
+            $this->getMockBuilder(BukuBesarService::class)->disableOriginalConstructor()->getMock(),
+            $this->getMockBuilder(LogAktifitasService::class)->disableOriginalConstructor()->getMock(),
         );
 
         $method = new ReflectionMethod(BridgingPendapatanService::class, 'mappingTindakanSesuai');
@@ -37,7 +39,8 @@ class BridgingPendapatanServiceTest extends TestCase
     public function test_pilih_akun_lawan_pendapatan_simrs_memprioritaskan_exact_match(): void
     {
         $service = new BridgingPendapatanService(
-            $this->getMockBuilder(BukuBesarService::class)->disableOriginalConstructor()->getMock()
+            $this->getMockBuilder(BukuBesarService::class)->disableOriginalConstructor()->getMock(),
+            $this->getMockBuilder(LogAktifitasService::class)->disableOriginalConstructor()->getMock(),
         );
 
         $method = new ReflectionMethod(BridgingPendapatanService::class, 'pilihAkunLawanPendapatanSimrs');
@@ -61,7 +64,8 @@ class BridgingPendapatanServiceTest extends TestCase
     public function test_prioritaskan_akun_lawan_kas_atau_piutang_mengabaikan_persediaan_dan_pendapatan(): void
     {
         $service = new BridgingPendapatanService(
-            $this->getMockBuilder(BukuBesarService::class)->disableOriginalConstructor()->getMock()
+            $this->getMockBuilder(BukuBesarService::class)->disableOriginalConstructor()->getMock(),
+            $this->getMockBuilder(LogAktifitasService::class)->disableOriginalConstructor()->getMock(),
         );
 
         $method = new ReflectionMethod(BridgingPendapatanService::class, 'prioritaskanAkunLawanKasAtauPiutang');

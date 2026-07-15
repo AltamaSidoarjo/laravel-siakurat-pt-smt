@@ -3,13 +3,14 @@
 namespace Tests\Unit;
 
 use App\Services\Bridging\BridgingPembelianService;
+use App\Services\LogAktifitasService;
 use PHPUnit\Framework\TestCase;
 
 class BridgingPembelianServiceTest extends TestCase
 {
     public function test_impor_banyak_pembelian_obat_rejects_unsupported_process_type_before_touching_database(): void
     {
-        $service = new BridgingPembelianService();
+        $service = new BridgingPembelianService($this->createMock(LogAktifitasService::class));
 
         $result = $service->imporBanyakPembelianObat(
             ['PB-TEST-001'],
@@ -29,7 +30,7 @@ class BridgingPembelianServiceTest extends TestCase
 
     public function test_impor_banyak_pembelian_nonmedis_rejects_unsupported_process_type_before_touching_database(): void
     {
-        $service = new BridgingPembelianService();
+        $service = new BridgingPembelianService($this->createMock(LogAktifitasService::class));
 
         $result = $service->imporBanyakPembelianNonMedis(
             ['PNM-TEST-001'],
