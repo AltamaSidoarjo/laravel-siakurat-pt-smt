@@ -41,6 +41,9 @@
                                 <button type="submit" class="btn btn-primary">
                                     <i class="bi bi-funnel me-1"></i> Filter
                                 </button>
+                                <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#exportCsvModal">
+                                    <i class="bi bi-filetype-csv me-1"></i> Export CSV
+                                </button>
                             </div>
                         </div>
                     </form>
@@ -66,7 +69,42 @@
                             <tbody></tbody>
                         </table>
                     </div>
+
+                    <div class="alert alert-success fw-bold mt-3" id="grandTotalInfo">
+                        Grand Total Tagihan: <span id="grandTotalValue">0</span>
+                    </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="exportCsvModal" tabindex="-1" aria-labelledby="exportCsvModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="get" action="{{ route('laporan.pendapatan.kunjungan.export-csv') }}">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="exportCsvModalLabel">Export CSV Pendapatan Kunjungan</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Dari tanggal</label>
+                                <input type="date" name="startDate" class="form-control" value="{{ $startDate }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Sampai tanggal</label>
+                                <input type="date" name="endDate" class="form-control" value="{{ $endDate }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-download me-1"></i> Download CSV
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -75,7 +113,7 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            window.jQuery('#datatable').DataTable({
+            const table = window.jQuery('#datatable').DataTable({
                 processing: true,
                 serverSide: true,
                 scrollX: true,
@@ -89,10 +127,10 @@
                         d.penjamin = document.querySelector('[name="penjamin"]').value;
                     }
                 },
-                dom: "<'row mb-2'<'col-md-6'B><'col-md-6'f>>rt<'row mt-2'<'col-md-6'l><'col-md-6'p>>",
-                buttons: ['csv', 'excel', 'pdf', 'print'],
+                dom: 'frltip',
                 order: [[1, 'desc']],
                 lengthMenu: [[10, 25, 50, 100, 1000], [10, 25, 50, 100, 1000]],
+                pageLength: 10,
                 columns: [
                     { data: 'nomer_billing', name: 'nomer_billing' },
                     { data: 'tanggal_reg', name: 'tanggal_reg' },
@@ -105,6 +143,13 @@
                 ],
                 language: {
                     emptyTable: 'Belum ada data pendapatan kunjungan pada rentang ini.'
+                }
+            });
+
+            table.on('xhr', function (e, settings, json) {
+                if (json && json.grandTotal !== undefined) {
+                    const formatted = Number(json.grandTotal).toLocaleString('id-ID');
+                    document.getElementById('grandTotalValue').textContent = 'Rp ' + formatted;
                 }
             });
         });

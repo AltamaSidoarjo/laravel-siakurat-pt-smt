@@ -27,6 +27,7 @@ class AccessModuleRegistry
             ['kode' => 'pengaturan.preferensi', 'nama' => 'Preferensi', 'group_nama' => 'Pengaturan', 'urutan' => 180],
             ['kode' => 'pengaturan.pengguna', 'nama' => 'Pengguna', 'group_nama' => 'Pengaturan', 'urutan' => 190],
             ['kode' => 'pengaturan.role-akses', 'nama' => 'Role Akses', 'group_nama' => 'Pengaturan', 'urutan' => 200],
+            ['kode' => 'pengaturan.konversi-file', 'nama' => 'Konversi File', 'group_nama' => 'Pengaturan', 'urutan' => 210],
         ];
     }
 }

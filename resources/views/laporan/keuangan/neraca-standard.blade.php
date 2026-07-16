@@ -2,11 +2,6 @@
 
 @section('title', 'Neraca Standard')
 
-@php
-    $selisih = (float) $subtotalAktiva - (float) $subtotalPasivaEkuitas;
-    $isBalance = abs($selisih) <= 0.01;
-@endphp
-
 @section('content')
     <div class="row mb-3">
         <div class="col">
@@ -122,7 +117,7 @@
                                 </tr>
                                 <tr class="{{ $isBalance ? 'table-success' : 'table-danger' }} fw-bold">
                                     <td>Status Neraca</td>
-                                    <td class="text-end">{{ $isBalance ? 'BALANCE' : 'TIDAK BALANCE' }} | Selisih {{ number_format((float) $selisih, 0, ',', '.') }}</td>
+                                    <td class="text-end">{{ $isBalance ? 'BALANCE' : 'TIDAK BALANCE' }} | Selisih {{ number_format((float) $selisih, 2, ',', '.') }}</td>
                                 </tr>
                             </tbody>
                         </table>

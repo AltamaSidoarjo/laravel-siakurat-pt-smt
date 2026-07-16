@@ -103,7 +103,9 @@ class ExampleTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Bridging Pendapatan Obat');
+            ->assertSee('Bridging Pendapatan Obat')
+            ->assertSee('Grand Total Tagihan')
+            ->assertSee('grandTotalValue', false);
     }
 
     public function test_bridging_pendapatan_obat_tarik_tagihan_page_can_be_opened_with_authenticated_user(): void
@@ -125,7 +127,9 @@ class ExampleTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Bridging Pembelian');
+            ->assertSee('Bridging Pembelian')
+            ->assertSee('Grand Total Tagihan')
+            ->assertSee('grandTotalValue', false);
     }
 
     public function test_bridging_pembelian_tarik_obat_page_can_be_opened_with_authenticated_user(): void
@@ -233,7 +237,11 @@ class ExampleTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Laporan Pendapatan Kunjungan');
+            ->assertSee('Laporan Pendapatan Kunjungan')
+            ->assertSee('Grand Total Tagihan')
+            ->assertSee('grandTotalValue', false)
+            ->assertSee("dom: 'Bfrltip'", false)
+            ->assertSee('pageLength: 10', false);
     }
 
     public function test_laporan_pendapatan_penjualan_obat_page_can_be_opened_with_authenticated_user(): void
@@ -244,7 +252,11 @@ class ExampleTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Laporan Pendapatan Penjualan Obat');
+            ->assertSee('Laporan Pendapatan Penjualan Obat')
+            ->assertSee('Grand Total Tagihan')
+            ->assertSee('grandTotalValue', false)
+            ->assertSee("dom: 'Bfrltip'", false)
+            ->assertSee('pageLength: 10', false);
     }
 
     private function makeUser(): User
@@ -279,6 +291,8 @@ class ExampleTest extends TestCase
                 $table->unsignedInteger('coa_id');
                 $table->unsignedInteger('sumber_id')->nullable();
                 $table->date('tanggal');
+                $table->unsignedSmallInteger('periode_tahun')->nullable();
+                $table->unsignedTinyInteger('periode_bulan')->nullable();
                 $table->string('nomer')->nullable();
                 $table->string('sumber_transaksi');
                 $table->decimal('nominal', 15, 2);

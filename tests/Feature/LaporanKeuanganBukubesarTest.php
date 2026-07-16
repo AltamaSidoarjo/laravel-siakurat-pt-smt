@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\BukuBesar;
 use App\Models\Coa;
 use App\Services\Laporan\LaporanKeuanganService;
+use ReflectionMethod;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -44,6 +45,8 @@ class LaporanKeuanganBukubesarTest extends TestCase
             $table->unsignedInteger('coa_id');
             $table->unsignedInteger('sumber_id')->nullable();
             $table->date('tanggal');
+            $table->unsignedSmallInteger('periode_tahun')->nullable();
+            $table->unsignedTinyInteger('periode_bulan')->nullable();
             $table->string('nomer')->nullable();
             $table->string('sumber_transaksi');
             $table->decimal('nominal', 15, 2);
@@ -338,7 +341,7 @@ class LaporanKeuanganBukubesarTest extends TestCase
         $result = $service->getNeracaStandard('2026-05-19');
         $labaRugiRows = $service->getLabaRugiStandard('2026-01-01', '2026-05-19');
         $labaRugiTotal = (float) $labaRugiRows
-            ->where('sort_level', '>', 0)
+            ->where('sort_level', 1)
             ->sum(function (array $row) {
                 $tipeCoa = (string) ($row['tipe_coa'] ?? '');
 
@@ -468,6 +471,156 @@ class LaporanKeuanganBukubesarTest extends TestCase
         $this->assertCount(0, $result['rows']);
     }
 
+    public function test_neraca_standard_rounds_small_float_noise_before_marking_balance(): void
+    {
+        $method = new ReflectionMethod(LaporanKeuanganService::class, 'ringkasStatusNeraca');
+        $method->setAccessible(true);
+        $result = $method->invoke(app(LaporanKeuanganService::class), 0.33, 0.32, 0.0);
+
+        $this->assertSame(0.01, $result['selisih']);
+        $this->assertTrue($result['isBalance']);
+    }
+
+    public function test_neraca_standard_marks_material_difference_as_not_balance(): void
+    {
+        $method = new ReflectionMethod(LaporanKeuanganService::class, 'ringkasStatusNeraca');
+        $method->setAccessible(true);
+        $result = $method->invoke(app(LaporanKeuanganService::class), 0.33, 0.31, 0.0);
+
+        $this->assertSame(0.02, $result['selisih']);
+        $this->assertFalse($result['isBalance']);
+    }
+
+    public function test_neraca_standard_view_shows_balance_status_using_two_decimal_difference(): void
+    {
+        $response = $this->view('laporan.keuangan.neraca-standard', [
+            'logoRsUrl' => '',
+            'namaRumahSakit' => 'RS Test',
+            'page' => 'app',
+            'perDate' => '2026-06-18',
+            'rows' => collect(),
+            'subtotalAktiva' => 0.33,
+            'subtotalPasiva' => 0.32,
+            'subtotalEkuitas' => 0.00,
+            'subtotalPasivaEkuitas' => 0.32,
+            'selisih' => 0.01,
+            'isBalance' => true,
+        ]);
+
+        $response->assertSee('BALANCE | Selisih 0,01', false);
+    }
+
+    public function test_neraca_detil_orders_accounts_by_code(): void
+    {
+        foreach (['Kasbank', 'Hutang', 'Pendapatan'] as $type) {
+            \App\Models\TipeCoa::query()->create(['nama' => $type, 'status_aktif' => 1]);
+        }
+
+        $accounts = collect([
+            ['tipe_coa' => 'Kasbank', 'kode' => '110.01', 'nama' => 'Kas'],
+            ['tipe_coa' => 'Hutang', 'kode' => '210.01', 'nama' => 'Utang'],
+        ])->map(fn (array $data) => Coa::query()->create($data + ['status_aktif' => 1, 'is_postable' => true]));
+
+        $parent = Coa::query()->create([
+            'status_aktif' => 1, 'tipe_coa' => 'Kasbank', 'kode' => '120.00', 'nama' => 'Bank', 'is_postable' => false,
+        ]);
+        $child = Coa::query()->create([
+            'status_aktif' => 1, 'parent_coa' => $parent->id, 'tipe_coa' => 'Kasbank',
+            'kode' => '120.01', 'nama' => 'Bank Operasional', 'is_postable' => true,
+        ]);
+        $inactive = Coa::query()->create([
+            'status_aktif' => 0, 'tipe_coa' => 'Kasbank', 'kode' => '105.01', 'nama' => 'Kas Lama', 'is_postable' => true,
+        ]);
+        $zeroBalance = Coa::query()->create([
+            'status_aktif' => 1, 'tipe_coa' => 'Kasbank', 'kode' => '130.01', 'nama' => 'Kas Nol', 'is_postable' => true,
+        ]);
+        $revenue = Coa::query()->create([
+            'status_aktif' => 1, 'tipe_coa' => 'Pendapatan', 'kode' => '410.01', 'nama' => 'Pendapatan', 'is_postable' => true,
+        ]);
+
+        $accounts->push($parent, $child, $inactive, $revenue);
+
+        foreach ($accounts as $coa) {
+            BukuBesar::query()->create([
+                'coa_id' => $coa->id,
+                'tanggal' => '2026-05-19',
+                'sumber_transaksi' => 'Jurnal Umum',
+                'nominal' => 100,
+                'tipe_mutasi' => 'D',
+            ]);
+        }
+
+        $service = app(LaporanKeuanganService::class);
+
+        $this->assertSame(['Kasbank', 'Hutang', 'Pendapatan'], \App\Models\TipeCoa::query()->pluck('nama')->all());
+        $this->assertCount(6, BukuBesar::query()->get());
+        $neracaDetil = $service->getNeracaDetil('2026-05-20');
+        $expectedCodes = ['110.01', '120.01', '210.01'];
+
+        $this->assertSame($expectedCodes, $neracaDetil->pluck('kode')->all());
+        $this->assertSame(
+            $expectedCodes,
+            $service->getNeracaSaldo('2026-05-20')->whereIn('kode_coa', $expectedCodes)->pluck('kode_coa')->values()->all(),
+        );
+        $this->assertFalse($neracaDetil->contains('kode', $parent->kode));
+        $this->assertFalse($neracaDetil->contains('kode', $inactive->kode));
+        $this->assertFalse($neracaDetil->contains('kode', $zeroBalance->kode));
+        $this->assertFalse($neracaDetil->contains('kode', $revenue->kode));
+    }
+
+    public function test_neraca_rinci_orders_by_code_and_keeps_existing_filters(): void
+    {
+        $accounts = collect([
+            ['tipe_coa' => 'Kasbank', 'kode' => '110.01', 'nama' => 'Kas'],
+            ['tipe_coa' => 'Hutang', 'kode' => '210.01', 'nama' => 'Utang'],
+            ['tipe_coa' => 'Kasbank', 'kode' => '120.01', 'nama' => 'Bank'],
+            ['tipe_coa' => 'Kasbank', 'kode' => '130.01', 'nama' => 'Saldo Nol'],
+            ['tipe_coa' => 'Kasbank', 'kode' => '090.01', 'nama' => 'Di Luar Periode'],
+        ])->map(fn (array $data) => Coa::query()->create($data + [
+            'status_aktif' => 1,
+            'is_postable' => true,
+        ]));
+
+        foreach ($accounts->take(3) as $coa) {
+            BukuBesar::query()->create([
+                'coa_id' => $coa->id,
+                'tanggal' => '2026-05-19',
+                'sumber_transaksi' => 'Jurnal Umum',
+                'nominal' => 100,
+                'tipe_mutasi' => 'D',
+            ]);
+        }
+
+        foreach (['D', 'K'] as $tipeMutasi) {
+            BukuBesar::query()->create([
+                'coa_id' => $accounts[3]->id,
+                'tanggal' => '2026-05-19',
+                'sumber_transaksi' => 'Jurnal Umum',
+                'nominal' => 100,
+                'tipe_mutasi' => $tipeMutasi,
+            ]);
+        }
+
+        BukuBesar::query()->create([
+            'coa_id' => $accounts[4]->id,
+            'tanggal' => '2026-04-30',
+            'sumber_transaksi' => 'Jurnal Umum',
+            'nominal' => 100,
+            'tipe_mutasi' => 'D',
+        ]);
+
+        $service = app(LaporanKeuanganService::class);
+
+        $this->assertSame(
+            ['110.01', '120.01', '210.01'],
+            $service->getNeracaRinci('2026-05-01', '2026-05-31')->pluck('kode_coa')->all(),
+        );
+        $this->assertSame(
+            ['110.01', '120.01'],
+            $service->getNeracaRinci('2026-05-01', '2026-05-31', ['Kasbank'])->pluck('kode_coa')->all(),
+        );
+    }
+
     public function test_laba_rugi_standard_and_per_parent_only_count_leaf_accounts(): void
     {
         foreach (['Kasbank', 'Ekuitas', 'Pendapatan', 'Beban'] as $namaTipeCoa) {
@@ -588,14 +741,28 @@ class LaporanKeuanganBukubesarTest extends TestCase
             ->where('sort_level', '>', 0)
             ->firstWhere('coa_id', $pendapatanParent->id);
         $pendapatanChildRow = collect($labaRugiPerParent['rows'])->firstWhere('coa_id', $pendapatanLeaf->id);
+        $pendapatanStandardChildRow = $labaRugiStandard
+            ->where('sort_level', '>', 0)
+            ->firstWhere('coa_id', $pendapatanLeaf->id);
         $pendapatanGrandchildRow = $labaRugiStandard
             ->where('sort_level', '>', 0)
             ->firstWhere('coa_id', $pendapatanGrandchildLeaf->id);
+        $pendapatanRootRow = $labaRugiStandard->firstWhere('kode', '4');
+        $pendapatanLevelOneTotal = (float) $labaRugiStandard
+            ->where('root_order', 1)
+            ->where('sort_level', 1)
+            ->sum('nominal');
+
         $this->assertNotNull($pendapatanParentRow);
         $this->assertNotNull($pendapatanChildRow);
+        $this->assertNotNull($pendapatanStandardChildRow);
         $this->assertNull($pendapatanGrandchildRow);
         $this->assertGreaterThan(0, (float) $pendapatanChildRow['nominal']);
         $this->assertSame((float) $pendapatanChildRow['nominal'], (float) $pendapatanParentRow['nominal']);
+        $this->assertSame((float) $pendapatanParentRow['nominal'], (float) $pendapatanStandardChildRow['nominal']);
+        $this->assertSame(2, (int) $pendapatanStandardChildRow['sort_level']);
+        $this->assertSame(2, (int) $pendapatanStandardChildRow['level']);
+        $this->assertSame((float) $pendapatanRootRow['nominal'], $pendapatanLevelOneTotal);
         $this->assertTrue((bool) $pendapatanChildRow['has_children']);
     }
 

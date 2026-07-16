@@ -8,6 +8,7 @@ use App\Http\Requests\Bridging\ImportPembelianNonMedisRequest;
 use App\Http\Requests\Bridging\ImportPembelianObatRequest;
 use App\Models\FakturPembelian;
 use App\Services\Bridging\BridgingPembelianService;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -39,14 +40,21 @@ class BridgingPembelianController extends Controller
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
 
-        $query = $this->bridgingPembelianService->getQueryHasilImport($startDate, $endDate);
+        $baseQuery = $this->bridgingPembelianService->getQueryHasilImport($startDate, $endDate);
+        $grandTotalQuery = clone $baseQuery;
 
-        return DataTables::eloquent($query)
+        $this->applyImportedDataTableSearch($grandTotalQuery, $request);
+
+        return DataTables::eloquent($baseQuery)
+            ->filter(function (EloquentBuilder $query) use ($request) {
+                $this->applyImportedDataTableSearch($query, $request);
+            }, false)
             ->addColumn('checkbox', fn (FakturPembelian $item) => $item->nomer_faktur)
             ->addColumn('tanggal_faktur_display', fn (FakturPembelian $item) => optional($item->tanggal_faktur)->format('Y-m-d'))
             ->addColumn('tanggal_jatuh_tempo_display', fn (FakturPembelian $item) => optional($item->tanggal_jatuh_tempo)->format('Y-m-d'))
             ->addColumn('nama_supplier', fn (FakturPembelian $item) => $item->supplier?->nama_supplier)
             ->addColumn('grandtotal_display', fn (FakturPembelian $item) => number_format((float) $item->grandtotal, 0, ',', '.'))
+            ->with('grandTotal', fn () => (float) $grandTotalQuery->sum('grandtotal'))
             ->toJson();
     }
 
@@ -141,6 +149,28 @@ class BridgingPembelianController extends Controller
         $endDate = $request->date('endDate')?->format('Y-m-d') ?? now()->format('Y-m-d');
 
         return [$startDate, $endDate];
+    }
+
+    private function applyImportedDataTableSearch(EloquentBuilder $query, Request $request): void
+    {
+        $globalSearch = trim($request->input('search.value', ''));
+
+        if ($globalSearch === '') {
+            return;
+        }
+
+        $likeSearch = '%'.$globalSearch.'%';
+
+        $query->where(function (EloquentBuilder $searchQuery) use ($likeSearch) {
+            $searchQuery
+                ->where('nomer_faktur', 'like', $likeSearch)
+                ->orWhere('tanggal_faktur', 'like', $likeSearch)
+                ->orWhere('tanggal_jatuh_tempo', 'like', $likeSearch)
+                ->orWhereHas('supplier', fn (EloquentBuilder $supplierQuery) => $supplierQuery->where('nama_supplier', 'like', $likeSearch))
+                ->orWhere('kode_bangsal', 'like', $likeSearch)
+                ->orWhere('kategori_faktur', 'like', $likeSearch)
+                ->orWhereRaw('CAST(grandtotal AS CHAR) like ?', [$likeSearch]);
+        });
     }
 
     private function applyTagihanObatDataTableSearch(Builder $query, Request $request): void

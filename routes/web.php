@@ -17,6 +17,7 @@ use App\Http\Controllers\Pendapatan\InvoicePendapatanController;
 use App\Http\Controllers\Pendapatan\PenerimaanPendapatanController;
 use App\Http\Controllers\Pengaturan\MappingGeneralController;
 use App\Http\Controllers\Pengaturan\MappingPendapatanController;
+use App\Http\Controllers\Pengaturan\KonversiFileController;
 use App\Http\Controllers\Pengaturan\PenggunaController;
 use App\Http\Controllers\Pengaturan\PreferensiController;
 use App\Http\Controllers\Pengaturan\RoleAksesController;
@@ -239,8 +240,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/pendapatan', [LaporanPendapatanController::class, 'index'])->name('pendapatan.index');
             Route::get('/pendapatan/kunjungan', [LaporanPendapatanController::class, 'kunjungan'])->name('pendapatan.kunjungan');
             Route::get('/pendapatan/kunjungan/load-data', [LaporanPendapatanController::class, 'loadKunjungan'])->name('pendapatan.kunjungan.load-data');
+            Route::get('/pendapatan/kunjungan/export-csv', [LaporanPendapatanController::class, 'exportKunjunganCsv'])->name('pendapatan.kunjungan.export-csv');
             Route::get('/pendapatan/penjualan-obat', [LaporanPendapatanController::class, 'penjualanObat'])->name('pendapatan.penjualan-obat');
             Route::get('/pendapatan/penjualan-obat/load-data', [LaporanPendapatanController::class, 'loadPenjualanObat'])->name('pendapatan.penjualan-obat.load-data');
+            Route::get('/pendapatan/penjualan-obat/export-csv', [LaporanPendapatanController::class, 'exportPenjualanObatCsv'])->name('pendapatan.penjualan-obat.export-csv');
         });
     });
 
@@ -317,6 +320,13 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module.access:pengaturan.role-akses,update')->group(function () {
             Route::get('/role-akses/{role}/edit', [RoleAksesController::class, 'edit'])->name('role-akses.edit');
             Route::put('/role-akses/{role}', [RoleAksesController::class, 'update'])->name('role-akses.update');
+        });
+
+        Route::middleware('module.access:pengaturan.konversi-file,view')->group(function () {
+            Route::get('/konversi-file', [KonversiFileController::class, 'index'])->name('konversi-file.index');
+        });
+        Route::middleware('module.access:pengaturan.konversi-file,create')->group(function () {
+            Route::post('/konversi-file/csv-ke-xlsx', [KonversiFileController::class, 'convertCsvToXlsx'])->name('konversi-file.csv-ke-xlsx');
         });
     });
 });

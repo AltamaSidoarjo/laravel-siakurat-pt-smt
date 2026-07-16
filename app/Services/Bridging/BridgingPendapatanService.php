@@ -572,6 +572,7 @@ class BridgingPendapatanService
                 'coa_id' => (int) $barisPendapatan['coa_id'],
                 'sumber_id' => (int) $invoice->id,
                 'tanggal' => $invoice->tanggal_faktur,
+                ...BukuBesarService::resolvePeriode($invoice->tanggal_faktur),
                 'nomer' => $invoice->nomor_faktur,
                 'sumber_transaksi' => self::IMPORT_INVOICE_PENDAPATAN,
                 'nominal' => abs((float) $barisPendapatan['raw_total']),
@@ -587,6 +588,7 @@ class BridgingPendapatanService
                 'coa_id' => (int) $akunLawan['coa_id'],
                 'sumber_id' => (int) $invoice->id,
                 'tanggal' => $invoice->tanggal_faktur,
+                ...BukuBesarService::resolvePeriode($invoice->tanggal_faktur),
                 'nomer' => $invoice->nomor_faktur,
                 'sumber_transaksi' => self::IMPORT_INVOICE_PENDAPATAN,
                 'nominal' => (float) $akunLawan['debit'],
@@ -904,17 +906,7 @@ class BridgingPendapatanService
         return match ($status) {
             'Ralan Dokter', 'Ralan Dokter Paramedis', 'Ralan Paramedis' => $this->cariKodeRalan($status, $noRawat, $namaPerawatan),
             'Ranap Dokter', 'Ranap Dokter Paramedis', 'Ranap Paramedis' => $this->cariKodeRanap($status, $noRawat, $namaPerawatan),
-            'Laborat' => $this->ambilNilaiTunggal(
-                <<<'SQL'
-                SELECT pl.kd_jenis_prw
-                FROM periksa_lab pl
-                JOIN jns_perawatan_lab jpl ON jpl.kd_jenis_prw = pl.kd_jenis_prw
-                JOIN billing b ON b.no_rawat = pl.no_rawat AND b.nm_perawatan = jpl.nm_perawatan
-                WHERE b.no_rawat = ? AND b.nm_perawatan = ?
-                LIMIT 1
-                SQL,
-                [$noRawat, $namaPerawatan]
-            ),
+            'Laborat' => $this->cariKodeLaborat($noRawat, $namaPerawatan),
             'Radiologi' => $this->ambilNilaiTunggal(
                 <<<'SQL'
                 SELECT jpr.kd_jenis_prw
@@ -988,7 +980,7 @@ class BridgingPendapatanService
             return null;
         }
 
-        return $this->ambilNilaiTunggal(
+        $kodeLangsung = $this->ambilNilaiTunggal(
             sprintf(
                 'SELECT ri.kd_jenis_prw
                 FROM %s ri
@@ -999,6 +991,54 @@ class BridgingPendapatanService
                 LIMIT 1',
                 $namaTabel,
             ),
+            [$noRawat, $namaPerawatan]
+        );
+
+        if ($kodeLangsung !== null && $kodeLangsung !== '') {
+            return $kodeLangsung;
+        }
+
+        return $this->ambilNilaiTunggal(
+            sprintf(
+                'SELECT ri.kd_jenis_prw
+                FROM ranap_gabung rg
+                JOIN %s ri ON ri.no_rawat = rg.no_rawat2
+                JOIN jns_perawatan_inap jpi ON jpi.kd_jenis_prw = ri.kd_jenis_prw
+                WHERE rg.no_rawat = ? AND jpi.nm_perawatan = ?
+                LIMIT 1',
+                $namaTabel,
+            ),
+            [$noRawat, $namaPerawatan]
+        );
+    }
+
+    private function cariKodeLaborat(string $noRawat, string $namaPerawatan): ?string
+    {
+        $kodeLangsung = $this->ambilNilaiTunggal(
+            <<<'SQL'
+            SELECT pl.kd_jenis_prw
+            FROM periksa_lab pl
+            JOIN jns_perawatan_lab jpl ON jpl.kd_jenis_prw = pl.kd_jenis_prw
+            JOIN billing b ON b.no_rawat = pl.no_rawat AND b.nm_perawatan = jpl.nm_perawatan
+            WHERE b.no_rawat = ? AND b.nm_perawatan = ?
+            LIMIT 1
+            SQL,
+            [$noRawat, $namaPerawatan]
+        );
+
+        if ($kodeLangsung !== null && $kodeLangsung !== '') {
+            return $kodeLangsung;
+        }
+
+        return $this->ambilNilaiTunggal(
+            <<<'SQL'
+            SELECT pl.kd_jenis_prw
+            FROM ranap_gabung rg
+            JOIN periksa_lab pl ON pl.no_rawat = rg.no_rawat2
+            JOIN jns_perawatan_lab jpl ON jpl.kd_jenis_prw = pl.kd_jenis_prw
+            WHERE rg.no_rawat = ? AND jpl.nm_perawatan = ?
+            LIMIT 1
+            SQL,
             [$noRawat, $namaPerawatan]
         );
     }

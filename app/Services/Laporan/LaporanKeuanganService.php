@@ -15,6 +15,8 @@ class LaporanKeuanganService
 {
     private const MAKS_LEVEL_NERACA_STANDARD = 3;
 
+    private const MAKS_LEVEL_LABA_RUGI_STANDARD = 2;
+
     private const TIPE_LABA_RUGI = [
         'Pendapatan',
         'Pendapatan lain',
@@ -169,8 +171,10 @@ class LaporanKeuanganService
                 ->sortBy('kode')
                 ->values();
 
-            $childRows = $topLevelRows
-                ->map(fn (Coa $coa) => $this->buildLabaRugiAggregateRow(
+            $childRows = collect();
+            $displayRows = collect();
+            foreach ($topLevelRows as $coa) {
+                $childRow = $this->buildLabaRugiAggregateRow(
                     coa: $coa,
                     allCoa: $itemsById,
                     childrenMap: $childrenMap,
@@ -178,8 +182,23 @@ class LaporanKeuanganService
                     rbaPerCoa: $rbaPerCoa,
                     level: 1,
                     rootOrder: (int) $rootOrder,
-                ))
-                ->values();
+                );
+
+                $childRows->push($childRow);
+                $displayRows->push($childRow);
+
+                foreach ($this->labaRugiStandardChildRows(
+                    coa: $coa,
+                    allCoa: $itemsById,
+                    childrenMap: $childrenMap,
+                    mutasiPerCoa: $mutasiPerCoa,
+                    rbaPerCoa: $rbaPerCoa,
+                    level: 2,
+                    rootOrder: (int) $rootOrder,
+                ) as $descendantRow) {
+                    $displayRows->push($descendantRow);
+                }
+            }
 
             $rootRow = [
                 'kode' => $this->kodeRootLabaRugi((int) $rootOrder),
@@ -197,7 +216,7 @@ class LaporanKeuanganService
 
             $hasil->push($rootRow);
 
-            foreach ($childRows as $childRow) {
+            foreach ($displayRows as $childRow) {
                 $hasil->push($childRow);
             }
         }
@@ -326,7 +345,6 @@ class LaporanKeuanganService
         return Coa::query()
             ->active()
             ->whereIn('tipe_coa', $this->ambilNamaTipeNeracaAktif())
-            ->orderBy('tipe_coa')
             ->orderBy('kode')
             ->get()
             ->reject(fn (Coa $coa) => $hasChildren->has((int) $coa->id))
@@ -357,7 +375,6 @@ class LaporanKeuanganService
             ')
             ->whereBetween('bukubesar.tanggal', [$startDate, $endDate])
             ->groupBy('coa.id', 'coa.kode', 'coa.nama', 'coa.tipe_coa')
-            ->orderBy('coa.tipe_coa')
             ->orderBy('coa.kode');
 
         if ($tipeCoaTerpilih !== []) {
@@ -704,12 +721,32 @@ class LaporanKeuanganService
             }
         }
 
+        $summary = $this->ringkasStatusNeraca(
+            subtotalAktiva: $totals['aktiva'],
+            subtotalPasiva: $totals['pasiva'],
+            subtotalEkuitas: $totals['ekuitas'],
+        );
+
         return [
             'rows' => $rows->values(),
             'subtotalAktiva' => $totals['aktiva'],
             'subtotalPasiva' => $totals['pasiva'],
             'subtotalEkuitas' => $totals['ekuitas'],
-            'subtotalPasivaEkuitas' => $totals['pasiva'] + $totals['ekuitas'],
+            'subtotalPasivaEkuitas' => $summary['subtotalPasivaEkuitas'],
+            'selisih' => $summary['selisih'],
+            'isBalance' => $summary['isBalance'],
+        ];
+    }
+
+    private function ringkasStatusNeraca(float $subtotalAktiva, float $subtotalPasiva, float $subtotalEkuitas): array
+    {
+        $subtotalPasivaEkuitas = $subtotalPasiva + $subtotalEkuitas;
+        $selisih = round($subtotalAktiva - $subtotalPasivaEkuitas, 2);
+
+        return [
+            'subtotalPasivaEkuitas' => $subtotalPasivaEkuitas,
+            'selisih' => $selisih,
+            'isBalance' => abs($selisih) <= 0.01,
         ];
     }
 
@@ -1014,6 +1051,34 @@ class LaporanKeuanganService
         ];
     }
 
+    private function labaRugiStandardChildRows(
+        Coa $coa,
+        Collection $allCoa,
+        Collection $childrenMap,
+        array $mutasiPerCoa,
+        array $rbaPerCoa,
+        int $level,
+        int $rootOrder,
+    ): Collection {
+        if ($level > self::MAKS_LEVEL_LABA_RUGI_STANDARD) {
+            return collect();
+        }
+
+        return $childrenMap
+            ->get((int) $coa->id, collect())
+            ->sortBy('kode')
+            ->values()
+            ->map(fn (Coa $child) => $this->buildLabaRugiAggregateRow(
+                coa: $child,
+                allCoa: $allCoa,
+                childrenMap: $childrenMap,
+                mutasiPerCoa: $mutasiPerCoa,
+                rbaPerCoa: $rbaPerCoa,
+                level: $level,
+                rootOrder: $rootOrder,
+            ));
+    }
+
     private function ambilSaldoSampaiTanggal(string $perDate): array
     {
         return BukuBesar::query()
@@ -1095,10 +1160,10 @@ class LaporanKeuanganService
     {
         return match ($rootOrder) {
             1 => '4',
-            2 => '8',
+            2 => '4',
             3 => '5',
-            4 => '6',
-            5 => '9',
+            4 => '5',
+            5 => '5',
             default => '0',
         };
     }

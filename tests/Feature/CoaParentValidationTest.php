@@ -44,6 +44,8 @@ class CoaParentValidationTest extends TestCase
             $table->unsignedInteger('coa_id');
             $table->unsignedInteger('sumber_id')->nullable();
             $table->date('tanggal');
+            $table->unsignedSmallInteger('periode_tahun')->nullable();
+            $table->unsignedTinyInteger('periode_bulan')->nullable();
             $table->string('nomer')->nullable();
             $table->string('sumber_transaksi');
             $table->decimal('nominal', 15, 2);

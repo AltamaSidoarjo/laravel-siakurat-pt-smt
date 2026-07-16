@@ -11,6 +11,7 @@ use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as SupportCollection;
+use Illuminate\Support\Facades\DB;
 
 class PembayaranPembelianService
 {
@@ -47,7 +48,7 @@ class PembayaranPembelianService
             ->where('status_aktif', true)
             ->whereHas('fakturPembelians', function ($query) {
                 $query
-                    ->whereRaw('COALESCE(grandtotal, 0) <> COALESCE(sudah_terbayar, 0)')
+                    ->whereRaw($this->outstandingInvoiceCondition())
                     ->where(function ($statusQuery) {
                         $statusQuery
                             ->whereNull('status_proses')
@@ -62,7 +63,7 @@ class PembayaranPembelianService
     {
         return FakturPembelian::query()
             ->where('supplier_id', $supplierId)
-            ->whereRaw('COALESCE(grandtotal, 0) <> COALESCE(sudah_terbayar, 0)')
+            ->whereRaw($this->outstandingInvoiceCondition())
             ->where(function ($statusQuery) {
                 $statusQuery
                     ->whereNull('status_proses')
@@ -234,5 +235,14 @@ class PembayaranPembelianService
                 'nominal_bayar' => (float) ($row['nominal_bayar'] ?? 0),
             ])
             ->values();
+    }
+
+    private function outstandingInvoiceCondition(): string
+    {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return 'CAST(COALESCE(grandtotal, 0) AS INTEGER) > CAST(COALESCE(sudah_terbayar, 0) AS INTEGER)';
+        }
+
+        return 'FLOOR(COALESCE(grandtotal, 0)) > FLOOR(COALESCE(sudah_terbayar, 0))';
     }
 }

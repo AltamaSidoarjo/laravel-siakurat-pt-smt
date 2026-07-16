@@ -7,6 +7,7 @@ use App\Models\FakturPembelian;
 use App\Models\FakturPembelianRinci;
 use App\Models\MappingCoaSimrs;
 use App\Models\Supplier;
+use App\Services\Bukubesar\BukuBesarService;
 use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -433,6 +434,7 @@ class BridgingPembelianService
                     'coa_id' => (int) $mapping->coa_id,
                     'sumber_id' => (int) $faktur->id,
                     'tanggal' => $faktur->tanggal_faktur,
+                    ...BukuBesarService::resolvePeriode($faktur->tanggal_faktur),
                     'nomer' => $faktur->nomer_faktur,
                     'sumber_transaksi' => self::SUMBER_TRANSAKSI,
                     'nominal' => $debit > 0 ? $debit : $kredit,

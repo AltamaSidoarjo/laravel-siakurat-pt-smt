@@ -3,6 +3,7 @@
 namespace App\Services\Bukubesar;
 
 use App\Models\BukuBesar;
+use Carbon\Carbon;
 
 class BukuBesarService
 {
@@ -20,6 +21,7 @@ class BukuBesarService
                     'coa_id' => (int) $row['coa_id'],
                     'sumber_id' => $jurnalUmumId,
                     'tanggal' => $tanggal,
+                    ...self::resolvePeriode($tanggal),
                     'nomer' => $nomer,
                     'sumber_transaksi' => 'Jurnal Umum',
                     'nominal' => $debit > 0 ? $debit : $kredit,
@@ -59,6 +61,7 @@ class BukuBesarService
             'coa_id' => $coaId,
             'sumber_id' => $kasbankPenerimaanId,
             'tanggal' => $tanggal,
+            ...self::resolvePeriode($tanggal),
             'nomer' => $nomer,
             'sumber_transaksi' => 'Kasbank Penerimaan',
             'nominal' => $total,
@@ -75,6 +78,7 @@ class BukuBesarService
                     'coa_id' => (int) $row['coa_id'],
                     'sumber_id' => $kasbankPenerimaanId,
                     'tanggal' => $tanggal,
+                    ...self::resolvePeriode($tanggal),
                     'nomer' => $nomer,
                     'sumber_transaksi' => 'Kasbank Penerimaan',
                     'nominal' => (float) ($row['nominal'] ?? 0),
@@ -105,6 +109,7 @@ class BukuBesarService
             'coa_id' => $coaId,
             'sumber_id' => $kasbankPembayaranId,
             'tanggal' => $tanggal,
+            ...self::resolvePeriode($tanggal),
             'nomer' => $nomer,
             'sumber_transaksi' => 'Kasbank Pembayaran',
             'nominal' => $total,
@@ -121,6 +126,7 @@ class BukuBesarService
                     'coa_id' => (int) $row['coa_id'],
                     'sumber_id' => $kasbankPembayaranId,
                     'tanggal' => $tanggal,
+                    ...self::resolvePeriode($tanggal),
                     'nomer' => $nomer,
                     'sumber_transaksi' => 'Kasbank Pembayaran',
                     'nominal' => (float) ($row['nominal'] ?? 0),
@@ -157,6 +163,7 @@ class BukuBesarService
                 'coa_id' => $akunBankId,
                 'sumber_id' => $penerimaanPenjualanId,
                 'tanggal' => $tanggal,
+                ...self::resolvePeriode($tanggal),
                 'nomer' => $nomer,
                 'sumber_transaksi' => 'Penerimaan Pendapatan',
                 'nominal' => $jumlahPembayaran,
@@ -169,6 +176,7 @@ class BukuBesarService
                 'coa_id' => $akunPiutangId,
                 'sumber_id' => $penerimaanPenjualanId,
                 'tanggal' => $tanggal,
+                ...self::resolvePeriode($tanggal),
                 'nomer' => $nomer,
                 'sumber_transaksi' => 'Penerimaan Pendapatan',
                 'nominal' => $jumlahPembayaran - $selisihTarif,
@@ -184,6 +192,7 @@ class BukuBesarService
                 'coa_id' => $akunSelisihTarifId,
                 'sumber_id' => $penerimaanPenjualanId,
                 'tanggal' => $tanggal,
+                ...self::resolvePeriode($tanggal),
                 'nomer' => $nomer,
                 'sumber_transaksi' => 'Penerimaan Pendapatan',
                 'nominal' => abs($selisihTarif),
@@ -216,6 +225,7 @@ class BukuBesarService
                 'coa_id' => $akunHutangId,
                 'sumber_id' => $pembayaranPembelianId,
                 'tanggal' => $tanggal,
+                ...self::resolvePeriode($tanggal),
                 'nomer' => $nomer,
                 'sumber_transaksi' => 'Pembayaran Pembelian',
                 'nominal' => $totalBayar,
@@ -228,6 +238,7 @@ class BukuBesarService
                 'coa_id' => $akunBankId,
                 'sumber_id' => $pembayaranPembelianId,
                 'tanggal' => $tanggal,
+                ...self::resolvePeriode($tanggal),
                 'nomer' => $nomer,
                 'sumber_transaksi' => 'Pembayaran Pembelian',
                 'nominal' => $nominalBank,
@@ -243,6 +254,7 @@ class BukuBesarService
                 'coa_id' => $akunPotonganAdminId,
                 'sumber_id' => $pembayaranPembelianId,
                 'tanggal' => $tanggal,
+                ...self::resolvePeriode($tanggal),
                 'nomer' => $nomer,
                 'sumber_transaksi' => 'Pembayaran Pembelian',
                 'nominal' => $potonganAdmin,
@@ -254,5 +266,31 @@ class BukuBesarService
         }
 
         BukuBesar::query()->insert($payload);
+    }
+
+    public static function resolvePeriode(mixed $tanggal): array
+    {
+        if ($tanggal === null || $tanggal === '') {
+            return [
+                'periode_tahun' => null,
+                'periode_bulan' => null,
+            ];
+        }
+
+        try {
+            $parsedTanggal = $tanggal instanceof Carbon
+                ? $tanggal
+                : Carbon::parse((string) $tanggal);
+        } catch (\Throwable) {
+            return [
+                'periode_tahun' => null,
+                'periode_bulan' => null,
+            ];
+        }
+
+        return [
+            'periode_tahun' => (int) $parsedTanggal->year,
+            'periode_bulan' => (int) $parsedTanggal->month,
+        ];
     }
 }

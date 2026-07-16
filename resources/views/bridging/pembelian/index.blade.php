@@ -127,6 +127,10 @@
                                         </table>
                                     </div>
 
+                                    <div class="alert alert-success fw-bold mt-3" id="grandTotalInfo">
+                                        Grand Total Tagihan: <span id="grandTotalValue">0</span>
+                                    </div>
+
                                     <button type="submit" class="btn btn-danger mt-3">
                                         <i class="bi bi-trash me-1"></i> Hapus Massal
                                     </button>
@@ -191,6 +195,13 @@
             table.on('draw', function () {
                 document.getElementById('checkAll').checked = false;
                 updateSelectedCount();
+            });
+
+            table.on('xhr', function (e, settings, json) {
+                if (json && json.grandTotal !== undefined) {
+                    const formatted = Number(json.grandTotal).toLocaleString('id-ID');
+                    document.getElementById('grandTotalValue').textContent = 'Rp ' + formatted;
+                }
             });
 
             document.addEventListener('change', function (event) {
