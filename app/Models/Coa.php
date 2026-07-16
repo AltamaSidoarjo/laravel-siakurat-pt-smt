@@ -19,6 +19,8 @@ class Coa extends Model
         'status_aktif',
         'parent_coa',
         'tipe_coa',
+        'arus_kas_aktivitas',
+        'arus_kas_kelompok',
         'kode',
         'nama',
         'deskripsi',

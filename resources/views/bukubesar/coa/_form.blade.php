@@ -64,6 +64,29 @@
                 </div>
             </div>
 
+            <div class="row align-items-center mb-2 arus-kas-field">
+                <div class="col-12 col-sm-2">
+                    <label for="arus_kas_aktivitas" class="fw-bold">Aktivitas Arus Kas</label>
+                </div>
+                <div class="col">
+                    <select id="arus_kas_aktivitas" name="arus_kas_aktivitas" class="form-select">
+                        <option value="">Belum dipetakan</option>
+                        @foreach (['operasi' => 'Operasi', 'investasi' => 'Investasi', 'pendanaan' => 'Pendanaan'] as $value => $label)
+                            <option value="{{ $value }}" @selected(old('arus_kas_aktivitas', $coa->arus_kas_aktivitas ?? '') === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
+            <div class="row align-items-center mb-2 arus-kas-field">
+                <div class="col-12 col-sm-2">
+                    <label for="arus_kas_kelompok" class="fw-bold">Kelompok Arus Kas</label>
+                </div>
+                <div class="col">
+                    <input id="arus_kas_kelompok" type="text" name="arus_kas_kelompok" class="form-control" maxlength="150" value="{{ old('arus_kas_kelompok', $coa->arus_kas_kelompok ?? '') }}" placeholder="Contoh: Pembayaran kepada pemasok">
+                </div>
+            </div>
+
             <div class="row align-items-center mb-2">
                 <div class="col-12 col-sm-2">
                     <label for="nama" class="fw-bold">Nama</label>
