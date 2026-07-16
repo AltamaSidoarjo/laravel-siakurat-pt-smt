@@ -11,6 +11,7 @@ use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
 class MappingPendapatanTindakanService
@@ -214,11 +215,12 @@ class MappingPendapatanTindakanService
     public function createMappings(string $typeKey, array $rows, string $actor = 'system'): array
     {
         if ($this->isKamarType($typeKey)) {
-            return $this->createKamarMappings($rows);
+            return $this->createKamarMappings($rows, $actor);
         }
 
         $definition = $this->getTypeDefinition($typeKey);
         $referencesByKey = $this->getSimrsTindakanReferences($typeKey)->keyBy('selection_key');
+        $coaCodes = $this->getCoaCodesByRow($rows);
 
         $successCount = 0;
         $failedCount = 0;
@@ -228,6 +230,15 @@ class MappingPendapatanTindakanService
             $reference = $referencesByKey->get($selectionKey);
 
             if (! $reference) {
+                $this->logMappingFailure(
+                    'referensi_tindakan_tidak_ditemukan',
+                    $typeKey,
+                    $definition['source'],
+                    $selectionKey,
+                    $row,
+                    $coaCodes,
+                    $actor,
+                );
                 $failedCount++;
                 continue;
             }
@@ -239,6 +250,16 @@ class MappingPendapatanTindakanService
                 ->exists();
 
             if ($exists) {
+                $this->logMappingFailure(
+                    'mapping_sudah_ada',
+                    $typeKey,
+                    $definition['source'],
+                    $selectionKey,
+                    $row,
+                    $coaCodes,
+                    $actor,
+                    $reference,
+                );
                 $failedCount++;
                 continue;
             }
@@ -441,9 +462,10 @@ class MappingPendapatanTindakanService
         return $kodeJenisPerawatan.'||'.$kodePenjamin;
     }
 
-    private function createKamarMappings(array $rows): array
+    private function createKamarMappings(array $rows, string $actor): array
     {
         $referencesByKey = $this->getSimrsTindakanReferences('kamar')->keyBy('selection_key');
+        $coaCodes = $this->getCoaCodesByRow($rows);
         $successCount = 0;
         $failedCount = 0;
 
@@ -452,6 +474,15 @@ class MappingPendapatanTindakanService
             $reference = $referencesByKey->get($selectionKey);
 
             if (! $reference) {
+                $this->logMappingFailure(
+                    'referensi_tindakan_tidak_ditemukan',
+                    'kamar',
+                    self::TYPE_DEFINITIONS['kamar']['source'],
+                    $selectionKey,
+                    $row,
+                    $coaCodes,
+                    $actor,
+                );
                 $failedCount++;
                 continue;
             }
@@ -461,6 +492,16 @@ class MappingPendapatanTindakanService
                 ->exists();
 
             if ($exists) {
+                $this->logMappingFailure(
+                    'mapping_sudah_ada',
+                    'kamar',
+                    self::TYPE_DEFINITIONS['kamar']['source'],
+                    $selectionKey,
+                    $row,
+                    $coaCodes,
+                    $actor,
+                    $reference,
+                );
                 $failedCount++;
                 continue;
             }
@@ -479,6 +520,45 @@ class MappingPendapatanTindakanService
             'success' => $successCount,
             'failed' => $failedCount,
         ];
+    }
+
+    private function getCoaCodesByRow(array $rows): Collection
+    {
+        $coaIds = collect($rows)
+            ->pluck('coa_id')
+            ->filter()
+            ->map(fn ($coaId) => (int) $coaId)
+            ->unique();
+
+        return Coa::query()
+            ->whereIn('id', $coaIds)
+            ->pluck('kode', 'id');
+    }
+
+    private function logMappingFailure(
+        string $reason,
+        string $typeKey,
+        string $source,
+        string $selectionKey,
+        array $row,
+        Collection $coaCodes,
+        string $actor,
+        ?array $reference = null,
+    ): void {
+        $coaId = isset($row['coa_id']) ? (int) $row['coa_id'] : null;
+
+        Log::warning('Mapping pendapatan tindakan gagal', [
+            'alasan' => $reason,
+            'jenis_tindakan' => $typeKey,
+            'sumber_tindakan' => $source,
+            'tindakan_key' => $selectionKey,
+            'kode_tindakan' => $reference['kd_jenis_prw'] ?? null,
+            'kode_penjamin' => $reference['kd_pj'] ?? null,
+            'nama_tindakan' => $reference['nm_perawatan'] ?? null,
+            'coa_id' => $coaId,
+            'kode_coa' => $coaId === null ? null : $coaCodes->get($coaId),
+            'pengguna' => $actor,
+        ]);
     }
 
     private function isKamarType(string $typeKey): bool
