@@ -345,7 +345,6 @@ class LaporanKeuanganService
         return Coa::query()
             ->active()
             ->whereIn('tipe_coa', $this->ambilNamaTipeNeracaAktif())
-            ->orderBy('tipe_coa')
             ->orderBy('kode')
             ->get()
             ->reject(fn (Coa $coa) => $hasChildren->has((int) $coa->id))
@@ -376,7 +375,6 @@ class LaporanKeuanganService
             ')
             ->whereBetween('bukubesar.tanggal', [$startDate, $endDate])
             ->groupBy('coa.id', 'coa.kode', 'coa.nama', 'coa.tipe_coa')
-            ->orderBy('coa.tipe_coa')
             ->orderBy('coa.kode');
 
         if ($tipeCoaTerpilih !== []) {
