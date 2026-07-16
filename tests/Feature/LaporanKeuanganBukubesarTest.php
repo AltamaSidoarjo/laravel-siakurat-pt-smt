@@ -510,6 +510,117 @@ class LaporanKeuanganBukubesarTest extends TestCase
         $response->assertSee('BALANCE | Selisih 0,01', false);
     }
 
+    public function test_neraca_detil_orders_accounts_by_code(): void
+    {
+        foreach (['Kasbank', 'Hutang', 'Pendapatan'] as $type) {
+            \App\Models\TipeCoa::query()->create(['nama' => $type, 'status_aktif' => 1]);
+        }
+
+        $accounts = collect([
+            ['tipe_coa' => 'Kasbank', 'kode' => '110.01', 'nama' => 'Kas'],
+            ['tipe_coa' => 'Hutang', 'kode' => '210.01', 'nama' => 'Utang'],
+        ])->map(fn (array $data) => Coa::query()->create($data + ['status_aktif' => 1, 'is_postable' => true]));
+
+        $parent = Coa::query()->create([
+            'status_aktif' => 1, 'tipe_coa' => 'Kasbank', 'kode' => '120.00', 'nama' => 'Bank', 'is_postable' => false,
+        ]);
+        $child = Coa::query()->create([
+            'status_aktif' => 1, 'parent_coa' => $parent->id, 'tipe_coa' => 'Kasbank',
+            'kode' => '120.01', 'nama' => 'Bank Operasional', 'is_postable' => true,
+        ]);
+        $inactive = Coa::query()->create([
+            'status_aktif' => 0, 'tipe_coa' => 'Kasbank', 'kode' => '105.01', 'nama' => 'Kas Lama', 'is_postable' => true,
+        ]);
+        $zeroBalance = Coa::query()->create([
+            'status_aktif' => 1, 'tipe_coa' => 'Kasbank', 'kode' => '130.01', 'nama' => 'Kas Nol', 'is_postable' => true,
+        ]);
+        $revenue = Coa::query()->create([
+            'status_aktif' => 1, 'tipe_coa' => 'Pendapatan', 'kode' => '410.01', 'nama' => 'Pendapatan', 'is_postable' => true,
+        ]);
+
+        $accounts->push($parent, $child, $inactive, $revenue);
+
+        foreach ($accounts as $coa) {
+            BukuBesar::query()->create([
+                'coa_id' => $coa->id,
+                'tanggal' => '2026-05-19',
+                'sumber_transaksi' => 'Jurnal Umum',
+                'nominal' => 100,
+                'tipe_mutasi' => 'D',
+            ]);
+        }
+
+        $service = app(LaporanKeuanganService::class);
+
+        $this->assertSame(['Kasbank', 'Hutang', 'Pendapatan'], \App\Models\TipeCoa::query()->pluck('nama')->all());
+        $this->assertCount(6, BukuBesar::query()->get());
+        $neracaDetil = $service->getNeracaDetil('2026-05-20');
+        $expectedCodes = ['110.01', '120.01', '210.01'];
+
+        $this->assertSame($expectedCodes, $neracaDetil->pluck('kode')->all());
+        $this->assertSame(
+            $expectedCodes,
+            $service->getNeracaSaldo('2026-05-20')->whereIn('kode_coa', $expectedCodes)->pluck('kode_coa')->values()->all(),
+        );
+        $this->assertFalse($neracaDetil->contains('kode', $parent->kode));
+        $this->assertFalse($neracaDetil->contains('kode', $inactive->kode));
+        $this->assertFalse($neracaDetil->contains('kode', $zeroBalance->kode));
+        $this->assertFalse($neracaDetil->contains('kode', $revenue->kode));
+    }
+
+    public function test_neraca_rinci_orders_by_code_and_keeps_existing_filters(): void
+    {
+        $accounts = collect([
+            ['tipe_coa' => 'Kasbank', 'kode' => '110.01', 'nama' => 'Kas'],
+            ['tipe_coa' => 'Hutang', 'kode' => '210.01', 'nama' => 'Utang'],
+            ['tipe_coa' => 'Kasbank', 'kode' => '120.01', 'nama' => 'Bank'],
+            ['tipe_coa' => 'Kasbank', 'kode' => '130.01', 'nama' => 'Saldo Nol'],
+            ['tipe_coa' => 'Kasbank', 'kode' => '090.01', 'nama' => 'Di Luar Periode'],
+        ])->map(fn (array $data) => Coa::query()->create($data + [
+            'status_aktif' => 1,
+            'is_postable' => true,
+        ]));
+
+        foreach ($accounts->take(3) as $coa) {
+            BukuBesar::query()->create([
+                'coa_id' => $coa->id,
+                'tanggal' => '2026-05-19',
+                'sumber_transaksi' => 'Jurnal Umum',
+                'nominal' => 100,
+                'tipe_mutasi' => 'D',
+            ]);
+        }
+
+        foreach (['D', 'K'] as $tipeMutasi) {
+            BukuBesar::query()->create([
+                'coa_id' => $accounts[3]->id,
+                'tanggal' => '2026-05-19',
+                'sumber_transaksi' => 'Jurnal Umum',
+                'nominal' => 100,
+                'tipe_mutasi' => $tipeMutasi,
+            ]);
+        }
+
+        BukuBesar::query()->create([
+            'coa_id' => $accounts[4]->id,
+            'tanggal' => '2026-04-30',
+            'sumber_transaksi' => 'Jurnal Umum',
+            'nominal' => 100,
+            'tipe_mutasi' => 'D',
+        ]);
+
+        $service = app(LaporanKeuanganService::class);
+
+        $this->assertSame(
+            ['110.01', '120.01', '210.01'],
+            $service->getNeracaRinci('2026-05-01', '2026-05-31')->pluck('kode_coa')->all(),
+        );
+        $this->assertSame(
+            ['110.01', '120.01'],
+            $service->getNeracaRinci('2026-05-01', '2026-05-31', ['Kasbank'])->pluck('kode_coa')->all(),
+        );
+    }
+
     public function test_laba_rugi_standard_and_per_parent_only_count_leaf_accounts(): void
     {
         foreach (['Kasbank', 'Ekuitas', 'Pendapatan', 'Beban'] as $namaTipeCoa) {
