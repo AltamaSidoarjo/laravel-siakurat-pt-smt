@@ -151,20 +151,22 @@ flowchart TD
     F --> G{"Jenis status"}
     G -- Ralan --> H["cariKodeRalan()"]
     G -- Ranap --> I["cariKodeRanap()"]
-    G -- Laborat/Radiologi/Kamar --> J["ambilNilaiTunggal()"]
+    G -- Laborat --> J["cariKodeLaborat()"]
+    G -- Radiologi/Kamar --> K["ambilNilaiTunggal()"]
 
-    H --> K["tentukanSumberTindakan()"]
-    I --> K
-    J --> L{"Status = Kamar?"}
-    K --> M["Cari mapping tindakan dengan mappingTindakanSesuai()"]
-    L -- Ya --> N["Cari MappingPendapatanKamar"]
-    L -- Tidak --> M
+    H --> L["tentukanSumberTindakan()"]
+    I --> L
+    J --> L
+    K --> M{"Status = Kamar?"}
+    L --> N["Cari mapping tindakan dengan mappingTindakanSesuai()"]
+    M -- Ya --> O["Cari MappingPendapatanKamar"]
+    M -- Tidak --> N
 
-    C --> O["buatCatatanPendapatan()"]
-    E --> O
-    M --> O
-    N --> O
-    O --> P["Bangun baris coa_id debit kredit raw_total quantity catatan"]
+    C --> P["buatCatatanPendapatan()"]
+    E --> P
+    N --> P
+    O --> P
+    P --> Q["Bangun baris coa_id debit kredit raw_total quantity catatan"]
 ```
 
 ### Flowchart Subproses Akun Lawan Pendapatan
@@ -176,7 +178,7 @@ flowchart TD
     C -- Tidak --> D["Throw RuntimeException"]
     C -- Ya --> E["Buang nominal Retur Obat dan Potongan"]
     E --> F["Group by kd_rek dan jumlahkan debet"]
-    F --> G["prioritaskanAkunLawanKasAtauPiutang()"]
+    F --> G["Prioritaskan mapping dengan tipe_coa KasBank atau mengandung piutang"]
     G --> H["Hitung nominal target dari rincian billing"]
     H --> I["pilihAkunLawanPendapatanSimrs()"]
     I --> J{"Nominal jurnal SIMRS cocok?"}
@@ -212,28 +214,33 @@ flowchart TD
 18. `tentukanKodeKategori()` akan memanggil salah satu fungsi berikut sesuai status:
     - `cariKodeRalan()`,
     - `cariKodeRanap()`,
+    - `cariKodeLaborat()`,
     - `ambilNilaiTunggal()`.
-19. Jika status bukan `Kamar`, service menentukan sumber tindakan melalui `tentukanSumberTindakan()`, lalu mencari mapping yang cocok dengan `mappingTindakanSesuai()`.
-20. Jika status `Kamar`, service bisa memakai `lastKamarCoaId` untuk baris lanjutan, atau mencari `MappingPendapatanKamar` untuk baris utama.
-21. Setelah COA ditemukan, service membentuk baris pendapatan berisi `coa_id`, `debit`, `kredit`, `raw_total`, `quantity`, dan `catatan` dengan bantuan `buatCatatanPendapatan()`.
-22. Setelah seluruh rincian terpetakan, service menentukan akun lawan dengan `tentukanAkunLawanPendapatan()`.
-23. Fungsi ini mengambil detail jurnal SIMRS terakhir yang berkaitan dengan `PEMBAYARAN` atau `PIUTANG`, membuang nominal `Retur Obat` dan `Potongan`, mengelompokkan akun, memprioritaskan kas/piutang melalui `prioritaskanAkunLawanKasAtauPiutang()`, lalu memilih kombinasi final lewat `pilihAkunLawanPendapatanSimrs()`.
-24. Jika mapping akun lawan SIMRS ke COA lokal belum ada, service melempar `RuntimeException`.
-25. Setelah semua validasi lolos, service menyimpan log import ke `simrs_import_pendapatan` melalui `simpanLogImport()`.
-26. Jika `jenisProses = InvoicePendapatan`, service memanggil `simpanInvoicePendapatan()`.
-27. Di dalam `simpanInvoicePendapatan()`, service:
+19. Untuk tindakan rawat inap, `cariKodeRanap()` mencari kode pada `no_rawat` utama terlebih dahulu. Jika tidak ditemukan, pencarian dilanjutkan ke episode anak melalui relasi `ranap_gabung.no_rawat2`.
+20. Untuk laboratorium, `cariKodeLaborat()` juga mencari pada `no_rawat` utama terlebih dahulu, kemudian memakai fallback `ranap_gabung.no_rawat2` jika kode belum ditemukan.
+21. Jika status bukan `Kamar`, service menentukan sumber tindakan melalui `tentukanSumberTindakan()`, lalu mencari mapping yang cocok dengan `mappingTindakanSesuai()`.
+22. Jika status `Kamar`, service bisa memakai `lastKamarCoaId` untuk baris lanjutan, atau mencari `MappingPendapatanKamar` untuk baris utama.
+23. Setelah COA ditemukan, service membentuk baris pendapatan berisi `coa_id`, `debit`, `kredit`, `raw_total`, `quantity`, dan `catatan` dengan bantuan `buatCatatanPendapatan()`.
+24. Setelah seluruh rincian terpetakan, service menentukan akun lawan dengan `tentukanAkunLawanPendapatan()`.
+25. Fungsi ini mengambil detail jurnal SIMRS terakhir yang berkaitan dengan `PEMBAYARAN` atau `PIUTANG`, membuang nominal `Retur Obat` dan `Potongan`, lalu mengelompokkan akun berdasarkan `kd_rek`.
+26. `prioritaskanAkunLawanKasAtauPiutang()` memetakan `kd_rek` SIMRS ke COA lokal dan, bila tersedia, hanya mempertahankan akun dengan `tipe_coa = KasBank` atau `tipe_coa` yang mengandung teks `piutang` (pencocokan tanpa membedakan huruf besar/kecil). Prefix kode COA tidak digunakan untuk klasifikasi ini. Jika tidak ada akun dengan tipe tersebut, seluruh kandidat akun tetap dipakai.
+27. Kombinasi akun final dipilih melalui `pilihAkunLawanPendapatanSimrs()`.
+28. Jika mapping akun lawan SIMRS ke COA lokal belum ada, service melempar `RuntimeException`.
+29. Setelah semua validasi lolos, service menyimpan log import ke `simrs_import_pendapatan` melalui `simpanLogImport()`.
+30. Jika `jenisProses = InvoicePendapatan`, service memanggil `simpanInvoicePendapatan()`.
+31. Di dalam `simpanInvoicePendapatan()`, service:
     - memastikan pelanggan tersedia lewat `cariAtauBuatPelanggan()`,
     - menghitung `sudah_terbayar`,
     - menentukan `akun_piutang_id` bila lawan murni piutang,
     - membuat `FakturPenjualan`,
     - membuat `FakturPenjualanRinci`,
     - memanggil `sinkronkanBukuBesarInvoicePendapatan()`.
-28. `sinkronkanBukuBesarInvoicePendapatan()` menghapus buku besar lama untuk sumber yang sama, lalu mengisi ulang mutasi melalui `BukuBesar::insert(...)`.
-29. Jika `jenisProses = JurnalUmum`, service memanggil `simpanJurnalUmum()`.
-30. `simpanJurnalUmum()` membuat `JurnalUmum`, membuat `JurnalUmumRinci` untuk baris pendapatan dan akun lawan, mengecek keseimbangan debit-kredit, lalu memanggil `BukuBesarService::syncFromJurnalUmum(...)`.
-31. Setelah proses utama selesai, service mencatat aktivitas dengan `LogAktifitasService::log(...)`.
-32. `imporSatu()` mengembalikan hasil sukses atau gagal per `no_rawat`.
-33. `imporBanyak()` menggabungkan semua hasil dan controller menyimpannya ke session flash.
+32. `sinkronkanBukuBesarInvoicePendapatan()` menghapus buku besar lama untuk sumber yang sama, lalu mengisi ulang mutasi melalui `BukuBesar::insert(...)`.
+33. Jika `jenisProses = JurnalUmum`, service memanggil `simpanJurnalUmum()`.
+34. `simpanJurnalUmum()` membuat `JurnalUmum`, membuat `JurnalUmumRinci` untuk baris pendapatan dan akun lawan, mengecek keseimbangan debit-kredit, lalu memanggil `BukuBesarService::syncFromJurnalUmum(...)`.
+35. Setelah proses utama selesai, service mencatat aktivitas dengan `LogAktifitasService::log(...)`.
+36. `imporSatu()` mengembalikan hasil sukses atau gagal per `no_rawat`.
+37. `imporBanyak()` menggabungkan semua hasil dan controller menyimpannya ke session flash.
 
 ### Fungsi yang Dipanggil
 
@@ -265,6 +272,7 @@ flowchart TD
 - `BridgingPendapatanService::tentukanKodeKategori()`
 - `BridgingPendapatanService::cariKodeRalan()`
 - `BridgingPendapatanService::cariKodeRanap()`
+- `BridgingPendapatanService::cariKodeLaborat()`
 - `BridgingPendapatanService::ambilNilaiTunggal()`
 - `BridgingPendapatanService::tentukanSumberTindakan()`
 - `BridgingPendapatanService::mappingTindakanSesuai()`
@@ -447,5 +455,7 @@ Walaupun bukan proses inti import, halaman utama Bridging Pendapatan juga memili
 - Mapping pendapatan harus lengkap sebelum jurnal atau invoice dibuat, karena validasi mapping dijalankan lebih dulu untuk seluruh rincian billing.
 - Status `Kamar` memiliki perlakuan khusus karena dapat menggunakan `lastKamarCoaId` untuk baris lanjutan.
 - Nominal `Retur Obat` dan `Potongan` dikeluarkan dari pencarian akun lawan agar tidak menyebabkan mismatch dengan jurnal SIMRS.
+- Tindakan rawat inap dan laboratorium yang berasal dari episode gabungan tetap dapat dipetakan melalui fallback relasi `ranap_gabung`.
+- Prioritas akun lawan kas/piutang mengikuti `tipe_coa` lokal (`KasBank` atau mengandung `piutang`); kode/prefix COA tidak menjadi dasar klasifikasi.
 - Pada cabang `Jurnal Umum`, service akan menghentikan proses bila total debit dan kredit tidak balance.
 - Pada cabang `Invoice Pendapatan`, sinkronisasi buku besar dilakukan manual melalui `sinkronkanBukuBesarInvoicePendapatan()`, bukan melalui `syncFromJurnalUmum()`.
