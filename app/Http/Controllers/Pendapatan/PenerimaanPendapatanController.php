@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Pendapatan;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\StreamsCsvExport;
 use App\Http\Requests\Pendapatan\StorePenerimaanPendapatanRequest;
 use App\Http\Requests\Pendapatan\UpdatePenerimaanPendapatanRequest;
 use App\Models\PenerimaanPenjualan;
@@ -14,26 +15,33 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\Facades\DataTables;
 
 class PenerimaanPendapatanController extends Controller
 {
+    use StreamsCsvExport;
     public function __construct(
         private readonly PenerimaanPendapatanService $penerimaanPendapatanService,
         private readonly PreferensiPerusahaanService $preferensiPerusahaanService,
     ) {
     }
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        [$startDate, $endDate] = $this->resolveDateRange($request);
+
         return view('pendapatan.penerimaan.index', [
             'page' => 'app',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
         ]);
     }
 
-    public function loadData(): JsonResponse
+    public function loadData(Request $request): JsonResponse
     {
-        $query = $this->penerimaanPendapatanService->getIndexQuery();
+        [$startDate, $endDate] = $this->resolveDateRange($request);
+        $query = $this->penerimaanPendapatanService->getIndexQuery($startDate, $endDate);
 
         return DataTables::eloquent($query)
             ->editColumn('tanggal', fn (PenerimaanPenjualan $item) => optional($item->tanggal)->format('Y-m-d'))
@@ -42,6 +50,17 @@ class PenerimaanPendapatanController extends Controller
             ->addColumn('jumlah_pembayaran_display', fn (PenerimaanPenjualan $item) => number_format((float) $item->jumlah_pembayaran, 0, ',', '.'))
             ->addColumn('nomer_link', fn (PenerimaanPenjualan $item) => route('pendapatan.penerimaan.edit', $item))
             ->toJson();
+    }
+
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $data = $request->validate(['startDate' => ['required', 'date_format:Y-m-d'], 'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate']]);
+        return $this->streamCsvExport($request, $this->penerimaanPendapatanService->getIndexQuery($data['startDate'], $data['endDate']), 'penerimaan-pendapatan', ['Nomor', 'Tanggal', 'Penjamin', 'Akun Bank', 'Jumlah Pembayaran', 'Keterangan'], fn (PenerimaanPenjualan $item) => [(string) $item->nomer, optional($item->tanggal)->format('Y-m-d'), trim(($item->pelanggan?->kode_pelanggan ?? '').' - '.($item->pelanggan?->nama_pelanggan ?? '')), trim(($item->akunBank?->kode ?? '').' - '.($item->akunBank?->nama ?? '')), $this->csvNumber($item->jumlah_pembayaran), (string) $item->keterangan]);
+    }
+
+    private function resolveDateRange(Request $request): array
+    {
+        return [$request->string('startDate')->toString() ?: now()->startOfMonth()->toDateString(), $request->string('endDate')->toString() ?: now()->toDateString()];
     }
 
     public function create(): View

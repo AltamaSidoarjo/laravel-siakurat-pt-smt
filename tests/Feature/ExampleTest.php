@@ -240,7 +240,7 @@ class ExampleTest extends TestCase
             ->assertSee('Laporan Pendapatan Kunjungan')
             ->assertSee('Grand Total Tagihan')
             ->assertSee('grandTotalValue', false)
-            ->assertSee("dom: 'Bfrltip'", false)
+            ->assertSee("dom: 'frltip'", false)
             ->assertSee('pageLength: 10', false);
     }
 
@@ -255,7 +255,7 @@ class ExampleTest extends TestCase
             ->assertSee('Laporan Pendapatan Penjualan Obat')
             ->assertSee('Grand Total Tagihan')
             ->assertSee('grandTotalValue', false)
-            ->assertSee("dom: 'Bfrltip'", false)
+            ->assertSee("dom: 'frltip'", false)
             ->assertSee('pageLength: 10', false);
     }
 

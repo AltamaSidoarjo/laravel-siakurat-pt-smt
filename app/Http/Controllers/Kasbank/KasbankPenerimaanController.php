@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Kasbank;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\StreamsCsvExport;
 use App\Http\Requests\Kasbank\StoreKasbankPenerimaanRequest;
 use App\Http\Requests\Kasbank\UpdateKasbankPenerimaanRequest;
 use App\Models\KasbankPenerimaan;
@@ -14,10 +15,12 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\Facades\DataTables;
 
 class KasbankPenerimaanController extends Controller
 {
+    use StreamsCsvExport;
     public function __construct(
         private readonly KasbankPenerimaanService $kasbankPenerimaanService,
         private readonly PreferensiPerusahaanService $preferensiPerusahaanService,
@@ -49,6 +52,12 @@ class KasbankPenerimaanController extends Controller
             ->addColumn('coa_display', fn (KasbankPenerimaan $kasbankPenerimaan) => $kasbankPenerimaan->coa?->nama ?: '-')
             ->addColumn('nomer_link', fn (KasbankPenerimaan $kasbankPenerimaan) => route('kasbank.penerimaan.edit', $kasbankPenerimaan))
             ->toJson();
+    }
+
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $data = $request->validate(['startDate' => ['required', 'date_format:Y-m-d'], 'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate']]);
+        return $this->streamCsvExport($request, $this->kasbankPenerimaanService->getIndexQuery($data['startDate'], $data['endDate']), 'kasbank-penerimaan', ['Nomor', 'Tanggal', 'Bank', 'Nominal', 'Keterangan'], fn (KasbankPenerimaan $item) => [(string) $item->nomer, optional($item->tanggal)->format('Y-m-d'), (string) ($item->coa?->nama ?? '-'), $this->csvNumber($item->total), (string) $item->keterangan]);
     }
 
     public function create(): View

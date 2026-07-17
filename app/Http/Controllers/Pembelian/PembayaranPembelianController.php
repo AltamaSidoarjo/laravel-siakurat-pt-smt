@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Pembelian;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\StreamsCsvExport;
 use App\Http\Requests\Pembelian\StorePembayaranPembelianRequest;
 use App\Http\Requests\Pembelian\UpdatePembayaranPembelianRequest;
 use App\Models\PembayaranPembelian;
@@ -14,10 +15,12 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\Facades\DataTables;
 
 class PembayaranPembelianController extends Controller
 {
+    use StreamsCsvExport;
     public function __construct(
         private readonly PembayaranPembelianService $pembayaranPembelianService,
         private readonly PreferensiPerusahaanService $preferensiPerusahaanService,
@@ -52,6 +55,12 @@ class PembayaranPembelianController extends Controller
             ->addColumn('nomer_link', fn (PembayaranPembelian $item) => route('pembelian.pembayaran.edit', $item))
             ->addColumn('print_link', fn (PembayaranPembelian $item) => route('pembelian.pembayaran.print', $item))
             ->toJson();
+    }
+
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $data = $request->validate(['startDate' => ['required', 'date_format:Y-m-d'], 'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate']]);
+        return $this->streamCsvExport($request, $this->pembayaranPembelianService->getIndexQuery($data['startDate'], $data['endDate']), 'pembayaran-pembelian', ['Nomor', 'Tanggal', 'Supplier', 'Akun Bank', 'Jumlah Pembayaran', 'Potongan Admin', 'Keterangan'], fn (PembayaranPembelian $item) => [(string) $item->nomer_pembayaran, optional($item->tanggal)->format('Y-m-d'), trim(($item->supplier?->kode_supplier ?? '').' - '.($item->supplier?->nama_supplier ?? '')), trim(($item->akunBank?->kode ?? '').' - '.($item->akunBank?->nama ?? '')), $this->csvNumber($item->total_bayar), $this->csvNumber($item->potongan_admin), (string) $item->keterangan]);
     }
 
     public function create(): View

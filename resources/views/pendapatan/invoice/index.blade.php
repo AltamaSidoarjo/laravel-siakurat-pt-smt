@@ -34,11 +34,12 @@
                                             <label class="form-label">Sampai tanggal</label>
                                             <input type="date" name="endDate" class="form-control" value="{{ $endDate }}">
                                         </div>
-                                        <div class="col-md-4 d-flex align-items-end gap-2">
-                                            <a href="{{ route('pendapatan.invoice.index') }}" class="btn btn-light w-100">Reset</a>
-                                            <button type="submit" class="btn btn-primary w-100">
+                                        <div class="col-md-4 d-flex align-items-end justify-content-end gap-2 flex-wrap">
+                                            <a href="{{ route('pendapatan.invoice.index') }}" class="btn btn-light">Reset</a>
+                                            <button type="submit" class="btn btn-primary">
                                                 <i class="bi bi-funnel me-1"></i>Filter
                                             </button>
+                                            <button type="button" class="btn btn-outline-success text-nowrap" data-bs-toggle="modal" data-bs-target="#exportCsvModal"><i class="bi bi-filetype-csv me-1"></i>Export CSV</button>
                                         </div>
                                     </div>
                                 </form>
@@ -73,6 +74,7 @@
             </div>
         </div>
     </div>
+    @include('partials.export-csv-modal', ['exportRoute' => route('pendapatan.invoice.export-csv'), 'exportTitle' => 'Invoice Pendapatan', 'startDate' => $startDate, 'endDate' => $endDate])
 @endsection
 
 @push('scripts')
@@ -88,8 +90,7 @@
                 autoWidth: false,
                 scrollX: true,
                 scrollCollapse: true,
-                dom: 'Bfrltip',
-                buttons: ['csv', 'excel', 'pdf', 'print'],
+                dom: 'frltip',
                 lengthMenu: [
                     [10, 25, 50, 100, 1000],
                     [10, 25, 50, 100, 1000]

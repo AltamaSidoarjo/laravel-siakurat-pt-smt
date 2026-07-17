@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Bukubesar;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\StreamsCsvExport;
 use App\Http\Requests\Bukubesar\StoreJurnalUmumRequest;
 use App\Http\Requests\Bukubesar\UpdateJurnalUmumRequest;
 use App\Models\JurnalUmum;
@@ -14,10 +15,12 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\Facades\DataTables;
 
 class JurnalUmumController extends Controller
 {
+    use StreamsCsvExport;
     public function __construct(
         private readonly JurnalUmumService $jurnalUmumService,
         private readonly PreferensiPerusahaanService $preferensiPerusahaanService,
@@ -49,6 +52,12 @@ class JurnalUmumController extends Controller
             })
             ->addColumn('nomer_link', fn (JurnalUmum $jurnalUmum) => route('bukubesar.jurnal-umum.edit', $jurnalUmum))
             ->toJson();
+    }
+
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $data = $request->validate(['startDate' => ['required', 'date_format:Y-m-d'], 'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate']]);
+        return $this->streamCsvExport($request, $this->jurnalUmumService->getIndexQuery($data['startDate'], $data['endDate']), 'jurnal-umum', ['Nomor', 'Tanggal', 'Nominal', 'Keterangan'], fn (JurnalUmum $item) => [(string) $item->nomer, optional($item->tanggal)->format('Y-m-d'), $this->csvNumber($item->debit), (string) $item->keterangan]);
     }
 
     private function resolveDateRange(Request $request): array
