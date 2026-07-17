@@ -61,7 +61,7 @@ class BridgingPendapatanServiceTest extends TestCase
         $this->assertSame(3055600.0, $result->first()['debet']);
     }
 
-    public function test_prioritaskan_akun_lawan_kas_atau_piutang_mengabaikan_persediaan_dan_pendapatan(): void
+    public function test_prioritaskan_akun_lawan_berdasarkan_tipe_coa_bukan_awalan_kode(): void
     {
         $service = new BridgingPendapatanService(
             $this->getMockBuilder(BukuBesarService::class)->disableOriginalConstructor()->getMock(),
@@ -76,13 +76,15 @@ class BridgingPendapatanServiceTest extends TestCase
             new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '112003', 'coa_id' => 7]),
             new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '115001', 'coa_id' => 44]),
             new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '450001', 'coa_id' => 1221]),
+            new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '999001', 'coa_id' => 55]),
         ]);
 
         $coaLookup = new Collection([
-            2 => new Coa(['id' => 2, 'kode' => '111.01.01', 'tipe_coa' => 'Kasbank']),
-            7 => new Coa(['id' => 7, 'kode' => '112.02.03', 'tipe_coa' => 'Kasbank']),
+            2 => new Coa(['id' => 2, 'kode' => 'KAS-01', 'tipe_coa' => 'Kasbank']),
+            7 => new Coa(['id' => 7, 'kode' => 'BANK-03', 'tipe_coa' => 'Kasbank']),
             44 => new Coa(['id' => 44, 'kode' => '113.01', 'tipe_coa' => 'Persediaan']),
             1221 => new Coa(['id' => 1221, 'kode' => '405.04', 'tipe_coa' => 'Pendapatan']),
+            55 => new Coa(['id' => 55, 'kode' => '111.99', 'tipe_coa' => 'Aktiva Lancar lainnya']),
         ]);
 
         $result = $method->invoke(
@@ -92,6 +94,7 @@ class BridgingPendapatanServiceTest extends TestCase
                 ['kd_rek' => '112003', 'debet' => 3000000.0],
                 ['kd_rek' => '115001', 'debet' => 264702.0],
                 ['kd_rek' => '450001', 'debet' => 264702.0],
+                ['kd_rek' => '999001', 'debet' => 100000.0],
             ]),
             $mappingLawan,
             $coaLookup,

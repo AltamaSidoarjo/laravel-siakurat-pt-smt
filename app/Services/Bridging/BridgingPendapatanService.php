@@ -836,12 +836,8 @@ class BridgingPendapatanService
                 }
 
                 $tipeCoa = Str::lower((string) $coa->tipe_coa);
-                $kodeCoa = (string) $coa->kode;
-
                 return $tipeCoa === 'kasbank'
-                    || str_contains($tipeCoa, 'piutang')
-                    || str_starts_with($kodeCoa, '111.')
-                    || str_starts_with($kodeCoa, '112.');
+                    || str_contains($tipeCoa, 'piutang');
             })
             ->values();
 
