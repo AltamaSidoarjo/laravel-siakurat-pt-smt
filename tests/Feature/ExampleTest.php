@@ -259,6 +259,25 @@ class ExampleTest extends TestCase
             ->assertSee('pageLength: 10', false);
     }
 
+    public function test_sidebar_displays_logged_in_user_info(): void
+    {
+        $user = User::factory()->make([
+            'name' => 'JohnDoe',
+            'nama_lengkap' => 'John Doe Siregar',
+            'jabatan' => 'Kepala Keuangan',
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->get('/home');
+
+        $response
+            ->assertOk()
+            ->assertSee('sidebar-user-panel')
+            ->assertSee('John Doe Siregar')
+            ->assertSee('Kepala Keuangan');
+    }
+
     private function makeUser(): User
     {
         return User::factory()->make([

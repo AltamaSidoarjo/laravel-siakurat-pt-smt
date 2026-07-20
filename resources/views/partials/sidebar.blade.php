@@ -45,6 +45,28 @@
     </div>
 </div>
 
+@if ($user)
+<div class="sidebar-user-panel">
+    @if ($user->profile_picture)
+        <img src="{{ asset('storage/' . $user->profile_picture) }}" alt="{{ $user->nama_lengkap ?? $user->name }}" class="user-avatar">
+    @else
+        <div class="user-avatar-default">
+            <i class="bi bi-person-fill"></i>
+        </div>
+    @endif
+    <div class="info">
+        <a href="#" class="name" title="{{ $user->nama_lengkap ?? $user->name }}">
+            {{ $user->nama_lengkap ?? $user->name }}
+        </a>
+        @if ($user->jabatan || $user->role)
+            <span class="role" title="{{ $user->jabatan ?? $user->role?->nama }}">
+                {{ $user->jabatan ?? $user->role?->nama }}
+            </span>
+        @endif
+    </div>
+</div>
+@endif
+
 <nav class="sidebar-menu flex-grow-1">
     <ul class="sidebar-nav list-unstyled">
 
