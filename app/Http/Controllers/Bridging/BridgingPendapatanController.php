@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Bridging;
 
+use App\Http\Controllers\Concerns\StreamsCsvExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Bridging\BulkDeletePendapatanRequest;
 use App\Http\Requests\Bridging\ImportPendapatanRequest;
@@ -12,10 +13,13 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\Facades\DataTables;
 
 class BridgingPendapatanController extends Controller
 {
+    use StreamsCsvExport;
+
     public function __construct(
         private readonly BridgingPendapatanService $bridgingPendapatanService,
     ) {}
@@ -137,6 +141,39 @@ class BridgingPendapatanController extends Controller
                 ->values()
                 ->all(),
         ]);
+    }
+
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $data = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+        ]);
+
+        $query = $this->bridgingPendapatanService->getQueryDataImport(
+            $data['startDate'],
+            $data['endDate'],
+            $request->string('poli')->toString(),
+            $request->string('penjamin')->toString(),
+        );
+
+        return $this->streamCsvExport(
+            $request,
+            $query,
+            'bridging-pendapatan',
+            ['No. Billing', 'Tanggal Registrasi', 'Pasien', 'Dokter', 'Poli', 'Status Layanan', 'Penjamin', 'Total Tagihan', 'Import Ke'],
+            fn (SimrsImportPendapatan $item) => [
+                (string) $item->nomer_billing,
+                optional($item->tanggal_reg)->format('Y-m-d'),
+                (string) $item->nama_pasien,
+                (string) $item->dokter,
+                (string) $item->poli,
+                (string) $item->status_layanan,
+                (string) $item->penjamin,
+                $this->csvNumber($item->total_tagihan),
+                (string) $item->import_ke,
+            ],
+        );
     }
 
     private function resolveDateRange(Request $request): array

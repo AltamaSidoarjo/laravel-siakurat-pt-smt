@@ -65,6 +65,7 @@
                                             <button type="submit" class="btn btn-primary">
                                                 <i class="bi bi-funnel me-1"></i> Filter
                                             </button>
+                                            <button type="button" class="btn btn-outline-success text-nowrap" data-bs-toggle="modal" data-bs-target="#exportCsvModal"><i class="bi bi-filetype-csv me-1"></i>Export CSV</button>
                                         </div>
                                     </div>
                                 </form>
@@ -152,6 +153,7 @@
             </div>
         </div>
     </div>
+    @include('partials.export-csv-modal', ['exportRoute' => route('bridging.pendapatan.export-csv'), 'exportTitle' => 'Bridging Pendapatan', 'startDate' => $startDate, 'endDate' => $endDate])
 @endsection
 
 @push('scripts')
@@ -171,8 +173,7 @@
                 autoWidth: false,
                 scrollX: true,
                 scrollCollapse: true,
-                dom: 'Bfrltip',
-                buttons: ['csv', 'excel', 'pdf', 'print'],
+                dom: 'frltip',
                 order: [[2, 'desc']],
                 lengthMenu: [[10, 25, 50, 100, 1000], [10, 25, 50, 100, 1000]],
                 ajax: {

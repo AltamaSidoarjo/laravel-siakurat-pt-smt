@@ -15,9 +15,9 @@ use App\Http\Controllers\Pembelian\InvoicePembelianController;
 use App\Http\Controllers\Pembelian\PembayaranPembelianController;
 use App\Http\Controllers\Pendapatan\InvoicePendapatanController;
 use App\Http\Controllers\Pendapatan\PenerimaanPendapatanController;
+use App\Http\Controllers\Pengaturan\KonversiFileController;
 use App\Http\Controllers\Pengaturan\MappingGeneralController;
 use App\Http\Controllers\Pengaturan\MappingPendapatanController;
-use App\Http\Controllers\Pengaturan\KonversiFileController;
 use App\Http\Controllers\Pengaturan\PenggunaController;
 use App\Http\Controllers\Pengaturan\PreferensiController;
 use App\Http\Controllers\Pengaturan\RoleAksesController;
@@ -124,6 +124,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module.access:bridging.pendapatan,view')->group(function () {
             Route::get('/pendapatan', [BridgingPendapatanController::class, 'index'])->name('pendapatan.index');
             Route::get('/pendapatan/load-imported-data', [BridgingPendapatanController::class, 'loadImportedData'])->name('pendapatan.load-imported-data');
+            Route::get('/pendapatan/export-csv', [BridgingPendapatanController::class, 'exportCsv'])->name('pendapatan.export-csv');
             Route::get('/pendapatan/tarik-simrs', [BridgingPendapatanController::class, 'tarikBillingSimrs'])->name('pendapatan.tarik-billing-simrs');
             Route::get('/pendapatan/load-billing-simrs', [BridgingPendapatanController::class, 'loadBillingSimrs'])->name('pendapatan.load-billing-simrs');
             Route::get('/pendapatan/data-tidak-balance', [BridgingPendapatanController::class, 'dataTidakBalance'])->name('pendapatan.data-tidak-balance');
