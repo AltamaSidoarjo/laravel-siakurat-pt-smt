@@ -82,14 +82,14 @@ body.auth-page {
 
 #app-sidebar {
     width: 260px;
-    min-height: 100vh;
+    height: 100vh;
     background-color: #116d0a;
     position: fixed;
     top: 0;
     left: 0;
     z-index: 1040;
     transition: transform 0.3s ease;
-    overflow-y: auto;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 }
@@ -234,6 +234,8 @@ body.sidebar-open #sidebar-backdrop {
 /* ─── Sidebar nav ────────────────────────────────────────────── */
 
 .sidebar-menu {
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 0.5rem 0;
     overflow-y: auto;
 }
