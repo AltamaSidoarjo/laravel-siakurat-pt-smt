@@ -256,6 +256,11 @@ class LaporanKeuanganController extends Controller
 
     public function arusKas(Request $request): View
     {
+        $request->validate([
+            'startDate' => ['nullable', 'date'],
+            'endDate' => ['nullable', 'date', 'after_or_equal:startDate'],
+        ]);
+
         [$startDate, $endDate] = $this->resolveDateRange($request);
         $data = $this->laporanKeuanganService->getArusKas($startDate, $endDate);
 
@@ -265,11 +270,10 @@ class LaporanKeuanganController extends Controller
                 'page' => 'app',
                 'startDate' => $startDate,
                 'endDate' => $endDate,
-                'detailRows' => $data['detail'],
-                'summaryRows' => $data['summary'],
-                'kasAwal' => $data['kas_awal'],
-                'kenaikanPenurunan' => $data['kenaikan_penurunan'],
-                'kasAkhir' => $data['kas_akhir'],
+                'periode' => $data['periode'],
+                'arusKasBerjalan' => $data['berjalan'],
+                'arusKasPembanding' => $data['pembanding'],
+                'detailRows' => $data['berjalan']['detail'],
             ],
         ));
     }

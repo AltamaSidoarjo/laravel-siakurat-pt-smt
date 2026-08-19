@@ -49,56 +49,108 @@
                         <div class="laporan-header__identity">
                             <div class="fw-bold laporan-header__title-rs">{{ $namaRumahSakit }}</div>
                             <div class="fw-bold laporan-header__title-report">Laporan Arus Kas</div>
-                            <div class="text-muted">Periode {{ $startDate }} s/d {{ $endDate }}</div>
+                            <div class="text-muted">Untuk periode yang berakhir {{ \Carbon\Carbon::parse($endDate)->format('d-m-Y') }}</div>
+                            <div class="text-muted small">(dalam Rupiah)</div>
                         </div>
                     </div>
 
+                    @php
+                        $formatArusKas = static function (float $value): string {
+                            $formatted = number_format(abs($value), 0, ',', '.');
+                            return $value < 0 ? '('.$formatted.')' : $formatted;
+                        };
+                        $activityLabels = [
+                            'operasi' => 'ARUS KAS DARI AKTIVITAS OPERASI',
+                            'investasi' => 'ARUS KAS DARI AKTIVITAS INVESTASI',
+                            'pendanaan' => 'ARUS KAS DARI AKTIVITAS PENDANAAN',
+                        ];
+                    @endphp
+
+                    @if ($arusKasBerjalan['akun_belum_dipetakan']->isNotEmpty() || abs($arusKasBerjalan['belum_dipetakan']) >= 0.005)
+                        <div class="alert alert-warning">
+                            <div class="fw-bold">Mapping arus kas belum lengkap.</div>
+                            <div>Perbarui mapping COA berikut agar laporan dapat diklasifikasikan seluruhnya:</div>
+                            @if ($arusKasBerjalan['akun_belum_dipetakan']->isNotEmpty())
+                                <ul class="mb-0 mt-2">
+                                    @foreach ($arusKasBerjalan['akun_belum_dipetakan'] as $account)
+                                        <li>{{ $account['kode'] }} - {{ $account['nama'] }} ({{ $account['tipe_coa'] }})</li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                        </div>
+                    @endif
+
                     <div class="table-responsive mb-4">
-                        <table class="table table-sm table-bordered table-hover">
+                        <table class="table table-sm table-bordered align-middle laporan-arus-kas">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Kategori</th>
-                                    <th class="text-end">Kas Masuk</th>
-                                    <th class="text-end">Kas Keluar</th>
-                                    <th class="text-end">Kas Bersih</th>
+                                    <th>Uraian</th>
+                                    <th class="text-end">{{ \Carbon\Carbon::parse($periode['berjalan']['end'])->format('d-m-Y') }}</th>
+                                    <th class="text-end">{{ \Carbon\Carbon::parse($periode['pembanding']['end'])->format('d-m-Y') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach ($summaryRows as $row)
-                                    <tr>
-                                        <td>{{ $row['kategori'] }}</td>
-                                        <td class="text-end">{{ number_format((float) $row['total_kas_masuk'], 0, ',', '.') }}</td>
-                                        <td class="text-end">{{ number_format((float) $row['total_kas_keluar'], 0, ',', '.') }}</td>
-                                        <td class="text-end fw-bold">{{ number_format((float) $row['total_kas_bersih'], 0, ',', '.') }}</td>
+                                @foreach ($activityLabels as $activity => $label)
+                                    <tr class="table-light fw-bold"><td colspan="3">{{ $label }}</td></tr>
+                                    @php
+                                        $currentGroups = $arusKasBerjalan['bagian'][$activity]['kelompok']->keyBy('kelompok');
+                                        $comparisonGroups = $arusKasPembanding['bagian'][$activity]['kelompok']->keyBy('kelompok');
+                                        $groupNames = $currentGroups->keys()->merge($comparisonGroups->keys())->unique()->sort();
+                                    @endphp
+                                    @forelse ($groupNames as $groupName)
+                                        <tr>
+                                            <td class="ps-4">{{ $groupName }}</td>
+                                            <td class="text-end">{{ $formatArusKas((float) ($currentGroups->get($groupName)['nilai'] ?? 0)) }}</td>
+                                            <td class="text-end">{{ $formatArusKas((float) ($comparisonGroups->get($groupName)['nilai'] ?? 0)) }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr><td class="ps-4 text-muted">Tidak ada arus kas</td><td class="text-end">0</td><td class="text-end">0</td></tr>
+                                    @endforelse
+                                    <tr class="fw-bold">
+                                        <td>Kas neto dari aktivitas {{ $activity }}</td>
+                                        <td class="text-end">{{ $formatArusKas((float) $arusKasBerjalan['bagian'][$activity]['subtotal']) }}</td>
+                                        <td class="text-end">{{ $formatArusKas((float) $arusKasPembanding['bagian'][$activity]['subtotal']) }}</td>
                                     </tr>
                                 @endforeach
-                                <tr class="table-light fw-bold">
-                                    <td>Kas Awal</td>
-                                    <td colspan="3" class="text-end">{{ number_format((float) $kasAwal, 0, ',', '.') }}</td>
-                                </tr>
-                                <tr class="table-light fw-bold">
-                                    <td>Kenaikan / Penurunan Kas</td>
-                                    <td colspan="3" class="text-end">{{ number_format((float) $kenaikanPenurunan, 0, ',', '.') }}</td>
-                                </tr>
-                                <tr class="table-success fw-bold">
-                                    <td>Kas Akhir</td>
-                                    <td colspan="3" class="text-end">{{ number_format((float) $kasAkhir, 0, ',', '.') }}</td>
-                                </tr>
+
+                                @if (abs($arusKasBerjalan['belum_dipetakan']) >= 0.005 || abs($arusKasPembanding['belum_dipetakan']) >= 0.005)
+                                    <tr class="table-warning fw-bold">
+                                        <td>Arus kas belum dipetakan</td>
+                                        <td class="text-end">{{ $formatArusKas((float) $arusKasBerjalan['belum_dipetakan']) }}</td>
+                                        <td class="text-end">{{ $formatArusKas((float) $arusKasPembanding['belum_dipetakan']) }}</td>
+                                    </tr>
+                                @endif
+
+                                @foreach ([
+                                    'kenaikan_penurunan' => 'Kenaikan (penurunan) neto kas dan setara kas',
+                                    'kas_awal' => 'Kas dan setara kas awal periode',
+                                    'pengaruh_kurs' => 'Pengaruh perubahan kurs',
+                                    'kas_akhir' => 'Kas dan setara kas akhir periode',
+                                ] as $key => $label)
+                                    <tr class="{{ $key === 'kas_akhir' ? 'table-success' : 'table-light' }} fw-bold">
+                                        <td>{{ $label }}</td>
+                                        <td class="text-end">{{ $formatArusKas((float) $arusKasBerjalan[$key]) }}</td>
+                                        <td class="text-end">{{ $formatArusKas((float) $arusKasPembanding[$key]) }}</td>
+                                    </tr>
+                                @endforeach
                             </tbody>
                         </table>
                     </div>
 
+                    <h5 class="fw-bold">Lampiran Rincian Transaksi</h5>
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered table-hover">
                             <thead class="table-light">
                                 <tr>
                                     <th>Tanggal</th>
                                     <th>Nomor</th>
-                                    <th>Sumber</th>
-                                    <th>Kategori</th>
+                                    <th>Akun Kas</th>
+                                    <th>Akun Lawan</th>
+                                    <th>Aktivitas</th>
+                                    <th>Kelompok</th>
                                     <th>Keterangan</th>
-                                    <th class="text-end">Kas Masuk</th>
-                                    <th class="text-end">Kas Keluar</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Nilai</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -106,15 +158,17 @@
                                     <tr>
                                         <td>{{ $row['tanggal'] }}</td>
                                         <td>{{ $row['nomer'] }}</td>
-                                        <td>{{ $row['sumber_transaksi'] }}</td>
-                                        <td>{{ $row['kategori_arus_kas'] }}</td>
+                                        <td>{{ $row['akun_kas'] }}</td>
+                                        <td>{{ $row['kode_akun_lawan'] }} {{ $row['akun_lawan'] }}</td>
+                                        <td class="text-uppercase">{{ str_replace('_', ' ', $row['aktivitas']) }}</td>
+                                        <td>{{ $row['kelompok'] }}</td>
                                         <td>{{ $row['keterangan'] }}</td>
-                                        <td class="text-end">{{ $row['kas_masuk'] > 0 ? number_format((float) $row['kas_masuk'], 0, ',', '.') : '' }}</td>
-                                        <td class="text-end">{{ $row['kas_keluar'] > 0 ? number_format((float) $row['kas_keluar'], 0, ',', '.') : '' }}</td>
+                                        <td>{{ $row['status_mapping'] }}</td>
+                                        <td class="text-end">{{ $formatArusKas((float) $row['nilai']) }}</td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="text-center text-muted py-4">Tidak ada data arus kas.</td>
+                                        <td colspan="10" class="text-center text-muted py-4">Tidak ada data arus kas.</td>
                                     </tr>
                                 @endforelse
                             </tbody>

@@ -26,6 +26,8 @@ class LaporanKeuanganBukubesarTest extends TestCase
             $table->integer('status_aktif')->nullable();
             $table->unsignedInteger('parent_coa')->nullable();
             $table->string('tipe_coa')->nullable();
+            $table->string('arus_kas_aktivitas')->nullable();
+            $table->string('arus_kas_kelompok')->nullable();
             $table->string('kode');
             $table->string('nama');
             $table->string('deskripsi')->nullable();
@@ -64,6 +66,111 @@ class LaporanKeuanganBukubesarTest extends TestCase
             $table->boolean('is_rinci')->default(false);
             $table->timestamps();
         });
+    }
+
+    public function test_arus_kas_psak_uses_counterpart_mapping_and_reconciles_cash(): void
+    {
+        $cash = $this->createCashFlowCoa('100.01', 'Kas', 'Kasbank');
+        $cashTransfer = $this->createCashFlowCoa('100.02', 'Bank', 'Kasbank');
+        $revenue = $this->createCashFlowCoa('400.01', 'Pendapatan Pasien', 'Pendapatan', 'operasi', 'Penerimaan pasien');
+        $asset = $this->createCashFlowCoa('120.01', 'Peralatan', 'Aktiva tetap', 'investasi', 'Pembelian aset tetap');
+        $equity = $this->createCashFlowCoa('300.01', 'Modal', 'Ekuitas', 'pendanaan', 'Setoran modal');
+        $payable = $this->createCashFlowCoa('200.01', 'Utang Usaha', 'Hutang', 'operasi', 'Pembayaran pemasok');
+        $unmapped = $this->createCashFlowCoa('290.01', 'Utang Lain', 'Hutang');
+
+        $this->postCashFlowPair($cash->id, $equity->id, '2026-06-30', 1, 1_000, 'D');
+        $this->postCashFlowPair($cash->id, $revenue->id, '2026-07-01', 2, 100, 'D');
+        $this->postCashFlowPair($cash->id, $asset->id, '2026-07-02', 3, 40, 'K');
+        $this->postCashFlowPair($cash->id, $equity->id, '2026-07-03', 4, 200, 'D');
+        $this->postCashFlowPair($cash->id, $payable->id, '2026-07-04', 5, 30, 'K');
+        $this->postCashFlowPair($cash->id, $unmapped->id, '2026-07-05', 6, 10, 'D');
+        $this->postCashFlowPair($cash->id, $cashTransfer->id, '2026-07-06', 7, 50, 'K');
+
+        $result = app(LaporanKeuanganService::class)->getArusKas('2026-07-01', '2026-07-16');
+        $current = $result['berjalan'];
+
+        $this->assertSame(70.0, $current['bagian']['operasi']['subtotal']);
+        $this->assertSame(-40.0, $current['bagian']['investasi']['subtotal']);
+        $this->assertSame(200.0, $current['bagian']['pendanaan']['subtotal']);
+        $this->assertSame(10.0, $current['belum_dipetakan']);
+        $this->assertSame(240.0, $current['kenaikan_penurunan']);
+        $this->assertSame(1_000.0, $current['kas_awal']);
+        $this->assertSame(1_240.0, $current['kas_akhir']);
+        $this->assertCount(5, $current['detail']);
+        $this->assertSame('2026-06-15', $result['periode']['pembanding']['start']);
+        $this->assertSame('2026-06-30', $result['periode']['pembanding']['end']);
+    }
+
+    public function test_arus_kas_psak_splits_mixed_journal_by_counterpart(): void
+    {
+        $cash = $this->createCashFlowCoa('100.01', 'Kas', 'Kasbank');
+        $revenue = $this->createCashFlowCoa('400.01', 'Pendapatan', 'Pendapatan', 'operasi', 'Penerimaan pelanggan');
+        $equity = $this->createCashFlowCoa('300.01', 'Modal', 'Ekuitas', 'pendanaan', 'Setoran modal');
+
+        foreach ([
+            [$cash->id, 'D', 100],
+            [$revenue->id, 'K', 70],
+            [$equity->id, 'K', 30],
+        ] as [$coaId, $mutation, $amount]) {
+            BukuBesar::query()->create([
+                'coa_id' => $coaId,
+                'sumber_id' => 10,
+                'tanggal' => '2026-07-10',
+                'nomer' => 'JU-10',
+                'sumber_transaksi' => 'Jurnal Umum',
+                'nominal' => $amount,
+                'tipe_mutasi' => $mutation,
+            ]);
+        }
+
+        $current = app(LaporanKeuanganService::class)->getArusKas('2026-07-01', '2026-07-16')['berjalan'];
+
+        $this->assertSame(70.0, $current['bagian']['operasi']['subtotal']);
+        $this->assertSame(30.0, $current['bagian']['pendanaan']['subtotal']);
+        $this->assertSame(100.0, $current['kenaikan_penurunan']);
+        $this->assertCount(2, $current['detail']);
+    }
+
+    private function createCashFlowCoa(
+        string $code,
+        string $name,
+        string $type,
+        ?string $activity = null,
+        ?string $group = null,
+    ): Coa {
+        return Coa::query()->create([
+            'status_aktif' => 1,
+            'tipe_coa' => $type,
+            'arus_kas_aktivitas' => $activity,
+            'arus_kas_kelompok' => $group,
+            'kode' => $code,
+            'nama' => $name,
+            'is_postable' => true,
+        ]);
+    }
+
+    private function postCashFlowPair(
+        int $cashCoaId,
+        int $counterpartCoaId,
+        string $date,
+        int $sourceId,
+        float $amount,
+        string $cashMutation,
+    ): void {
+        foreach ([
+            [$cashCoaId, $cashMutation],
+            [$counterpartCoaId, $cashMutation === 'D' ? 'K' : 'D'],
+        ] as [$coaId, $mutation]) {
+            BukuBesar::query()->create([
+                'coa_id' => $coaId,
+                'sumber_id' => $sourceId,
+                'tanggal' => $date,
+                'nomer' => 'TRX-'.$sourceId,
+                'sumber_transaksi' => 'Jurnal Umum',
+                'nominal' => $amount,
+                'tipe_mutasi' => $mutation,
+            ]);
+        }
     }
 
     public function test_bukubesar_keeps_leaf_coa_options_and_shows_zero_opening_balance_row(): void

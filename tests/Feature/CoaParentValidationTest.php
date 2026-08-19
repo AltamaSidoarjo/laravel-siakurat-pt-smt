@@ -25,6 +25,8 @@ class CoaParentValidationTest extends TestCase
             $table->integer('status_aktif')->nullable();
             $table->unsignedInteger('parent_coa')->nullable();
             $table->string('tipe_coa')->nullable();
+            $table->string('arus_kas_aktivitas')->nullable();
+            $table->string('arus_kas_kelompok')->nullable();
             $table->string('kode');
             $table->string('nama');
             $table->string('deskripsi')->nullable();
@@ -309,6 +311,36 @@ class CoaParentValidationTest extends TestCase
         $response->assertRedirect(route('bukubesar.coa.index'));
 
         $this->assertSame($allowedParent->id, $editableCoa->fresh()->parent_coa);
+    }
+
+    public function test_store_persists_cash_flow_mapping_and_validates_group_pair(): void
+    {
+        $user = $this->makeUser();
+
+        $invalid = $this->actingAs($user)->post(route('bukubesar.coa.store'), [
+            'status_aktif' => 1,
+            'tipe_coa' => 'Pendapatan',
+            'kode' => '410.01',
+            'nama' => 'Pendapatan Pasien',
+            'arus_kas_aktivitas' => 'operasi',
+        ]);
+        $invalid->assertSessionHasErrors('arus_kas_kelompok');
+
+        $valid = $this->actingAs($user)->post(route('bukubesar.coa.store'), [
+            'status_aktif' => 1,
+            'tipe_coa' => 'Pendapatan',
+            'kode' => '410.01',
+            'nama' => 'Pendapatan Pasien',
+            'arus_kas_aktivitas' => 'operasi',
+            'arus_kas_kelompok' => 'Penerimaan pasien',
+        ]);
+
+        $valid->assertRedirect(route('bukubesar.coa.index'));
+        $this->assertDatabaseHas('coa', [
+            'kode' => '410.01',
+            'arus_kas_aktivitas' => 'operasi',
+            'arus_kas_kelompok' => 'Penerimaan pasien',
+        ]);
     }
 
     private function createCoaLeafWithTransaction(string $kode, string $nama): Coa

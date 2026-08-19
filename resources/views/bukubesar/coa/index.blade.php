@@ -15,6 +15,8 @@
                 'kode' => (string) $coa->kode,
                 'nama' => (string) $coa->nama,
                 'tipe_coa' => (string) $coa->tipe_coa,
+                'arus_kas_aktivitas' => (string) ($coa->arus_kas_aktivitas ?? ''),
+                'arus_kas_kelompok' => (string) ($coa->arus_kas_kelompok ?? ''),
                 'has_children' => (int) ($coa->has_children ?? $coa->is_parent ?? 0) === 1,
                 'kode_display' => $indent.$coa->kode,
                 'nama_display' => $indent.$coa->nama,
@@ -72,6 +74,7 @@
                                                 <th class="text-start" style="width: 20%;">Nomer</th>
                                                 <th>Nama</th>
                                                 <th style="width: 15%;">Tipe</th>
+                                                <th>Mapping Arus Kas</th>
                                                 <th style="width: 70px" class="text-center">#</th>
                                             </tr>
                                         </thead>
@@ -120,6 +123,16 @@
                                                         </span>
                                                     </td>
                                                     <td>{{ $coa->tipe_coa }}</td>
+                                                    <td>
+                                                        @if ($coa->tipe_coa === 'Kasbank')
+                                                            <span class="text-muted">Kas dan setara kas</span>
+                                                        @elseif ($coa->arus_kas_aktivitas)
+                                                            <span class="badge text-bg-success text-uppercase">{{ $coa->arus_kas_aktivitas }}</span>
+                                                            <span class="d-block small">{{ $coa->arus_kas_kelompok }}</span>
+                                                        @else
+                                                            <span class="badge text-bg-warning">Belum dipetakan</span>
+                                                        @endif
+                                                    </td>
                                                     <td class="text-center">
                                                         <a href="{{ route('bukubesar.coa.edit', $coa->id) }}" class="btn btn-sm btn-outline-primary">
                                                             <i class="bi bi-pencil"></i>
@@ -250,9 +263,9 @@
 
             function buildExportData() {
                 return [
-                    ['Nomer', 'Nama', 'Tipe'],
+                    ['Nomer', 'Nama', 'Tipe', 'Aktivitas Arus Kas', 'Kelompok Arus Kas'],
                     ...exportRows.map(function (row) {
-                        return [row.kode_display, row.nama_display, row.tipe_coa];
+                        return [row.kode_display, row.nama_display, row.tipe_coa, row.arus_kas_aktivitas, row.arus_kas_kelompok];
                     }),
                 ];
             }

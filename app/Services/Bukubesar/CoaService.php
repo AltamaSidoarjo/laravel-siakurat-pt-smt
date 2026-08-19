@@ -23,6 +23,8 @@ class CoaService
                     c.id,
                     c.parent_coa,
                     c.tipe_coa,
+                    c.arus_kas_aktivitas,
+                    c.arus_kas_kelompok,
                     c.kode,
                     c.nama,
                     0 AS level,
@@ -39,6 +41,8 @@ class CoaService
                     ch.id,
                     ch.parent_coa,
                     ch.tipe_coa,
+                    ch.arus_kas_aktivitas,
+                    ch.arus_kas_kelompok,
                     ch.kode,
                     ch.nama,
                     ct.level + 1 AS level,
@@ -53,6 +57,8 @@ class CoaService
                 t.kode AS kode,
                 t.nama AS nama,
                 t.tipe_coa AS tipe_coa,
+                t.arus_kas_aktivitas AS arus_kas_aktivitas,
+                t.arus_kas_kelompok AS arus_kas_kelompok,
                 EXISTS (
                     SELECT 1
                     FROM coa c2
@@ -152,11 +158,13 @@ class CoaService
     {
         $coa = Coa::query()->create([
             'status_aktif' => (int) $data['status_aktif'],
-            'parent_coa' => $data['parent_id'] ?: null,
+            'parent_coa' => ($data['parent_id'] ?? null) ?: null,
             'tipe_coa' => $data['tipe_coa'],
+            'arus_kas_aktivitas' => $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_aktivitas'] ?? null),
+            'arus_kas_kelompok' => $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_kelompok'] ?? null),
             'kode' => $data['kode'],
             'nama' => $data['nama'],
-            'deskripsi' => $data['deskripsi'] ?: null,
+            'deskripsi' => ($data['deskripsi'] ?? null) ?: null,
             'is_postable' => false,
         ]);
 
@@ -171,11 +179,13 @@ class CoaService
 
         $coa->fill([
             'status_aktif' => (int) $data['status_aktif'],
-            'parent_coa' => $data['parent_id'] ?: null,
+            'parent_coa' => ($data['parent_id'] ?? null) ?: null,
             'tipe_coa' => $data['tipe_coa'],
+            'arus_kas_aktivitas' => $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_aktivitas'] ?? null),
+            'arus_kas_kelompok' => $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_kelompok'] ?? null),
             'kode' => $data['kode'],
             'nama' => $data['nama'],
-            'deskripsi' => $data['deskripsi'] ?: null,
+            'deskripsi' => ($data['deskripsi'] ?? null) ?: null,
         ]);
 
         $changes = $coa->getDirty();
@@ -202,6 +212,6 @@ class CoaService
 
     private function loggableFields(): array
     {
-        return ['kode', 'nama', 'tipe_coa', 'parent_coa', 'status_aktif', 'deskripsi'];
+        return ['kode', 'nama', 'tipe_coa', 'arus_kas_aktivitas', 'arus_kas_kelompok', 'parent_coa', 'status_aktif', 'deskripsi'];
     }
 }
