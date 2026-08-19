@@ -104,4 +104,82 @@ class BridgingPendapatanServiceTest extends TestCase
         $this->assertCount(2, $result);
         $this->assertSame(['111001', '112003'], $result->pluck('kd_rek')->all());
     }
+
+    public function test_informasi_invoice_menghitung_pembayaran_dari_tipe_kasbank_bukan_kode_coa(): void
+    {
+        $service = $this->createService();
+        $method = new ReflectionMethod(BridgingPendapatanService::class, 'resolveInformasiAkunLawanInvoice');
+        $method->setAccessible(true);
+
+        $result = $method->invoke($service, new Collection([
+            [
+                'debit' => 750_000.0,
+                'coa' => new Coa(['id' => 10, 'kode' => 'BANK-UTAMA', 'tipe_coa' => 'kAsBaNk']),
+            ],
+            [
+                'debit' => 250_000.0,
+                'coa' => new Coa(['id' => 11, 'kode' => '111.99', 'tipe_coa' => 'Aktiva Lancar lainnya']),
+            ],
+        ]));
+
+        $this->assertSame(750_000.0, $result['sudah_terbayar']);
+        $this->assertNull($result['akun_piutang_id']);
+    }
+
+    public function test_informasi_invoice_menentukan_akun_piutang_dari_tipe_coa_bukan_kode_coa(): void
+    {
+        $service = $this->createService();
+        $method = new ReflectionMethod(BridgingPendapatanService::class, 'resolveInformasiAkunLawanInvoice');
+        $method->setAccessible(true);
+
+        $piutangTanpaPrefix = $method->invoke($service, new Collection([
+            [
+                'debit' => 1_000_000.0,
+                'coa' => (new Coa)->forceFill([
+                    'id' => 20,
+                    'kode' => 'AR-BPJS',
+                    'tipe_coa' => 'PiUtAnG Usaha',
+                ]),
+            ],
+        ]));
+        $bukanPiutangDenganPrefix = $method->invoke($service, new Collection([
+            [
+                'debit' => 1_000_000.0,
+                'coa' => new Coa(['id' => 21, 'kode' => '112.01', 'tipe_coa' => 'Aktiva Lancar lainnya']),
+            ],
+        ]));
+
+        $this->assertSame(20, $piutangTanpaPrefix['akun_piutang_id']);
+        $this->assertSame(0.0, $piutangTanpaPrefix['sudah_terbayar']);
+        $this->assertNull($bukanPiutangDenganPrefix['akun_piutang_id']);
+    }
+
+    public function test_informasi_invoice_akun_campuran_hanya_menghitung_kasbank_sebagai_pembayaran(): void
+    {
+        $service = $this->createService();
+        $method = new ReflectionMethod(BridgingPendapatanService::class, 'resolveInformasiAkunLawanInvoice');
+        $method->setAccessible(true);
+
+        $result = $method->invoke($service, new Collection([
+            [
+                'debit' => 400_000.0,
+                'coa' => new Coa(['id' => 30, 'kode' => 'CASH-01', 'tipe_coa' => 'Kasbank']),
+            ],
+            [
+                'debit' => 600_000.0,
+                'coa' => new Coa(['id' => 31, 'kode' => 'RECEIVABLE-01', 'tipe_coa' => 'Akun Piutang']),
+            ],
+        ]));
+
+        $this->assertSame(400_000.0, $result['sudah_terbayar']);
+        $this->assertNull($result['akun_piutang_id']);
+    }
+
+    private function createService(): BridgingPendapatanService
+    {
+        return new BridgingPendapatanService(
+            $this->getMockBuilder(BukuBesarService::class)->disableOriginalConstructor()->getMock(),
+            $this->getMockBuilder(LogAktifitasService::class)->disableOriginalConstructor()->getMock(),
+        );
+    }
 }

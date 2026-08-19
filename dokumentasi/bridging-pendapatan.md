@@ -230,8 +230,8 @@ flowchart TD
 30. Jika `jenisProses = InvoicePendapatan`, service memanggil `simpanInvoicePendapatan()`.
 31. Di dalam `simpanInvoicePendapatan()`, service:
     - memastikan pelanggan tersedia lewat `cariAtauBuatPelanggan()`,
-    - menghitung `sudah_terbayar`,
-    - menentukan `akun_piutang_id` bila lawan murni piutang,
+    - menghitung `sudah_terbayar` dari akun lawan bertipe COA `Kasbank`,
+    - menentukan `akun_piutang_id` bila akun lawan tunggal memiliki tipe COA yang mengandung `piutang`,
     - membuat `FakturPenjualan`,
     - membuat `FakturPenjualanRinci`,
     - memanggil `sinkronkanBukuBesarInvoicePendapatan()`.
@@ -456,6 +456,6 @@ Walaupun bukan proses inti import, halaman utama Bridging Pendapatan juga memili
 - Status `Kamar` memiliki perlakuan khusus karena dapat menggunakan `lastKamarCoaId` untuk baris lanjutan.
 - Nominal `Retur Obat` dan `Potongan` dikeluarkan dari pencarian akun lawan agar tidak menyebabkan mismatch dengan jurnal SIMRS.
 - Tindakan rawat inap dan laboratorium yang berasal dari episode gabungan tetap dapat dipetakan melalui fallback relasi `ranap_gabung`.
-- Prioritas akun lawan kas/piutang mengikuti `tipe_coa` lokal (`KasBank` atau mengandung `piutang`); kode/prefix COA tidak menjadi dasar klasifikasi.
+- Prioritas akun lawan serta informasi pembayaran Invoice Pendapatan mengikuti `tipe_coa` lokal (`Kasbank` atau mengandung `piutang`); kode/prefix COA tidak menjadi dasar klasifikasi.
 - Pada cabang `Jurnal Umum`, service akan menghentikan proses bila total debit dan kredit tidak balance.
 - Pada cabang `Invoice Pendapatan`, sinkronisasi buku besar dilakukan manual melalui `sinkronkanBukuBesarInvoicePendapatan()`, bukan melalui `syncFromJurnalUmum()`.

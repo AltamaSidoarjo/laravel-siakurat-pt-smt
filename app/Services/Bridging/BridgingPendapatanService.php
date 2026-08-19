@@ -498,29 +498,18 @@ class BridgingPendapatanService
             });
 
         // Untuk invoice bridging, akun lawan dari SIMRS bisa bercampur antara kas/bank dan piutang.
-        // Dari sini kita turunkan dua informasi:
-        // 1. `sudahTerbayar` jika lawannya kas/bank
-        // 2. `akunPiutangId` jika seluruh lawannya murni piutang.
-        $sudahTerbayar = $daftarAkunLawan
-            ->filter(fn (array $akun) => str_starts_with((string) optional($akun['coa'])->kode, '111.'))
-            ->sum('debit');
-
-        $akunPiutangId = null;
-        if ($daftarAkunLawan->count() === 1) {
-            $coa = $daftarAkunLawan->first()['coa'] ?? null;
-            if ($coa !== null && str_starts_with((string) $coa->kode, '112.')) {
-                $akunPiutangId = (int) $coa->id;
-            }
-        }
+        // Informasi pembayaran invoice mengikuti klasifikasi tipe COA yang sama dengan pemilihan
+        // akun lawan, sehingga tidak bergantung pada struktur kode COA.
+        $informasiAkunLawan = $this->resolveInformasiAkunLawanInvoice($daftarAkunLawan);
 
         $invoice = new FakturPenjualan;
         $invoice->pelanggan_id = (int) $pelanggan->id;
-        $invoice->akun_piutang_id = $akunPiutangId;
+        $invoice->akun_piutang_id = $informasiAkunLawan['akun_piutang_id'];
         $invoice->nomor_faktur = $billing['no_rawat'];
         $invoice->tanggal_faktur = $tanggalPengakuan;
         $invoice->keterangan = $this->buatNarasi($billing);
         $invoice->grandtotal = (float) $billing['total_biaya'];
-        $invoice->sudah_terbayar = (float) $sudahTerbayar;
+        $invoice->sudah_terbayar = $informasiAkunLawan['sudah_terbayar'];
         $invoice->status_proses = 0;
         $invoice->created_by = 'system';
         $invoice->updated_by = 'system';
@@ -835,15 +824,43 @@ class BridgingPendapatanService
                     return false;
                 }
 
-                $tipeCoa = Str::lower((string) $coa->tipe_coa);
-                return $tipeCoa === 'kasbank'
-                    || str_contains($tipeCoa, 'piutang');
+                return $this->isCoaKasbank($coa) || $this->isCoaPiutang($coa);
             })
             ->values();
 
         return $akunKasAtauPiutang->isNotEmpty()
             ? $akunKasAtauPiutang
             : $akunLawanTergabung;
+    }
+
+    private function resolveInformasiAkunLawanInvoice(Collection $daftarAkunLawan): array
+    {
+        $sudahTerbayar = (float) $daftarAkunLawan
+            ->filter(fn (array $akun) => $this->isCoaKasbank($akun['coa'] ?? null))
+            ->sum('debit');
+
+        $akunPiutangId = null;
+        if ($daftarAkunLawan->count() === 1) {
+            $coa = $daftarAkunLawan->first()['coa'] ?? null;
+            if ($this->isCoaPiutang($coa)) {
+                $akunPiutangId = (int) $coa->id;
+            }
+        }
+
+        return [
+            'sudah_terbayar' => $sudahTerbayar,
+            'akun_piutang_id' => $akunPiutangId,
+        ];
+    }
+
+    private function isCoaKasbank(?Coa $coa): bool
+    {
+        return $coa !== null && Str::lower((string) $coa->tipe_coa) === 'kasbank';
+    }
+
+    private function isCoaPiutang(?Coa $coa): bool
+    {
+        return $coa !== null && str_contains(Str::lower((string) $coa->tipe_coa), 'piutang');
     }
 
     private function pilihAkunLawanPendapatanSimrs(Collection $akunLawanTergabung, float $nominalTarget): Collection
