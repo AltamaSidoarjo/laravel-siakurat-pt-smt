@@ -105,6 +105,35 @@ class BridgingPendapatanServiceTest extends TestCase
         $this->assertSame(['111001', '112003'], $result->pluck('kd_rek')->all());
     }
 
+    public function test_prioritaskan_akun_lawan_gagal_jika_ada_akun_yang_belum_dimapping(): void
+    {
+        $service = $this->createService();
+        $method = new ReflectionMethod(BridgingPendapatanService::class, 'prioritaskanAkunLawanKasAtauPiutang');
+        $method->setAccessible(true);
+
+        $mappingLawan = new Collection([
+            new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '111001', 'coa_id' => 2]),
+        ]);
+
+        $coaLookup = new Collection([
+            2 => new Coa(['id' => 2, 'kode' => 'KAS-01', 'tipe_coa' => 'Kasbank']),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Mapping akun lawan pendapatan belum disetting untuk kode COA SIMRS');
+        $this->expectExceptionMessage('113009');
+
+        $method->invoke(
+            $service,
+            new Collection([
+                ['kd_rek' => '111001', 'debet' => 139000.0],
+                ['kd_rek' => '113009', 'debet' => 50000.0],
+            ]),
+            $mappingLawan,
+            $coaLookup,
+        );
+    }
+
     public function test_informasi_invoice_menghitung_pembayaran_dari_tipe_kasbank_bukan_kode_coa(): void
     {
         $service = $this->createService();

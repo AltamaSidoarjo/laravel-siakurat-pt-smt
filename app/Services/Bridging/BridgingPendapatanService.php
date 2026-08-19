@@ -816,7 +816,10 @@ class BridgingPendapatanService
             ->filter(function (array $item) use ($mappingLawan, $coaLookup) {
                 $mappingAkunLawan = $mappingLawan->firstWhere('kode_coa_simrs', $item['kd_rek']);
                 if ($mappingAkunLawan === null) {
-                    return false;
+                    throw new RuntimeException(
+                        'Mapping akun lawan pendapatan belum disetting untuk kode COA SIMRS '
+                        .$this->formatTeksTebal($item['kd_rek']).'.'
+                    );
                 }
 
                 $coa = $coaLookup->get((int) $mappingAkunLawan->coa_id);
