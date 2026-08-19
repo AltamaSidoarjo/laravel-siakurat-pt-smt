@@ -7,6 +7,7 @@ use App\Models\Coa;
 use App\Models\PreferensiPerusahaan;
 use App\Models\SettingRba;
 use App\Models\TipeCoa;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -544,67 +545,164 @@ class LaporanKeuanganService
 
     public function getArusKas(string $startDate, string $endDate): array
     {
+        $start = CarbonImmutable::parse($startDate)->startOfDay();
+        $end = CarbonImmutable::parse($endDate)->startOfDay();
+        $duration = $start->diffInDays($end) + 1;
+        $comparisonEnd = $start->subDay();
+        $comparisonStart = $comparisonEnd->subDays($duration - 1);
+
+        return [
+            'periode' => [
+                'berjalan' => ['start' => $start->toDateString(), 'end' => $end->toDateString()],
+                'pembanding' => ['start' => $comparisonStart->toDateString(), 'end' => $comparisonEnd->toDateString()],
+            ],
+            'berjalan' => $this->susunArusKasPeriode($start->toDateString(), $end->toDateString(), true),
+            'pembanding' => $this->susunArusKasPeriode($comparisonStart->toDateString(), $comparisonEnd->toDateString()),
+        ];
+    }
+
+    private function susunArusKasPeriode(string $startDate, string $endDate, bool $includeDetail = false): array
+    {
         $openingCash = (float) BukuBesar::query()
             ->join('coa', 'coa.id', '=', 'bukubesar.coa_id')
-            ->where('coa.tipe_coa', 'Kasbank')
+            ->whereRaw('LOWER(coa.tipe_coa) = ?', ['kasbank'])
             ->where('bukubesar.tanggal', '<', $startDate)
             ->sum(DB::raw('CASE WHEN bukubesar.tipe_mutasi = "D" THEN bukubesar.nominal ELSE -bukubesar.nominal END'));
 
-        $detail = BukuBesar::query()
-            ->select([
-                'bukubesar.tanggal',
-                'bukubesar.nomer',
-                'bukubesar.sumber_transaksi',
-                'bukubesar.keterangan',
-                'bukubesar.nominal',
-                'bukubesar.tipe_mutasi',
-                'coa.kode as kode_coa',
-                'coa.nama as nama_coa',
-            ])
+        $rows = BukuBesar::query()
             ->join('coa', 'coa.id', '=', 'bukubesar.coa_id')
-            ->where('coa.tipe_coa', 'Kasbank')
             ->whereBetween('bukubesar.tanggal', [$startDate, $endDate])
             ->orderBy('bukubesar.tanggal')
             ->orderBy('bukubesar.id')
-            ->get()
-            ->map(function (object $row) {
-                $kategori = $this->klasifikasiArusKas((string) $row->sumber_transaksi);
-                $kasMasuk = $row->tipe_mutasi === 'D' ? (float) $row->nominal : 0;
-                $kasKeluar = $row->tipe_mutasi === 'K' ? (float) $row->nominal : 0;
+            ->get([
+                'bukubesar.id', 'bukubesar.sumber_id', 'bukubesar.tanggal', 'bukubesar.nomer',
+                'bukubesar.sumber_transaksi', 'bukubesar.keterangan', 'bukubesar.nominal',
+                'bukubesar.tipe_mutasi', 'coa.kode as kode_coa', 'coa.nama as nama_coa',
+                'coa.tipe_coa', 'coa.arus_kas_aktivitas', 'coa.arus_kas_kelompok',
+            ]);
 
-                return [
-                    'tanggal' => (string) $row->tanggal,
-                    'nomer' => (string) $row->nomer,
-                    'sumber_transaksi' => (string) $row->sumber_transaksi,
-                    'keterangan' => (string) ($row->keterangan ?? ''),
-                    'kode_coa' => (string) $row->kode_coa,
-                    'nama_coa' => (string) $row->nama_coa,
-                    'kategori_arus_kas' => $kategori,
-                    'kas_masuk' => $kasMasuk,
-                    'kas_keluar' => $kasKeluar,
-                    'kas_bersih' => $kasMasuk - $kasKeluar,
-                ];
+        $detail = collect();
+        $unmappedAccounts = collect();
+
+        $rows->groupBy(fn (object $row) => $this->kunciTransaksiArusKas($row))
+            ->each(function (Collection $transaction) use ($detail, $unmappedAccounts): void {
+                $cashRows = $transaction->filter(fn (object $row) => strtolower((string) $row->tipe_coa) === 'kasbank');
+                $cashNet = (float) $cashRows->sum(fn (object $row) => $this->nilaiDebitKredit($row));
+
+                if ($cashRows->isEmpty() || abs($cashNet) < 0.005) {
+                    return;
+                }
+
+                $counterparts = $transaction->reject(fn (object $row) => strtolower((string) $row->tipe_coa) === 'kasbank');
+                $allocated = 0.0;
+
+                foreach ($counterparts as $counterpart) {
+                    $amount = $this->nilaiArusKasAkunLawan($counterpart);
+                    if (abs($amount) < 0.005) {
+                        continue;
+                    }
+
+                    $allocated += $amount;
+                    $activity = in_array($counterpart->arus_kas_aktivitas, ['operasi', 'investasi', 'pendanaan'], true)
+                        ? (string) $counterpart->arus_kas_aktivitas
+                        : 'belum_dipetakan';
+                    $group = $activity === 'belum_dipetakan'
+                        ? 'Akun belum dipetakan'
+                        : (string) $counterpart->arus_kas_kelompok;
+
+                    if ($activity === 'belum_dipetakan') {
+                        $unmappedAccounts->put((string) $counterpart->kode_coa, [
+                            'kode' => (string) $counterpart->kode_coa,
+                            'nama' => (string) $counterpart->nama_coa,
+                            'tipe_coa' => (string) $counterpart->tipe_coa,
+                        ]);
+                    }
+
+                    $detail->push($this->barisDetailArusKas($cashRows, $counterpart, $activity, $group, $amount));
+                }
+
+                $residual = $cashNet - $allocated;
+                if (abs($residual) >= 0.005) {
+                    $reference = $cashRows->first();
+                    $detail->push($this->barisDetailArusKas(
+                        $cashRows,
+                        $reference,
+                        'belum_dipetakan',
+                        'Selisih jurnal atau akun lawan tidak tersedia',
+                        $residual,
+                    ));
+                }
             });
 
-        $summary = $detail
-            ->groupBy('kategori_arus_kas')
-            ->map(function (Collection $items, string $kategori) {
-                return [
-                    'kategori' => $kategori,
-                    'total_kas_masuk' => $items->sum('kas_masuk'),
-                    'total_kas_keluar' => $items->sum('kas_keluar'),
-                    'total_kas_bersih' => $items->sum('kas_bersih'),
-                ];
+        $sections = collect(['operasi', 'investasi', 'pendanaan'])
+            ->mapWithKeys(function (string $activity) use ($detail) {
+                $items = $detail->where('aktivitas', $activity)
+                    ->groupBy('kelompok')
+                    ->map(fn (Collection $rows, string $group) => [
+                        'kelompok' => $group,
+                        'nilai' => (float) $rows->sum('nilai'),
+                    ])
+                    ->sortBy('kelompok')
+                    ->values();
+
+                return [$activity => ['kelompok' => $items, 'subtotal' => (float) $items->sum('nilai')]];
             })
-            ->sortBy(fn (array $row) => $this->urutanKategoriArusKas($row['kategori']))
-            ->values();
+            ->all();
+
+        $change = (float) $detail->sum('nilai');
 
         return [
-            'detail' => $detail,
-            'summary' => $summary,
+            'bagian' => $sections,
+            'belum_dipetakan' => (float) $detail->where('aktivitas', 'belum_dipetakan')->sum('nilai'),
+            'akun_belum_dipetakan' => $unmappedAccounts->values(),
             'kas_awal' => $openingCash,
-            'kenaikan_penurunan' => $detail->sum('kas_bersih'),
-            'kas_akhir' => $openingCash + $detail->sum('kas_bersih'),
+            'kenaikan_penurunan' => $change,
+            'pengaruh_kurs' => 0.0,
+            'kas_akhir' => $openingCash + $change,
+            'detail' => $includeDetail ? $detail->values() : collect(),
+        ];
+    }
+
+    private function kunciTransaksiArusKas(object $row): string
+    {
+        if ($row->sumber_id !== null) {
+            return $row->sumber_transaksi.'|'.$row->sumber_id;
+        }
+
+        return $row->sumber_transaksi.'|'.$row->nomer.'|'.substr((string) $row->tanggal, 0, 10);
+    }
+
+    private function nilaiDebitKredit(object $row): float
+    {
+        return $row->tipe_mutasi === 'D' ? (float) $row->nominal : -(float) $row->nominal;
+    }
+
+    private function nilaiArusKasAkunLawan(object $row): float
+    {
+        return -$this->nilaiDebitKredit($row);
+    }
+
+    private function barisDetailArusKas(
+        Collection $cashRows,
+        object $counterpart,
+        string $activity,
+        string $group,
+        float $amount,
+    ): array {
+        $firstCash = $cashRows->first();
+
+        return [
+            'tanggal' => substr((string) $firstCash->tanggal, 0, 10),
+            'nomer' => (string) $firstCash->nomer,
+            'sumber_transaksi' => (string) $firstCash->sumber_transaksi,
+            'keterangan' => (string) ($counterpart->keterangan ?? $firstCash->keterangan ?? ''),
+            'akun_kas' => $cashRows->pluck('nama_coa')->unique()->implode(', '),
+            'kode_akun_lawan' => strtolower((string) $counterpart->tipe_coa) === 'kasbank' ? '' : (string) $counterpart->kode_coa,
+            'akun_lawan' => strtolower((string) $counterpart->tipe_coa) === 'kasbank' ? '' : (string) $counterpart->nama_coa,
+            'aktivitas' => $activity,
+            'kelompok' => $group,
+            'nilai' => $amount,
+            'status_mapping' => $activity === 'belum_dipetakan' ? 'Belum dipetakan' : 'Terpetakan',
         ];
     }
 
@@ -1204,22 +1302,4 @@ class LaporanKeuanganService
             : $saldoRaw;
     }
 
-    private function klasifikasiArusKas(string $sumberTransaksi): string
-    {
-        return match ($sumberTransaksi) {
-            'Kasbank Pembayaran', 'Kasbank Penerimaan', 'Penerimaan Pendapatan', 'Pembayaran Pembelian', 'Invoice Pendapatan', 'Invoice Pembelian' => 'Operasional',
-            'Jurnal Umum' => 'Investasi',
-            default => 'Pendanaan',
-        };
-    }
-
-    private function urutanKategoriArusKas(string $kategori): int
-    {
-        return match ($kategori) {
-            'Operasional' => 1,
-            'Investasi' => 2,
-            'Pendanaan' => 3,
-            default => 99,
-        };
-    }
 }
