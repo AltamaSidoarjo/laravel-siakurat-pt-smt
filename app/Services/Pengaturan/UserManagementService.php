@@ -6,13 +6,14 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 class UserManagementService
 {
     public function __construct(
         private readonly LogAktifitasService $logService,
-    ) {
-    }
+    ) {}
+
     public function getAll(): Collection
     {
         return User::query()
@@ -76,5 +77,25 @@ class UserManagementService
         ]);
 
         return $user->refresh();
+    }
+
+    public function delete(User $user, User $actor): bool
+    {
+        if ($user->is($actor)) {
+            return false;
+        }
+
+        $oldData = [
+            'name' => $user->name,
+            'email' => $user->email,
+            'role_id' => $user->role_id,
+        ];
+
+        DB::transaction(function () use ($user, $oldData): void {
+            $user->deleteOrFail();
+            $this->logService->log('User Management', 'delete', $oldData);
+        });
+
+        return true;
     }
 }

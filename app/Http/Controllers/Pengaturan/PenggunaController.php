@@ -8,14 +8,14 @@ use App\Http\Requests\Pengaturan\UpdateUserRequest;
 use App\Models\User;
 use App\Services\Pengaturan\UserManagementService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PenggunaController extends Controller
 {
     public function __construct(
         private readonly UserManagementService $userManagementService,
-    ) {
-    }
+    ) {}
 
     public function index(): View
     {
@@ -58,5 +58,18 @@ class PenggunaController extends Controller
         return redirect()
             ->route('pengaturan.pengguna.index')
             ->with('success', 'Pengguna berhasil diperbarui.');
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        if (! $this->userManagementService->delete($user, $request->user())) {
+            return redirect()
+                ->route('pengaturan.pengguna.index')
+                ->with('error', 'Anda tidak dapat menghapus akun yang sedang digunakan.');
+        }
+
+        return redirect()
+            ->route('pengaturan.pengguna.index')
+            ->with('success', 'Pengguna berhasil dihapus.');
     }
 }

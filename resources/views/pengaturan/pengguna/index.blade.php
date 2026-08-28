@@ -3,6 +3,11 @@
 @section('title', 'Pengguna')
 
 @section('content')
+    @php
+        $authenticatedUser = auth()->user();
+        $canDeleteUsers = $authenticatedUser?->hasModuleAccess('pengaturan.pengguna', 'delete') ?? false;
+    @endphp
+
     <div class="row mb-3">
         <div class="col">
             <div class="d-flex align-items-center gap-3 fs-3">
@@ -58,6 +63,19 @@
                                                         <a href="{{ route('pengaturan.pengguna.edit', $user) }}" class="btn btn-warning btn-sm">
                                                             <i class="bi bi-pencil-square"></i> Edit
                                                         </a>
+                                                        @if ($canDeleteUsers && ! $authenticatedUser->is($user))
+                                                            <form method="post"
+                                                                  action="{{ route('pengaturan.pengguna.destroy', $user) }}"
+                                                                  class="d-inline-block"
+                                                                  data-user-name="{{ $user->name }}"
+                                                                  onsubmit="return confirm('Apakah Anda yakin ingin menghapus pengguna ' + this.dataset.userName + '?');">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <button type="submit" class="btn btn-danger btn-sm">
+                                                                    <i class="bi bi-trash3"></i> Hapus
+                                                                </button>
+                                                            </form>
+                                                        @endif
                                                     </td>
                                                 </tr>
                                             @endforeach
