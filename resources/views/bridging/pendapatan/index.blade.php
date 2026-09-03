@@ -31,7 +31,7 @@
                             <div class="card-body">
                                 <div class="d-flex flex-wrap justify-content-end gap-2">
                                     <a href="{{ route('bridging.pendapatan.tarik-billing-simrs') }}" class="btn btn-info text-white fw-bold">
-                                        <i class="bi bi-download me-1"></i> Tarik SIMRS
+                                        <i class="bi bi-download me-1"></i> Tarik Billing API
                                     </a>
                                     <a href="{{ route('bridging.pendapatan.data-tidak-balance', ['startDate' => $startDate, 'endDate' => $endDate]) }}" class="btn btn-warning fw-bold">
                                         <i class="bi bi-search me-1"></i> Halaman Tidak Balance

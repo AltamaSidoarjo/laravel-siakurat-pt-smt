@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'billing_api' => [
+        'base_url' => env('BILLING_API_BASE_URL'),
+        'username' => env('BILLING_API_USERNAME'),
+        'password' => env('BILLING_API_PASSWORD'),
+        'connect_timeout' => (int) env('BILLING_API_CONNECT_TIMEOUT', 5),
+        'timeout' => (int) env('BILLING_API_TIMEOUT', 30),
+    ],
+
 ];
