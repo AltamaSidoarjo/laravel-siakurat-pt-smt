@@ -46,6 +46,41 @@ class BillingPendapatanApiService
         ?string $spesialisId = null,
         ?string $dokterId = null,
     ): Collection {
+        return $this->ambilKandidat(
+            $jenisLayanan,
+            $startDate,
+            $endDate,
+            $spesialisId,
+            $dokterId,
+            true,
+        );
+    }
+
+    public function getKandidatUntukImpor(
+        string $jenisLayanan,
+        string $startDate,
+        string $endDate,
+        ?string $spesialisId = null,
+        ?string $dokterId = null,
+    ): Collection {
+        return $this->ambilKandidat(
+            $jenisLayanan,
+            $startDate,
+            $endDate,
+            $spesialisId,
+            $dokterId,
+            false,
+        );
+    }
+
+    private function ambilKandidat(
+        string $jenisLayanan,
+        string $startDate,
+        string $endDate,
+        ?string $spesialisId,
+        ?string $dokterId,
+        bool $excludeImported,
+    ): Collection {
         $rows = match ($jenisLayanan) {
             self::RAWAT_JALAN => $this->billingApiClient->getRawatJalan(
                 $startDate,
@@ -57,13 +92,17 @@ class BillingPendapatanApiService
             default => [],
         };
 
-        $nomorRawatTerimpor = SimrsImportPendapatan::query()
-            ->pluck('nomer_billing')
-            ->filter()
-            ->mapWithKeys(fn (mixed $nomor) => [(string) $nomor => true]);
+        $nomorRawatTerimpor = $excludeImported
+            ? SimrsImportPendapatan::query()
+                ->pluck('nomer_billing')
+                ->filter()
+                ->mapWithKeys(fn (mixed $nomor) => [(string) $nomor => true])
+            : collect();
 
         return collect($rows)
-            ->filter(fn (mixed $row) => is_array($row) && filled($row['RegNum'] ?? null))
+            ->filter(fn (mixed $row) => is_array($row)
+                && filled($row['ID'] ?? null)
+                && filled($row['RegNum'] ?? null))
             ->map(fn (array $row) => $this->normalisasiKunjungan($row, $jenisLayanan))
             ->reject(fn (array $row) => $nomorRawatTerimpor->has($row['no_rawat']))
             ->values();
@@ -74,8 +113,8 @@ class BillingPendapatanApiService
         $isIgd = $jenisLayanan === self::IGD;
 
         return [
-            'external_id' => (string) ($row['ID'] ?? ''),
-            'no_rawat' => (string) $row['RegNum'],
+            'external_id' => trim((string) ($row['ID'] ?? '')),
+            'no_rawat' => trim((string) $row['RegNum']),
             'tanggal_registrasi' => (string) ($row['Tanggal'] ?? ''),
             'nama_pasien' => (string) ($row['Nama'] ?? ''),
             'nama_dokter' => (string) ($row['Dokter'] ?? ''),

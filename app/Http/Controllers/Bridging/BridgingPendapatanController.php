@@ -6,9 +6,11 @@ use App\Exceptions\BillingApiException;
 use App\Http\Controllers\Concerns\StreamsCsvExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Bridging\BulkDeletePendapatanRequest;
+use App\Http\Requests\Bridging\ImportPendapatanRequest;
 use App\Http\Requests\Bridging\LoadBillingPendapatanApiRequest;
 use App\Models\SimrsImportPendapatan;
 use App\Services\Bridging\BillingPendapatanApiService;
+use App\Services\Bridging\BillingPendapatanJournalImportService;
 use App\Services\Bridging\BridgingPendapatanService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -25,6 +27,7 @@ class BridgingPendapatanController extends Controller
     public function __construct(
         private readonly BridgingPendapatanService $bridgingPendapatanService,
         private readonly BillingPendapatanApiService $billingPendapatanApiService,
+        private readonly BillingPendapatanJournalImportService $billingPendapatanJournalImportService,
     ) {}
 
     public function index(Request $request): View
@@ -122,11 +125,36 @@ class BridgingPendapatanController extends Controller
         return DataTables::collection($rows)->toJson();
     }
 
-    public function processImport(Request $request): RedirectResponse
+    public function processImport(ImportPendapatanRequest $request): RedirectResponse
     {
+        $data = $request->validated();
+
+        try {
+            $results = $this->billingPendapatanJournalImportService->imporBanyak(
+                $data['selectedExternalIds'],
+                $data['jenisLayanan'],
+                $data['startDate'],
+                $data['endDate'],
+                $data['spesialisId'] ?? null,
+                $data['dokterId'] ?? null,
+                auth()->user()?->name ?? auth()->user()?->email ?? 'system',
+            );
+        } catch (BillingApiException $exception) {
+            return redirect()
+                ->route('bridging.pendapatan.tarik-billing-simrs', [
+                    'startDate' => $data['startDate'],
+                    'endDate' => $data['endDate'],
+                    'jenisLayanan' => $data['jenisLayanan'],
+                    'spesialisId' => $data['spesialisId'] ?? null,
+                    'dokterId' => $data['dokterId'] ?? null,
+                ])
+                ->with('error', $exception->getMessage());
+        }
+
         return redirect()
-            ->route('bridging.pendapatan.tarik-billing-simrs')
-            ->with('error', 'Proses Jurnal Umum dan Invoice Pendapatan belum tersedia pada fase ini.');
+            ->route('bridging.pendapatan.index')
+            ->with('bridging_pendapatan_results', $results)
+            ->with('bridging_pendapatan_message', 'Proses import Jurnal Umum selesai.');
     }
 
     public function destroyBulk(BulkDeletePendapatanRequest $request): RedirectResponse

@@ -45,6 +45,13 @@ class BillingApiClient
         ]);
     }
 
+    public function getAkun(string $externalId): array
+    {
+        return $this->getData('/akun-all', [
+            'id' => $externalId,
+        ]);
+    }
+
     private function getData(string $endpoint, array $query = []): array
     {
         $response = $this->authenticatedGet($endpoint, $query);

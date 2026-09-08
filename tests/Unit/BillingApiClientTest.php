@@ -84,6 +84,45 @@ class BillingApiClientTest extends TestCase
             && $request->hasHeader('Authorization', 'Bearer fresh-token'));
     }
 
+    public function test_akun_endpoint_receives_external_id_and_returns_only_data_rows(): void
+    {
+        Http::fake([
+            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
+            'http://billing.test/api/akun-all*' => Http::response([
+                'status' => true,
+                'IDReg' => 'private-registration-id',
+                'Nama' => 'private-patient-name',
+                'jumlah' => 99,
+                'data' => [[
+                    'akun' => '110.01',
+                    'biaya' => 100,
+                    'jml' => 2,
+                    'job' => null,
+                ]],
+            ]),
+        ]);
+
+        $rows = app(BillingApiClient::class)->getAkun('1761891');
+
+        $this->assertSame([[
+            'akun' => '110.01',
+            'biaya' => 100,
+            'jml' => 2,
+            'job' => null,
+        ]], $rows);
+
+        Http::assertSent(function (Request $request): bool {
+            if (! str_contains($request->url(), '/akun-all')) {
+                return false;
+            }
+
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+            return $query === ['id' => '1761891']
+                && $request->hasHeader('Authorization', 'Bearer first-token');
+        });
+    }
+
     public function test_client_rejects_non_json_response_without_exposing_body(): void
     {
         Http::fake([

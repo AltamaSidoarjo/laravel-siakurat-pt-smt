@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Middleware\EnsureModuleAccess;
 use App\Models\SimrsImportPendapatan;
 use App\Models\User;
+use App\Services\Bridging\BillingPendapatanJournalImportService;
 use App\Services\Bridging\BridgingPendapatanService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Client\Request;
@@ -184,7 +185,7 @@ class BridgingPendapatanApiTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_pull_page_keeps_selection_ui_but_disables_import_controls(): void
+    public function test_pull_page_enables_journal_import_and_keeps_invoice_disabled(): void
     {
         Http::fake([
             'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
@@ -201,31 +202,59 @@ class BridgingPendapatanApiTest extends TestCase
             ->assertSee('Billing Pasien API')
             ->assertSee('Rawat Inap — Endpoint belum tersedia')
             ->assertSee('Total data terpilih')
-            ->assertSee('Proses Jurnal Umum dan Invoice Pendapatan belum tersedia pada fase ini.')
-            ->assertSee('id="jenisJurnalUmum" value="JurnalUmum" checked disabled', false)
-            ->assertSee('type="submit" class="btn btn-primary mt-3" disabled', false)
+            ->assertSee('Import Jurnal Umum telah tersedia.')
+            ->assertSee('id="jenisJurnalUmum" value="JurnalUmum" checked', false)
+            ->assertDontSee('id="jenisJurnalUmum" value="JurnalUmum" checked disabled', false)
+            ->assertSee('id="jenisInvoicePendapatan" value="InvoicePendapatan" disabled', false)
+            ->assertSee('id="importButton" disabled', false)
+            ->assertSee('selectedExternalIds[]')
             ->assertDontSee('<th>Penjamin</th>', false)
             ->assertDontSee('<th>Total tagihan</th>', false);
     }
 
-    public function test_direct_import_post_is_guarded_and_does_not_call_legacy_import(): void
+    public function test_import_post_calls_api_journal_service_and_not_legacy_import(): void
     {
         $legacyService = Mockery::mock(BridgingPendapatanService::class);
         $legacyService->shouldNotReceive('imporBanyak');
         $this->app->instance(BridgingPendapatanService::class, $legacyService);
 
+        $journalService = Mockery::mock(BillingPendapatanJournalImportService::class);
+        $journalService->shouldReceive('imporBanyak')
+            ->once()
+            ->with(
+                ['1761891'],
+                'rawat_jalan',
+                '2026-08-15',
+                '2026-08-15',
+                '7',
+                '380',
+                'Tester',
+            )
+            ->andReturn([[
+                'no_rawat' => 'RJ-001',
+                'berhasil' => true,
+                'alasan_gagal' => null,
+            ]]);
+        $this->app->instance(BillingPendapatanJournalImportService::class, $journalService);
+
         $response = $this
             ->withoutMiddleware(EnsureModuleAccess::class)
             ->actingAs($this->makeUser())
             ->post(route('bridging.pendapatan.process-import'), [
-                'selectedNoRawat' => ['RJ-001'],
+                'selectedExternalIds' => ['1761891'],
+                'startDate' => '2026-08-15',
+                'endDate' => '2026-08-15',
+                'jenisLayanan' => 'rawat_jalan',
+                'spesialisId' => '7',
+                'dokterId' => '380',
                 'jenisProses' => 'JurnalUmum',
                 'basisTanggalPengakuan' => 'TanggalRegistrasi',
             ]);
 
         $response
-            ->assertRedirect(route('bridging.pendapatan.tarik-billing-simrs'))
-            ->assertSessionHas('error', 'Proses Jurnal Umum dan Invoice Pendapatan belum tersedia pada fase ini.');
+            ->assertRedirect(route('bridging.pendapatan.index'))
+            ->assertSessionHas('bridging_pendapatan_message', 'Proses import Jurnal Umum selesai.')
+            ->assertSessionHas('bridging_pendapatan_results.0.no_rawat', 'RJ-001');
     }
 
     private function dataTableRequest(array $overrides): array

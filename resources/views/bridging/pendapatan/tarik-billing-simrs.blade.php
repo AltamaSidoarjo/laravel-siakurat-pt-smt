@@ -85,14 +85,19 @@
                             <div class="card-body">
                                 <form id="formImport" method="post" action="{{ route('bridging.pendapatan.process-import') }}">
                                     @csrf
+                                    <input type="hidden" name="startDate" value="{{ $startDate }}">
+                                    <input type="hidden" name="endDate" value="{{ $endDate }}">
+                                    <input type="hidden" name="jenisLayanan" value="{{ $jenisLayanan }}">
+                                    <input type="hidden" name="spesialisId" value="{{ $spesialisId }}">
+                                    <input type="hidden" name="dokterId" value="{{ $dokterId }}">
+                                    <div id="selectedExternalIds"></div>
 
                                     <div class="alert alert-info fw-bold mb-3">
                                         Total data terpilih: <span id="selectedCount">0</span>
                                     </div>
 
                                     <div class="alert alert-secondary mb-3">
-                                        Proses Jurnal Umum dan Invoice Pendapatan belum tersedia pada fase ini.
-                                        Data API tetap dapat difilter, dilihat, dan dipilih.
+                                        Import Jurnal Umum telah tersedia. Invoice Pendapatan akan tersedia pada fase berikutnya.
                                     </div>
 
                                     <div class="table-responsive">
@@ -116,7 +121,7 @@
                                     <div class="mt-3">
                                         <label class="fw-bold d-block mb-2">Import ke:</label>
                                         <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="radio" name="jenisProses" id="jenisJurnalUmum" value="JurnalUmum" checked disabled>
+                                            <input class="form-check-input" type="radio" name="jenisProses" id="jenisJurnalUmum" value="JurnalUmum" checked>
                                             <label class="form-check-label" for="jenisJurnalUmum">Jurnal Umum</label>
                                         </div>
                                         <div class="form-check form-check-inline">
@@ -128,7 +133,7 @@
                                     <div class="mt-3">
                                         <label class="fw-bold d-block mb-2">Basis tanggal pengakuan:</label>
                                         <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="radio" name="basisTanggalPengakuan" id="basisTanggalRegistrasi" value="TanggalRegistrasi" checked disabled>
+                                            <input class="form-check-input" type="radio" name="basisTanggalPengakuan" id="basisTanggalRegistrasi" value="TanggalRegistrasi" checked>
                                             <label class="form-check-label" for="basisTanggalRegistrasi">Tanggal Registrasi</label>
                                         </div>
                                         <div class="form-check form-check-inline">
@@ -137,7 +142,7 @@
                                         </div>
                                     </div>
 
-                                    <button type="submit" class="btn btn-primary mt-3" disabled>
+                                    <button type="submit" class="btn btn-primary mt-3" id="importButton" disabled>
                                         <i class="bi bi-send me-1"></i> Kirim Data
                                     </button>
                                 </form>
@@ -170,8 +175,16 @@
                 return;
             }
 
+            const selectedExternalIds = new Set();
+            const importButton = document.getElementById('importButton');
+            const updateCheckAllState = () => {
+                const visibleCheckboxes = Array.from(document.querySelectorAll('.row-checkbox'));
+                document.getElementById('checkAll').checked = visibleCheckboxes.length > 0
+                    && visibleCheckboxes.every((checkbox) => checkbox.checked);
+            };
             const updateSelectedCount = () => {
-                document.getElementById('selectedCount').textContent = document.querySelectorAll('.row-checkbox:checked').length;
+                document.getElementById('selectedCount').textContent = selectedExternalIds.size;
+                importButton.disabled = selectedExternalIds.size === 0;
             };
             const textRenderer = window.jQuery.fn.dataTable.render.text();
 
@@ -186,23 +199,25 @@
                     url: '{{ route('bridging.pendapatan.load-billing-simrs') }}',
                     type: 'GET',
                     data: function (d) {
-                        d.startDate = '{{ $startDate }}';
-                        d.endDate = '{{ $endDate }}';
-                        d.jenisLayanan = '{{ $jenisLayanan }}';
-                        d.spesialisId = '{{ $spesialisId }}';
-                        d.dokterId = '{{ $dokterId }}';
+                        d.startDate = @json($startDate);
+                        d.endDate = @json($endDate);
+                        d.jenisLayanan = @json($jenisLayanan);
+                        d.spesialisId = @json($spesialisId);
+                        d.dokterId = @json($dokterId);
                     }
                 },
                 columns: [
                     {
-                        data: 'no_rawat',
+                        data: 'external_id',
                         orderable: false,
                         searchable: false,
                         className: 'text-center',
                         render: function (data) {
-                            const safeValue = textRenderer.display(data ?? '');
+                            const externalId = String(data ?? '');
+                            const safeValue = textRenderer.display(externalId);
+                            const checked = selectedExternalIds.has(externalId) ? ' checked' : '';
 
-                            return `<input type="checkbox" class="row-checkbox" name="selectedNoRawat[]" value="${safeValue}">`;
+                            return `<input type="checkbox" class="row-checkbox" value="${safeValue}"${checked}>`;
                         }
                     },
                     { data: 'no_rawat', name: 'no_rawat', render: textRenderer },
@@ -231,12 +246,25 @@
             });
 
             table.on('draw', function () {
-                document.getElementById('checkAll').checked = false;
+                const visibleCheckboxes = Array.from(document.querySelectorAll('.row-checkbox'));
+                visibleCheckboxes.forEach((checkbox) => {
+                    checkbox.checked = selectedExternalIds.has(String(checkbox.value));
+                });
+                updateCheckAllState();
                 updateSelectedCount();
             });
 
             document.addEventListener('change', function (event) {
                 if (event.target.matches('.row-checkbox')) {
+                    const externalId = String(event.target.value);
+
+                    if (event.target.checked) {
+                        selectedExternalIds.add(externalId);
+                    } else {
+                        selectedExternalIds.delete(externalId);
+                    }
+
+                    updateCheckAllState();
                     updateSelectedCount();
                 }
             });
@@ -244,8 +272,37 @@
             document.getElementById('checkAll')?.addEventListener('change', function () {
                 document.querySelectorAll('.row-checkbox').forEach((checkbox) => {
                     checkbox.checked = this.checked;
+
+                    if (this.checked) {
+                        selectedExternalIds.add(String(checkbox.value));
+                    } else {
+                        selectedExternalIds.delete(String(checkbox.value));
+                    }
                 });
                 updateSelectedCount();
+            });
+
+            document.getElementById('formImport')?.addEventListener('submit', function (event) {
+                if (selectedExternalIds.size === 0) {
+                    event.preventDefault();
+                    return;
+                }
+
+                if (!window.confirm(`Apakah Anda yakin ingin mengirim ${selectedExternalIds.size} data ke Jurnal Umum?`)) {
+                    event.preventDefault();
+                    return;
+                }
+
+                const container = document.getElementById('selectedExternalIds');
+                container.replaceChildren();
+
+                selectedExternalIds.forEach((externalId) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'selectedExternalIds[]';
+                    input.value = externalId;
+                    container.appendChild(input);
+                });
             });
 
         });
