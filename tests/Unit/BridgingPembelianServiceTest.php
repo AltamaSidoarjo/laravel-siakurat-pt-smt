@@ -35,6 +35,7 @@ class BridgingPembelianServiceTest extends TestCase
         $result = $service->imporBanyakPembelianNonMedis(
             ['PNM-TEST-001'],
             'JurnalUmum',
+            'TanggalInvoice',
             'tester',
         );
 
@@ -45,5 +46,37 @@ class BridgingPembelianServiceTest extends TestCase
                 'alasan_gagal' => 'Saat ini hanya import ke Invoice Pembelian yang didukung.',
             ],
         ], $result);
+    }
+
+    public function test_tanggal_pengakuan_nonmedis_uses_invoice_date(): void
+    {
+        $this->assertSame('2026-09-01', $this->resolveTanggalPengakuan([
+            'tgl_faktur' => '2026-09-01',
+            'tgl_pesan' => '2026-09-03',
+        ], 'TanggalInvoice'));
+    }
+
+    public function test_tanggal_pengakuan_nonmedis_uses_barang_datang_date(): void
+    {
+        $this->assertSame('2026-09-03', $this->resolveTanggalPengakuan([
+            'tgl_faktur' => '2026-09-01',
+            'tgl_pesan' => '2026-09-03',
+        ], 'TanggalBarangDatang'));
+    }
+
+    public function test_tanggal_pengakuan_nonmedis_falls_back_to_invoice_date_when_barang_datang_is_empty(): void
+    {
+        $this->assertSame('2026-09-01', $this->resolveTanggalPengakuan([
+            'tgl_faktur' => '2026-09-01',
+            'tgl_pesan' => '',
+        ], 'TanggalBarangDatang'));
+    }
+
+    private function resolveTanggalPengakuan(array $tagihan, string $metode): string
+    {
+        $service = new BridgingPembelianService($this->createMock(LogAktifitasService::class));
+        $method = new \ReflectionMethod($service, 'tentukanTanggalPengakuan');
+
+        return $method->invoke($service, $tagihan, $metode);
     }
 }

@@ -180,6 +180,7 @@ class BridgingPembelianService
     public function imporBanyakPembelianNonMedis(
         array $daftarNomerTransaksi,
         string $jenisProses,
+        string $metodeTanggalPengakuan,
         string $actor,
     ): array {
         $hasil = [];
@@ -189,6 +190,7 @@ class BridgingPembelianService
                 $hasil[] = $this->imporSatuPembelianNonMedis(
                     (string) $nomerTransaksi,
                     $jenisProses,
+                    $metodeTanggalPengakuan,
                     $actor,
                 );
             } catch (\Throwable $exception) {
@@ -290,6 +292,7 @@ class BridgingPembelianService
     private function imporSatuPembelianNonMedis(
         string $nomerTransaksi,
         string $jenisProses,
+        string $metodeTanggalPengakuan,
         string $actor,
     ): array {
         if ($jenisProses !== self::IMPORT_INVOICE_PEMBELIAN) {
@@ -314,7 +317,7 @@ class BridgingPembelianService
             rincian: $this->ambilRincianTagihanNonMedisByNomer($nomerTransaksi),
             kategoriSupplier: self::KATEGORI_NON_MEDIS,
             kategoriFaktur: self::KATEGORI_NON_MEDIS,
-            metodeTanggalPengakuan: self::METODE_TANGGAL_INVOICE,
+            metodeTanggalPengakuan: $metodeTanggalPengakuan,
             actor: $actor,
         );
     }

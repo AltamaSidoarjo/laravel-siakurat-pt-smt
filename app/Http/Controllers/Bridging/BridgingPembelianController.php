@@ -122,6 +122,7 @@ class BridgingPembelianController extends Controller
         $results = $this->bridgingPembelianService->imporBanyakPembelianNonMedis(
             $request->validated('selectedNoTransaksi'),
             $request->validated('jenisProses'),
+            $request->validated('metodeTanggalPengakuan'),
             auth()->user()?->name ?? auth()->user()?->email ?? 'system',
         );
 

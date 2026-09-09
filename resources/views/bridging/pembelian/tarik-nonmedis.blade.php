@@ -64,6 +64,7 @@
                                                     <th>Nomer</th>
                                                     <th>No. order</th>
                                                     <th>Tanggal</th>
+                                                    <th>Tgl barang datang</th>
                                                     <th>Tgl jth tempo</th>
                                                     <th>Supplier</th>
                                                     <th>Status</th>
@@ -78,6 +79,18 @@
                                         <div class="form-check form-check-inline">
                                             <input class="form-check-input" type="radio" name="jenisProses" id="jenisInvoicePembelian" value="InvoicePembelian" checked>
                                             <label class="form-check-label" for="jenisInvoicePembelian">Invoice Pembelian</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-3">
+                                        <label class="fw-bold d-block mb-2">Metode tanggal pengakuan:</label>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="metodeTanggalPengakuan" id="metodeTanggalInvoice" value="TanggalInvoice" checked>
+                                            <label class="form-check-label" for="metodeTanggalInvoice">Tanggal Invoice SIMRS</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="metodeTanggalPengakuan" id="metodeTanggalBarangDatang" value="TanggalBarangDatang">
+                                            <label class="form-check-label" for="metodeTanggalBarangDatang">Tanggal Barang Datang</label>
                                         </div>
                                     </div>
 
@@ -138,6 +151,7 @@
                     { data: 'no_faktur', name: 'no_faktur' },
                     { data: 'no_order', name: 'no_order' },
                     { data: 'tgl_faktur', name: 'tgl_faktur' },
+                    { data: 'tgl_pesan', name: 'tgl_pesan' },
                     { data: 'tgl_tempo', name: 'tgl_tempo' },
                     { data: 'nama_suplier', name: 'nama_suplier' },
                     { data: 'status', name: 'status' },
@@ -178,7 +192,9 @@
                     return;
                 }
 
-                if (!window.confirm(`Apakah Anda yakin ingin mengirim ${total} data ke proses Invoice Pembelian?`)) {
+                const metodeTanggal = document.querySelector('input[name="metodeTanggalPengakuan"]:checked')?.value ?? 'TanggalInvoice';
+
+                if (!window.confirm(`Apakah Anda yakin ingin mengirim ${total} data ke proses Invoice Pembelian dengan metode tanggal ${metodeTanggal}?`)) {
                     event.preventDefault();
                 }
             });

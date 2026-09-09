@@ -151,7 +151,42 @@ class ExampleTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Tagihan Pembelian Barang Non Medis SIMRS');
+            ->assertSee('Tagihan Pembelian Barang Non Medis SIMRS')
+            ->assertSee('Tgl barang datang')
+            ->assertSee('Metode tanggal pengakuan:', false)
+            ->assertSee('Tanggal Invoice SIMRS')
+            ->assertSee('Tanggal Barang Datang');
+    }
+
+    public function test_bridging_pembelian_nonmedis_requires_metode_tanggal_pengakuan(): void
+    {
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->from('/bridging/pembelian/tarik-nonmedis')
+            ->post('/bridging/pembelian/process-import-nonmedis', [
+                'selectedNoTransaksi' => ['PNM-TEST-001'],
+                'jenisProses' => 'InvoicePembelian',
+            ]);
+
+        $response
+            ->assertRedirect('/bridging/pembelian/tarik-nonmedis')
+            ->assertSessionHasErrors('metodeTanggalPengakuan');
+    }
+
+    public function test_bridging_pembelian_nonmedis_rejects_invalid_metode_tanggal_pengakuan(): void
+    {
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->from('/bridging/pembelian/tarik-nonmedis')
+            ->post('/bridging/pembelian/process-import-nonmedis', [
+                'selectedNoTransaksi' => ['PNM-TEST-001'],
+                'jenisProses' => 'InvoicePembelian',
+                'metodeTanggalPengakuan' => 'TanggalLain',
+            ]);
+
+        $response
+            ->assertRedirect('/bridging/pembelian/tarik-nonmedis')
+            ->assertSessionHasErrors('metodeTanggalPengakuan');
     }
 
     public function test_laporan_keuangan_page_can_be_opened_with_authenticated_user(): void
