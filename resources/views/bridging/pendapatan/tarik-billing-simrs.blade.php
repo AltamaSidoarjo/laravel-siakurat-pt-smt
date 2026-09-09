@@ -50,7 +50,7 @@
                                         </div>
                                         <div class="col-md-6 rawat-jalan-filter">
                                             <label for="spesialisId" class="form-label">Spesialis</label>
-                                            <select name="spesialisId" id="spesialisId" class="form-select">
+                                            <select name="spesialisId" id="spesialisId" class="form-select select2">
                                                 <option value="">Semua spesialis</option>
                                                 @foreach ($spesialisOptions as $spesialis)
                                                     <option value="{{ $spesialis['id'] }}" @selected($spesialisId === $spesialis['id'])>
@@ -61,7 +61,7 @@
                                         </div>
                                         <div class="col-md-6 rawat-jalan-filter">
                                             <label for="dokterId" class="form-label">Dokter</label>
-                                            <select name="dokterId" id="dokterId" class="form-select">
+                                            <select name="dokterId" id="dokterId" class="form-select select2">
                                                 <option value="">Semua dokter</option>
                                                 @foreach ($dokterOptions as $dokter)
                                                     <option value="{{ $dokter['id'] }}" @selected($dokterId === $dokter['id'])>

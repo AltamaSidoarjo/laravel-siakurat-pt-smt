@@ -204,6 +204,8 @@ class BridgingPendapatanApiTest extends TestCase
             ->assertOk()
             ->assertSee('Billing Pasien API')
             ->assertSee('Rawat Inap — Endpoint belum tersedia')
+            ->assertSee('id="spesialisId" class="form-select select2"', false)
+            ->assertSee('id="dokterId" class="form-select select2"', false)
             ->assertSee('Total data terpilih')
             ->assertSee('Invoice Pendapatan dengan tanggal pengakuan sesuai tanggal registrasi')
             ->assertSee('<th>Penjamin</th>', false)
