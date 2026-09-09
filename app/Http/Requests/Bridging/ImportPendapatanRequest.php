@@ -21,8 +21,6 @@ class ImportPendapatanRequest extends FormRequest
             'jenisLayanan' => ['required', 'in:rawat_jalan,igd'],
             'spesialisId' => ['nullable', 'string', 'max:100'],
             'dokterId' => ['nullable', 'string', 'max:100'],
-            'jenisProses' => ['required', 'in:JurnalUmum'],
-            'basisTanggalPengakuan' => ['required', 'in:TanggalRegistrasi'],
         ];
     }
 
@@ -31,8 +29,6 @@ class ImportPendapatanRequest extends FormRequest
         return [
             'selectedExternalIds.required' => 'Pilih minimal satu data billing untuk diproses.',
             'selectedExternalIds.max' => 'Maksimal 100 data billing dapat diproses sekaligus.',
-            'jenisProses.required' => 'Pilih tujuan import terlebih dahulu.',
-            'basisTanggalPengakuan.required' => 'Pilih basis tanggal pengakuan terlebih dahulu.',
         ];
     }
 }

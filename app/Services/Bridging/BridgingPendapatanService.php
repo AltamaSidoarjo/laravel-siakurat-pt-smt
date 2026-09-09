@@ -99,16 +99,6 @@ class BridgingPendapatanService
                         ->where('nomer_billing', $noRawat)
                         ->get();
 
-                    $jurnal = JurnalUmum::query()
-                        ->where('nomer', $noRawat)
-                        ->first();
-
-                    if ($jurnal !== null) {
-                        $this->bukuBesarService->deleteBySource(self::IMPORT_JURNAL_UMUM, (int) $jurnal->id);
-                        $jurnal->rincian()->delete();
-                        $jurnal->delete();
-                    }
-
                     $invoice = FakturPenjualan::query()
                         ->where('nomor_faktur', $noRawat)
                         ->first();

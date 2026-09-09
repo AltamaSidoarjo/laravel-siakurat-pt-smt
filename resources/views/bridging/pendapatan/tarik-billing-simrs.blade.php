@@ -97,7 +97,7 @@
                                     </div>
 
                                     <div class="alert alert-secondary mb-3">
-                                        Import Jurnal Umum telah tersedia. Invoice Pendapatan akan tersedia pada fase berikutnya.
+                                        Data terpilih akan dibuat menjadi Invoice Pendapatan dengan tanggal pengakuan sesuai tanggal registrasi.
                                     </div>
 
                                     <div class="table-responsive">
@@ -113,37 +113,14 @@
                                                     <th>Dokter</th>
                                                     <th>Poli</th>
                                                     <th>Status layanan</th>
+                                                    <th>Penjamin</th>
                                                 </tr>
                                             </thead>
                                         </table>
                                     </div>
 
-                                    <div class="mt-3">
-                                        <label class="fw-bold d-block mb-2">Import ke:</label>
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="radio" name="jenisProses" id="jenisJurnalUmum" value="JurnalUmum" checked>
-                                            <label class="form-check-label" for="jenisJurnalUmum">Jurnal Umum</label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="radio" name="jenisProses" id="jenisInvoicePendapatan" value="InvoicePendapatan" disabled>
-                                            <label class="form-check-label" for="jenisInvoicePendapatan">Invoice Pendapatan</label>
-                                        </div>
-                                    </div>
-
-                                    <div class="mt-3">
-                                        <label class="fw-bold d-block mb-2">Basis tanggal pengakuan:</label>
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="radio" name="basisTanggalPengakuan" id="basisTanggalRegistrasi" value="TanggalRegistrasi" checked>
-                                            <label class="form-check-label" for="basisTanggalRegistrasi">Tanggal Registrasi</label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="radio" name="basisTanggalPengakuan" id="basisTanggalKeluarRanap" value="TanggalKeluarRanap" disabled>
-                                            <label class="form-check-label" for="basisTanggalKeluarRanap">Tanggal Keluar RS</label>
-                                        </div>
-                                    </div>
-
                                     <button type="submit" class="btn btn-primary mt-3" id="importButton" disabled>
-                                        <i class="bi bi-send me-1"></i> Kirim Data
+                                        <i class="bi bi-send me-1"></i> Buat Invoice Pendapatan
                                     </button>
                                 </form>
                             </div>
@@ -225,7 +202,8 @@
                     { data: 'nama_pasien', name: 'nama_pasien', render: textRenderer },
                     { data: 'nama_dokter', name: 'nama_dokter', render: textRenderer },
                     { data: 'nama_poli', name: 'nama_poli', render: textRenderer },
-                    { data: 'status_lanjut', name: 'status_lanjut', render: textRenderer }
+                    { data: 'status_lanjut', name: 'status_lanjut', render: textRenderer },
+                    { data: 'penjamin', name: 'penjamin', render: textRenderer }
                 ]
             });
 
@@ -288,7 +266,7 @@
                     return;
                 }
 
-                if (!window.confirm(`Apakah Anda yakin ingin mengirim ${selectedExternalIds.size} data ke Jurnal Umum?`)) {
+                if (!window.confirm(`Apakah Anda yakin ingin membuat ${selectedExternalIds.size} Invoice Pendapatan?`)) {
                     event.preventDefault();
                     return;
                 }

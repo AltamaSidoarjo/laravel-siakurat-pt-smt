@@ -120,6 +120,7 @@ class BillingPendapatanApiService
             'nama_dokter' => (string) ($row['Dokter'] ?? ''),
             'nama_poli' => $isIgd ? 'IGD' : (string) ($row['SubLayanan'] ?? ''),
             'status_lanjut' => $isIgd ? 'IGD' : 'Rawat Jalan',
+            'penjamin' => trim((string) ($row['PxRS'] ?? '')),
         ];
     }
 }

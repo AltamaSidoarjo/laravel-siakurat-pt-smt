@@ -10,7 +10,7 @@ use App\Http\Requests\Bridging\ImportPendapatanRequest;
 use App\Http\Requests\Bridging\LoadBillingPendapatanApiRequest;
 use App\Models\SimrsImportPendapatan;
 use App\Services\Bridging\BillingPendapatanApiService;
-use App\Services\Bridging\BillingPendapatanJournalImportService;
+use App\Services\Bridging\BillingPendapatanInvoiceImportService;
 use App\Services\Bridging\BridgingPendapatanService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -27,7 +27,7 @@ class BridgingPendapatanController extends Controller
     public function __construct(
         private readonly BridgingPendapatanService $bridgingPendapatanService,
         private readonly BillingPendapatanApiService $billingPendapatanApiService,
-        private readonly BillingPendapatanJournalImportService $billingPendapatanJournalImportService,
+        private readonly BillingPendapatanInvoiceImportService $billingPendapatanInvoiceImportService,
     ) {}
 
     public function index(Request $request): View
@@ -130,7 +130,7 @@ class BridgingPendapatanController extends Controller
         $data = $request->validated();
 
         try {
-            $results = $this->billingPendapatanJournalImportService->imporBanyak(
+            $results = $this->billingPendapatanInvoiceImportService->imporBanyak(
                 $data['selectedExternalIds'],
                 $data['jenisLayanan'],
                 $data['startDate'],
@@ -154,7 +154,7 @@ class BridgingPendapatanController extends Controller
         return redirect()
             ->route('bridging.pendapatan.index')
             ->with('bridging_pendapatan_results', $results)
-            ->with('bridging_pendapatan_message', 'Proses import Jurnal Umum selesai.');
+            ->with('bridging_pendapatan_message', 'Proses import Invoice Pendapatan selesai.');
     }
 
     public function destroyBulk(BulkDeletePendapatanRequest $request): RedirectResponse

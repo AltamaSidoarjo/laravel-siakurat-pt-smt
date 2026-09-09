@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Http\Middleware\EnsureModuleAccess;
 use App\Models\SimrsImportPendapatan;
 use App\Models\User;
-use App\Services\Bridging\BillingPendapatanJournalImportService;
+use App\Services\Bridging\BillingPendapatanInvoiceImportService;
 use App\Services\Bridging\BridgingPendapatanService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Client\Request;
@@ -45,6 +45,7 @@ class BridgingPendapatanApiTest extends TestCase
                     'Nama' => 'Pasien API',
                     'Dokter' => 'Dokter API',
                     'SubLayanan' => 'Spesialis API',
+                    'PxRS' => 'BPJS',
                 ]],
             ]),
         ]);
@@ -68,7 +69,8 @@ class BridgingPendapatanApiTest extends TestCase
             ->assertJsonPath('data.0.nama_pasien', 'Pasien API')
             ->assertJsonPath('data.0.nama_dokter', 'Dokter API')
             ->assertJsonPath('data.0.nama_poli', 'Spesialis API')
-            ->assertJsonPath('data.0.status_lanjut', 'Rawat Jalan');
+            ->assertJsonPath('data.0.status_lanjut', 'Rawat Jalan')
+            ->assertJsonPath('data.0.penjamin', 'BPJS');
 
         Http::assertSent(function (Request $request): bool {
             if (! str_contains($request->url(), '/rawat-jalan')) {
@@ -114,7 +116,8 @@ class BridgingPendapatanApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.0.nama_dokter', '')
             ->assertJsonPath('data.0.nama_poli', 'IGD')
-            ->assertJsonPath('data.0.status_lanjut', 'IGD');
+            ->assertJsonPath('data.0.status_lanjut', 'IGD')
+            ->assertJsonPath('data.0.penjamin', '');
 
         Http::assertSent(function (Request $request): bool {
             if (! str_contains($request->url(), '/igd')) {
@@ -185,7 +188,7 @@ class BridgingPendapatanApiTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_pull_page_enables_journal_import_and_keeps_invoice_disabled(): void
+    public function test_pull_page_only_offers_invoice_import_and_displays_penjamin(): void
     {
         Http::fake([
             'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
@@ -202,24 +205,23 @@ class BridgingPendapatanApiTest extends TestCase
             ->assertSee('Billing Pasien API')
             ->assertSee('Rawat Inap — Endpoint belum tersedia')
             ->assertSee('Total data terpilih')
-            ->assertSee('Import Jurnal Umum telah tersedia.')
-            ->assertSee('id="jenisJurnalUmum" value="JurnalUmum" checked', false)
-            ->assertDontSee('id="jenisJurnalUmum" value="JurnalUmum" checked disabled', false)
-            ->assertSee('id="jenisInvoicePendapatan" value="InvoicePendapatan" disabled', false)
+            ->assertSee('Invoice Pendapatan dengan tanggal pengakuan sesuai tanggal registrasi')
+            ->assertSee('<th>Penjamin</th>', false)
+            ->assertSee('Buat Invoice Pendapatan')
+            ->assertDontSee('name="jenisProses"', false)
+            ->assertDontSee('name="basisTanggalPengakuan"', false)
             ->assertSee('id="importButton" disabled', false)
-            ->assertSee('selectedExternalIds[]')
-            ->assertDontSee('<th>Penjamin</th>', false)
-            ->assertDontSee('<th>Total tagihan</th>', false);
+            ->assertSee('selectedExternalIds[]');
     }
 
-    public function test_import_post_calls_api_journal_service_and_not_legacy_import(): void
+    public function test_import_post_calls_api_invoice_service_and_not_legacy_import(): void
     {
         $legacyService = Mockery::mock(BridgingPendapatanService::class);
         $legacyService->shouldNotReceive('imporBanyak');
         $this->app->instance(BridgingPendapatanService::class, $legacyService);
 
-        $journalService = Mockery::mock(BillingPendapatanJournalImportService::class);
-        $journalService->shouldReceive('imporBanyak')
+        $invoiceService = Mockery::mock(BillingPendapatanInvoiceImportService::class);
+        $invoiceService->shouldReceive('imporBanyak')
             ->once()
             ->with(
                 ['1761891'],
@@ -235,7 +237,7 @@ class BridgingPendapatanApiTest extends TestCase
                 'berhasil' => true,
                 'alasan_gagal' => null,
             ]]);
-        $this->app->instance(BillingPendapatanJournalImportService::class, $journalService);
+        $this->app->instance(BillingPendapatanInvoiceImportService::class, $invoiceService);
 
         $response = $this
             ->withoutMiddleware(EnsureModuleAccess::class)
@@ -247,13 +249,11 @@ class BridgingPendapatanApiTest extends TestCase
                 'jenisLayanan' => 'rawat_jalan',
                 'spesialisId' => '7',
                 'dokterId' => '380',
-                'jenisProses' => 'JurnalUmum',
-                'basisTanggalPengakuan' => 'TanggalRegistrasi',
             ]);
 
         $response
             ->assertRedirect(route('bridging.pendapatan.index'))
-            ->assertSessionHas('bridging_pendapatan_message', 'Proses import Jurnal Umum selesai.')
+            ->assertSessionHas('bridging_pendapatan_message', 'Proses import Invoice Pendapatan selesai.')
             ->assertSessionHas('bridging_pendapatan_results.0.no_rawat', 'RJ-001');
     }
 
@@ -271,6 +271,7 @@ class BridgingPendapatanApiTest extends TestCase
                 'nama_dokter',
                 'nama_poli',
                 'status_lanjut',
+                'penjamin',
             ])->map(fn (string $column) => [
                 'data' => $column,
                 'name' => $column,
