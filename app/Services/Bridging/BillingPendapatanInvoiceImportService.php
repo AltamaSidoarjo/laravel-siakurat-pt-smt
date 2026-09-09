@@ -111,7 +111,8 @@ class BillingPendapatanInvoiceImportService
             throw new RuntimeException('Total invoice harus lebih besar dari nol.');
         }
 
-        $akunPiutang = $this->tentukanAkunPiutang((string) ($billing['penjamin'] ?? ''));
+        $penjamin = $this->normalisasiPenjamin((string) ($billing['penjamin'] ?? ''));
+        $akunPiutang = $this->tentukanAkunPiutang($penjamin['kode']);
 
         DB::transaction(function () use (
             $billing,
@@ -120,14 +121,12 @@ class BillingPendapatanInvoiceImportService
             $rincianInvoice,
             $grandtotal,
             $akunPiutang,
+            $penjamin,
             $actor,
         ): void {
             $this->pastikanBelumDiimpor($noRawat);
 
-            $pelanggan = $this->cariAtauBuatPelanggan(
-                $noRawat,
-                trim((string) ($billing['nama_pasien'] ?? '')),
-            );
+            $pelanggan = $this->cariAtauBuatPenjamin($penjamin);
 
             $invoice = new FakturPenjualan;
             $invoice->pelanggan_id = (int) $pelanggan->id;
@@ -145,8 +144,8 @@ class BillingPendapatanInvoiceImportService
             $invoice->nama_pasien = (string) ($billing['nama_pasien'] ?? '');
             $invoice->nomer_rawat = $noRawat;
             $invoice->tanggal_registrasi = $tanggalRegistrasi;
-            $invoice->kode_penjamin = (string) ($billing['penjamin'] ?? '');
-            $invoice->nama_penjamin = (string) ($billing['penjamin'] ?? '');
+            $invoice->kode_penjamin = $penjamin['kode'];
+            $invoice->nama_penjamin = $penjamin['nama'];
             $invoice->save();
 
             foreach ($rincianInvoice as $rincian) {
@@ -350,10 +349,27 @@ class BillingPendapatanInvoiceImportService
         return $coa;
     }
 
-    private function cariAtauBuatPelanggan(string $noRawat, string $namaPasien): Pelanggan
+    private function normalisasiPenjamin(string $penjamin): array
+    {
+        $nilaiPenjamin = trim($penjamin);
+
+        if ($nilaiPenjamin === '' || Str::lower($nilaiPenjamin) === 'u/px') {
+            return [
+                'kode' => 'U/Px',
+                'nama' => 'Umum',
+            ];
+        }
+
+        return [
+            'kode' => $nilaiPenjamin,
+            'nama' => $nilaiPenjamin,
+        ];
+    }
+
+    private function cariAtauBuatPenjamin(array $penjamin): Pelanggan
     {
         $pelanggan = Pelanggan::query()
-            ->where('kode_pelanggan', $noRawat)
+            ->whereRaw('LOWER(TRIM(kode_pelanggan)) = ?', [Str::lower($penjamin['kode'])])
             ->first();
 
         if ($pelanggan !== null) {
@@ -362,8 +378,8 @@ class BillingPendapatanInvoiceImportService
 
         $pelanggan = new Pelanggan;
         $pelanggan->status_aktif = true;
-        $pelanggan->kode_pelanggan = $noRawat;
-        $pelanggan->nama_pelanggan = $namaPasien !== '' ? $namaPasien : $noRawat;
+        $pelanggan->kode_pelanggan = $penjamin['kode'];
+        $pelanggan->nama_pelanggan = $penjamin['nama'];
         $pelanggan->save();
 
         return $pelanggan;

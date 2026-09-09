@@ -56,7 +56,7 @@ COA piutang dicari berdasarkan nama persis dan harus unik, aktif, postable, leaf
 
 Setiap kode `akun` dari `/akun-all` dicocokkan ke `coa.kode` setelah trim. COA tersebut harus unik, aktif, postable, leaf, dan bertipe pendapatan. Baris positif dikreditkan dan baris negatif dibalik ke debit.
 
-Pelanggan dibentuk dengan nomor rawat sebagai `kode_pelanggan` dan nama pasien sebagai `nama_pelanggan`. NIK tidak digunakan.
+Tabel `pelanggan` berfungsi sebagai master penjamin. Penjamin dibentuk dari nilai `PxRS`: nilai kosong atau `U/Px` dinormalisasi menjadi kode `U/Px` dan nama `Umum`, sedangkan nilai lain menggunakan nilai `PxRS` yang sudah di-trim sebagai kode dan nama. Semua invoice dengan penjamin yang sama menggunakan satu master penjamin. Identitas pasien tetap disimpan pada kolom pasien di invoice dan tidak dibuat sebagai pelanggan.
 
 ## Penyimpanan Invoice dan Buku Besar
 

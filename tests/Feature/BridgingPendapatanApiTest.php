@@ -41,7 +41,7 @@ class BridgingPendapatanApiTest extends TestCase
                 'data' => [[
                     'ID' => '1761891',
                     'RegNum' => 'RJ-001',
-                    'Tanggal' => '2026-08-15',
+                    'Tanggal' => '2026-08-15 09:30:45',
                     'Nama' => 'Pasien API',
                     'Dokter' => 'Dokter API',
                     'SubLayanan' => 'Spesialis API',

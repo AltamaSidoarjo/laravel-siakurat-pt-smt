@@ -50,7 +50,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $pendapatan = $this->createCoa('440410001', 'Pendapatan Poli', 'Pendapatan');
 
         $candidates = [
-            $this->candidate('ext-umum', 'RJ-UMUM', ' U/Px ', 'Pasien Umum'),
+            $this->candidate('ext-umum', 'RJ-UMUM', ' u/PX ', 'Pasien Umum'),
             $this->candidate('ext-bpjs', 'RJ-BPJS', 'bpjs', 'Pasien BPJS'),
             $this->candidate('ext-insurance', 'RJ-INSURANCE', 'Asuransi ABC', 'Pasien Asuransi'),
             $this->candidate('ext-empty', 'RJ-EMPTY', '', 'Pasien Tanpa Penjamin'),
@@ -73,6 +73,8 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $this->assertDatabaseHas('faktur_penjualan', [
             'nomor_faktur' => 'RJ-UMUM',
             'akun_piutang_id' => $umum->id,
+            'kode_penjamin' => 'U/Px',
+            'nama_penjamin' => 'Umum',
             'tanggal_faktur' => '2026-08-15 00:00:00',
             'grandtotal' => 200_000,
             'sudah_terbayar' => 0,
@@ -89,7 +91,18 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $this->assertDatabaseHas('faktur_penjualan', [
             'nomor_faktur' => 'RJ-EMPTY',
             'akun_piutang_id' => $umum->id,
+            'kode_penjamin' => 'U/Px',
+            'nama_penjamin' => 'Umum',
         ]);
+        $this->assertDatabaseHas('pelanggan', [
+            'kode_pelanggan' => 'U/Px',
+            'nama_pelanggan' => 'Umum',
+        ]);
+        $this->assertSame(3, DB::table('pelanggan')->count());
+        $this->assertSame(
+            DB::table('faktur_penjualan')->where('nomor_faktur', 'RJ-UMUM')->value('pelanggan_id'),
+            DB::table('faktur_penjualan')->where('nomor_faktur', 'RJ-EMPTY')->value('pelanggan_id'),
+        );
 
         $invoiceId = (int) DB::table('faktur_penjualan')
             ->where('nomor_faktur', 'RJ-BPJS')
@@ -122,10 +135,10 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         );
     }
 
-    public function test_customer_uses_visit_number_and_patient_name_without_nik(): void
+    public function test_invoice_uses_guarantor_as_customer_and_keeps_patient_on_invoice(): void
     {
         $this->createRequiredCoas();
-        $candidate = $this->candidate('ext-1', 'RJ-001', 'BPJS', 'Nama Pasien');
+        $candidate = $this->candidate('ext-1', 'RJ-001', 'Inhealth Indemity', 'Nama Pasien');
         $candidate['nik'] = '3512345678901234';
 
         $this->expectCandidates([$candidate]);
@@ -136,16 +149,45 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
 
         $this->assertTrue($result[0]['berhasil']);
         $this->assertDatabaseHas('pelanggan', [
-            'kode_pelanggan' => 'RJ-001',
-            'nama_pelanggan' => 'Nama Pasien',
+            'kode_pelanggan' => 'Inhealth Indemity',
+            'nama_pelanggan' => 'Inhealth Indemity',
         ]);
+        $this->assertDatabaseMissing('pelanggan', ['kode_pelanggan' => 'RJ-001']);
         $this->assertDatabaseMissing('pelanggan', ['kode_pelanggan' => '3512345678901234']);
+        $this->assertDatabaseHas('faktur_penjualan', [
+            'nomor_faktur' => 'RJ-001',
+            'nama_pasien' => 'Nama Pasien',
+            'kode_penjamin' => 'Inhealth Indemity',
+            'nama_penjamin' => 'Inhealth Indemity',
+        ]);
         $this->assertDatabaseHas('simrs_import_pendapatan', [
             'nomer_billing' => 'RJ-001',
-            'penjamin' => 'BPJS',
-            'kode_penjamin' => 'BPJS',
+            'penjamin' => 'Inhealth Indemity',
+            'kode_penjamin' => 'Inhealth Indemity',
             'import_ke' => 'Invoice Pendapatan',
         ]);
+    }
+
+    public function test_multiple_patients_with_same_guarantor_reuse_one_customer(): void
+    {
+        $this->createRequiredCoas();
+        $candidates = [
+            $this->candidate('ext-1', 'RJ-001', 'Inhealth Indemity', 'Pasien Satu'),
+            $this->candidate('ext-2', 'RJ-002', 'Inhealth Indemity', 'Pasien Dua'),
+        ];
+
+        $this->expectCandidates($candidates);
+        $this->expectRevenueDetails('ext-1');
+        $this->expectRevenueDetails('ext-2');
+        $this->logService->shouldReceive('log')->twice();
+
+        $result = $this->import(['ext-1', 'ext-2']);
+
+        $this->assertTrue(collect($result)->every(fn (array $row) => $row['berhasil']));
+        $this->assertSame(1, DB::table('pelanggan')->count());
+        $this->assertSame(1, DB::table('faktur_penjualan')->distinct()->count('pelanggan_id'));
+        $this->assertDatabaseHas('faktur_penjualan', ['nomor_faktur' => 'RJ-001', 'nama_pasien' => 'Pasien Satu']);
+        $this->assertDatabaseHas('faktur_penjualan', ['nomor_faktur' => 'RJ-002', 'nama_pasien' => 'Pasien Dua']);
     }
 
     public function test_negative_revenue_line_reverses_side_and_keeps_net_ledger_balanced(): void

@@ -115,12 +115,17 @@ class BillingPendapatanApiService
         return [
             'external_id' => trim((string) ($row['ID'] ?? '')),
             'no_rawat' => trim((string) $row['RegNum']),
-            'tanggal_registrasi' => (string) ($row['Tanggal'] ?? ''),
+            'tanggal_registrasi' => $this->tanggalTanpaJam($row['Tanggal'] ?? ''),
             'nama_pasien' => (string) ($row['Nama'] ?? ''),
             'nama_dokter' => (string) ($row['Dokter'] ?? ''),
             'nama_poli' => $isIgd ? 'IGD' : (string) ($row['SubLayanan'] ?? ''),
             'status_lanjut' => $isIgd ? 'IGD' : 'Rawat Jalan',
             'penjamin' => trim((string) ($row['PxRS'] ?? '')),
         ];
+    }
+
+    private function tanggalTanpaJam(mixed $tanggal): string
+    {
+        return preg_split('/[T\s]/', trim((string) $tanggal), 2)[0] ?? '';
     }
 }
