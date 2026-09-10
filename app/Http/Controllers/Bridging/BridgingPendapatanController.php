@@ -229,7 +229,7 @@ class BridgingPendapatanController extends Controller
 
     private function resolveDateRange(Request $request): array
     {
-        $startDate = $request->date('startDate')?->format('Y-m-d') ?? now()->startOfMonth()->format('Y-m-d');
+        $startDate = $request->date('startDate')?->format('Y-m-d') ?? now()->format('Y-m-d');
         $endDate = $request->date('endDate')?->format('Y-m-d') ?? now()->format('Y-m-d');
 
         return [$startDate, $endDate];
