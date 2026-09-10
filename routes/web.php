@@ -317,6 +317,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/pengguna/{user}/edit', [PenggunaController::class, 'edit'])->name('pengguna.edit');
             Route::put('/pengguna/{user}', [PenggunaController::class, 'update'])->name('pengguna.update');
         });
+        Route::middleware('module.access:pengaturan.pengguna,delete')->group(function () {
+            Route::delete('/pengguna/{user}', [PenggunaController::class, 'destroy'])->name('pengguna.destroy');
+        });
 
         Route::middleware('module.access:pengaturan.role-akses,view')->group(function () {
             Route::get('/role-akses', [RoleAksesController::class, 'index'])->name('role-akses.index');

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AccessModule;
+use App\Models\LogAktifitas;
 use App\Models\Role;
 use App\Models\RolePermission;
 use App\Models\User;
@@ -18,6 +19,7 @@ class RoleAccessManagementTest extends TestCase
     {
         parent::setUp();
 
+        Schema::dropIfExists('log_aktifitas');
         Schema::dropIfExists('role_permissions');
         Schema::dropIfExists('access_modules');
         Schema::dropIfExists('roles');
@@ -62,6 +64,15 @@ class RoleAccessManagementTest extends TestCase
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
+            $table->timestamps();
+        });
+
+        Schema::create('log_aktifitas', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('nama_user');
+            $table->string('modul');
+            $table->string('tipe');
+            $table->text('payload')->nullable();
             $table->timestamps();
         });
 
@@ -261,6 +272,104 @@ class RoleAccessManagementTest extends TestCase
             'nama_lengkap' => 'Pegawai Rumah Sakit',
             'jabatan' => 'Kepala Unit',
         ]);
+    }
+
+    public function test_user_with_delete_permission_can_delete_another_user_and_create_audit_log(): void
+    {
+        $admin = $this->makeAdminUser();
+        $user = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+        ], 'hapus@example.com');
+
+        $response = $this
+            ->actingAs($admin)
+            ->delete(route('pengaturan.pengguna.destroy', $user));
+
+        $response
+            ->assertRedirect(route('pengaturan.pengguna.index'))
+            ->assertSessionHas('success', 'Pengguna berhasil dihapus.');
+
+        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+
+        $log = LogAktifitas::query()
+            ->where('modul', 'User Management')
+            ->where('tipe', 'delete')
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame($admin->name, $log->nama_user);
+        $this->assertSame([
+            'old' => [
+                'name' => $user->name,
+                'email' => $user->email,
+                'role_id' => $user->role_id,
+            ],
+        ], json_decode($log->payload, true));
+    }
+
+    public function test_user_without_delete_permission_cannot_delete_another_user(): void
+    {
+        $actor = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+            'pengaturan.pengguna' => ['view' => true],
+        ]);
+        $target = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+        ], 'target@example.com');
+
+        $this
+            ->actingAs($actor)
+            ->delete(route('pengaturan.pengguna.destroy', $target))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('users', ['id' => $target->id]);
+    }
+
+    public function test_user_cannot_delete_their_own_account(): void
+    {
+        $admin = $this->makeAdminUser();
+
+        $response = $this
+            ->actingAs($admin)
+            ->delete(route('pengaturan.pengguna.destroy', $admin));
+
+        $response
+            ->assertRedirect(route('pengaturan.pengguna.index'))
+            ->assertSessionHas('error', 'Anda tidak dapat menghapus akun yang sedang digunakan.');
+
+        $this->assertDatabaseHas('users', ['id' => $admin->id]);
+        $this->assertDatabaseMissing('log_aktifitas', [
+            'modul' => 'User Management',
+            'tipe' => 'delete',
+        ]);
+    }
+
+    public function test_delete_button_is_only_shown_for_other_users_when_actor_has_delete_permission(): void
+    {
+        $admin = $this->makeAdminUser();
+        $target = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+        ], 'button-target@example.com');
+
+        $response = $this
+            ->actingAs($admin)
+            ->get(route('pengaturan.pengguna.index'));
+
+        $response
+            ->assertOk()
+            ->assertSee('action="'.route('pengaturan.pengguna.destroy', $target).'"', false)
+            ->assertDontSee('action="'.route('pengaturan.pengguna.destroy', $admin).'"', false);
+
+        $viewer = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+            'pengaturan.pengguna' => ['view' => true],
+        ], 'viewer@example.com');
+
+        $this
+            ->actingAs($viewer)
+            ->get(route('pengaturan.pengguna.index'))
+            ->assertOk()
+            ->assertDontSee('action="'.route('pengaturan.pengguna.destroy', $target).'"', false);
     }
 
     private function makeAdminUser(): User
