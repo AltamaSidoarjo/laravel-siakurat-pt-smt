@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Pendapatan;
 
+use App\Exceptions\BillingApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\StreamsCsvExport;
 use App\Http\Requests\Pendapatan\StoreInvoicePendapatanRequest;
 use App\Http\Requests\Pendapatan\UpdateInvoicePendapatanRequest;
 use App\Models\FakturPenjualan;
+use App\Services\Bridging\BillingPendapatanApiService;
 use App\Services\Pendapatan\InvoicePendapatanService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +23,7 @@ class InvoicePendapatanController extends Controller
     use StreamsCsvExport;
     public function __construct(
         private readonly InvoicePendapatanService $invoicePendapatanService,
+        private readonly BillingPendapatanApiService $billingPendapatanApiService,
     ) {
     }
 
@@ -135,11 +138,25 @@ class InvoicePendapatanController extends Controller
 
     private function formOptions(?FakturPenjualan $invoice = null): array
     {
+        $dokterOptions = collect();
+        $poliOptions = collect();
+        $apiOptionsError = null;
+
+        try {
+            $dokterOptions = $this->billingPendapatanApiService->getDokterOptions();
+            $poliOptions = $this->billingPendapatanApiService->getSpesialisOptions();
+        } catch (BillingApiException $exception) {
+            $apiOptionsError = $exception->getMessage();
+        }
+
         return [
             'pelangganOptions' => $this->invoicePendapatanService->getPelangganOptions($invoice),
             'receivableCoaOptions' => $this->invoicePendapatanService->getReceivableCoaOptions(),
             'revenueCoaOptions' => $this->invoicePendapatanService->getRevenueCoaOptions(),
             'pelaksanaOptions' => $this->invoicePendapatanService->getPelaksanaOptions($invoice),
+            'dokterOptions' => $dokterOptions,
+            'poliOptions' => $poliOptions,
+            'apiOptionsError' => $apiOptionsError,
         ];
     }
 

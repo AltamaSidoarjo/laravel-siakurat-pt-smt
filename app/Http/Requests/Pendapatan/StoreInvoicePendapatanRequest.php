@@ -62,14 +62,14 @@ class StoreInvoicePendapatanRequest extends FormRequest
 
     protected function validateCoaTypes($validator): void
     {
-        $this->validateCoa($validator, (int) $this->input('akun_piutang_id'), 'piutang', 'akun_piutang_id');
+        $this->validateCoa($validator, (int) $this->input('akun_piutang_id'), 'akun piutang', 'akun_piutang_id', true);
 
         foreach ($this->input('rincian', []) as $index => $row) {
-            $this->validateCoa($validator, (int) ($row['coa_id'] ?? 0), 'pendapatan', "rincian.$index.coa_id");
+            $this->validateCoa($validator, (int) ($row['coa_id'] ?? 0), 'pendapatan', "rincian.$index.coa_id", true);
         }
     }
 
-    private function validateCoa($validator, int $coaId, string $type, string $attribute): void
+    private function validateCoa($validator, int $coaId, string $type, string $attribute, bool $exactType = false): void
     {
         if ($coaId === 0) {
             return;
@@ -80,10 +80,14 @@ class StoreInvoicePendapatanRequest extends FormRequest
             return;
         }
 
+        $matchesType = $exactType
+            ? strtolower((string) $coa->tipe_coa) === $type
+            : str_contains(strtolower((string) $coa->tipe_coa), $type);
+
         if ((int) $coa->status_aktif !== 1
             || ! (bool) $coa->is_postable
             || (int) $coa->children_count > 0
-            || ! str_contains(strtolower((string) $coa->tipe_coa), $type)) {
+            || ! $matchesType) {
             $validator->errors()->add($attribute, 'Akun yang dipilih tidak valid untuk invoice pendapatan.');
         }
     }

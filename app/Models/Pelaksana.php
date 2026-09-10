@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Pelaksana extends Model
@@ -21,5 +22,10 @@ class Pelaksana extends Model
     public function rincianFakturPenjualan()
     {
         return $this->hasMany(FakturPenjualanRinci::class, 'pelaksana_id');
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('status_aktif', true);
     }
 }

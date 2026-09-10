@@ -44,12 +44,14 @@ class PelaksanaManagementServiceTest extends TestCase
         ]);
 
         $this->assertSame(1, $this->service->paginate('Pelaksana Test')->total());
+        $this->assertTrue(Pelaksana::query()->active()->whereKey($pelaksana)->exists());
         $this->service->update($pelaksana, [
             'no_proyek' => '1_TEST',
             'nama_pelaksana' => 'Pelaksana Diperbarui',
             'status_aktif' => false,
         ]);
         $this->assertDatabaseHas('pelaksana', ['id' => $pelaksana->id, 'status_aktif' => false]);
+        $this->assertFalse(Pelaksana::query()->active()->whereKey($pelaksana)->exists());
         $this->assertTrue($this->service->delete($pelaksana));
         $this->assertDatabaseMissing('pelaksana', ['id' => $pelaksana->id]);
     }

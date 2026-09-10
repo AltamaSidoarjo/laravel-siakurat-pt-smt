@@ -30,7 +30,7 @@
             <div class="row align-items-center mb-2">
                 <label for="pelanggan_id" class="col-12 col-sm-2 col-form-label fw-bold">Penjamin<span class="text-danger">*</span></label>
                 <div class="col">
-                    <select id="pelanggan_id" name="pelanggan_id" class="form-select select2-header" required @disabled($isImported)>
+                    <select id="pelanggan_id" name="pelanggan_id" class="form-select select2 select2-header" required @disabled($isImported)>
                         <option value="">Pilih Penjamin</option>
                         @foreach ($pelangganOptions as $pelanggan)
                             <option value="{{ $pelanggan->id }}" @selected((string) old('pelanggan_id', $invoicePendapatan->pelanggan_id ?? '') === (string) $pelanggan->id)>{{ $pelanggan->kode_pelanggan }} - {{ $pelanggan->nama_pelanggan }}</option>
@@ -41,12 +41,33 @@
             </div>
             <div class="row align-items-center mb-2">
                 <label for="akun_piutang_id" class="col-12 col-sm-2 col-form-label fw-bold">Akun Piutang<span class="text-danger">*</span></label>
-                <div class="col"><select id="akun_piutang_id" name="akun_piutang_id" class="form-select select2-header" required><option value="">Pilih Akun Piutang</option>@foreach ($receivableCoaOptions as $coa)<option value="{{ $coa->id }}" @selected((string) old('akun_piutang_id', $invoicePendapatan->akun_piutang_id ?? '') === (string) $coa->id)>{{ $coa->kode }} - {{ $coa->nama }}</option>@endforeach</select></div>
+                <div class="col"><select id="akun_piutang_id" name="akun_piutang_id" class="form-select select2 select2-header" required><option value="">Pilih Akun Piutang</option>@foreach ($receivableCoaOptions as $coa)<option value="{{ $coa->id }}" @selected((string) old('akun_piutang_id', $invoicePendapatan->akun_piutang_id ?? '') === (string) $coa->id)>{{ $coa->kode }} - {{ $coa->nama }}</option>@endforeach</select></div>
             </div>
-            @foreach ([['nama_pasien', 'Nama Pasien', true], ['nomer_rekam_medis', 'No. RM', false], ['nama_dokter', 'Dokter', false], ['nama_poli', 'Poli', false]] as [$field, $label, $required])
+            @if ($apiOptionsError)
+                <div class="alert alert-warning mb-2">{{ $apiOptionsError }}</div>
+            @endif
+            @foreach ([['nama_pasien', 'Nama Pasien', true], ['nomer_rekam_medis', 'No. RM', false]] as [$field, $label, $required])
                 <div class="row align-items-center mb-2">
                     <label for="{{ $field }}" class="col-12 col-sm-2 col-form-label fw-bold">{{ $label }}@if($required)<span class="text-danger">*</span>@endif</label>
                     <div class="col"><input type="text" id="{{ $field }}" name="{{ $field }}" class="form-control" value="{{ old($field, $invoicePendapatan->{$field} ?? '') }}" @required($required) @readonly($isImported)></div>
+                </div>
+            @endforeach
+            @foreach ([['nama_dokter', 'Dokter', $dokterOptions], ['nama_poli', 'Poli', $poliOptions]] as [$field, $label, $options])
+                @php($selectedValue = old($field, $invoicePendapatan->{$field} ?? ''))
+                <div class="row align-items-center mb-2">
+                    <label for="{{ $field }}" class="col-12 col-sm-2 col-form-label fw-bold">{{ $label }}</label>
+                    <div class="col">
+                        <select id="{{ $field }}" name="{{ $field }}" class="form-select select2" @disabled($isImported)>
+                            <option value="">Pilih {{ $label }}</option>
+                            @if (filled($selectedValue) && ! $options->contains('nama', $selectedValue))
+                                <option value="{{ $selectedValue }}" selected>{{ $selectedValue }}</option>
+                            @endif
+                            @foreach ($options as $option)
+                                <option value="{{ $option['nama'] }}" @selected($selectedValue === $option['nama'])>{{ $option['nama'] }}</option>
+                            @endforeach
+                        </select>
+                        @if ($isImported)<input type="hidden" name="{{ $field }}" value="{{ $selectedValue }}">@endif
+                    </div>
                 </div>
             @endforeach
             <div class="row align-items-center">
@@ -64,8 +85,8 @@
                 <tbody>
                 @foreach ($details as $index => $detail)
                     <tr>
-                        <td><input type="hidden" name="rincian[{{ $index }}][id]" value="{{ $detail['id'] ?? '' }}"><select name="rincian[{{ $index }}][coa_id]" class="form-select select2-detail" required><option value="">Pilih Akun</option>@foreach ($revenueCoaOptions as $coa)<option value="{{ $coa->id }}" @selected((string) ($detail['coa_id'] ?? '') === (string) $coa->id)>{{ $coa->kode }} - {{ $coa->nama }}</option>@endforeach</select></td>
-                        <td><select name="rincian[{{ $index }}][pelaksana_id]" class="form-select select2-detail"><option value="">Tanpa Pelaksana</option>@foreach ($pelaksanaOptions as $pelaksana)<option value="{{ $pelaksana->id }}" @selected((string) ($detail['pelaksana_id'] ?? '') === (string) $pelaksana->id)>{{ $pelaksana->nama_pelaksana }}@if(!$pelaksana->status_aktif) (Nonaktif)@endif</option>@endforeach</select><input type="hidden" name="rincian[{{ $index }}][kode_proyek]" value="{{ $detail['kode_proyek'] ?? '' }}"></td>
+                        <td><input type="hidden" name="rincian[{{ $index }}][id]" value="{{ $detail['id'] ?? '' }}"><select name="rincian[{{ $index }}][coa_id]" class="form-select select2 select2-detail" required><option value="">Pilih Akun</option>@foreach ($revenueCoaOptions as $coa)<option value="{{ $coa->id }}" @selected((string) ($detail['coa_id'] ?? '') === (string) $coa->id)>{{ $coa->kode }} - {{ $coa->nama }}</option>@endforeach</select></td>
+                        <td><select name="rincian[{{ $index }}][pelaksana_id]" class="form-select select2 select2-detail"><option value="">Tanpa Pelaksana</option>@foreach ($pelaksanaOptions as $pelaksana)<option value="{{ $pelaksana->id }}" @selected((string) ($detail['pelaksana_id'] ?? '') === (string) $pelaksana->id)>{{ $pelaksana->nama_pelaksana }}@if(!$pelaksana->status_aktif) (Nonaktif)@endif</option>@endforeach</select><input type="hidden" name="rincian[{{ $index }}][kode_proyek]" value="{{ $detail['kode_proyek'] ?? '' }}"></td>
                         <td><input type="number" name="rincian[{{ $index }}][kuantitas]" class="form-control text-end detail-quantity" min="0.01" step="0.01" value="{{ $detail['kuantitas'] ?? 1 }}" required></td>
                         <td><input type="number" name="rincian[{{ $index }}][harga]" class="form-control text-end detail-price" min="0.01" step="0.01" value="{{ $detail['harga'] ?? 0 }}" required></td>
                         <td><input type="text" class="form-control text-end detail-subtotal" readonly></td>
@@ -85,8 +106,8 @@
 
 <template id="invoice-detail-template">
     <tr>
-        <td><select data-name="coa_id" class="form-select select2-detail" required><option value="">Pilih Akun</option>@foreach ($revenueCoaOptions as $coa)<option value="{{ $coa->id }}">{{ $coa->kode }} - {{ $coa->nama }}</option>@endforeach</select></td>
-        <td><select data-name="pelaksana_id" class="form-select select2-detail"><option value="">Tanpa Pelaksana</option>@foreach ($pelaksanaOptions->where('status_aktif', true) as $pelaksana)<option value="{{ $pelaksana->id }}">{{ $pelaksana->nama_pelaksana }}</option>@endforeach</select><input type="hidden" data-name="kode_proyek"></td>
+        <td><select data-name="coa_id" class="form-select select2 select2-detail" required><option value="">Pilih Akun</option>@foreach ($revenueCoaOptions as $coa)<option value="{{ $coa->id }}">{{ $coa->kode }} - {{ $coa->nama }}</option>@endforeach</select></td>
+        <td><select data-name="pelaksana_id" class="form-select select2 select2-detail"><option value="">Tanpa Pelaksana</option>@foreach ($pelaksanaOptions->where('status_aktif', true) as $pelaksana)<option value="{{ $pelaksana->id }}">{{ $pelaksana->nama_pelaksana }}</option>@endforeach</select><input type="hidden" data-name="kode_proyek"></td>
         <td><input type="number" data-name="kuantitas" class="form-control text-end detail-quantity" min="0.01" step="0.01" value="1" required></td>
         <td><input type="number" data-name="harga" class="form-control text-end detail-price" min="0.01" step="0.01" value="0" required></td>
         <td><input type="text" class="form-control text-end detail-subtotal" readonly></td>

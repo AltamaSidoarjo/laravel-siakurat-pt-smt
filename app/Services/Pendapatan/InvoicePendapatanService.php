@@ -37,7 +37,7 @@ class InvoicePendapatanService
         return Pelanggan::query()
             ->where(fn (Builder $query) => $query->active()->when(
                 $invoice?->pelanggan_id,
-                fn (Builder $query, int $pelangganId) => $query->orWhereKey($pelangganId),
+                fn (Builder $query, int $pelangganId) => $query->orWhere('id', $pelangganId),
             ))
             ->orderBy('kode_pelanggan')
             ->get();
@@ -47,7 +47,7 @@ class InvoicePendapatanService
     {
         return Coa::query()->selectableTransaction()
             ->where('is_postable', true)
-            ->whereRaw('LOWER(tipe_coa) LIKE ?', ['%piutang%'])
+            ->whereRaw('LOWER(tipe_coa) = ?', ['akun piutang'])
             ->get(['id', 'kode', 'nama', 'tipe_coa']);
     }
 
@@ -55,7 +55,7 @@ class InvoicePendapatanService
     {
         return Coa::query()->selectableTransaction()
             ->where('is_postable', true)
-            ->whereRaw('LOWER(tipe_coa) LIKE ?', ['%pendapatan%'])
+            ->whereRaw('LOWER(tipe_coa) = ?', ['pendapatan'])
             ->get(['id', 'kode', 'nama', 'tipe_coa']);
     }
 

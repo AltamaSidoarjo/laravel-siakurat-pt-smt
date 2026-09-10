@@ -4,13 +4,10 @@
         const template = document.getElementById('invoice-detail-template');
         let nextIndex = body?.querySelectorAll('tr').length ?? 0;
 
-        function initSelect2(scope = document) {
-            if (!window.jQuery?.fn?.select2) return;
-            window.jQuery(scope).find('.select2-header, .select2-detail').each(function () {
-                const item = window.jQuery(this);
-                if (!item.data('select2')) item.select2({theme: 'bootstrap-5', width: '100%', allowClear: true});
-            });
+        function initDetailSelect2(scope) {
+            window.initSelect2Fields?.(scope, '.select2-detail');
         }
+
         function calculate() {
             let total = 0;
             body?.querySelectorAll('tr').forEach(row => {
@@ -26,7 +23,6 @@
         body?.addEventListener('click', event => {
             const button = event.target.closest('.remove-detail');
             if (!button || body.querySelectorAll('tr').length <= 1) return;
-            window.jQuery(button.closest('tr')).find('select').select2('destroy');
             button.closest('tr').remove();
             calculate();
         });
@@ -39,10 +35,9 @@
             const row = fragment.querySelector('tr');
             body.appendChild(fragment);
             nextIndex++;
-            initSelect2(row);
+            initDetailSelect2(row);
             calculate();
         });
-        initSelect2();
         calculate();
     });
 </script>
