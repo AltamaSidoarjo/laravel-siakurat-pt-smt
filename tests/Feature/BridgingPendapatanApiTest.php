@@ -2,11 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Exceptions\BillingApiException;
 use App\Http\Middleware\EnsureModuleAccess;
 use App\Models\SimrsImportPendapatan;
 use App\Models\User;
+use App\Services\Bridging\BillingPendapatanDetailService;
 use App\Services\Bridging\BillingPendapatanInvoiceImportService;
 use App\Services\Bridging\BridgingPendapatanService;
+use DomainException;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
@@ -134,6 +137,148 @@ class BridgingPendapatanApiTest extends TestCase
         Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/rawat-jalan'));
     }
 
+    public function test_billing_account_detail_endpoint_returns_normalized_rows_and_total(): void
+    {
+        Http::fake([
+            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
+            'http://billing.test/api/akun-all*' => Http::response([
+                'status' => true,
+                'data' => [
+                    ['akun' => '410.01', 'biaya' => 150000, 'jml' => 2, 'job' => 'DR-01'],
+                    ['akun' => '410.02', 'biaya' => 50000, 'jml' => 1, 'job' => null],
+                ],
+            ]),
+        ]);
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->getJson(route('bridging.pendapatan.load-billing-account-detail', [
+                'externalId' => '1761891',
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.0.akun', '410.01')
+            ->assertJsonPath('data.0.biaya', 150000)
+            ->assertJsonPath('data.0.jumlah', 2)
+            ->assertJsonPath('data.0.job', 'DR-01')
+            ->assertJsonPath('data.0.subtotal', 300000)
+            ->assertJsonPath('grandTotal', 350000)
+            ->assertJsonPath('source', 'api');
+
+        Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/akun-all')
+            && $request['id'] === '1761891');
+    }
+
+    public function test_billing_account_detail_requires_exactly_one_identifier(): void
+    {
+        Http::fake();
+
+        $this
+            ->actingAs($this->makeUser())
+            ->getJson(route('bridging.pendapatan.load-billing-account-detail'))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['externalId', 'importId']);
+
+        $this
+            ->actingAs($this->makeUser())
+            ->getJson(route('bridging.pendapatan.load-billing-account-detail', [
+                'externalId' => '1761891',
+                'importId' => 1,
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['externalId', 'importId']);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_empty_billing_account_detail_returns_an_empty_api_result(): void
+    {
+        Http::fake([
+            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
+            'http://billing.test/api/akun-all*' => Http::response([
+                'status' => true,
+                'data' => [],
+            ]),
+        ]);
+
+        $this
+            ->actingAs($this->makeUser())
+            ->getJson(route('bridging.pendapatan.load-billing-account-detail', [
+                'externalId' => 'billing-empty',
+            ]))
+            ->assertOk()
+            ->assertJsonCount(0, 'data')
+            ->assertJsonPath('grandTotal', 0)
+            ->assertJsonPath('source', 'api');
+    }
+
+    public function test_billing_account_detail_accepts_import_context(): void
+    {
+        $detailService = Mockery::mock(BillingPendapatanDetailService::class);
+        $detailService->shouldReceive('getDetail')
+            ->once()
+            ->with(null, 25)
+            ->andReturn([
+                'data' => [[
+                    'akun' => '410.03',
+                    'job' => null,
+                    'biaya' => 75000.0,
+                    'jumlah' => 2.0,
+                    'subtotal' => 150000.0,
+                ]],
+                'grandTotal' => 150000.0,
+                'source' => 'local_invoice',
+            ]);
+        $this->app->instance(BillingPendapatanDetailService::class, $detailService);
+
+        $this
+            ->actingAs($this->makeUser())
+            ->getJson(route('bridging.pendapatan.load-billing-account-detail', [
+                'importId' => 25,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('source', 'local_invoice')
+            ->assertJsonPath('data.0.akun', '410.03')
+            ->assertJsonPath('grandTotal', 150000);
+    }
+
+    public function test_unavailable_historical_detail_returns_controlled_error(): void
+    {
+        $detailService = Mockery::mock(BillingPendapatanDetailService::class);
+        $detailService->shouldReceive('getDetail')
+            ->once()
+            ->with(null, 26)
+            ->andThrow(new DomainException('Rincian billing tidak tersedia untuk data Jurnal Umum lama.'));
+        $this->app->instance(BillingPendapatanDetailService::class, $detailService);
+
+        $this
+            ->actingAs($this->makeUser())
+            ->getJson(route('bridging.pendapatan.load-billing-account-detail', [
+                'importId' => 26,
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Rincian billing tidak tersedia untuk data Jurnal Umum lama.');
+    }
+
+    public function test_billing_api_failure_returns_controlled_error(): void
+    {
+        $detailService = Mockery::mock(BillingPendapatanDetailService::class);
+        $detailService->shouldReceive('getDetail')
+            ->once()
+            ->with('api-failed', null)
+            ->andThrow(new BillingApiException('Billing API sedang tidak tersedia. Silakan coba kembali.'));
+        $this->app->instance(BillingPendapatanDetailService::class, $detailService);
+
+        $this
+            ->actingAs($this->makeUser())
+            ->getJson(route('bridging.pendapatan.load-billing-account-detail', [
+                'externalId' => 'api-failed',
+            ]))
+            ->assertStatus(502)
+            ->assertJsonPath('message', 'Billing API sedang tidak tersedia. Silakan coba kembali.');
+    }
+
     public function test_candidate_table_applies_search_pagination_and_excludes_imported_number(): void
     {
         SimrsImportPendapatan::query()->create([
@@ -209,6 +354,12 @@ class BridgingPendapatanApiTest extends TestCase
             ->assertSee('Total data terpilih')
             ->assertSee('Invoice Pendapatan dengan tanggal pengakuan sesuai tanggal registrasi')
             ->assertSee('<th>Penjamin</th>', false)
+            ->assertSee('<th class="text-center">Aksi</th>', false)
+            ->assertSee('Detail Data Billing')
+            ->assertSee('Rincian Akun Billing')
+            ->assertSee('load-billing-account-detail')
+            ->assertSee('billing-detail-button')
+            ->assertDontSee('ID Billing API')
             ->assertSee('Buat Invoice Pendapatan')
             ->assertDontSee('name="jenisProses"', false)
             ->assertDontSee('name="basisTanggalPengakuan"', false)

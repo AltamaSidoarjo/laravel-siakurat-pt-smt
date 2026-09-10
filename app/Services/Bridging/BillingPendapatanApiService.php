@@ -39,6 +39,27 @@ class BillingPendapatanApiService
             ->values();
     }
 
+    public function getRincianAkun(string $externalId): Collection
+    {
+        return collect($this->billingApiClient->getAkun($externalId))
+            ->filter(fn (mixed $row) => is_array($row))
+            ->map(function (array $row): array {
+                $biaya = is_numeric($row['biaya'] ?? null) ? (float) $row['biaya'] : null;
+                $jumlah = is_numeric($row['jml'] ?? null) ? (float) $row['jml'] : null;
+
+                return [
+                    'akun' => trim((string) ($row['akun'] ?? '')),
+                    'biaya' => $biaya,
+                    'jumlah' => $jumlah,
+                    'job' => filled($row['job'] ?? null) ? (string) $row['job'] : null,
+                    'subtotal' => $biaya !== null && $jumlah !== null
+                        ? round($biaya * $jumlah, 2)
+                        : null,
+                ];
+            })
+            ->values();
+    }
+
     public function getKandidat(
         string $jenisLayanan,
         string $startDate,

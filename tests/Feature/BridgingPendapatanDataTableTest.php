@@ -33,6 +33,34 @@ class BridgingPendapatanDataTableTest extends TestCase
             ->assertJsonPath('grandTotal', 6000.0);
     }
 
+    public function test_index_displays_billing_detail_action_and_modal(): void
+    {
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get(route('bridging.pendapatan.index'));
+
+        $response
+            ->assertOk()
+            ->assertSee('<th class="text-center">Aksi</th>', false)
+            ->assertSee('Detail Data Billing')
+            ->assertSee('Rincian Akun Billing')
+            ->assertSee('load-billing-account-detail')
+            ->assertSee('AbortController')
+            ->assertSee('billing-detail-button')
+            ->assertDontSee('ID Billing API')
+            ->assertDontSee("['Jam Registrasi', 'jam_reg']", false)
+            ->assertDontSee("['Kode Dokter', 'kode_dokter']", false)
+            ->assertDontSee("['Kode Poli', 'kode_poli']", false)
+            ->assertDontSee("['Kode Penjamin', 'kode_penjamin']", false)
+            ->assertDontSee("['Diagnosa Penyakit', 'diagnosa_penyakit']", false)
+            ->assertDontSee("['Kamar Inap', 'kamar_inap']", false)
+            ->assertDontSee("['Alamat', 'alamat']", false)
+            ->assertDontSee("['Kelurahan', 'nama_kelurahan']", false)
+            ->assertDontSee("['Kecamatan', 'nama_kecamatan']", false)
+            ->assertDontSee("['Kabupaten', 'nama_kabupaten']", false)
+            ->assertDontSee("['Waktu Import', 'import_time']", false);
+    }
+
     public function test_grand_total_changes_when_global_search_filters_rows(): void
     {
         $this->seedImportedPendapatanRows();

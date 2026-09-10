@@ -128,6 +128,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/pendapatan/export-csv', [BridgingPendapatanController::class, 'exportCsv'])->name('pendapatan.export-csv');
             Route::get('/pendapatan/tarik-simrs', [BridgingPendapatanController::class, 'tarikBillingSimrs'])->name('pendapatan.tarik-billing-simrs');
             Route::get('/pendapatan/load-billing-simrs', [BridgingPendapatanController::class, 'loadBillingSimrs'])->name('pendapatan.load-billing-simrs');
+            Route::get('/pendapatan/load-billing-account-detail', [BridgingPendapatanController::class, 'loadBillingAccountDetail'])->name('pendapatan.load-billing-account-detail');
             Route::get('/pendapatan/data-tidak-balance', [BridgingPendapatanController::class, 'dataTidakBalance'])->name('pendapatan.data-tidak-balance');
             Route::get('/pendapatan/detect-tidak-balance', [BridgingPendapatanController::class, 'detectTidakBalance'])->name('pendapatan.detect-tidak-balance');
         });

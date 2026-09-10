@@ -7,12 +7,16 @@ use App\Http\Controllers\Concerns\StreamsCsvExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Bridging\BulkDeletePendapatanRequest;
 use App\Http\Requests\Bridging\ImportPendapatanRequest;
+use App\Http\Requests\Bridging\LoadBillingAccountDetailRequest;
 use App\Http\Requests\Bridging\LoadBillingPendapatanApiRequest;
 use App\Models\SimrsImportPendapatan;
 use App\Services\Bridging\BillingPendapatanApiService;
+use App\Services\Bridging\BillingPendapatanDetailService;
 use App\Services\Bridging\BillingPendapatanInvoiceImportService;
 use App\Services\Bridging\BridgingPendapatanService;
+use DomainException;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,6 +31,7 @@ class BridgingPendapatanController extends Controller
     public function __construct(
         private readonly BridgingPendapatanService $bridgingPendapatanService,
         private readonly BillingPendapatanApiService $billingPendapatanApiService,
+        private readonly BillingPendapatanDetailService $billingPendapatanDetailService,
         private readonly BillingPendapatanInvoiceImportService $billingPendapatanInvoiceImportService,
     ) {}
 
@@ -123,6 +128,32 @@ class BridgingPendapatanController extends Controller
         }
 
         return DataTables::collection($rows)->toJson();
+    }
+
+    public function loadBillingAccountDetail(LoadBillingAccountDetailRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+
+        try {
+            $detail = $this->billingPendapatanDetailService->getDetail(
+                $data['externalId'] ?? null,
+                isset($data['importId']) ? (int) $data['importId'] : null,
+            );
+        } catch (BillingApiException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 502);
+        } catch (ModelNotFoundException) {
+            return response()->json([
+                'message' => 'Data import billing tidak ditemukan.',
+            ], 404);
+        } catch (DomainException $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return response()->json($detail);
     }
 
     public function processImport(ImportPendapatanRequest $request): RedirectResponse

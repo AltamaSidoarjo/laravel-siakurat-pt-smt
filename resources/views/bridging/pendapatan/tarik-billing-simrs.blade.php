@@ -114,6 +114,7 @@
                                                     <th>Poli</th>
                                                     <th>Status layanan</th>
                                                     <th>Penjamin</th>
+                                                    <th class="text-center">Aksi</th>
                                                 </tr>
                                             </thead>
                                         </table>
@@ -130,6 +131,7 @@
             </div>
         </div>
     </div>
+    @include('partials.billing-detail-modal')
 @endsection
 
 @push('scripts')
@@ -164,6 +166,15 @@
                 importButton.disabled = selectedExternalIds.size === 0;
             };
             const textRenderer = window.jQuery.fn.dataTable.render.text();
+            const billingDetailFields = [
+                ['No. Rawat', 'no_rawat'],
+                ['Tanggal Registrasi', 'tanggal_registrasi'],
+                ['Nama Pasien', 'nama_pasien'],
+                ['Dokter', 'nama_dokter'],
+                ['Poli', 'nama_poli'],
+                ['Status Layanan', 'status_lanjut'],
+                ['Penjamin', 'penjamin'],
+            ];
 
             const table = window.jQuery('#datatable').DataTable({
                 processing: true,
@@ -203,8 +214,22 @@
                     { data: 'nama_dokter', name: 'nama_dokter', render: textRenderer },
                     { data: 'nama_poli', name: 'nama_poli', render: textRenderer },
                     { data: 'status_lanjut', name: 'status_lanjut', render: textRenderer },
-                    { data: 'penjamin', name: 'penjamin', render: textRenderer }
+                    { data: 'penjamin', name: 'penjamin', render: textRenderer },
+                    {
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center text-nowrap',
+                        render: function () {
+                            return '<button type="button" class="btn btn-sm btn-outline-info billing-detail-button"><i class="bi bi-eye me-1"></i>Detail</button>';
+                        }
+                    }
                 ]
+            });
+
+            window.jQuery('#datatable tbody').on('click', '.billing-detail-button', function () {
+                const row = table.row(window.jQuery(this).closest('tr')).data();
+                window.billingDetailModal.show(row, billingDetailFields, { externalId: row.external_id });
             });
 
             table.on('xhr', function (event, settings, json) {

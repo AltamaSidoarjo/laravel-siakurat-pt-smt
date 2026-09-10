@@ -133,6 +133,7 @@
                                                     <th>Penjamin</th>
                                                     <th>Total tagihan</th>
                                                     <th>Import ke</th>
+                                                    <th class="text-center">Aksi</th>
                                                 </tr>
                                             </thead>
                                         </table>
@@ -154,6 +155,7 @@
         </div>
     </div>
     @include('partials.export-csv-modal', ['exportRoute' => route('bridging.pendapatan.export-csv'), 'exportTitle' => 'Bridging Pendapatan', 'startDate' => $startDate, 'endDate' => $endDate])
+    @include('partials.billing-detail-modal')
 @endsection
 
 @push('scripts')
@@ -166,6 +168,20 @@
             const updateSelectedCount = () => {
                 document.getElementById('selectedCount').textContent = document.querySelectorAll('.row-checkbox:checked').length;
             };
+            const textRenderer = window.jQuery.fn.dataTable.render.text();
+            const billingDetailFields = [
+                ['No. Billing', 'nomer_billing'],
+                ['Tanggal Registrasi', 'tanggal_reg_display'],
+                ['No. Rekam Medis', 'no_rekam_medis'],
+                ['Nama Pasien', 'nama_pasien'],
+                ['Dokter', 'dokter'],
+                ['Poli', 'poli'],
+                ['Status Layanan', 'status_layanan'],
+                ['Penjamin', 'penjamin'],
+                ['Total Tagihan', 'total_tagihan_display', (value) => `Rp ${value}`],
+                ['Tujuan Import', 'import_ke'],
+                ['Diimpor Oleh', 'user_importer'],
+            ];
 
             const table = window.jQuery('#datatable').DataTable({
                 processing: true,
@@ -193,7 +209,7 @@
                         searchable: false,
                         className: 'text-center',
                         render: function (data) {
-                            return `<input type="checkbox" class="row-checkbox" name="selectedNoRawat[]" value="${data}">`;
+                            return `<input type="checkbox" class="row-checkbox" name="selectedNoRawat[]" value="${textRenderer.display(data)}">`;
                         }
                     },
                     { data: 'nomer_billing', name: 'nomer_billing' },
@@ -204,8 +220,22 @@
                     { data: 'status_layanan', name: 'status_layanan' },
                     { data: 'penjamin', name: 'penjamin' },
                     { data: 'total_tagihan_display', name: 'total_tagihan', className: 'text-end' },
-                    { data: 'import_ke', name: 'import_ke' }
+                    { data: 'import_ke', name: 'import_ke' },
+                    {
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center text-nowrap',
+                        render: function () {
+                            return '<button type="button" class="btn btn-sm btn-outline-info billing-detail-button"><i class="bi bi-eye me-1"></i>Detail</button>';
+                        }
+                    }
                 ]
+            });
+
+            window.jQuery('#datatable tbody').on('click', '.billing-detail-button', function () {
+                const row = table.row(window.jQuery(this).closest('tr')).data();
+                window.billingDetailModal.show(row, billingDetailFields, { importId: row.id });
             });
 
             table.on('draw', function () {
