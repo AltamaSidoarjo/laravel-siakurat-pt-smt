@@ -3,12 +3,14 @@
 namespace Tests\Unit;
 
 use App\Models\Coa;
+use App\Models\Pelaksana;
 use App\Services\Bridging\BillingApiClient;
 use App\Services\Bridging\BillingPendapatanApiService;
 use App\Services\Bridging\BillingPendapatanInvoiceImportService;
 use App\Services\Bridging\BridgingPendapatanService;
 use App\Services\Bukubesar\BukuBesarService;
 use App\Services\LogAktifitasService;
+use App\Services\Pendapatan\InvoicePendapatanService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -25,6 +27,8 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
 
     private BillingPendapatanInvoiceImportService $service;
 
+    private InvoicePendapatanService $invoiceService;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -34,11 +38,12 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $this->candidateService = Mockery::mock(BillingPendapatanApiService::class);
         $this->apiClient = Mockery::mock(BillingApiClient::class);
         $this->logService = Mockery::mock(LogAktifitasService::class);
+        $this->invoiceService = new InvoicePendapatanService(new BukuBesarService, $this->logService);
         $this->service = new BillingPendapatanInvoiceImportService(
             $this->candidateService,
             $this->apiClient,
-            new BukuBesarService,
             $this->logService,
+            $this->invoiceService,
         );
     }
 
@@ -113,6 +118,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
             'kuantitas' => 2,
             'subtotal' => 200_000,
             'catatan' => 'Pelayanan',
+            'coa_id' => $pendapatan->id,
         ]);
         $this->assertDatabaseHas('bukubesar', [
             'coa_id' => $bpjs->id,
@@ -213,6 +219,52 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         ]);
     }
 
+    public function test_invoice_detail_maps_only_an_exact_active_project_code_and_keeps_unmatched_jobs(): void
+    {
+        $this->createRequiredCoas();
+        $active = Pelaksana::query()->create([
+            'no_proyek' => '1_ALMIRA_SYAMSURI',
+            'nama_pelaksana' => 'Almira Syamsuri, dr.',
+            'status_aktif' => true,
+        ]);
+        Pelaksana::query()->create([
+            'no_proyek' => '1_NOVIA',
+            'nama_pelaksana' => 'Novia, dr.',
+            'status_aktif' => false,
+        ]);
+
+        $this->expectCandidates([$this->candidate()]);
+        $this->apiClient->shouldReceive('getAkun')->once()->andReturn([
+            ['akun' => '440410001', 'biaya' => 10_000, 'jml' => 1, 'job' => '1_ALMIRA_SYAMSURI'],
+            ['akun' => '440410001', 'biaya' => 10_000, 'jml' => 1, 'job' => '1_almira_syamsuri'],
+            ['akun' => '440410001', 'biaya' => 10_000, 'jml' => 1, 'job' => ' 1_ALMIRA_SYAMSURI'],
+            ['akun' => '440410001', 'biaya' => 10_000, 'jml' => 1, 'job' => '1_NOVIA'],
+            ['akun' => '440410001', 'biaya' => 10_000, 'jml' => 1, 'job' => null],
+        ]);
+        $this->logService->shouldReceive('log')->once();
+
+        $result = $this->import(['ext-1']);
+
+        $this->assertTrue($result[0]['berhasil']);
+        $this->assertSame(1, DB::table('faktur_penjualan_rinci')->where('pelaksana_id', $active->id)->count());
+        $this->assertDatabaseHas('faktur_penjualan_rinci', [
+            'pelaksana_id' => null,
+            'kode_proyek' => '1_almira_syamsuri',
+        ]);
+        $this->assertDatabaseHas('faktur_penjualan_rinci', [
+            'pelaksana_id' => null,
+            'kode_proyek' => ' 1_ALMIRA_SYAMSURI',
+        ]);
+        $this->assertDatabaseHas('faktur_penjualan_rinci', [
+            'pelaksana_id' => null,
+            'kode_proyek' => '1_NOVIA',
+        ]);
+        $this->assertDatabaseHas('faktur_penjualan_rinci', [
+            'pelaksana_id' => null,
+            'kode_proyek' => null,
+        ]);
+    }
+
     public function test_invalid_receivable_coa_rolls_back_all_writes(): void
     {
         $this->createCoa('103000024', 'Piutang Pasien BPJS Kesehatan', 'Piutang Usaha', false);
@@ -227,6 +279,152 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $this->assertFalse($result[0]['berhasil']);
         $this->assertStringContainsString('COA piutang tidak aktif', $result[0]['alasan_gagal']);
         $this->assertNoImportWrites();
+    }
+
+    public function test_manual_invoice_crud_persists_coa_and_synchronizes_ledger(): void
+    {
+        $this->createRequiredCoas();
+        $receivable = Coa::query()->where('kode', '103000021')->firstOrFail();
+        $revenue = Coa::query()->where('kode', '440410001')->firstOrFail();
+        $customerId = DB::table('pelanggan')->insertGetId([
+            'status_aktif' => true,
+            'kode_pelanggan' => 'UMUM',
+            'nama_pelanggan' => 'Pasien Umum',
+        ]);
+        $this->logService->shouldReceive('log')->times(3);
+
+        $invoice = $this->invoiceService->create([
+            'nomor_faktur' => 'INV-MANUAL-001',
+            'tanggal_faktur' => '2026-09-10',
+            'pelanggan_id' => $customerId,
+            'akun_piutang_id' => $receivable->id,
+            'nama_pasien' => 'Pasien Manual',
+            'rincian' => [[
+                'coa_id' => $revenue->id,
+                'pelaksana_id' => null,
+                'kuantitas' => 2,
+                'harga' => 50_000,
+                'catatan' => 'Tindakan manual',
+            ]],
+        ], 'Tester');
+
+        $this->assertDatabaseHas('faktur_penjualan_rinci', [
+            'faktur_penjualan_id' => $invoice->id,
+            'coa_id' => $revenue->id,
+            'subtotal' => 100_000,
+        ]);
+        $this->assertSame(2, DB::table('bukubesar')->where('sumber_id', $invoice->id)->count());
+
+        $updated = $this->invoiceService->update($invoice, [
+            'nomor_faktur' => 'INV-MANUAL-002',
+            'tanggal_faktur' => '2026-09-11',
+            'pelanggan_id' => $customerId,
+            'akun_piutang_id' => $receivable->id,
+            'nama_pasien' => 'Pasien Manual Update',
+            'rincian' => [[
+                'coa_id' => $revenue->id,
+                'pelaksana_id' => null,
+                'kuantitas' => 3,
+                'harga' => 50_000,
+                'catatan' => 'Tindakan diperbarui',
+            ]],
+        ], 'Tester');
+
+        $this->assertSame('150000.00', $updated->grandtotal);
+        $this->assertDatabaseHas('bukubesar', [
+            'sumber_id' => $invoice->id,
+            'nomer' => 'INV-MANUAL-002',
+            'coa_id' => $revenue->id,
+            'nominal' => 150_000,
+            'tipe_mutasi' => 'K',
+        ]);
+
+        $this->invoiceService->delete($updated, 'Tester');
+        $this->assertDatabaseMissing('faktur_penjualan', ['id' => $invoice->id]);
+        $this->assertDatabaseMissing('bukubesar', ['sumber_id' => $invoice->id, 'sumber_transaksi' => 'Invoice Pendapatan']);
+    }
+
+    public function test_paid_invoice_cannot_be_edited_or_deleted(): void
+    {
+        $invoice = new \App\Models\FakturPenjualan;
+        $invoice->id = 99;
+        $invoice->sudah_terbayar = 1;
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Invoice sudah memiliki penerimaan');
+
+        $this->invoiceService->ensureMutable($invoice);
+    }
+
+    public function test_imported_invoice_update_locks_simrs_identity_and_delete_clears_import_marker(): void
+    {
+        $this->createRequiredCoas();
+        $receivable = Coa::query()->where('kode', '103000021')->firstOrFail();
+        $revenue = Coa::query()->where('kode', '440410001')->firstOrFail();
+        $customerId = DB::table('pelanggan')->insertGetId([
+            'status_aktif' => true,
+            'kode_pelanggan' => 'UMUM',
+            'nama_pelanggan' => 'Pasien Umum',
+        ]);
+        $otherCustomerId = DB::table('pelanggan')->insertGetId([
+            'status_aktif' => true,
+            'kode_pelanggan' => 'LAIN',
+            'nama_pelanggan' => 'Penjamin Lain',
+        ]);
+        $this->logService->shouldReceive('log')->times(3);
+
+        $invoice = $this->invoiceService->create([
+            'nomor_faktur' => 'RJ-LOCKED',
+            'tanggal_faktur' => '2026-09-10',
+            'pelanggan_id' => $customerId,
+            'akun_piutang_id' => $receivable->id,
+            'nama_pasien' => 'Pasien API',
+            'rincian' => [[
+                'coa_id' => $revenue->id,
+                'kuantitas' => 1,
+                'harga' => 100_000,
+                'catatan' => 'API detail',
+            ]],
+        ], 'Tester');
+        $invoice->nomer_rawat = 'RJ-LOCKED';
+        $invoice->save();
+        DB::table('simrs_import_pendapatan')->insert([
+            'nomer_billing' => 'RJ-LOCKED',
+            'tanggal_reg' => '2026-09-10',
+            'total_tagihan' => 100_000,
+            'import_ke' => 'Invoice Pendapatan',
+        ]);
+        $detail = $invoice->rincian()->firstOrFail();
+
+        $updated = $this->invoiceService->update($invoice, [
+            'nomor_faktur' => 'MALICIOUS-NUMBER',
+            'tanggal_faktur' => '2026-09-11',
+            'pelanggan_id' => $otherCustomerId,
+            'akun_piutang_id' => $receivable->id,
+            'nama_pasien' => 'Nama Diubah',
+            'rincian' => [[
+                'id' => $detail->id,
+                'coa_id' => $revenue->id,
+                'pelaksana_id' => null,
+                'kode_proyek' => 'MALICIOUS-PROJECT',
+                'kuantitas' => 2,
+                'harga' => 100_000,
+                'catatan' => 'API detail update',
+            ]],
+        ], 'Tester');
+
+        $this->assertSame('RJ-LOCKED', $updated->nomor_faktur);
+        $this->assertSame('Pasien API', $updated->nama_pasien);
+        $this->assertSame($customerId, $updated->pelanggan_id);
+        $this->assertDatabaseHas('simrs_import_pendapatan', ['nomer_billing' => 'RJ-LOCKED', 'total_tagihan' => 200_000]);
+
+        $this->invoiceService->delete($updated, 'Tester');
+
+        $this->assertDatabaseMissing('simrs_import_pendapatan', ['nomer_billing' => 'RJ-LOCKED']);
+        $this->assertDatabaseHas('log_hapus_import_pendapatan', [
+            'nomer' => 'RJ-LOCKED',
+            'sumber_transaksi' => 'Invoice Pendapatan',
+        ]);
     }
 
     public function test_duplicate_receivable_name_is_rejected_as_ambiguous(): void
@@ -503,6 +701,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
             $table->string('nama_dokter')->nullable();
             $table->string('nama_pasien')->default('');
             $table->string('nomer_rawat')->default('');
+            $table->string('nomer_rekam_medis')->nullable();
             $table->date('tanggal_registrasi');
             $table->string('kode_penjamin')->nullable();
             $table->string('nama_penjamin')->nullable();
@@ -512,10 +711,27 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         Schema::create('faktur_penjualan_rinci', function (Blueprint $table): void {
             $table->increments('id');
             $table->unsignedInteger('faktur_penjualan_id');
+            $table->unsignedInteger('pelaksana_id')->nullable();
+            $table->string('kode_proyek')->nullable();
+            $table->unsignedInteger('coa_id')->nullable();
             $table->decimal('kuantitas', 15, 2)->default(0);
             $table->decimal('harga', 15, 2)->default(0);
             $table->decimal('subtotal', 15, 2)->default(0);
             $table->text('catatan')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('penerimaan_penjualan_rinci', function (Blueprint $table): void {
+            $table->increments('id');
+            $table->unsignedInteger('faktur_penjualan_id');
+            $table->decimal('nominal_bayar', 15, 2)->default(0);
+        });
+
+        Schema::create('pelaksana', function (Blueprint $table): void {
+            $table->increments('id');
+            $table->string('no_proyek')->unique();
+            $table->string('nama_pelaksana');
+            $table->boolean('status_aktif')->default(true);
             $table->timestamps();
         });
 

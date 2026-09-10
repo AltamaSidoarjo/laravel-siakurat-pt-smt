@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Pendapatan;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\StreamsCsvExport;
+use App\Http\Requests\Pendapatan\StoreInvoicePendapatanRequest;
+use App\Http\Requests\Pendapatan\UpdateInvoicePendapatanRequest;
 use App\Models\FakturPenjualan;
 use App\Services\Pendapatan\InvoicePendapatanService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -61,9 +65,86 @@ class InvoicePendapatanController extends Controller
 
     public function read(FakturPenjualan $fakturPenjualan): View
     {
+        $fakturPenjualan->load(['pelanggan', 'akunPiutang', 'rincian.coa', 'rincian.pelaksana']);
+
         return view('pendapatan.invoice.read', [
             'page' => 'app',
-            'invoicePendapatan' => $fakturPenjualan->load('rincian'),
+            'invoicePendapatan' => $fakturPenjualan,
+            'isImported' => $this->invoicePendapatanService->isImported($fakturPenjualan),
+            'canMutate' => (float) $fakturPenjualan->sudah_terbayar <= 0
+                && ! $fakturPenjualan->penerimaanPenjualanRincis()->exists(),
         ]);
+    }
+
+    public function create(): View
+    {
+        return view('pendapatan.invoice.create', [
+            'page' => 'app',
+            ...$this->formOptions(),
+        ]);
+    }
+
+    public function store(StoreInvoicePendapatanRequest $request): RedirectResponse
+    {
+        $invoice = $this->invoicePendapatanService->create($request->validated(), $this->actor());
+
+        return redirect()->route('pendapatan.invoice.read', $invoice)
+            ->with('success', 'Invoice pendapatan berhasil dibuat.');
+    }
+
+    public function edit(FakturPenjualan $fakturPenjualan): View|RedirectResponse
+    {
+        try {
+            $this->invoicePendapatanService->ensureMutable($fakturPenjualan);
+        } catch (RuntimeException $exception) {
+            return redirect()->route('pendapatan.invoice.read', $fakturPenjualan)->with('error', $exception->getMessage());
+        }
+
+        $fakturPenjualan->load(['pelanggan', 'akunPiutang', 'rincian.coa', 'rincian.pelaksana']);
+
+        return view('pendapatan.invoice.edit', [
+            'page' => 'app',
+            'invoicePendapatan' => $fakturPenjualan,
+            'isImported' => $this->invoicePendapatanService->isImported($fakturPenjualan),
+            ...$this->formOptions($fakturPenjualan),
+        ]);
+    }
+
+    public function update(UpdateInvoicePendapatanRequest $request, FakturPenjualan $fakturPenjualan): RedirectResponse
+    {
+        try {
+            $invoice = $this->invoicePendapatanService->update($fakturPenjualan, $request->validated(), $this->actor());
+        } catch (RuntimeException $exception) {
+            return back()->withInput()->with('error', $exception->getMessage());
+        }
+
+        return redirect()->route('pendapatan.invoice.read', $invoice)
+            ->with('success', 'Invoice pendapatan berhasil diperbarui.');
+    }
+
+    public function destroy(FakturPenjualan $fakturPenjualan): RedirectResponse
+    {
+        try {
+            $this->invoicePendapatanService->delete($fakturPenjualan, $this->actor());
+        } catch (RuntimeException $exception) {
+            return redirect()->route('pendapatan.invoice.read', $fakturPenjualan)->with('error', $exception->getMessage());
+        }
+
+        return redirect()->route('pendapatan.invoice.index')->with('success', 'Invoice pendapatan berhasil dihapus.');
+    }
+
+    private function formOptions(?FakturPenjualan $invoice = null): array
+    {
+        return [
+            'pelangganOptions' => $this->invoicePendapatanService->getPelangganOptions($invoice),
+            'receivableCoaOptions' => $this->invoicePendapatanService->getReceivableCoaOptions(),
+            'revenueCoaOptions' => $this->invoicePendapatanService->getRevenueCoaOptions(),
+            'pelaksanaOptions' => $this->invoicePendapatanService->getPelaksanaOptions($invoice),
+        ];
+    }
+
+    private function actor(): string
+    {
+        return auth()->user()?->name ?? auth()->user()?->email ?? 'system';
     }
 }

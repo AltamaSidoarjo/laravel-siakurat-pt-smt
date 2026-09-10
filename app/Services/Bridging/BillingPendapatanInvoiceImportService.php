@@ -3,14 +3,14 @@
 namespace App\Services\Bridging;
 
 use App\Exceptions\BillingApiException;
-use App\Models\BukuBesar;
 use App\Models\Coa;
 use App\Models\FakturPenjualan;
 use App\Models\FakturPenjualanRinci;
 use App\Models\Pelanggan;
+use App\Models\Pelaksana;
 use App\Models\SimrsImportPendapatan;
-use App\Services\Bukubesar\BukuBesarService;
 use App\Services\LogAktifitasService;
+use App\Services\Pendapatan\InvoicePendapatanService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -31,8 +31,8 @@ class BillingPendapatanInvoiceImportService
     public function __construct(
         private readonly BillingPendapatanApiService $billingPendapatanApiService,
         private readonly BillingApiClient $billingApiClient,
-        private readonly BukuBesarService $bukuBesarService,
         private readonly LogAktifitasService $logService,
+        private readonly InvoicePendapatanService $invoicePendapatanService,
     ) {}
 
     public function imporBanyak(
@@ -151,6 +151,9 @@ class BillingPendapatanInvoiceImportService
             foreach ($rincianInvoice as $rincian) {
                 $detail = new FakturPenjualanRinci;
                 $detail->faktur_penjualan_id = (int) $invoice->id;
+                $detail->pelaksana_id = $rincian['pelaksana_id'];
+                $detail->kode_proyek = $rincian['kode_proyek'];
+                $detail->coa_id = $rincian['coa_id'];
                 $detail->harga = $rincian['harga'];
                 $detail->kuantitas = $rincian['kuantitas'];
                 $detail->subtotal = $rincian['subtotal'];
@@ -158,12 +161,7 @@ class BillingPendapatanInvoiceImportService
                 $detail->save();
             }
 
-            $this->sinkronkanBukuBesar(
-                $invoice,
-                $akunPiutang,
-                $rincianInvoice,
-                $grandtotal,
-            );
+            $this->invoicePendapatanService->syncLedger($invoice, $rincianInvoice);
 
             SimrsImportPendapatan::query()->create([
                 'nomer_billing' => $noRawat,
@@ -233,7 +231,7 @@ class BillingPendapatanInvoiceImportService
                 'harga' => (float) $biaya,
                 'kuantitas' => (float) $jumlah,
                 'subtotal' => $subtotal,
-                'job' => filled($row['job'] ?? null) ? trim((string) $row['job']) : null,
+                'job' => filled($row['job'] ?? null) ? (string) $row['job'] : null,
             ];
         }
 
@@ -242,14 +240,21 @@ class BillingPendapatanInvoiceImportService
         }
 
         $coaLookup = $this->muatCoaPendapatan(array_column($barisValid, 'kode_akun'));
+        $pelaksanaLookup = $this->muatPelaksanaAktif(array_column($barisValid, 'job'));
 
         return collect($barisValid)
-            ->map(function (array $row) use ($coaLookup): array {
+            ->map(function (array $row) use ($coaLookup, $pelaksanaLookup): array {
                 /** @var Coa $coa */
                 $coa = $coaLookup->get($row['kode_akun']);
+                /** @var Pelaksana|null $pelaksana */
+                $pelaksana = $row['job'] === null
+                    ? null
+                    : $pelaksanaLookup->get($row['job']);
 
                 return [
                     'coa_id' => (int) $coa->id,
+                    'pelaksana_id' => $pelaksana?->id,
+                    'kode_proyek' => $row['job'],
                     'harga' => $row['harga'],
                     'kuantitas' => $row['kuantitas'],
                     'subtotal' => $row['subtotal'],
@@ -258,6 +263,25 @@ class BillingPendapatanInvoiceImportService
             })
             ->values()
             ->all();
+    }
+
+    private function muatPelaksanaAktif(array $kodeProyek): Collection
+    {
+        $kodeUnik = collect($kodeProyek)
+            ->filter(fn (mixed $kode) => is_string($kode) && $kode !== '')
+            ->uniqueStrict()
+            ->values();
+
+        if ($kodeUnik->isEmpty()) {
+            return collect();
+        }
+
+        return Pelaksana::query()
+            ->where('status_aktif', true)
+            ->whereIn('no_proyek', $kodeUnik)
+            ->get()
+            ->filter(fn (Pelaksana $pelaksana) => $kodeUnik->containsStrict((string) $pelaksana->no_proyek))
+            ->keyBy('no_proyek');
     }
 
     private function muatCoaPendapatan(array $kodeAkun): Collection
@@ -383,66 +407,6 @@ class BillingPendapatanInvoiceImportService
         $pelanggan->save();
 
         return $pelanggan;
-    }
-
-    private function sinkronkanBukuBesar(
-        FakturPenjualan $invoice,
-        Coa $akunPiutang,
-        array $rincianInvoice,
-        float $grandtotal,
-    ): void {
-        $this->bukuBesarService->deleteBySource(
-            self::IMPORT_INVOICE_PENDAPATAN,
-            (int) $invoice->id,
-        );
-
-        $tanggal = $invoice->tanggal_faktur->format('Y-m-d');
-        $payload = [[
-            'coa_id' => (int) $akunPiutang->id,
-            'sumber_id' => (int) $invoice->id,
-            'tanggal' => $tanggal,
-            ...BukuBesarService::resolvePeriode($tanggal),
-            'nomer' => $invoice->nomor_faktur,
-            'sumber_transaksi' => self::IMPORT_INVOICE_PENDAPATAN,
-            'nominal' => $grandtotal,
-            'tipe_mutasi' => 'D',
-            'keterangan' => 'Akun piutang pendapatan',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]];
-
-        foreach ($rincianInvoice as $rincian) {
-            $payload[] = [
-                'coa_id' => (int) $rincian['coa_id'],
-                'sumber_id' => (int) $invoice->id,
-                'tanggal' => $tanggal,
-                ...BukuBesarService::resolvePeriode($tanggal),
-                'nomer' => $invoice->nomor_faktur,
-                'sumber_transaksi' => self::IMPORT_INVOICE_PENDAPATAN,
-                'nominal' => abs((float) $rincian['subtotal']),
-                'tipe_mutasi' => (float) $rincian['subtotal'] < 0 ? 'D' : 'K',
-                'keterangan' => $rincian['catatan'],
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        }
-
-        $totalDebit = collect($payload)
-            ->where('tipe_mutasi', 'D')
-            ->sum('nominal');
-        $totalKredit = collect($payload)
-            ->where('tipe_mutasi', 'K')
-            ->sum('nominal');
-
-        if (abs($totalDebit - $totalKredit) > 0.01) {
-            throw new RuntimeException(sprintf(
-                'Buku besar invoice tidak balance. Total debit %.2f dan kredit %.2f.',
-                $totalDebit,
-                $totalKredit,
-            ));
-        }
-
-        BukuBesar::query()->insert($payload);
     }
 
     private function pastikanBelumDiimpor(string $noRawat): void

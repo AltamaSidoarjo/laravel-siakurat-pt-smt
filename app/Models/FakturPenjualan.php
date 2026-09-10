@@ -42,6 +42,17 @@ class FakturPenjualan extends Model
         return $this->belongsTo(Pelanggan::class, 'pelanggan_id');
     }
 
+    public function akunPiutang()
+    {
+        return $this->belongsTo(Coa::class, 'akun_piutang_id');
+    }
+
+    public function simrsImport()
+    {
+        return $this->hasOne(SimrsImportPendapatan::class, 'nomer_billing', 'nomer_rawat')
+            ->where('import_ke', 'Invoice Pendapatan');
+    }
+
     public function penerimaanPenjualanRincis()
     {
         return $this->hasMany(PenerimaanPenjualanRinci::class, 'faktur_penjualan_id');

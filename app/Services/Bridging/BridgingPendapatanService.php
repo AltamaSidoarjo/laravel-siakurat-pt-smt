@@ -451,6 +451,7 @@ class BridgingPendapatanService
         foreach ($resolvedRevenueRows as $barisPendapatan) {
             $rinci = new FakturPenjualanRinci;
             $rinci->faktur_penjualan_id = (int) $invoice->id;
+            $rinci->coa_id = (int) $barisPendapatan['coa_id'];
             $rinci->harga = abs((float) $barisPendapatan['raw_total']);
             $rinci->kuantitas = (float) $barisPendapatan['quantity'];
             $rinci->subtotal = (float) $barisPendapatan['raw_total'];

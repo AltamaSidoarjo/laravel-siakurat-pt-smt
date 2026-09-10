@@ -40,6 +40,9 @@
                                                 <i class="bi bi-funnel me-1"></i>Filter
                                             </button>
                                             <button type="button" class="btn btn-outline-success text-nowrap" data-bs-toggle="modal" data-bs-target="#exportCsvModal"><i class="bi bi-filetype-csv me-1"></i>Export CSV</button>
+                                            @if (auth()->user()?->hasModuleAccess('pendapatan.invoice', 'create'))
+                                                <a href="{{ route('pendapatan.invoice.create') }}" class="btn btn-success text-nowrap"><i class="bi bi-plus-circle-fill me-1"></i>Tambah</a>
+                                            @endif
                                         </div>
                                     </div>
                                 </form>

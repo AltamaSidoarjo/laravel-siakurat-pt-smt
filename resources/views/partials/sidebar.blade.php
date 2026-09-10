@@ -25,6 +25,7 @@
     $canPengaturanPengguna = $can('pengaturan.pengguna');
     $canPengaturanRoleAkses = $can('pengaturan.role-akses');
     $canPengaturanKonversiFile = $can('pengaturan.konversi-file');
+    $canPengaturanMasterPelaksana = $can('pengaturan.master-pelaksana');
 
     $canSeePengaturan = $canPengaturanMappingPendapatan
         || $canPengaturanMappingGeneral
@@ -32,7 +33,8 @@
         || $canPengaturanPreferensi
         || $canPengaturanPengguna
         || $canPengaturanRoleAkses
-        || $canPengaturanKonversiFile;
+        || $canPengaturanKonversiFile
+        || $canPengaturanMasterPelaksana;
 
     $isHome = request()->routeIs('home');
 @endphp
@@ -290,6 +292,14 @@
             </a>
             <div class="collapse {{ str_starts_with($path, '/pengaturan') ? 'show' : '' }}" id="menu-pengaturan">
                 <ul class="sidebar-submenu list-unstyled">
+                    @if ($canPengaturanMasterPelaksana)
+                    <li>
+                        <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/pelaksana') ? 'active' : '' }}"
+                           href="{{ route('pengaturan.pelaksana.index') }}">
+                            <i class="bi bi-circle-fill sidebar-bullet"></i> Master Pelaksana
+                        </a>
+                    </li>
+                    @endif
                     @if ($canPengaturanMappingPendapatan)
                     <li>
                         <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/mapping-pendapatan') ? 'active' : '' }}"

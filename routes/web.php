@@ -18,6 +18,7 @@ use App\Http\Controllers\Pendapatan\PenerimaanPendapatanController;
 use App\Http\Controllers\Pengaturan\KonversiFileController;
 use App\Http\Controllers\Pengaturan\MappingGeneralController;
 use App\Http\Controllers\Pengaturan\MappingPendapatanController;
+use App\Http\Controllers\Pengaturan\PelaksanaController;
 use App\Http\Controllers\Pengaturan\PenggunaController;
 use App\Http\Controllers\Pengaturan\PreferensiController;
 use App\Http\Controllers\Pengaturan\RoleAksesController;
@@ -168,11 +169,22 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::prefix('pendapatan')->name('pendapatan.')->group(function () {
+        Route::middleware('module.access:pendapatan.invoice,create')->group(function () {
+            Route::get('/invoice/create', [InvoicePendapatanController::class, 'create'])->name('invoice.create');
+            Route::post('/invoice', [InvoicePendapatanController::class, 'store'])->name('invoice.store');
+        });
         Route::middleware('module.access:pendapatan.invoice,view')->group(function () {
             Route::get('/invoice', [InvoicePendapatanController::class, 'index'])->name('invoice.index');
             Route::get('/invoice/load-data', [InvoicePendapatanController::class, 'loadData'])->name('invoice.load-data');
             Route::get('/invoice/export-csv', [InvoicePendapatanController::class, 'exportCsv'])->name('invoice.export-csv');
             Route::get('/invoice/{fakturPenjualan}', [InvoicePendapatanController::class, 'read'])->name('invoice.read');
+        });
+        Route::middleware('module.access:pendapatan.invoice,update')->group(function () {
+            Route::get('/invoice/{fakturPenjualan}/edit', [InvoicePendapatanController::class, 'edit'])->name('invoice.edit');
+            Route::put('/invoice/{fakturPenjualan}', [InvoicePendapatanController::class, 'update'])->name('invoice.update');
+        });
+        Route::middleware('module.access:pendapatan.invoice,delete')->group(function () {
+            Route::delete('/invoice/{fakturPenjualan}', [InvoicePendapatanController::class, 'destroy'])->name('invoice.destroy');
         });
 
         Route::middleware('module.access:pendapatan.penerimaan,view')->group(function () {
@@ -256,6 +268,21 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::prefix('pengaturan')->name('pengaturan.')->group(function () {
+        Route::middleware('module.access:pengaturan.master-pelaksana,view')->group(function () {
+            Route::get('/pelaksana', [PelaksanaController::class, 'index'])->name('pelaksana.index');
+        });
+        Route::middleware('module.access:pengaturan.master-pelaksana,create')->group(function () {
+            Route::get('/pelaksana/create', [PelaksanaController::class, 'create'])->name('pelaksana.create');
+            Route::post('/pelaksana', [PelaksanaController::class, 'store'])->name('pelaksana.store');
+        });
+        Route::middleware('module.access:pengaturan.master-pelaksana,update')->group(function () {
+            Route::get('/pelaksana/{pelaksana}/edit', [PelaksanaController::class, 'edit'])->name('pelaksana.edit');
+            Route::put('/pelaksana/{pelaksana}', [PelaksanaController::class, 'update'])->name('pelaksana.update');
+        });
+        Route::middleware('module.access:pengaturan.master-pelaksana,delete')->group(function () {
+            Route::delete('/pelaksana/{pelaksana}', [PelaksanaController::class, 'destroy'])->name('pelaksana.destroy');
+        });
+
         Route::middleware('module.access:pengaturan.mapping-pendapatan,view')->group(function () {
             Route::get('/mapping-pendapatan', [MappingPendapatanController::class, 'index'])->name('mapping-pendapatan.index');
             Route::get('/mapping-pendapatan/umum', [MappingPendapatanController::class, 'indexUmum'])->name('mapping-pendapatan.umum.index');
