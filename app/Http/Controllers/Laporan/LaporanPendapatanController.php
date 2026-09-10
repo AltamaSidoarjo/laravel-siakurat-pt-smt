@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Laporan;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Database\Eloquent\Builder;
+use App\Http\Requests\Laporan\BukuPembantuPiutangRequest;
 use App\Services\Laporan\LaporanPendapatanService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -15,8 +16,7 @@ class LaporanPendapatanController extends Controller
 {
     public function __construct(
         private readonly LaporanPendapatanService $laporanPendapatanService,
-    ) {
-    }
+    ) {}
 
     public function index(): View
     {
@@ -146,6 +146,93 @@ class LaporanPendapatanController extends Controller
             [
                 'Content-Type' => 'text/csv; charset=UTF-8',
             ]
+        );
+    }
+
+    public function bukuPembantuPiutang(BukuPembantuPiutangRequest $request): View
+    {
+        $data = $request->validated();
+        $startDate = $data['startDate'] ?? now()->startOfMonth()->format('Y-m-d');
+        $endDate = $data['endDate'] ?? now()->format('Y-m-d');
+        $pelangganIds = collect($data['pelangganIds'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $akunPiutang = $data['akunPiutang'] ?? null;
+        $statusSaldo = $data['statusSaldo'] ?? 'semua';
+        $report = $this->laporanPendapatanService->getBukuPembantuPiutang(
+            startDate: $startDate,
+            endDate: $endDate,
+            pelangganIds: $pelangganIds,
+            akunPiutang: $akunPiutang,
+            statusSaldo: $statusSaldo,
+        );
+
+        return view('laporan.pendapatan.buku-pembantu-piutang', array_merge(
+            $this->laporanPendapatanService->getIdentitasLaporan(),
+            $report,
+            [
+                'page' => 'app',
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'pelangganIds' => $pelangganIds,
+                'pelangganTerpilih' => $this->laporanPendapatanService->getPelangganTerpilih($pelangganIds),
+                'akunPiutang' => $akunPiutang,
+                'coaPiutangTerpilih' => $this->laporanPendapatanService->getCoaPiutangTerpilih($akunPiutang),
+                'statusSaldo' => $statusSaldo,
+                'hasSelection' => $pelangganIds !== [],
+            ],
+        ));
+    }
+
+    public function searchBukuPembantuPiutangPelanggan(Request $request): JsonResponse
+    {
+        $search = $request->string('q')->trim()->toString();
+        $results = $this->laporanPendapatanService->searchPelangganPiutang($search)
+            ->map(fn ($pelanggan) => [
+                'id' => (string) $pelanggan->id,
+                'text' => trim(sprintf('[%s] %s', $pelanggan->kode_pelanggan, $pelanggan->nama_pelanggan)),
+            ])
+            ->values();
+
+        return response()->json(['results' => $results]);
+    }
+
+    public function searchBukuPembantuPiutangCoa(Request $request): JsonResponse
+    {
+        $search = $request->string('q')->trim()->toString();
+        $results = $this->laporanPendapatanService->searchCoaPiutang($search)
+            ->map(fn ($coa) => [
+                'id' => (string) $coa->id,
+                'text' => sprintf('[%s] %s', $coa->kode, $coa->nama),
+            ])
+            ->prepend([
+                'id' => 'tanpa-akun',
+                'text' => 'Tanpa akun piutang',
+            ])
+            ->values();
+
+        return response()->json(['results' => $results]);
+    }
+
+    public function exportBukuPembantuPiutangCsv(BukuPembantuPiutangRequest $request): StreamedResponse
+    {
+        $data = $request->validated();
+        $pelangganIds = collect($data['pelangganIds'])->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $report = $this->laporanPendapatanService->getBukuPembantuPiutang(
+            startDate: $data['startDate'],
+            endDate: $data['endDate'],
+            pelangganIds: $pelangganIds,
+            akunPiutang: $data['akunPiutang'] ?? null,
+            statusSaldo: $data['statusSaldo'] ?? 'semua',
+        );
+        $fileName = sprintf(
+            'buku-pembantu-piutang-%s-%s.csv',
+            str_replace('-', '', $data['startDate']),
+            str_replace('-', '', $data['endDate']),
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPendapatanService->streamBukuPembantuPiutangCsv($report),
+            $fileName,
+            ['Content-Type' => 'text/csv; charset=UTF-8'],
         );
     }
 

@@ -18,6 +18,13 @@
             'color' => 'success',
             'description' => 'Rekap transaksi penjualan obat, alkes, dan BHP farmasi dari hasil import SIMRS.',
         ],
+        [
+            'label' => 'Buku Pembantu Piutang',
+            'route' => route('laporan.pendapatan.buku-pembantu-piutang'),
+            'icon' => 'bi-journal-text',
+            'color' => 'warning',
+            'description' => 'Kartu mutasi dan saldo piutang per pelanggan berdasarkan faktur dan penerimaan pendapatan.',
+        ],
     ];
 @endphp
 
