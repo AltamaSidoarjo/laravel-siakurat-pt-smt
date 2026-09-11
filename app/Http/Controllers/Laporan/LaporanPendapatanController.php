@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Laporan;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Database\Eloquent\Builder;
 use App\Services\Laporan\LaporanPendapatanService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\Facades\DataTables;
@@ -15,8 +17,7 @@ class LaporanPendapatanController extends Controller
 {
     public function __construct(
         private readonly LaporanPendapatanService $laporanPendapatanService,
-    ) {
-    }
+    ) {}
 
     public function index(): View
     {
@@ -35,6 +36,87 @@ class LaporanPendapatanController extends Controller
             'endDate' => $endDate,
             'poli' => $request->string('poli')->trim()->toString(),
             'penjamin' => $request->string('penjamin')->trim()->toString(),
+        ]);
+    }
+
+    public function dokter(Request $request): View
+    {
+        [$startDate, $endDate] = $this->resolveDateRange($request);
+
+        return view('laporan.pendapatan.dokter', [
+            'page' => 'app',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'pelaksanaId' => $request->integer('pelaksanaId') ?: null,
+            'layanan' => $request->string('layanan')->trim()->toString(),
+            'penjamin' => $request->string('penjamin')->trim()->toString(),
+            'pelaksanaOptions' => $this->laporanPendapatanService->getPelaksanaOptions(),
+        ]);
+    }
+
+    public function loadDokter(Request $request): JsonResponse
+    {
+        [$startDate, $endDate] = $this->resolveDateRange($request);
+        $pelaksanaId = $request->integer('pelaksanaId') ?: null;
+        $layanan = $request->string('layanan')->trim()->toString();
+        $penjamin = $request->string('penjamin')->trim()->toString();
+        $search = trim((string) $request->input('search.value', ''));
+
+        $baseQuery = $this->laporanPendapatanService->getQueryPendapatanDokter(
+            $startDate,
+            $endDate,
+            $pelaksanaId,
+            $layanan,
+            $penjamin,
+        );
+
+        $summary = $this->laporanPendapatanService->getPendapatanDokterSummary(
+            $startDate,
+            $endDate,
+            $pelaksanaId,
+            $layanan,
+            $penjamin,
+            $search,
+        );
+
+        return DataTables::query($baseQuery)
+            ->filter(function (QueryBuilder $query) use ($search): void {
+                $this->laporanPendapatanService->applyPendapatanDokterSearch($query, $search);
+            }, false)
+            ->editColumn('jumlah_billing', fn (object $row) => (int) $row->jumlah_billing)
+            ->editColumn('total_pendapatan', fn (object $row) => number_format((float) $row->total_pendapatan, 0, ',', '.'))
+            ->with('totalBilling', $summary['totalBilling'])
+            ->with('grandTotal', $summary['grandTotal'])
+            ->toJson();
+    }
+
+    public function exportDokterPdf(Request $request): Response
+    {
+        $validated = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+            'pelaksanaId' => ['nullable', 'integer', 'exists:pelaksana,id'],
+            'layanan' => ['nullable', 'string', 'max:255'],
+            'penjamin' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $fileName = sprintf(
+            'pendapatan-dokter-%s-%s.pdf',
+            str_replace('-', '', $validated['startDate']),
+            str_replace('-', '', $validated['endDate'])
+        );
+
+        $pdf = $this->laporanPendapatanService->renderPendapatanDokterPdf(
+            $validated['startDate'],
+            $validated['endDate'],
+            isset($validated['pelaksanaId']) ? (int) $validated['pelaksanaId'] : null,
+            trim((string) ($validated['layanan'] ?? '')),
+            trim((string) ($validated['penjamin'] ?? '')),
+        );
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
         ]);
     }
 

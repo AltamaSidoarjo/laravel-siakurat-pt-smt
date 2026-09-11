@@ -12,6 +12,13 @@
             'description' => 'Rekap billing kunjungan pasien berdasarkan poli dan penjamin dari hasil import SIMRS.',
         ],
         [
+            'label' => 'Laporan Pendapatan Dokter',
+            'route' => route('laporan.pendapatan.dokter'),
+            'icon' => 'bi-person-badge-fill',
+            'color' => 'info',
+            'description' => 'Rekap pendapatan berdasarkan pelaksana dokter dan akun layanan dari rincian invoice.',
+        ],
+        [
             'label' => 'Laporan Pendapatan Penjualan Obat',
             'route' => route('laporan.pendapatan.penjualan-obat'),
             'icon' => 'bi-capsule',
