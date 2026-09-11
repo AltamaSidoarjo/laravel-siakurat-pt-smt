@@ -39,6 +39,23 @@ class BillingPendapatanApiService
             ->values();
     }
 
+    public function getPenjaminOptions(): Collection
+    {
+        return collect($this->billingApiClient->getPenjamin())
+            ->filter(fn (mixed $row) => is_array($row) && filled($row['PxRS'] ?? null))
+            ->map(function (array $row): array {
+                $name = trim((string) $row['PxRS']);
+
+                return [
+                    'id' => (string) ($row['ID'] ?? $name),
+                    'nama' => strcasecmp($name, 'U/Px') === 0 ? 'Umum' : $name,
+                ];
+            })
+            ->unique(fn (array $row) => mb_strtolower($row['nama']))
+            ->sortBy('nama', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+    }
+
     public function getRincianAkun(string $externalId): Collection
     {
         return collect($this->billingApiClient->getAkun($externalId))

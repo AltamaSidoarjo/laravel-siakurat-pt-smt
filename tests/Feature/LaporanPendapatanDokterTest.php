@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -41,7 +43,53 @@ class LaporanPendapatanDokterTest extends TestCase
         $this->assertSame('300.000', $igdDrA['total_pendapatan']);
     }
 
-    public function test_report_filters_doctor_service_and_guarantor(): void
+    public function test_report_page_loads_poli_and_guarantor_selects_from_billing_api(): void
+    {
+        config()->set('services.billing_api.base_url', 'http://billing.test/api');
+        config()->set('services.billing_api.username', 'tester');
+        config()->set('services.billing_api.password', 'secret');
+        Cache::flush();
+
+        Http::fake([
+            'http://billing.test/api/get-token' => Http::response([
+                'status' => true,
+                'token' => 'test-token',
+                'expires_in' => 3600,
+            ]),
+            'http://billing.test/api/spesialis' => Http::response([
+                'status' => true,
+                'data' => [
+                    ['ID' => 2, 'Spesialis' => 'Poli Anak'],
+                    ['ID' => 1, 'Spesialis' => 'Poli Umum'],
+                ],
+            ]),
+            'http://billing.test/api/pxrs' => Http::response([
+                'status' => true,
+                'data' => [
+                    ['ID' => 45, 'PxRS' => 'ASKES/BPJS'],
+                    ['ID' => 1, 'PxRS' => 'U/Px'],
+                ],
+            ]),
+        ]);
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.dokter'));
+
+        $response
+            ->assertOk()
+            ->assertSee('Semua poli')
+            ->assertSee('Poli Anak')
+            ->assertSee('Poli Umum')
+            ->assertSee('Semua penjamin')
+            ->assertSee('ASKES/BPJS')
+            ->assertSee('Umum');
+
+        Http::assertSent(fn ($request) => $request->url() === 'http://billing.test/api/spesialis');
+        Http::assertSent(fn ($request) => $request->url() === 'http://billing.test/api/pxrs');
+    }
+
+    public function test_report_filters_doctor_poli_and_guarantor(): void
     {
         $response = $this
             ->actingAs($this->makeUser())
@@ -49,15 +97,15 @@ class LaporanPendapatanDokterTest extends TestCase
                 'startDate' => '2026-09-01',
                 'endDate' => '2026-09-30',
                 'pelaksanaId' => 1,
-                'layanan' => 'IGD',
+                'poli' => 'Poli IGD',
                 'penjamin' => 'BPJS',
             ])));
 
         $response
             ->assertOk()
-            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('recordsFiltered', 2)
             ->assertJsonPath('totalBilling', 1)
-            ->assertJsonPath('grandTotal', 100000)
+            ->assertJsonPath('grandTotal', 150000)
             ->assertJsonPath('data.0.dokter', 'Dr. A')
             ->assertJsonPath('data.0.layanan', 'Pendapatan IGD');
     }
@@ -152,6 +200,7 @@ class LaporanPendapatanDokterTest extends TestCase
             $table->id();
             $table->string('nomor_faktur');
             $table->date('tanggal_faktur');
+            $table->string('nama_poli')->nullable();
             $table->string('nama_penjamin')->nullable();
         });
 
@@ -182,10 +231,10 @@ class LaporanPendapatanDokterTest extends TestCase
         ]);
 
         DB::table('faktur_penjualan')->insert([
-            ['id' => 1, 'nomor_faktur' => 'INV-001', 'tanggal_faktur' => '2026-09-01', 'nama_penjamin' => 'BPJS'],
-            ['id' => 2, 'nomor_faktur' => 'INV-002', 'tanggal_faktur' => '2026-09-02', 'nama_penjamin' => 'Umum'],
-            ['id' => 3, 'nomor_faktur' => 'INV-003', 'tanggal_faktur' => '2026-09-03', 'nama_penjamin' => 'BPJS'],
-            ['id' => 4, 'nomor_faktur' => 'INV-004', 'tanggal_faktur' => '2026-08-31', 'nama_penjamin' => 'BPJS'],
+            ['id' => 1, 'nomor_faktur' => 'INV-001', 'tanggal_faktur' => '2026-09-01', 'nama_poli' => 'Poli IGD', 'nama_penjamin' => 'BPJS'],
+            ['id' => 2, 'nomor_faktur' => 'INV-002', 'tanggal_faktur' => '2026-09-02', 'nama_poli' => 'Poli Umum', 'nama_penjamin' => 'Umum'],
+            ['id' => 3, 'nomor_faktur' => 'INV-003', 'tanggal_faktur' => '2026-09-03', 'nama_poli' => 'Poli IGD', 'nama_penjamin' => 'BPJS'],
+            ['id' => 4, 'nomor_faktur' => 'INV-004', 'tanggal_faktur' => '2026-08-31', 'nama_poli' => 'Poli IGD', 'nama_penjamin' => 'BPJS'],
         ]);
 
         DB::table('faktur_penjualan_rinci')->insert([

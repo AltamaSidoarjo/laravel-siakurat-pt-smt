@@ -23,6 +23,11 @@ class BillingApiClient
         return $this->getData('/spesialis');
     }
 
+    public function getPenjamin(): array
+    {
+        return $this->getData('/pxrs');
+    }
+
     public function getRawatJalan(
         string $startDate,
         string $endDate,

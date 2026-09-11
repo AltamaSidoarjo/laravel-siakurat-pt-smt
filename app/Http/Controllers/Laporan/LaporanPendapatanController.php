@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Laporan;
 
+use App\Exceptions\BillingApiException;
 use App\Http\Controllers\Controller;
+use App\Services\Bridging\BillingPendapatanApiService;
 use App\Services\Laporan\LaporanPendapatanService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -17,6 +19,7 @@ class LaporanPendapatanController extends Controller
 {
     public function __construct(
         private readonly LaporanPendapatanService $laporanPendapatanService,
+        private readonly BillingPendapatanApiService $billingPendapatanApiService,
     ) {}
 
     public function index(): View
@@ -42,15 +45,28 @@ class LaporanPendapatanController extends Controller
     public function dokter(Request $request): View
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
+        $poliOptions = collect();
+        $penjaminOptions = collect();
+        $apiOptionsError = null;
+
+        try {
+            $poliOptions = $this->billingPendapatanApiService->getSpesialisOptions();
+            $penjaminOptions = $this->billingPendapatanApiService->getPenjaminOptions();
+        } catch (BillingApiException $exception) {
+            $apiOptionsError = $exception->getMessage();
+        }
 
         return view('laporan.pendapatan.dokter', [
             'page' => 'app',
             'startDate' => $startDate,
             'endDate' => $endDate,
             'pelaksanaId' => $request->integer('pelaksanaId') ?: null,
-            'layanan' => $request->string('layanan')->trim()->toString(),
+            'poli' => $request->string('poli')->trim()->toString(),
             'penjamin' => $request->string('penjamin')->trim()->toString(),
             'pelaksanaOptions' => $this->laporanPendapatanService->getPelaksanaOptions(),
+            'poliOptions' => $poliOptions,
+            'penjaminOptions' => $penjaminOptions,
+            'apiOptionsError' => $apiOptionsError,
         ]);
     }
 
@@ -58,7 +74,7 @@ class LaporanPendapatanController extends Controller
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
         $pelaksanaId = $request->integer('pelaksanaId') ?: null;
-        $layanan = $request->string('layanan')->trim()->toString();
+        $poli = $request->string('poli')->trim()->toString();
         $penjamin = $request->string('penjamin')->trim()->toString();
         $search = trim((string) $request->input('search.value', ''));
 
@@ -66,7 +82,7 @@ class LaporanPendapatanController extends Controller
             $startDate,
             $endDate,
             $pelaksanaId,
-            $layanan,
+            $poli,
             $penjamin,
         );
 
@@ -74,7 +90,7 @@ class LaporanPendapatanController extends Controller
             $startDate,
             $endDate,
             $pelaksanaId,
-            $layanan,
+            $poli,
             $penjamin,
             $search,
         );
@@ -96,7 +112,7 @@ class LaporanPendapatanController extends Controller
             'startDate' => ['required', 'date_format:Y-m-d'],
             'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
             'pelaksanaId' => ['nullable', 'integer', 'exists:pelaksana,id'],
-            'layanan' => ['nullable', 'string', 'max:255'],
+            'poli' => ['nullable', 'string', 'max:255'],
             'penjamin' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -110,7 +126,7 @@ class LaporanPendapatanController extends Controller
             $validated['startDate'],
             $validated['endDate'],
             isset($validated['pelaksanaId']) ? (int) $validated['pelaksanaId'] : null,
-            trim((string) ($validated['layanan'] ?? '')),
+            trim((string) ($validated['poli'] ?? '')),
             trim((string) ($validated['penjamin'] ?? '')),
         );
 

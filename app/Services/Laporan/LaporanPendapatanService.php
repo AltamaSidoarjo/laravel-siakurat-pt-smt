@@ -21,10 +21,10 @@ class LaporanPendapatanService
         string $startDate,
         string $endDate,
         ?int $pelaksanaId = null,
-        string $layanan = '',
+        string $poli = '',
         string $penjamin = '',
     ): QueryBuilder {
-        return $this->getPendapatanDokterBaseQuery($startDate, $endDate, $pelaksanaId, $layanan, $penjamin)
+        return $this->getPendapatanDokterBaseQuery($startDate, $endDate, $pelaksanaId, $poli, $penjamin)
             ->selectRaw('p.id AS pelaksana_id')
             ->selectRaw('p.nama_pelaksana AS dokter')
             ->selectRaw('c.kode AS kode_akun')
@@ -40,7 +40,7 @@ class LaporanPendapatanService
         string $startDate,
         string $endDate,
         ?int $pelaksanaId = null,
-        string $layanan = '',
+        string $poli = '',
         string $penjamin = '',
         string $search = '',
     ): array {
@@ -48,7 +48,7 @@ class LaporanPendapatanService
             $startDate,
             $endDate,
             $pelaksanaId,
-            $layanan,
+            $poli,
             $penjamin,
         );
 
@@ -84,6 +84,7 @@ class LaporanPendapatanService
                 ->orWhere('p.no_proyek', 'like', $likeSearch)
                 ->orWhere('c.kode', 'like', $likeSearch)
                 ->orWhere('c.nama', 'like', $likeSearch)
+                ->orWhere('fp.nama_poli', 'like', $likeSearch)
                 ->orWhere('fp.nama_penjamin', 'like', $likeSearch);
         });
     }
@@ -196,10 +197,10 @@ class LaporanPendapatanService
         string $startDate,
         string $endDate,
         ?int $pelaksanaId = null,
-        string $layanan = '',
+        string $poli = '',
         string $penjamin = '',
     ): string {
-        $rows = $this->getPendapatanDokterPdfRows($startDate, $endDate, $pelaksanaId, $layanan, $penjamin);
+        $rows = $this->getPendapatanDokterPdfRows($startDate, $endDate, $pelaksanaId, $poli, $penjamin);
         $dokterGroups = $rows
             ->groupBy('pelaksana_id')
             ->map(function (Collection $doctorRows): array {
@@ -264,10 +265,10 @@ class LaporanPendapatanService
         string $startDate,
         string $endDate,
         ?int $pelaksanaId,
-        string $layanan,
+        string $poli,
         string $penjamin,
     ): Collection {
-        return $this->getPendapatanDokterBaseQuery($startDate, $endDate, $pelaksanaId, $layanan, $penjamin)
+        return $this->getPendapatanDokterBaseQuery($startDate, $endDate, $pelaksanaId, $poli, $penjamin)
             ->leftJoin('coa as pc', 'pc.id', '=', 'c.parent_coa')
             ->selectRaw('p.id AS pelaksana_id')
             ->selectRaw('p.nama_pelaksana AS dokter')
@@ -336,7 +337,7 @@ class LaporanPendapatanService
         string $startDate,
         string $endDate,
         ?int $pelaksanaId,
-        string $layanan,
+        string $poli,
         string $penjamin,
     ): QueryBuilder {
         return DB::table('faktur_penjualan_rinci as fpr')
@@ -346,10 +347,7 @@ class LaporanPendapatanService
             ->whereIn(DB::raw('SUBSTR(p.no_proyek, 1, 2)'), ['1_', '2_'])
             ->whereBetween('fp.tanggal_faktur', [$startDate, $endDate])
             ->when($pelaksanaId !== null, fn (QueryBuilder $query) => $query->where('p.id', $pelaksanaId))
-            ->when($layanan !== '', fn (QueryBuilder $query) => $query->where(function (QueryBuilder $filter) use ($layanan): void {
-                $filter->where('c.nama', 'like', '%'.$layanan.'%')
-                    ->orWhere('c.kode', 'like', '%'.$layanan.'%');
-            }))
+            ->when($poli !== '', fn (QueryBuilder $query) => $query->where('fp.nama_poli', 'like', '%'.$poli.'%'))
             ->when($penjamin !== '', fn (QueryBuilder $query) => $query->where('fp.nama_penjamin', 'like', '%'.$penjamin.'%'));
     }
 }

@@ -7,7 +7,7 @@
         'startDate' => $startDate,
         'endDate' => $endDate,
         'pelaksanaId' => $pelaksanaId,
-        'layanan' => $layanan,
+        'poli' => $poli,
         'penjamin' => $penjamin,
     ];
 @endphp
@@ -48,12 +48,26 @@
                                 </select>
                             </div>
                             <div class="col-md-3">
-                                <label for="layanan" class="form-label">Akun/layanan</label>
-                                <input type="text" id="layanan" name="layanan" class="form-control" value="{{ $layanan }}" placeholder="Contoh: IGD atau laborat">
+                                <label for="poli" class="form-label">Poli</label>
+                                <select id="poli" name="poli" class="form-select select2">
+                                    <option value="">Semua poli</option>
+                                    @foreach ($poliOptions as $option)
+                                        <option value="{{ $option['nama'] }}" @selected($poli === $option['nama'])>
+                                            {{ $option['nama'] }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="col-md-3">
                                 <label for="penjamin" class="form-label">Penjamin</label>
-                                <input type="text" id="penjamin" name="penjamin" class="form-control" value="{{ $penjamin }}" placeholder="Contoh: BPJS">
+                                <select id="penjamin" name="penjamin" class="form-select select2">
+                                    <option value="">Semua penjamin</option>
+                                    @foreach ($penjaminOptions as $option)
+                                        <option value="{{ $option['nama'] }}" @selected($penjamin === $option['nama'])>
+                                            {{ $option['nama'] }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="col-md-9 d-flex justify-content-end align-items-end gap-2">
                                 <a href="{{ route('laporan.pendapatan.dokter') }}" class="btn btn-light">Reset</a>
@@ -65,6 +79,12 @@
                     </form>
                 </div>
             </div>
+
+            @if ($apiOptionsError)
+                <div class="alert alert-warning mb-0">
+                    Pilihan poli dan penjamin dari Billing API tidak dapat dimuat: {{ $apiOptionsError }}
+                </div>
+            @endif
 
             <div class="alert alert-info mb-0">
                 Pendapatan dihitung dari subtotal rincian invoice yang memiliki pelaksana dokter. Jumlah billing adalah jumlah invoice unik.
@@ -115,7 +135,7 @@
                         data.startDate = @json($startDate);
                         data.endDate = @json($endDate);
                         data.pelaksanaId = @json($pelaksanaId);
-                        data.layanan = @json($layanan);
+                        data.poli = @json($poli);
                         data.penjamin = @json($penjamin);
                     }
                 },
