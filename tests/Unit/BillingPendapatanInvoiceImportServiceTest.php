@@ -219,7 +219,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         ]);
     }
 
-    public function test_invoice_detail_maps_only_an_exact_active_project_code_and_keeps_unmatched_jobs(): void
+    public function test_invoice_detail_trims_job_and_maps_only_an_exact_active_project_code(): void
     {
         $this->createRequiredCoas();
         $active = Pelaksana::query()->create([
@@ -246,15 +246,16 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $result = $this->import(['ext-1']);
 
         $this->assertTrue($result[0]['berhasil']);
-        $this->assertSame(1, DB::table('faktur_penjualan_rinci')->where('pelaksana_id', $active->id)->count());
+        $this->assertSame(2, DB::table('faktur_penjualan_rinci')->where('pelaksana_id', $active->id)->count());
+        $this->assertSame(2, DB::table('faktur_penjualan_rinci')
+            ->where('pelaksana_id', $active->id)
+            ->where('kode_proyek', '1_ALMIRA_SYAMSURI')
+            ->count());
         $this->assertDatabaseHas('faktur_penjualan_rinci', [
             'pelaksana_id' => null,
             'kode_proyek' => '1_almira_syamsuri',
         ]);
-        $this->assertDatabaseHas('faktur_penjualan_rinci', [
-            'pelaksana_id' => null,
-            'kode_proyek' => ' 1_ALMIRA_SYAMSURI',
-        ]);
+        $this->assertDatabaseMissing('faktur_penjualan_rinci', ['kode_proyek' => ' 1_ALMIRA_SYAMSURI']);
         $this->assertDatabaseHas('faktur_penjualan_rinci', [
             'pelaksana_id' => null,
             'kode_proyek' => '1_NOVIA',
@@ -371,6 +372,11 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
             'kode_pelanggan' => 'LAIN',
             'nama_pelanggan' => 'Penjamin Lain',
         ]);
+        $executor = Pelaksana::query()->create([
+            'no_proyek' => '2_DOKTER_UPDATE',
+            'nama_pelaksana' => 'Dokter Update, Sp.A',
+            'status_aktif' => true,
+        ]);
         $this->logService->shouldReceive('log')->times(3);
 
         $invoice = $this->invoiceService->create([
@@ -395,6 +401,8 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
             'import_ke' => 'Invoice Pendapatan',
         ]);
         $detail = $invoice->rincian()->firstOrFail();
+        $detail->kode_proyek = 'N/A';
+        $detail->save();
 
         $updated = $this->invoiceService->update($invoice, [
             'nomor_faktur' => 'MALICIOUS-NUMBER',
@@ -405,7 +413,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
             'rincian' => [[
                 'id' => $detail->id,
                 'coa_id' => $revenue->id,
-                'pelaksana_id' => null,
+                'pelaksana_id' => $executor->id,
                 'kode_proyek' => 'MALICIOUS-PROJECT',
                 'kuantitas' => 2,
                 'harga' => 100_000,
@@ -417,6 +425,11 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $this->assertSame('Pasien API', $updated->nama_pasien);
         $this->assertSame($customerId, $updated->pelanggan_id);
         $this->assertDatabaseHas('simrs_import_pendapatan', ['nomer_billing' => 'RJ-LOCKED', 'total_tagihan' => 200_000]);
+        $this->assertDatabaseHas('faktur_penjualan_rinci', [
+            'faktur_penjualan_id' => $invoice->id,
+            'pelaksana_id' => $executor->id,
+            'kode_proyek' => '2_DOKTER_UPDATE',
+        ]);
 
         $this->invoiceService->delete($updated, 'Tester');
 

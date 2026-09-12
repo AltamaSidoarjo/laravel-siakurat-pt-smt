@@ -206,6 +206,7 @@ class BillingPendapatanInvoiceImportService
             }
 
             $kodeAkun = trim((string) ($row['akun'] ?? ''));
+            $kodeProyek = trim((string) ($row['job'] ?? ''));
             $biaya = $row['biaya'] ?? null;
             $jumlah = $row['jml'] ?? null;
 
@@ -231,7 +232,7 @@ class BillingPendapatanInvoiceImportService
                 'harga' => (float) $biaya,
                 'kuantitas' => (float) $jumlah,
                 'subtotal' => $subtotal,
-                'job' => filled($row['job'] ?? null) ? (string) $row['job'] : null,
+                'job' => $kodeProyek !== '' ? $kodeProyek : null,
             ];
         }
 

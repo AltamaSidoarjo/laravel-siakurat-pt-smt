@@ -275,9 +275,8 @@ class InvoicePendapatanService
             return [
                 'coa_id' => (int) $row['coa_id'],
                 'pelaksana_id' => $executor?->id,
-                'kode_proyek' => filled($sourceDetail?->kode_proyek)
-                    ? $sourceDetail->kode_proyek
-                    : $executor?->no_proyek,
+                'kode_proyek' => $executor?->no_proyek
+                    ?? (filled($sourceDetail?->kode_proyek) ? $sourceDetail->kode_proyek : null),
                 'kuantitas' => $quantity,
                 'harga' => $price,
                 'subtotal' => round($quantity * $price, 2),
