@@ -38,13 +38,26 @@ class BridgingPendapatanController extends Controller
     public function index(Request $request): View
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
+        $poliOptions = collect();
+        $penjaminOptions = collect();
+        $apiOptionsError = null;
+
+        try {
+            $poliOptions = $this->billingPendapatanApiService->getSpesialisOptions();
+            $penjaminOptions = $this->billingPendapatanApiService->getPenjaminOptions();
+        } catch (BillingApiException $exception) {
+            $apiOptionsError = $exception->getMessage();
+        }
 
         return view('bridging.pendapatan.index', [
             'page' => 'app',
             'startDate' => $startDate,
             'endDate' => $endDate,
-            'poli' => (string) $request->string('poli'),
-            'penjamin' => (string) $request->string('penjamin'),
+            'poli' => $request->string('poli')->trim()->toString(),
+            'penjamin' => $request->string('penjamin')->trim()->toString(),
+            'poliOptions' => $poliOptions,
+            'penjaminOptions' => $penjaminOptions,
+            'apiOptionsError' => $apiOptionsError,
             'results' => session('bridging_pendapatan_results', []),
             'message' => session('bridging_pendapatan_message'),
         ]);

@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -30,11 +32,35 @@ class BridgingPendapatanDataTableTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('grandTotal', 6000.0);
+            ->assertJsonPath('grandTotal', 6000);
     }
 
     public function test_index_displays_billing_detail_action_and_modal(): void
     {
+        config()->set('services.billing_api.base_url', 'http://billing.test/api');
+        config()->set('services.billing_api.username', 'tester');
+        config()->set('services.billing_api.password', 'secret');
+        Cache::flush();
+
+        Http::fake([
+            'http://billing.test/api/get-token' => Http::response([
+                'status' => true,
+                'token' => 'test-token',
+                'expires_in' => 3600,
+            ]),
+            'http://billing.test/api/spesialis' => Http::response([
+                'status' => true,
+                'data' => [['ID' => 1, 'Spesialis' => 'Poli Anak']],
+            ]),
+            'http://billing.test/api/pxrs' => Http::response([
+                'status' => true,
+                'data' => [
+                    ['ID' => 45, 'PxRS' => 'ASKES/BPJS'],
+                    ['ID' => 1, 'PxRS' => 'U/Px'],
+                ],
+            ]),
+        ]);
+
         $response = $this
             ->actingAs($this->makeUser())
             ->get(route('bridging.pendapatan.index'));
@@ -47,6 +73,11 @@ class BridgingPendapatanDataTableTest extends TestCase
             ->assertSee('load-billing-account-detail')
             ->assertSee('AbortController')
             ->assertSee('billing-detail-button')
+            ->assertSee('Semua poli')
+            ->assertSee('Poli Anak')
+            ->assertSee('Semua penjamin')
+            ->assertSee('ASKES/BPJS')
+            ->assertSee('Umum')
             ->assertDontSee('ID Billing API')
             ->assertDontSee("['Jam Registrasi', 'jam_reg']", false)
             ->assertDontSee("['Kode Dokter', 'kode_dokter']", false)
@@ -75,7 +106,7 @@ class BridgingPendapatanDataTableTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('grandTotal', 2000.0);
+            ->assertJsonPath('grandTotal', 2000);
     }
 
     public function test_grand_total_is_zero_when_global_search_finds_no_rows(): void
@@ -92,7 +123,7 @@ class BridgingPendapatanDataTableTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('grandTotal', 0.0);
+            ->assertJsonPath('grandTotal', 0);
     }
 
     public function test_grand_total_uses_intersection_of_form_filters_and_global_search(): void
@@ -111,7 +142,7 @@ class BridgingPendapatanDataTableTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('grandTotal', 3000.0);
+            ->assertJsonPath('grandTotal', 3000);
     }
 
     private function makeUser(): User

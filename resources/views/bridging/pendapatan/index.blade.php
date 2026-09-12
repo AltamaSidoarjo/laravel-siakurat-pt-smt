@@ -53,12 +53,32 @@
                                             <input type="date" name="endDate" class="form-control" value="{{ $endDate }}">
                                         </div>
                                         <div class="col-md-3">
-                                            <label class="form-label">Poli</label>
-                                            <input type="text" name="poli" id="filterPoli" class="form-control" value="{{ $poli }}" placeholder="Cari Poli">
+                                            <label for="filterPoli" class="form-label">Poli</label>
+                                            <select name="poli" id="filterPoli" class="form-select select2">
+                                                <option value="">Semua poli</option>
+                                                @if ($poli !== '' && ! $poliOptions->contains(fn (array $option) => $option['nama'] === $poli))
+                                                    <option value="{{ $poli }}" selected>{{ $poli }}</option>
+                                                @endif
+                                                @foreach ($poliOptions as $option)
+                                                    <option value="{{ $option['nama'] }}" @selected($poli === $option['nama'])>
+                                                        {{ $option['nama'] }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
                                         </div>
                                         <div class="col-md-3">
-                                            <label class="form-label">Penjamin</label>
-                                            <input type="text" name="penjamin" id="filterPenjamin" class="form-control" value="{{ $penjamin }}" placeholder="Cari Penjamin">
+                                            <label for="filterPenjamin" class="form-label">Penjamin</label>
+                                            <select name="penjamin" id="filterPenjamin" class="form-select select2">
+                                                <option value="">Semua penjamin</option>
+                                                @if ($penjamin !== '' && ! $penjaminOptions->contains(fn (array $option) => $option['nama'] === $penjamin))
+                                                    <option value="{{ $penjamin }}" selected>{{ $penjamin }}</option>
+                                                @endif
+                                                @foreach ($penjaminOptions as $option)
+                                                    <option value="{{ $option['nama'] }}" @selected($penjamin === $option['nama'])>
+                                                        {{ $option['nama'] }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
                                         </div>
                                         <div class="col-12 d-flex justify-content-end gap-2">
                                             <a href="{{ route('bridging.pendapatan.index') }}" class="btn btn-light">Reset</a>
@@ -71,6 +91,12 @@
                                 </form>
                             </div>
                         </div>
+
+                        @if ($apiOptionsError)
+                            <div class="alert alert-warning mb-0">
+                                Pilihan poli dan penjamin dari Billing API tidak dapat dimuat: {{ $apiOptionsError }}
+                            </div>
+                        @endif
 
                         @if (($results ?? []) !== [])
                             <div class="card border-light shadow-sm">
@@ -154,7 +180,13 @@
             </div>
         </div>
     </div>
-    @include('partials.export-csv-modal', ['exportRoute' => route('bridging.pendapatan.export-csv'), 'exportTitle' => 'Bridging Pendapatan', 'startDate' => $startDate, 'endDate' => $endDate])
+    @include('partials.export-csv-modal', [
+        'exportRoute' => route('bridging.pendapatan.export-csv'),
+        'exportTitle' => 'Bridging Pendapatan',
+        'startDate' => $startDate,
+        'endDate' => $endDate,
+        'exportFilters' => ['poli' => $poli, 'penjamin' => $penjamin],
+    ])
     @include('partials.billing-detail-modal')
 @endsection
 

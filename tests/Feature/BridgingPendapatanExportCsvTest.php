@@ -63,6 +63,26 @@ class BridgingPendapatanExportCsvTest extends TestCase
         );
     }
 
+    public function test_export_csv_applies_selected_poli_and_guarantor_filters(): void
+    {
+        $this->seedImportedPendapatanRows();
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get(route('bridging.pendapatan.export-csv', [
+                'startDate' => '2026-05-01',
+                'endDate' => '2026-05-31',
+                'poli' => 'Poli Anak',
+                'penjamin' => 'BPJS',
+            ]));
+
+        $content = $this->normalizeStreamedContent($response->streamedContent());
+
+        $this->assertStringContainsString('BILL-003', $content);
+        $this->assertStringNotContainsString('BILL-001', $content);
+        $this->assertStringNotContainsString('BILL-002', $content);
+    }
+
     public function test_export_csv_requires_valid_dates(): void
     {
         $response = $this
