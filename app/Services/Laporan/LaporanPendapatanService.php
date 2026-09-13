@@ -13,6 +13,13 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use RuntimeException;
 
 class LaporanPendapatanService
@@ -202,35 +209,19 @@ class LaporanPendapatanService
         string $poli = '',
         string $penjamin = '',
     ): string {
-        $rows = $this->getPendapatanDokterPdfRows($startDate, $endDate, $pelaksanaId, $poli, $penjamin);
-        $dokterGroups = $rows
-            ->groupBy('pelaksana_id')
-            ->map(function (Collection $doctorRows): array {
-                return [
-                    'nama' => (string) $doctorRows->first()->dokter,
-                    'kelompok' => $doctorRows
-                        ->groupBy('kelompok_id')
-                        ->map(fn (Collection $accountRows): array => [
-                            'nama' => (string) $accountRows->first()->kelompok,
-                            'rincian' => $accountRows->values(),
-                            'subtotal' => (float) $accountRows->sum('total_pendapatan'),
-                        ])
-                        ->values(),
-                    'total' => (float) $doctorRows->sum('total_pendapatan'),
-                ];
-            })
-            ->values();
-
-        $companyName = (Schema::hasTable('preferensi_perusahaan')
-            ? PreferensiPerusahaan::query()->value('nama_perusahaan')
-            : null) ?: config('siakurat.rs_name', 'RSA BOJONEGORO');
+        $report = $this->getPendapatanDokterReportData(
+            $startDate,
+            $endDate,
+            $pelaksanaId,
+            $poli,
+            $penjamin,
+        );
 
         $html = view('laporan.pendapatan.dokter-pdf', [
-            'companyName' => $companyName,
-            'periodLabel' => Carbon::parse($startDate)->locale('id')->translatedFormat('j F Y')
-                .' - '.Carbon::parse($endDate)->locale('id')->translatedFormat('j F Y'),
-            'dokterGroups' => $dokterGroups,
-            'grandTotal' => (float) $rows->sum('total_pendapatan'),
+            'companyName' => $report['companyName'],
+            'periodLabel' => $report['periodLabel'],
+            'dokterGroups' => $report['dokterGroups'],
+            'grandTotal' => $report['grandTotal'],
         ])->render();
 
         $options = new Options;
@@ -243,6 +234,162 @@ class LaporanPendapatanService
         $dompdf->render();
 
         return $dompdf->output();
+    }
+
+    public function streamPendapatanDokterExcel(
+        string $startDate,
+        string $endDate,
+        ?int $pelaksanaId = null,
+        string $poli = '',
+        string $penjamin = '',
+    ): void {
+        $report = $this->getPendapatanDokterReportData(
+            $startDate,
+            $endDate,
+            $pelaksanaId,
+            $poli,
+            $penjamin,
+        );
+
+        $spreadsheet = new Spreadsheet;
+        $spreadsheet->getProperties()
+            ->setCreator((string) config('app.name'))
+            ->setTitle('Pendapatan Dokter')
+            ->setSubject('Laporan pendapatan dokter');
+
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Pendapatan Dokter');
+        $sheet->setShowGridlines(true);
+        $sheet->getPageSetup()
+            ->setOrientation(PageSetup::ORIENTATION_PORTRAIT)
+            ->setPaperSize(PageSetup::PAPERSIZE_A4)
+            ->setFitToPage(true)
+            ->setFitToWidth(1)
+            ->setFitToHeight(0);
+        $sheet->getPageMargins()
+            ->setTop(0.55)
+            ->setRight(0.45)
+            ->setBottom(0.65)
+            ->setLeft(0.45);
+
+        foreach (['A1:C1', 'A2:C2', 'A3:C3'] as $range) {
+            $sheet->mergeCells($range);
+        }
+
+        $sheet->setCellValue('A1', mb_strtoupper($report['companyName']));
+        $sheet->setCellValue('A2', 'PENDAPATAN DOKTER');
+        $sheet->setCellValue('A3', $report['periodLabel']);
+        $sheet->getStyle('A1:C3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(13)->setColor(new Color('0076B5'));
+        $sheet->getStyle('A3')->getFont()->setSize(11)->setColor(new Color('D53B32'));
+        $sheet->getRowDimension(1)->setRowHeight(22);
+        $sheet->getRowDimension(2)->setRowHeight(21);
+        $sheet->getRowDimension(3)->setRowHeight(20);
+
+        $sheet->fromArray(['Kode Akun', 'Keterangan', 'Saldo'], null, 'A5');
+        $sheet->getStyle('A5:C5')->getFont()->setBold(true);
+        $sheet->getStyle('A5:C5')->getBorders()->getBottom()
+            ->setBorderStyle(Border::BORDER_MEDIUM)
+            ->setColor(new Color('C8C8C8'));
+        $sheet->getStyle('C5')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+
+        $currentRow = 6;
+        $doctorResultCells = [];
+
+        foreach ($report['dokterGroups'] as $dokter) {
+            $sheet->mergeCells("A{$currentRow}:C{$currentRow}");
+            $sheet->setCellValue("A{$currentRow}", $dokter['nama']);
+            $sheet->getStyle("A{$currentRow}")->getFont()->setBold(true)->setSize(11);
+            $currentRow++;
+
+            $sheet->mergeCells("A{$currentRow}:C{$currentRow}");
+            $sheet->setCellValue("A{$currentRow}", 'Pendapatan');
+            $sheet->getStyle("A{$currentRow}")->getFont()->setColor(new Color('0076B5'));
+            $currentRow++;
+
+            $groupSubtotalCells = [];
+
+            foreach ($dokter['kelompok'] as $kelompok) {
+                $sheet->mergeCells("A{$currentRow}:C{$currentRow}");
+                $sheet->setCellValue("A{$currentRow}", $kelompok['nama']);
+                $sheet->getStyle("A{$currentRow}")->getFont()->setColor(new Color('0076B5'));
+                $currentRow++;
+
+                $detailStartRow = $currentRow;
+
+                foreach ($kelompok['rincian'] as $rincian) {
+                    $sheet->setCellValueExplicit("A{$currentRow}", $rincian->kode_akun_format, DataType::TYPE_STRING);
+                    $sheet->setCellValue("B{$currentRow}", $rincian->nama_akun);
+                    $sheet->setCellValue("C{$currentRow}", (float) $rincian->total_pendapatan);
+                    $currentRow++;
+                }
+
+                $detailEndRow = $currentRow - 1;
+                $sheet->mergeCells("A{$currentRow}:B{$currentRow}");
+                $sheet->setCellValue("A{$currentRow}", 'Total '.$kelompok['nama']);
+                $sheet->setCellValue("C{$currentRow}", "=SUM(C{$detailStartRow}:C{$detailEndRow})");
+                $sheet->getStyle("A{$currentRow}:C{$currentRow}")->getFont()->setColor(new Color('24BD72'));
+                $sheet->getStyle("C{$currentRow}")->getBorders()->getTop()
+                    ->setBorderStyle(Border::BORDER_THIN)
+                    ->setColor(new Color('24BD72'));
+                $groupSubtotalCells[] = "C{$currentRow}";
+                $currentRow++;
+            }
+
+            $sheet->mergeCells("A{$currentRow}:B{$currentRow}");
+            $sheet->setCellValue("A{$currentRow}", 'Total Pendapatan');
+            $sheet->setCellValue("C{$currentRow}", '=SUM('.implode(',', $groupSubtotalCells).')');
+            $sheet->getStyle("A{$currentRow}:C{$currentRow}")->getFont()->setColor(new Color('24BD72'));
+            $sheet->getStyle("C{$currentRow}")->getBorders()->getTop()
+                ->setBorderStyle(Border::BORDER_THIN)
+                ->setColor(new Color('24BD72'));
+            $doctorTotalCell = "C{$currentRow}";
+            $currentRow++;
+
+            $sheet->mergeCells("A{$currentRow}:B{$currentRow}");
+            $sheet->setCellValue("A{$currentRow}", 'Total Pendapatan Dokter '.$dokter['nama']);
+            $sheet->setCellValue("C{$currentRow}", "={$doctorTotalCell}");
+            $sheet->getStyle("A{$currentRow}:C{$currentRow}")->getFont()->setBold(true);
+            $sheet->getStyle("C{$currentRow}")->getBorders()->getTop()
+                ->setBorderStyle(Border::BORDER_THIN)
+                ->setColor(new Color(Color::COLOR_BLACK));
+            $doctorResultCells[] = "C{$currentRow}";
+            $currentRow += 2;
+        }
+
+        if ($doctorResultCells === []) {
+            $sheet->mergeCells("A{$currentRow}:C{$currentRow}");
+            $sheet->setCellValue("A{$currentRow}", 'Tidak ada data pendapatan dokter pada periode ini.');
+            $sheet->getStyle("A{$currentRow}:C{$currentRow}")->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $currentRow++;
+        } else {
+            $sheet->mergeCells("A{$currentRow}:B{$currentRow}");
+            $sheet->setCellValue("A{$currentRow}", 'Total Pendapatan Seluruh Dokter');
+            $sheet->setCellValue("C{$currentRow}", '=SUM('.implode(',', $doctorResultCells).')');
+            $sheet->getStyle("A{$currentRow}:C{$currentRow}")->getFont()->setBold(true);
+            $sheet->getStyle("C{$currentRow}")->getBorders()->getTop()
+                ->setBorderStyle(Border::BORDER_DOUBLE)
+                ->setColor(new Color(Color::COLOR_BLACK));
+            $currentRow++;
+        }
+
+        $lastRow = $currentRow - 1;
+        $sheet->getStyle("C6:C{$lastRow}")->getNumberFormat()->setFormatCode('#,##0.00');
+        $sheet->getStyle("C6:C{$lastRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->getColumnDimension('A')->setWidth(18);
+        $sheet->getColumnDimension('B')->setWidth(58);
+        $sheet->getColumnDimension('C')->setWidth(20);
+        $sheet->freezePane('A6');
+        $sheet->getPageSetup()->setPrintArea("A1:C{$lastRow}");
+
+        try {
+            (new Xlsx($spreadsheet))->save('php://output');
+        } finally {
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+        }
     }
 
     private function getQueryKunjunganForExport(string $startDate, string $endDate): Builder
@@ -263,7 +410,7 @@ class LaporanPendapatanService
             ->orderBy('id');
     }
 
-    private function getPendapatanDokterPdfRows(
+    private function getPendapatanDokterReportRows(
         string $startDate,
         string $endDate,
         ?int $pelaksanaId,
@@ -302,6 +449,46 @@ class LaporanPendapatanService
 
                 return $row;
             });
+    }
+
+    /**
+     * @return array{companyName: string, periodLabel: string, dokterGroups: Collection, grandTotal: float}
+     */
+    private function getPendapatanDokterReportData(
+        string $startDate,
+        string $endDate,
+        ?int $pelaksanaId,
+        string $poli,
+        string $penjamin,
+    ): array {
+        $rows = $this->getPendapatanDokterReportRows($startDate, $endDate, $pelaksanaId, $poli, $penjamin);
+        $dokterGroups = $rows
+            ->groupBy('pelaksana_id')
+            ->map(function (Collection $doctorRows): array {
+                return [
+                    'nama' => (string) $doctorRows->first()->dokter,
+                    'kelompok' => $doctorRows
+                        ->groupBy('kelompok_id')
+                        ->map(fn (Collection $accountRows): array => [
+                            'nama' => (string) $accountRows->first()->kelompok,
+                            'rincian' => $accountRows->values(),
+                            'subtotal' => (float) $accountRows->sum('total_pendapatan'),
+                        ])
+                        ->values(),
+                    'total' => (float) $doctorRows->sum('total_pendapatan'),
+                ];
+            })
+            ->values();
+
+        return [
+            'companyName' => (Schema::hasTable('preferensi_perusahaan')
+                ? PreferensiPerusahaan::query()->value('nama_perusahaan')
+                : null) ?: config('siakurat.rs_name', 'RSA BOJONEGORO'),
+            'periodLabel' => Carbon::parse($startDate)->locale('id')->translatedFormat('j F Y')
+                .' - '.Carbon::parse($endDate)->locale('id')->translatedFormat('j F Y'),
+            'dokterGroups' => $dokterGroups,
+            'grandTotal' => (float) $rows->sum('total_pendapatan'),
+        ];
     }
 
     private function formatCoaCode(string $code): string

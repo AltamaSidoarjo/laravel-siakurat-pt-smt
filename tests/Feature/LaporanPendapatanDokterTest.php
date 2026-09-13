@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use Tests\TestCase;
 
 class LaporanPendapatanDokterTest extends TestCase
@@ -146,6 +147,65 @@ class LaporanPendapatanDokterTest extends TestCase
 
         $this->assertStringStartsWith('%PDF-', $response->getContent());
         $this->assertGreaterThan(1000, strlen($response->getContent()));
+    }
+
+    public function test_export_excel_downloads_grouped_doctor_income_report(): void
+    {
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.dokter.export-excel', [
+                'startDate' => '2026-09-01',
+                'endDate' => '2026-09-30',
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            ->assertHeader('content-disposition', 'attachment; filename=pendapatan-dokter-20260901-20260930.xlsx');
+
+        $content = $response->streamedContent();
+        $this->assertStringStartsWith('PK', $content);
+
+        $temporaryFile = tempnam(sys_get_temp_dir(), 'pendapatan-dokter-');
+        $this->assertNotFalse($temporaryFile);
+        file_put_contents($temporaryFile, $content);
+
+        try {
+            $spreadsheet = IOFactory::load($temporaryFile);
+            $sheet = $spreadsheet->getActiveSheet();
+
+            $this->assertSame('Pendapatan Dokter', $sheet->getTitle());
+            $this->assertSame('PENDAPATAN DOKTER', $sheet->getCell('A2')->getValue());
+            $this->assertSame('Kode Akun', $sheet->getCell('A5')->getValue());
+            $this->assertSame('Keterangan', $sheet->getCell('B5')->getValue());
+            $this->assertSame('Saldo', $sheet->getCell('C5')->getValue());
+            $this->assertTrue($sheet->getShowGridlines());
+
+            $doctorTotalRow = null;
+            $grandTotalRow = null;
+
+            foreach ($sheet->getRowIterator(6) as $row) {
+                $label = $sheet->getCell('A'.$row->getRowIndex())->getValue();
+
+                if ($label === 'Total Pendapatan Dokter Dr. A') {
+                    $doctorTotalRow = $row->getRowIndex();
+                }
+
+                if ($label === 'Total Pendapatan Seluruh Dokter') {
+                    $grandTotalRow = $row->getRowIndex();
+                }
+            }
+
+            $this->assertNotNull($doctorTotalRow);
+            $this->assertNotNull($grandTotalRow);
+            $this->assertStringStartsWith('=', $sheet->getCell('C'.$doctorTotalRow)->getValue());
+            $this->assertSame(350000.0, (float) $sheet->getCell('C'.$doctorTotalRow)->getCalculatedValue());
+            $this->assertSame(650000.0, (float) $sheet->getCell('C'.$grandTotalRow)->getCalculatedValue());
+
+            $spreadsheet->disconnectWorksheets();
+        } finally {
+            unlink($temporaryFile);
+        }
     }
 
     public function test_export_requires_a_valid_date_range(): void

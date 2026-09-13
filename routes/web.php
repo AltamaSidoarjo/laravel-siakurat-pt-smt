@@ -264,6 +264,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/pendapatan/kunjungan/export-csv', [LaporanPendapatanController::class, 'exportKunjunganCsv'])->name('pendapatan.kunjungan.export-csv');
             Route::get('/pendapatan/dokter', [LaporanPendapatanController::class, 'dokter'])->name('pendapatan.dokter');
             Route::get('/pendapatan/dokter/load-data', [LaporanPendapatanController::class, 'loadDokter'])->name('pendapatan.dokter.load-data');
+            Route::get('/pendapatan/dokter/export-excel', [LaporanPendapatanController::class, 'exportDokterExcel'])->name('pendapatan.dokter.export-excel');
             Route::get('/pendapatan/dokter/export-pdf', [LaporanPendapatanController::class, 'exportDokterPdf'])->name('pendapatan.dokter.export-pdf');
             Route::get('/pendapatan/penjualan-obat', [LaporanPendapatanController::class, 'penjualanObat'])->name('pendapatan.penjualan-obat');
             Route::get('/pendapatan/penjualan-obat/load-data', [LaporanPendapatanController::class, 'loadPenjualanObat'])->name('pendapatan.penjualan-obat.load-data');

@@ -138,6 +138,35 @@ class LaporanPendapatanController extends Controller
         ]);
     }
 
+    public function exportDokterExcel(Request $request): StreamedResponse
+    {
+        $validated = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+            'pelaksanaId' => ['nullable', 'integer', 'exists:pelaksana,id'],
+            'poli' => ['nullable', 'string', 'max:255'],
+            'penjamin' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $fileName = sprintf(
+            'pendapatan-dokter-%s-%s.xlsx',
+            str_replace('-', '', $validated['startDate']),
+            str_replace('-', '', $validated['endDate'])
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPendapatanService->streamPendapatanDokterExcel(
+                $validated['startDate'],
+                $validated['endDate'],
+                isset($validated['pelaksanaId']) ? (int) $validated['pelaksanaId'] : null,
+                trim((string) ($validated['poli'] ?? '')),
+                trim((string) ($validated['penjamin'] ?? '')),
+            ),
+            $fileName,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+        );
+    }
+
     public function loadKunjungan(Request $request): JsonResponse
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);

@@ -74,6 +74,8 @@
                                 <button type="submit" class="btn btn-primary"><i class="bi bi-funnel me-1"></i> Filter</button>
                                 <a href="{{ route('laporan.pendapatan.dokter.export-pdf', $exportParams) }}"
                                    class="btn btn-outline-danger"><i class="bi bi-filetype-pdf me-1"></i> Export PDF</a>
+                                <a href="{{ route('laporan.pendapatan.dokter.export-excel', $exportParams) }}"
+                                   class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i> Export Excel</a>
                             </div>
                         </div>
                     </form>
