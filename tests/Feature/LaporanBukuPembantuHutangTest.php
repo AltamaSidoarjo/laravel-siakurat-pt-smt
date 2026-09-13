@@ -43,6 +43,7 @@ class LaporanBukuPembantuHutangTest extends TestCase
             ->get(route('laporan.pembelian.buku-pembantu-hutang'))
             ->assertOk()
             ->assertSee('Pilih minimal satu supplier')
+            ->assertSee('class="form-select select2"', false)
             ->assertViewHas('cards', []);
     }
 
@@ -56,7 +57,7 @@ class LaporanBukuPembantuHutangTest extends TestCase
             ->get(route('laporan.pembelian.buku-pembantu-hutang'))
             ->assertOk()
             ->assertSee('[SUP-001] PT Sehat Farma')
-            ->assertDontSee('PT Tanpa Faktur')
+            ->assertSee('[SUP-EMPTY] PT Tanpa Faktur')
             ->assertDontSee('ajax: {', false);
     }
 
@@ -163,10 +164,10 @@ class LaporanBukuPembantuHutangTest extends TestCase
             ->assertSessionHasErrors(['endDate', 'supplierIds']);
     }
 
-    public function test_supplier_search_only_returns_suppliers_with_invoices(): void
+    public function test_supplier_search_returns_suppliers_without_invoices(): void
     {
         [$supplierId] = $this->seedMasterData();
-        $this->createSupplier('SUP-EMPTY', 'PT Tanpa Faktur');
+        $supplierTanpaFakturId = $this->createSupplier('SUP-EMPTY', 'PT Tanpa Faktur');
         $this->createInvoice($supplierId, 'INV-CARI', '2026-09-01', 100, 0);
 
         $this->actingAs($this->makeUser())
@@ -175,6 +176,13 @@ class LaporanBukuPembantuHutangTest extends TestCase
             ->assertJsonCount(1, 'results')
             ->assertJsonPath('results.0.id', (string) $supplierId)
             ->assertJsonPath('results.0.text', '[SUP-001] PT Sehat Farma');
+
+        $this->actingAs($this->makeUser())
+            ->getJson(route('laporan.pembelian.buku-pembantu-hutang.search-supplier', ['q' => 'Tanpa Faktur']))
+            ->assertOk()
+            ->assertJsonCount(1, 'results')
+            ->assertJsonPath('results.0.id', (string) $supplierTanpaFakturId)
+            ->assertJsonPath('results.0.text', '[SUP-EMPTY] PT Tanpa Faktur');
     }
 
     public function test_supplier_search_returns_initial_options_without_keyword(): void
@@ -186,7 +194,7 @@ class LaporanBukuPembantuHutangTest extends TestCase
         $this->actingAs($this->makeUser())
             ->getJson(route('laporan.pembelian.buku-pembantu-hutang.search-supplier'))
             ->assertOk()
-            ->assertJsonCount(1, 'results')
+            ->assertJsonCount(2, 'results')
             ->assertJsonPath('results.0.id', (string) $supplierId);
     }
 

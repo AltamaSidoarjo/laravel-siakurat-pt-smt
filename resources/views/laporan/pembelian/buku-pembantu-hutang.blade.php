@@ -38,7 +38,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Supplier <span class="text-danger">*</span></label>
-                                <select name="supplierIds[]" id="supplierSelect" class="form-select" multiple data-placeholder="Cari dan pilih supplier...">
+                                <select name="supplierIds[]" id="supplierSelect" class="form-select select2" multiple data-placeholder="Cari dan pilih supplier...">
                                     @foreach ($supplierOptions as $supplier)
                                         <option value="{{ $supplier->id }}" @selected(in_array((int) $supplier->id, $supplierIds, true))>
                                             [{{ $supplier->kode_supplier }}] {{ $supplier->nama_supplier }}
@@ -164,35 +164,6 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const $ = window.jQuery;
-            if ($ && $.fn.select2) {
-                const $supplierSelect = $('#supplierSelect');
-                const supplierData = $supplierSelect.find('option').map(function () {
-                    return {
-                        id: this.value,
-                        text: this.textContent.trim(),
-                        selected: this.selected
-                    };
-                }).get();
-
-                if ($supplierSelect.data('select2')) {
-                    $supplierSelect.select2('destroy');
-                }
-
-                $supplierSelect.empty().select2({
-                    theme: 'bootstrap-5',
-                    width: '100%',
-                    closeOnSelect: false,
-                    placeholder: 'Cari dan pilih supplier...',
-                    data: supplierData,
-                    language: {
-                        noResults: function () {
-                            return 'Supplier tidak ditemukan';
-                        }
-                    }
-                });
-            }
-
             const searchInput = document.getElementById('transactionSearch');
             const resultInfo = document.getElementById('searchResultInfo');
             searchInput?.addEventListener('input', function () {

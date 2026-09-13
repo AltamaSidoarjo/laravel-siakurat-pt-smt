@@ -33,7 +33,6 @@ class LaporanPembelianService
     public function getSupplierOptions(): Collection
     {
         return Supplier::query()
-            ->whereHas('fakturPembelians')
             ->orderBy('kode_supplier')
             ->orderBy('nama_supplier')
             ->get(['id', 'kode_supplier', 'nama_supplier']);
@@ -42,7 +41,6 @@ class LaporanPembelianService
     public function searchSupplierHutang(string $search): Collection
     {
         return Supplier::query()
-            ->whereHas('fakturPembelians')
             ->when($search !== '', function (Builder $query) use ($search) {
                 $like = '%'.$search.'%';
 
