@@ -6,6 +6,7 @@ use App\Exceptions\BillingApiException;
 use App\Http\Controllers\Controller;
 use App\Services\Bridging\BillingPendapatanApiService;
 use App\Services\Laporan\LaporanPendapatanService;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Http\JsonResponse;
@@ -99,6 +100,7 @@ class LaporanPendapatanController extends Controller
             ->filter(function (QueryBuilder $query) use ($search): void {
                 $this->laporanPendapatanService->applyPendapatanDokterSearch($query, $search);
             }, false)
+            ->editColumn('tanggal', fn (object $row) => Carbon::parse($row->tanggal)->format('Y-m-d'))
             ->editColumn('jumlah_billing', fn (object $row) => (int) $row->jumlah_billing)
             ->editColumn('total_pendapatan', fn (object $row) => number_format((float) $row->total_pendapatan, 0, ',', '.'))
             ->with('totalBilling', $summary['totalBilling'])

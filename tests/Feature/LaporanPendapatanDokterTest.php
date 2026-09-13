@@ -31,16 +31,18 @@ class LaporanPendapatanDokterTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('recordsFiltered', 3)
+            ->assertJsonPath('recordsFiltered', 4)
             ->assertJsonPath('totalBilling', 3)
             ->assertJsonPath('grandTotal', 650000);
 
         $rows = collect($response->json('data'));
-        $igdDrA = $rows->first(fn (array $row) => $row['dokter'] === 'Dr. A' && $row['kode_akun'] === '4101');
+        $igdDrA = $rows->first(fn (array $row) => $row['dokter'] === 'Dr. A'
+            && $row['tanggal'] === '2026-09-01'
+            && $row['kode_akun'] === '4101');
 
         $this->assertNotNull($igdDrA);
-        $this->assertSame(2, $igdDrA['jumlah_billing']);
-        $this->assertSame('300.000', $igdDrA['total_pendapatan']);
+        $this->assertSame(1, $igdDrA['jumlah_billing']);
+        $this->assertSame('100.000', $igdDrA['total_pendapatan']);
     }
 
     public function test_report_page_loads_poli_and_guarantor_selects_from_billing_api(): void

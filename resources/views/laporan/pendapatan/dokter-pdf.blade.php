@@ -23,16 +23,18 @@
         .group-title { color: #0076b5; font-size: 10.5pt; margin: 0 0 6px; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         td { padding: 5px 0; vertical-align: top; }
-        .code { width: 23%; padding-left: 10px; }
-        .account { width: 52%; }
+        .date { width: 16%; padding-left: 10px; }
+        .code { width: 20%; }
+        .account { width: 39%; }
         .amount { width: 25%; text-align: right; white-space: nowrap; }
         .group-total td { color: #24bd72; padding-top: 7px; }
         .group-total .amount { border-top: 1px solid #24bd72; }
-        .doctor-total { margin: 2px 0 0 18px; page-break-inside: avoid; }
+        .doctor-total { margin: 2px 0 0; page-break-inside: avoid; }
         .doctor-total td { padding-top: 8px; }
         .doctor-total .label, .doctor-total .amount { color: #24bd72; }
         .doctor-total .label, .doctor-result td:first-child, .grand-total td:first-child { width: 75%; }
-        .doctor-total .amount { border-top: 1px solid #24bd72; }
+        .doctor-total .label { width: 76%; padding-left: 18px; }
+        .doctor-total .amount { width: 24%; border-top: 1px solid #24bd72; }
         .doctor-result { margin-top: 11px; page-break-inside: avoid; }
         .doctor-result .amount { border-top: 1px solid #111; padding-top: 9px; }
         .grand-total { margin-top: 8px; page-break-inside: avoid; }
@@ -60,13 +62,14 @@
                     <table>
                         @foreach ($kelompok['rincian'] as $rincian)
                             <tr>
+                                <td class="date">{{ \Carbon\Carbon::parse($rincian->tanggal)->format('Y-m-d') }}</td>
                                 <td class="code">{{ $rincian->kode_akun_format }}</td>
                                 <td class="account">{{ $rincian->nama_akun }}</td>
                                 <td class="amount">Rp {{ number_format((float) $rincian->total_pendapatan, 2, '.', ',') }}</td>
                             </tr>
                         @endforeach
                         <tr class="group-total">
-                            <td colspan="2">Total {{ $kelompok['nama'] }}</td>
+                            <td colspan="3">Total {{ $kelompok['nama'] }}</td>
                             <td class="amount">Rp {{ number_format($kelompok['subtotal'], 2, '.', ',') }}</td>
                         </tr>
                     </table>

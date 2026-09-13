@@ -97,6 +97,7 @@
                             <thead>
                                 <tr>
                                     <th>Dokter</th>
+                                    <th>Tanggal</th>
                                     <th>Kode Akun</th>
                                     <th>Sumber Pendapatan</th>
                                     <th>Jumlah Billing</th>
@@ -139,10 +140,11 @@
                         data.penjamin = @json($penjamin);
                     }
                 },
-                order: [[0, 'asc'], [1, 'asc']],
+                order: [[0, 'asc'], [1, 'asc'], [2, 'asc']],
                 pageLength: 25,
                 columns: [
                     { data: 'dokter', name: 'p.nama_pelaksana' },
+                    { data: 'tanggal', name: 'fp.tanggal_faktur' },
                     { data: 'kode_akun', name: 'c.kode' },
                     { data: 'layanan', name: 'c.nama' },
                     { data: 'jumlah_billing', name: 'jumlah_billing', className: 'text-end', orderable: false },

@@ -27,12 +27,14 @@ class LaporanPendapatanService
         return $this->getPendapatanDokterBaseQuery($startDate, $endDate, $pelaksanaId, $poli, $penjamin)
             ->selectRaw('p.id AS pelaksana_id')
             ->selectRaw('p.nama_pelaksana AS dokter')
+            ->selectRaw('fp.tanggal_faktur AS tanggal')
             ->selectRaw('c.kode AS kode_akun')
             ->selectRaw('c.nama AS layanan')
             ->selectRaw('COUNT(DISTINCT fp.id) AS jumlah_billing')
             ->selectRaw('SUM(fpr.subtotal) AS total_pendapatan')
-            ->groupBy('p.id', 'p.nama_pelaksana', 'c.id', 'c.kode', 'c.nama')
+            ->groupBy('p.id', 'p.nama_pelaksana', 'fp.tanggal_faktur', 'c.id', 'c.kode', 'c.nama')
             ->orderBy('p.nama_pelaksana')
+            ->orderBy('fp.tanggal_faktur')
             ->orderBy('c.kode');
     }
 
@@ -272,6 +274,7 @@ class LaporanPendapatanService
             ->leftJoin('coa as pc', 'pc.id', '=', 'c.parent_coa')
             ->selectRaw('p.id AS pelaksana_id')
             ->selectRaw('p.nama_pelaksana AS dokter')
+            ->selectRaw('fp.tanggal_faktur AS tanggal')
             ->selectRaw('COALESCE(pc.id, c.id) AS kelompok_id')
             ->selectRaw('COALESCE(pc.kode, c.kode) AS kode_kelompok')
             ->selectRaw('COALESCE(pc.nama, c.nama) AS kelompok')
@@ -281,6 +284,7 @@ class LaporanPendapatanService
             ->groupBy(
                 'p.id',
                 'p.nama_pelaksana',
+                'fp.tanggal_faktur',
                 'pc.id',
                 'pc.kode',
                 'pc.nama',
@@ -289,6 +293,7 @@ class LaporanPendapatanService
                 'c.nama',
             )
             ->orderBy('p.nama_pelaksana')
+            ->orderBy('fp.tanggal_faktur')
             ->orderByRaw('COALESCE(pc.kode, c.kode)')
             ->orderBy('c.kode')
             ->get()
