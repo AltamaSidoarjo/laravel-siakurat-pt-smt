@@ -120,6 +120,27 @@ class RoleAccessManagementTest extends TestCase
             ->assertDontSee('Role Akses');
     }
 
+    public function test_laporan_pembelian_permission_controls_route_and_menu(): void
+    {
+        $viewer = $this->makeUserWithPermissions([
+            'laporan.pembelian' => ['view' => true],
+        ]);
+
+        $this->actingAs($viewer)
+            ->get(route('laporan.pembelian.index'))
+            ->assertOk()
+            ->assertSee('Pusat Laporan Pembelian')
+            ->assertSee('Buku Pembantu Hutang')
+            ->assertSee('Laporan Pembelian')
+            ->assertDontSee('Laporan Pendapatan');
+
+        $blocked = $this->makeUserWithPermissions([], 'laporan-blocked@example.com');
+
+        $this->actingAs($blocked)
+            ->get(route('laporan.pembelian.index'))
+            ->assertForbidden();
+    }
+
     public function test_admin_can_create_role_and_store_permission_matrix(): void
     {
         $admin = $this->makeAdminUser();

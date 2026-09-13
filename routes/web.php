@@ -10,6 +10,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Kasbank\KasbankPembayaranController;
 use App\Http\Controllers\Kasbank\KasbankPenerimaanController;
 use App\Http\Controllers\Laporan\LaporanKeuanganController;
+use App\Http\Controllers\Laporan\LaporanPembelianController;
 use App\Http\Controllers\Laporan\LaporanPendapatanController;
 use App\Http\Controllers\Pembelian\InvoicePembelianController;
 use App\Http\Controllers\Pembelian\PembayaranPembelianController;
@@ -252,6 +253,13 @@ Route::middleware('auth')->group(function () {
             Route::get('/pendapatan/penjualan-obat', [LaporanPendapatanController::class, 'penjualanObat'])->name('pendapatan.penjualan-obat');
             Route::get('/pendapatan/penjualan-obat/load-data', [LaporanPendapatanController::class, 'loadPenjualanObat'])->name('pendapatan.penjualan-obat.load-data');
             Route::get('/pendapatan/penjualan-obat/export-csv', [LaporanPendapatanController::class, 'exportPenjualanObatCsv'])->name('pendapatan.penjualan-obat.export-csv');
+        });
+
+        Route::middleware('module.access:laporan.pembelian,view')->group(function () {
+            Route::get('/pembelian', [LaporanPembelianController::class, 'index'])->name('pembelian.index');
+            Route::get('/pembelian/buku-pembantu-hutang', [LaporanPembelianController::class, 'bukuPembantuHutang'])->name('pembelian.buku-pembantu-hutang');
+            Route::get('/pembelian/buku-pembantu-hutang/search-supplier', [LaporanPembelianController::class, 'searchSupplier'])->name('pembelian.buku-pembantu-hutang.search-supplier');
+            Route::get('/pembelian/buku-pembantu-hutang/export-csv', [LaporanPembelianController::class, 'exportCsv'])->name('pembelian.buku-pembantu-hutang.export-csv');
         });
     });
 
