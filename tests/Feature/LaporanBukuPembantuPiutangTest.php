@@ -47,6 +47,8 @@ class LaporanBukuPembantuPiutangTest extends TestCase
         $response
             ->assertOk()
             ->assertSee('Pilih minimal satu pelanggan')
+            ->assertSee('class="form-select select2"', false)
+            ->assertDontSee('name="akunPiutang"', false)
             ->assertViewHas('cards', []);
     }
 
@@ -165,6 +167,13 @@ class LaporanBukuPembantuPiutangTest extends TestCase
     {
         [$pelangganId, $akunPiutangId] = $this->seedMasterData();
         $this->createInvoice($pelangganId, $akunPiutangId, 'INV-CARI', '2026-09-01', 100, 0);
+        $pelangganTanpaFakturId = DB::table('pelanggan')->insertGetId([
+            'status_aktif' => true,
+            'kode_pelanggan' => 'PLG-002',
+            'nama_pelanggan' => 'Pelanggan Tanpa Faktur',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $this
             ->actingAs($this->makeUser())
@@ -172,6 +181,19 @@ class LaporanBukuPembantuPiutangTest extends TestCase
             ->assertOk()
             ->assertJsonPath('results.0.id', (string) $pelangganId)
             ->assertJsonPath('results.0.text', '[PLG-001] BPJS Kesehatan');
+
+        $this
+            ->actingAs($this->makeUser())
+            ->getJson(route('laporan.pendapatan.buku-pembantu-piutang.search-pelanggan', ['q' => 'Tanpa Faktur']))
+            ->assertOk()
+            ->assertJsonPath('results.0.id', (string) $pelangganTanpaFakturId)
+            ->assertJsonPath('results.0.text', '[PLG-002] Pelanggan Tanpa Faktur');
+
+        $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.buku-pembantu-piutang'))
+            ->assertOk()
+            ->assertSee('[PLG-002] Pelanggan Tanpa Faktur');
 
         $this
             ->actingAs($this->makeUser())

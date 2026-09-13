@@ -41,9 +41,9 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Pelanggan <span class="text-danger">*</span></label>
-                                <select name="pelangganIds[]" id="pelangganSelect" class="form-select" multiple data-placeholder="Cari dan pilih pelanggan...">
-                                    @foreach ($pelangganTerpilih as $pelanggan)
-                                        <option value="{{ $pelanggan->id }}" selected>
+                                <select name="pelangganIds[]" id="pelangganSelect" class="form-select select2" multiple data-placeholder="Cari dan pilih pelanggan...">
+                                    @foreach ($pelangganOptions as $pelanggan)
+                                        <option value="{{ $pelanggan->id }}" @selected(in_array((int) $pelanggan->id, $pelangganIds, true))>
                                             [{{ $pelanggan->kode_pelanggan }}] {{ $pelanggan->nama_pelanggan }}
                                         </option>
                                     @endforeach
@@ -51,18 +51,6 @@
                                 <small class="text-muted">Wajib memilih minimal satu pelanggan.</small>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Akun Piutang</label>
-                                <select name="akunPiutang" id="akunPiutangSelect" class="form-select" data-placeholder="Semua akun">
-                                    <option value="">Semua akun</option>
-                                    <option value="tanpa-akun" @selected($akunPiutang === 'tanpa-akun')>Tanpa akun piutang</option>
-                                    @if ($coaPiutangTerpilih)
-                                        <option value="{{ $coaPiutangTerpilih->id }}" selected>
-                                            [{{ $coaPiutangTerpilih->kode }}] {{ $coaPiutangTerpilih->nama }}
-                                        </option>
-                                    @endif
-                                </select>
-                            </div>
-                            <div class="col-md-3">
                                 <label class="form-label">Status Saldo Akhir</label>
                                 <select name="statusSaldo" class="form-select">
                                     <option value="semua" @selected($statusSaldo === 'semua')>Semua</option>
@@ -70,7 +58,7 @@
                                     <option value="lunas" @selected($statusSaldo === 'lunas')>Lunas</option>
                                 </select>
                             </div>
-                            <div class="col-md-3 d-flex align-items-end justify-content-end gap-2 flex-wrap">
+                            <div class="col-md-6 d-flex align-items-end justify-content-end gap-2 flex-wrap">
                                 <a href="{{ route('laporan.pendapatan.buku-pembantu-piutang') }}" class="btn btn-light">Reset</a>
                                 <button type="submit" class="btn btn-primary">
                                     <i class="bi bi-funnel me-1"></i>Tampilkan
@@ -253,42 +241,6 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const $ = window.jQuery;
-
-            if ($ && $.fn.select2) {
-                $('#pelangganSelect').select2({
-                    theme: 'bootstrap-5',
-                    width: '100%',
-                    closeOnSelect: false,
-                    placeholder: 'Cari dan pilih pelanggan...',
-                    minimumInputLength: 1,
-                    ajax: {
-                        url: '{{ route('laporan.pendapatan.buku-pembantu-piutang.search-pelanggan') }}',
-                        dataType: 'json',
-                        delay: 250,
-                        data: params => ({ q: params.term || '' }),
-                        processResults: data => data,
-                        cache: true
-                    }
-                });
-
-                $('#akunPiutangSelect').select2({
-                    theme: 'bootstrap-5',
-                    width: '100%',
-                    allowClear: true,
-                    placeholder: 'Semua akun',
-                    minimumInputLength: 0,
-                    ajax: {
-                        url: '{{ route('laporan.pendapatan.buku-pembantu-piutang.search-coa') }}',
-                        dataType: 'json',
-                        delay: 250,
-                        data: params => ({ q: params.term || '' }),
-                        processResults: data => data,
-                        cache: true
-                    }
-                });
-            }
-
             const searchInput = document.getElementById('transactionSearch');
             const resultInfo = document.getElementById('searchResultInfo');
 

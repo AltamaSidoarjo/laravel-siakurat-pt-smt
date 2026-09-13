@@ -37,10 +37,16 @@ class LaporanPendapatanService
             ->get(['id', 'kode_pelanggan', 'nama_pelanggan']);
     }
 
+    public function getPelangganOptions(): Collection
+    {
+        return Pelanggan::query()
+            ->orderBy('kode_pelanggan')
+            ->get(['id', 'kode_pelanggan', 'nama_pelanggan']);
+    }
+
     public function searchPelangganPiutang(string $search): Collection
     {
         return Pelanggan::query()
-            ->whereHas('fakturPenjualans')
             ->when($search !== '', function (Builder $query) use ($search) {
                 $like = '%'.$search.'%';
 

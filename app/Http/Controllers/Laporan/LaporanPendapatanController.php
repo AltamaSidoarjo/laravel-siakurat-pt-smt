@@ -155,8 +155,9 @@ class LaporanPendapatanController extends Controller
         $startDate = $data['startDate'] ?? now()->startOfMonth()->format('Y-m-d');
         $endDate = $data['endDate'] ?? now()->format('Y-m-d');
         $pelangganIds = collect($data['pelangganIds'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
-        $akunPiutang = $data['akunPiutang'] ?? null;
+        $akunPiutang = null;
         $statusSaldo = $data['statusSaldo'] ?? 'semua';
+        $pelangganOptions = $this->laporanPendapatanService->getPelangganOptions();
         $report = $this->laporanPendapatanService->getBukuPembantuPiutang(
             startDate: $startDate,
             endDate: $endDate,
@@ -173,9 +174,7 @@ class LaporanPendapatanController extends Controller
                 'startDate' => $startDate,
                 'endDate' => $endDate,
                 'pelangganIds' => $pelangganIds,
-                'pelangganTerpilih' => $this->laporanPendapatanService->getPelangganTerpilih($pelangganIds),
-                'akunPiutang' => $akunPiutang,
-                'coaPiutangTerpilih' => $this->laporanPendapatanService->getCoaPiutangTerpilih($akunPiutang),
+                'pelangganOptions' => $pelangganOptions,
                 'statusSaldo' => $statusSaldo,
                 'hasSelection' => $pelangganIds !== [],
             ],
