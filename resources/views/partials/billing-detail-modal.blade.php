@@ -14,6 +14,18 @@
 
                 <div id="billingAccountDetailSection" class="mt-4" hidden>
                     <h6 class="fw-bold">Rincian Akun Billing</h6>
+                    @if ($showReceivableAccount ?? false)
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm table-bordered mb-0">
+                            <tbody>
+                                <tr>
+                                    <th class="bg-light" style="width: 35%;">Akun Piutang</th>
+                                    <td id="billingReceivableAccount">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    @endif
                     <div id="billingAccountDetailLoading" class="text-muted">Memuat rincian billing...</div>
                     <div id="billingAccountDetailError" class="alert alert-warning mb-0" hidden></div>
                     <div id="billingAccountDetailTable" class="table-responsive" hidden>
@@ -115,6 +127,10 @@
                 }
 
                 renderAccountRows(payload.data);
+                const receivableAccount = document.getElementById('billingReceivableAccount');
+                if (receivableAccount) {
+                    receivableAccount.textContent = payload.akunPiutang || '-';
+                }
                 document.getElementById('billingAccountDetailTotal').textContent = `Rp ${formatNumber(payload.grandTotal || 0)}`;
                 table.hidden = false;
             } catch (exception) {

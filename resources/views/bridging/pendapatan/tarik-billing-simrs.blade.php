@@ -131,7 +131,7 @@
             </div>
         </div>
     </div>
-    @include('partials.billing-detail-modal')
+    @include('partials.billing-detail-modal', ['showReceivableAccount' => false])
 @endsection
 
 @push('scripts')

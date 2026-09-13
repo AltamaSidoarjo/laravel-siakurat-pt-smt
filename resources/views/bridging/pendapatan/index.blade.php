@@ -187,7 +187,7 @@
         'endDate' => $endDate,
         'exportFilters' => ['poli' => $poli, 'penjamin' => $penjamin],
     ])
-    @include('partials.billing-detail-modal')
+    @include('partials.billing-detail-modal', ['showReceivableAccount' => true])
 @endsection
 
 @push('scripts')

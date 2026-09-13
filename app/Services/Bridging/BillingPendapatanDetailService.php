@@ -38,6 +38,7 @@ class BillingPendapatanDetailService
         return [
             'data' => $rows->all(),
             'grandTotal' => (float) $rows->sum('subtotal'),
+            'akunPiutang' => null,
             'source' => 'api',
         ];
     }
@@ -45,7 +46,10 @@ class BillingPendapatanDetailService
     private function getLocalInvoiceDetail(SimrsImportPendapatan $import): array
     {
         $invoice = FakturPenjualan::query()
-            ->with('rincian.coa:id,kode')
+            ->with([
+                'akunPiutang:id,kode,nama',
+                'rincian.coa:id,kode',
+            ])
             ->where(function (Builder $query) use ($import): void {
                 $query
                     ->where('nomer_rawat', $import->nomer_billing)
@@ -70,6 +74,9 @@ class BillingPendapatanDetailService
         return [
             'data' => $rows->all(),
             'grandTotal' => (float) $rows->sum('subtotal'),
+            'akunPiutang' => $invoice->akunPiutang === null
+                ? null
+                : trim($invoice->akunPiutang->kode.' - '.$invoice->akunPiutang->nama),
             'source' => 'local_invoice',
         ];
     }
