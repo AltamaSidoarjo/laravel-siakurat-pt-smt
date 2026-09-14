@@ -17,6 +17,7 @@ use App\Http\Controllers\Pendapatan\InvoicePendapatanController;
 use App\Http\Controllers\Pendapatan\PenerimaanPendapatanController;
 use App\Http\Controllers\Pengaturan\KonversiFileController;
 use App\Http\Controllers\Pengaturan\MappingGeneralController;
+use App\Http\Controllers\Pengaturan\MappingPenjaminController;
 use App\Http\Controllers\Pengaturan\MappingPendapatanController;
 use App\Http\Controllers\Pengaturan\PelaksanaController;
 use App\Http\Controllers\Pengaturan\PenggunaController;
@@ -306,6 +307,17 @@ Route::middleware('auth')->group(function () {
             Route::delete('/mapping-pendapatan/kamar/{mappingPendapatanKamar}', [MappingPendapatanController::class, 'destroyKamar'])->name('mapping-pendapatan.kamar.destroy');
             Route::delete('/mapping-pendapatan/umum/{mappingPendapatanUmum}', [MappingPendapatanController::class, 'destroyUmum'])->name('mapping-pendapatan.umum.destroy');
             Route::delete('/mapping-pendapatan/lawan-pendapatan/{mappingLawanPendapatanSimrs}', [MappingPendapatanController::class, 'destroyLawanPendapatan'])->name('mapping-pendapatan.lawan.destroy');
+        });
+
+        Route::middleware('module.access:pengaturan.mapping-penjamin,view')->group(function () {
+            Route::get('/mapping-penjamin', [MappingPenjaminController::class, 'index'])->name('mapping-penjamin.index');
+        });
+        Route::middleware('module.access:pengaturan.mapping-penjamin,create')->group(function () {
+            Route::get('/mapping-penjamin/create', [MappingPenjaminController::class, 'create'])->name('mapping-penjamin.create');
+            Route::post('/mapping-penjamin', [MappingPenjaminController::class, 'store'])->name('mapping-penjamin.store');
+        });
+        Route::middleware('module.access:pengaturan.mapping-penjamin,delete')->group(function () {
+            Route::delete('/mapping-penjamin/{mappingPenjaminPiutang}', [MappingPenjaminController::class, 'destroy'])->name('mapping-penjamin.destroy');
         });
 
         Route::middleware('module.access:pengaturan.mapping-general,view')->group(function () {

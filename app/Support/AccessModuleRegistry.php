@@ -22,6 +22,7 @@ class AccessModuleRegistry
             ['kode' => 'laporan.keuangan', 'nama' => 'Laporan Keuangan', 'group_nama' => 'Laporan', 'urutan' => 130],
             ['kode' => 'laporan.pendapatan', 'nama' => 'Laporan Pendapatan', 'group_nama' => 'Laporan', 'urutan' => 140],
             ['kode' => 'pengaturan.mapping-pendapatan', 'nama' => 'Mapping Pendapatan', 'group_nama' => 'Pengaturan', 'urutan' => 150],
+            ['kode' => 'pengaturan.mapping-penjamin', 'nama' => 'Mapping Penjamin', 'group_nama' => 'Pengaturan', 'urutan' => 155],
             ['kode' => 'pengaturan.mapping-general', 'nama' => 'Mapping General', 'group_nama' => 'Pengaturan', 'urutan' => 160],
             ['kode' => 'pengaturan.setting-rba', 'nama' => 'Setting RBA', 'group_nama' => 'Pengaturan', 'urutan' => 170],
             ['kode' => 'pengaturan.preferensi', 'nama' => 'Preferensi', 'group_nama' => 'Pengaturan', 'urutan' => 180],

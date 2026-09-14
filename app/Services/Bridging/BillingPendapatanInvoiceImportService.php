@@ -6,6 +6,7 @@ use App\Exceptions\BillingApiException;
 use App\Models\Coa;
 use App\Models\FakturPenjualan;
 use App\Models\FakturPenjualanRinci;
+use App\Models\MappingPenjaminPiutang;
 use App\Models\Pelanggan;
 use App\Models\Pelaksana;
 use App\Models\SimrsImportPendapatan;
@@ -21,12 +22,6 @@ use Throwable;
 class BillingPendapatanInvoiceImportService
 {
     private const IMPORT_INVOICE_PENDAPATAN = 'Invoice Pendapatan';
-
-    private const COA_PIUTANG_UMUM = 'Piutang Pasien Umum';
-
-    private const COA_PIUTANG_BPJS = 'Piutang Pasien BPJS Kesehatan';
-
-    private const COA_PIUTANG_ASURANSI = 'Piutang Asuransi (Non BPJS Kesehatan)';
 
     public function __construct(
         private readonly BillingPendapatanApiService $billingPendapatanApiService,
@@ -53,6 +48,10 @@ class BillingPendapatanInvoiceImportService
         )->groupBy('external_id');
         $penjaminApi = $this->billingPendapatanApiService->getPenjaminOptions()
             ->keyBy(fn (array $option) => Str::lower(trim($option['nama'])));
+        $mappingPenjamin = MappingPenjaminPiutang::query()
+            ->with(['coa' => fn ($query) => $query->withCount('children')])
+            ->get()
+            ->keyBy(fn (MappingPenjaminPiutang $mapping) => (string) $mapping->penjamin_id);
 
         $hasil = [];
 
@@ -75,16 +74,28 @@ class BillingPendapatanInvoiceImportService
             $billing = $candidateRows->first();
 
             $namaPenjamin = trim((string) ($billing['penjamin'] ?? ''));
-            $namaPenjamin = Str::lower($namaPenjamin === '' || $namaPenjamin === 'U/Px' ? 'Umum' : $namaPenjamin);
+            $namaPenjamin = Str::lower(
+                $namaPenjamin === '' || strcasecmp($namaPenjamin, 'U/Px') === 0
+                    ? 'Umum'
+                    : $namaPenjamin,
+            );
             $penjaminApiItem = $penjaminApi->get($namaPenjamin);
             if ($penjaminApiItem === null) {
                 $hasil[] = $this->failedResult($billing, 'Penjamin tidak ditemukan pada Billing API.');
                 continue;
             }
-            $billing['penjamin_id'] = (int) $penjaminApiItem['id'];
+            $billing['penjamin_id'] = (string) $penjaminApiItem['id'];
+            $mappingPiutang = $mappingPenjamin->get($billing['penjamin_id']);
+            if ($mappingPiutang === null) {
+                $hasil[] = $this->failedResult(
+                    $billing,
+                    'Mapping akun piutang untuk penjamin '.$penjaminApiItem['nama'].' belum disetting.',
+                );
+                continue;
+            }
 
             try {
-                $hasil[] = $this->imporSatu($billing, $actor);
+                $hasil[] = $this->imporSatu($billing, $mappingPiutang, $actor);
             } catch (BillingApiException|RuntimeException $exception) {
                 $hasil[] = $this->failedResult($billing, $exception->getMessage());
             } catch (Throwable $exception) {
@@ -102,7 +113,11 @@ class BillingPendapatanInvoiceImportService
         return $hasil;
     }
 
-    private function imporSatu(array $billing, string $actor): array
+    private function imporSatu(
+        array $billing,
+        MappingPenjaminPiutang $mappingPiutang,
+        string $actor,
+    ): array
     {
         $noRawat = trim((string) ($billing['no_rawat'] ?? ''));
 
@@ -123,7 +138,7 @@ class BillingPendapatanInvoiceImportService
         }
 
         $penjamin = $this->normalisasiPenjamin((string) ($billing['penjamin'] ?? ''));
-        $akunPiutang = $this->tentukanAkunPiutang($penjamin['kode']);
+        $akunPiutang = $this->resolveAkunPiutang($mappingPiutang);
 
         DB::transaction(function () use (
             $billing,
@@ -161,7 +176,7 @@ class BillingPendapatanInvoiceImportService
             $invoice->nama_pasien = (string) ($billing['nama_pasien'] ?? '');
             $invoice->nomer_rawat = $noRawat;
             $invoice->tanggal_registrasi = $tanggalRegistrasi;
-            $invoice->kode_penjamin = $penjamin['kode'];
+            $invoice->kode_penjamin = (string) $billing['penjamin_id'];
             $invoice->nama_penjamin = $penjamin['nama'];
             $invoice->save();
 
@@ -355,36 +370,18 @@ class BillingPendapatanInvoiceImportService
         return $coaDitemukan->map(fn (Collection $items) => $items->first());
     }
 
-    private function tentukanAkunPiutang(string $penjamin): Coa
+    private function resolveAkunPiutang(MappingPenjaminPiutang $mapping): Coa
     {
-        $penjaminNormal = Str::lower(trim($penjamin));
-        $namaCoa = match ($penjaminNormal) {
-            '', 'u/px' => self::COA_PIUTANG_UMUM,
-            'bpjs' => self::COA_PIUTANG_BPJS,
-            default => self::COA_PIUTANG_ASURANSI,
-        };
-
-        $daftarCoa = Coa::query()
-            ->withCount('children')
-            ->whereRaw('LOWER(TRIM(nama)) = ?', [Str::lower($namaCoa)])
-            ->get();
-
-        if ($daftarCoa->isEmpty()) {
-            throw new RuntimeException('COA piutang tidak ditemukan: '.$namaCoa.'.');
-        }
-
-        if ($daftarCoa->count() > 1) {
-            throw new RuntimeException('Nama COA piutang tidak unik: '.$namaCoa.'.');
-        }
-
         /** @var Coa $coa */
-        $coa = $daftarCoa->first();
-        if ((int) $coa->status_aktif !== 1
+        $coa = $mapping->coa;
+        if ($coa === null
+            || (int) $coa->status_aktif !== 1
             || ! (bool) $coa->is_postable
             || (int) $coa->children_count > 0
             || ! str_contains(Str::lower((string) $coa->tipe_coa), 'piutang')) {
             throw new RuntimeException(
-                'COA piutang tidak aktif, tidak postable, bukan akun leaf, atau bukan tipe piutang: '.$namaCoa.'.',
+                'COA piutang pada mapping penjamin '.$mapping->nama_penjamin
+                .' tidak aktif, tidak postable, bukan akun leaf, atau bukan tipe piutang.',
             );
         }
 

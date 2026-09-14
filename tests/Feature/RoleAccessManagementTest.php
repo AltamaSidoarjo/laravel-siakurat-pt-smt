@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AccessModule;
 use App\Models\LogAktifitas;
+use App\Models\MappingPenjaminPiutang;
 use App\Models\Role;
 use App\Models\RolePermission;
 use App\Models\User;
@@ -20,6 +21,8 @@ class RoleAccessManagementTest extends TestCase
         parent::setUp();
 
         Schema::dropIfExists('log_aktifitas');
+        Schema::dropIfExists('mapping_penjamin_piutang');
+        Schema::dropIfExists('coa');
         Schema::dropIfExists('role_permissions');
         Schema::dropIfExists('access_modules');
         Schema::dropIfExists('roles');
@@ -76,6 +79,25 @@ class RoleAccessManagementTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('coa', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('parent_coa')->nullable();
+            $table->unsignedTinyInteger('status_aktif')->default(1);
+            $table->string('tipe_coa')->nullable();
+            $table->string('kode');
+            $table->string('nama');
+            $table->boolean('is_postable')->default(true);
+            $table->timestamps();
+        });
+
+        Schema::create('mapping_penjamin_piutang', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('penjamin_id')->unique();
+            $table->string('nama_penjamin');
+            $table->unsignedInteger('coa_id');
+            $table->timestamps();
+        });
+
         $timestamp = now();
 
         AccessModule::query()->insert(
@@ -98,6 +120,52 @@ class RoleAccessManagementTest extends TestCase
         $this->actingAs($user)
             ->get(route('pengaturan.pengguna.index'))
             ->assertForbidden();
+    }
+
+    public function test_mapping_penjamin_has_separate_view_permission_and_sidebar_item(): void
+    {
+        $withoutAccess = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+            'pengaturan.mapping-pendapatan' => ['view' => true],
+        ], 'without-mapping-penjamin@example.com');
+
+        $this->actingAs($withoutAccess)
+            ->get(route('pengaturan.mapping-penjamin.index'))
+            ->assertForbidden();
+
+        $coaId = \DB::table('coa')->insertGetId([
+            'status_aktif' => 1,
+            'tipe_coa' => 'Piutang Usaha',
+            'kode' => '1031',
+            'nama' => 'Piutang Test',
+            'is_postable' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $mapping = MappingPenjaminPiutang::query()->create([
+            'penjamin_id' => '1',
+            'nama_penjamin' => 'Umum',
+            'coa_id' => $coaId,
+        ]);
+
+        $this->actingAs($withoutAccess)
+            ->get(route('pengaturan.mapping-penjamin.create'))
+            ->assertForbidden();
+        $this->actingAs($withoutAccess)
+            ->delete(route('pengaturan.mapping-penjamin.destroy', $mapping))
+            ->assertForbidden();
+
+        $withAccess = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+            'pengaturan.mapping-penjamin' => ['view' => true],
+        ], 'with-mapping-penjamin@example.com');
+
+        $this->actingAs($withAccess)
+            ->get(route('pengaturan.mapping-penjamin.index'))
+            ->assertOk()
+            ->assertSee('Mapping Penjamin')
+            ->assertDontSee('Mapping Pendapatan')
+            ->assertDontSee('Tambah');
     }
 
     public function test_user_with_view_permission_can_open_pengguna_page_and_hidden_menu_items_are_not_rendered(): void

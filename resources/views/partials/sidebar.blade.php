@@ -19,6 +19,7 @@
     $canLaporanKeuangan = $can('laporan.keuangan');
     $canLaporanPendapatan = $can('laporan.pendapatan');
     $canPengaturanMappingPendapatan = $can('pengaturan.mapping-pendapatan');
+    $canPengaturanMappingPenjamin = $can('pengaturan.mapping-penjamin');
     $canPengaturanMappingGeneral = $can('pengaturan.mapping-general');
     $canPengaturanSettingRba = $can('pengaturan.setting-rba');
     $canPengaturanPreferensi = $can('pengaturan.preferensi');
@@ -28,6 +29,7 @@
     $canPengaturanMasterPelaksana = $can('pengaturan.master-pelaksana');
 
     $canSeePengaturan = $canPengaturanMappingPendapatan
+        || $canPengaturanMappingPenjamin
         || $canPengaturanMappingGeneral
         || $canPengaturanSettingRba
         || $canPengaturanPreferensi
@@ -305,6 +307,14 @@
                         <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/mapping-pendapatan') ? 'active' : '' }}"
                            href="{{ route('pengaturan.mapping-pendapatan.index') }}">
                             <i class="bi bi-circle-fill sidebar-bullet"></i> Mapping Pendapatan
+                        </a>
+                    </li>
+                    @endif
+                    @if ($canPengaturanMappingPenjamin)
+                    <li>
+                        <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/mapping-penjamin') ? 'active' : '' }}"
+                           href="{{ route('pengaturan.mapping-penjamin.index') }}">
+                            <i class="bi bi-circle-fill sidebar-bullet"></i> Mapping Penjamin
                         </a>
                     </li>
                     @endif
