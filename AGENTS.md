@@ -236,3 +236,73 @@ When in doubt, prefer:
 - repositories only where useful
 - PSR-12 compliance
 - clear, testable, maintainable code
+
+---
+
+## Documentation Policy
+
+Project documentation lives in `dokumentasi/` and MUST stay in sync with the code. Treat
+documentation updates as part of the change, not an afterthought.
+
+### Core Rule
+- Whenever you change code, features, endpoints, validation, business rules, or side effects for a
+  module, you MUST update the corresponding document(s) in `dokumentasi/` in the same change.
+- Keep documents accurate against the real code (routes, controller methods, service methods,
+  request rules, ledger effects). Do not document assumptions.
+- Follow the established documentation style (Ringkasan Modul, Entry Point/API table with the
+  permission column, Validasi Request, per-flow Mermaid flowchart + Algoritma, Fungsi yang Dipanggil,
+  Catatan Penting Bisnis). Use `dokumentasi/_template-modul.md` as the starting point.
+
+### When Adding a New Module / Submodule
+1. Create a new document in `dokumentasi/` from `_template-modul.md`.
+2. Add it to the index table in `dokumentasi/README.md`.
+3. Add a row to the Code → Documentation mapping table below.
+4. If it introduces a new access module, also update `dokumentasi/fondasi/sistem-otorisasi.md`
+   and `App\Support\AccessModuleRegistry`.
+
+### When Changing Cross-Cutting Behavior
+- Authorization / middleware / roles → update `dokumentasi/fondasi/sistem-otorisasi.md`.
+- SIMRS connection or bridging read patterns → update `dokumentasi/fondasi/integrasi-simrs.md`.
+- COA / Jurnal Umum / Buku Besar / `BukuBesarService` → update
+  `dokumentasi/fondasi/konvensi-bukubesar-coa.md` (and affected module docs).
+- Architecture, layering, or shared services → update `dokumentasi/fondasi/overview-arsitektur.md`.
+- New domain terms → update `dokumentasi/fondasi/glosarium.md`.
+
+### Code → Documentation Mapping
+
+| Code (file/folder) | Documentation |
+| --- | --- |
+| `app/Http/Controllers/Auth/AuthController.php` | `dokumentasi/auth.md` |
+| `app/Http/Controllers/HomeController.php`, `app/Services/HomeDashboardService.php` | `dokumentasi/home-dashboard.md` |
+| `app/Http/Controllers/Bukubesar/JurnalUmumController.php`, `app/Services/Bukubesar/JurnalUmumService.php`, `app/Http/Requests/Bukubesar/*JurnalUmum*` | `dokumentasi/bukubesar-jurnal-umum.md` |
+| `app/Http/Controllers/Bukubesar/CoaController.php`, `app/Services/Bukubesar/CoaService.php`, `app/Http/Requests/Bukubesar/*Coa*` | `dokumentasi/bukubesar-coa.md` |
+| `app/Http/Controllers/Kasbank/KasbankPenerimaanController.php`, `app/Services/Kasbank/KasbankPenerimaanService.php`, `app/Http/Requests/Kasbank/*Penerimaan*` | `dokumentasi/kasbank-penerimaan.md` |
+| `app/Http/Controllers/Kasbank/KasbankPembayaranController.php`, `app/Services/Kasbank/KasbankPembayaranService.php`, `app/Http/Requests/Kasbank/*Pembayaran*` | `dokumentasi/kasbank-pembayaran.md` |
+| `app/Http/Controllers/Bridging/BridgingPendapatanController.php`, `app/Services/Bridging/BridgingPendapatanService.php`, `app/Http/Requests/Bridging/*Pendapatan*` (bukan obat) | `dokumentasi/bridging-pendapatan.md` |
+| `app/Http/Controllers/Bridging/BridgingPendapatanObatController.php`, `app/Services/Bridging/BridgingPendapatanObatService.php`, `app/Http/Requests/Bridging/*PendapatanObat*` | `dokumentasi/bridging-pendapatan-obat.md` |
+| `app/Http/Controllers/Bridging/BridgingPembelianController.php`, `app/Services/Bridging/BridgingPembelianService.php`, `app/Http/Requests/Bridging/*Pembelian*` | `dokumentasi/bridging-pembelian.md` |
+| `app/Http/Controllers/Pendapatan/InvoicePendapatanController.php`, `app/Services/Pendapatan/InvoicePendapatanService.php` | `dokumentasi/pendapatan-invoice.md` |
+| `app/Http/Controllers/Pendapatan/PenerimaanPendapatanController.php`, `app/Services/Pendapatan/PenerimaanPendapatanService.php`, `app/Http/Requests/Pendapatan/*` | `dokumentasi/pendapatan-penerimaan.md` |
+| `app/Http/Controllers/Pembelian/InvoicePembelianController.php`, `app/Services/Pembelian/InvoicePembelianService.php` | `dokumentasi/pembelian-invoice.md` |
+| `app/Http/Controllers/Pembelian/PembayaranPembelianController.php`, `app/Services/Pembelian/PembayaranPembelianService.php`, `app/Http/Requests/Pembelian/*` | `dokumentasi/pembelian-pembayaran.md` |
+| `app/Http/Controllers/Laporan/LaporanKeuanganController.php`, `app/Services/Laporan/LaporanKeuanganService.php` | `dokumentasi/laporan-keuangan.md` |
+| `app/Http/Controllers/Laporan/LaporanPendapatanController.php`, `app/Services/Laporan/LaporanPendapatanService.php` | `dokumentasi/laporan-pendapatan.md` |
+| `app/Http/Controllers/Pengaturan/MappingPendapatanController.php`, `app/Services/Pengaturan/MappingPendapatanTindakanService.php`, `app/Http/Requests/Pengaturan/*MappingPendapatan*`, `*MappingLawanPendapatan*` | `dokumentasi/pengaturan-mapping-pendapatan.md` |
+| `app/Http/Controllers/Pengaturan/MappingGeneralController.php`, `app/Services/Pengaturan/MappingGeneralService.php`, `app/Http/Requests/Pengaturan/*MappingGeneral*` | `dokumentasi/pengaturan-mapping-general.md` |
+| `app/Http/Controllers/Pengaturan/SettingRbaController.php`, `app/Services/Pengaturan/SettingRbaService.php`, `app/Http/Requests/Pengaturan/*SettingRba*` | `dokumentasi/pengaturan-setting-rba.md` |
+| `app/Http/Controllers/Pengaturan/PreferensiController.php`, `app/Services/Pengaturan/PreferensiService.php`, `app/Services/PreferensiPerusahaanService.php`, `app/Http/Requests/Pengaturan/*Preferensi*` | `dokumentasi/pengaturan-preferensi.md` |
+| `app/Http/Controllers/Pengaturan/PenggunaController.php`, `app/Services/Pengaturan/UserManagementService.php`, `app/Http/Requests/Pengaturan/*User*` | `dokumentasi/pengaturan-pengguna.md` |
+| `app/Http/Controllers/Pengaturan/RoleAksesController.php`, `app/Services/Pengaturan/RoleAccessManagementService.php`, `app/Http/Requests/Pengaturan/*RoleAccess*` | `dokumentasi/pengaturan-role-akses.md` |
+| `app/Http/Controllers/Pengaturan/KonversiFileController.php`, `app/Services/Pengaturan/FileConversionService.php`, `app/Http/Requests/Pengaturan/ConvertCsvToXlsxRequest.php` | `dokumentasi/pengaturan-konversi-file.md` |
+| `app/Http/Middleware/EnsureModuleAccess.php`, `app/Services/Auth/ModuleAccessService.php`, `app/Support/AccessModuleRegistry.php`, `app/Models/Role.php`, `RolePermission.php`, `AccessModule.php` | `dokumentasi/fondasi/sistem-otorisasi.md` |
+| `config/database.php` (koneksi `simrs`), query `DB::connection('simrs')` di service Bridging | `dokumentasi/fondasi/integrasi-simrs.md` |
+| `app/Services/Bukubesar/BukuBesarService.php`, `app/Models/Coa.php`, `TipeCoa.php`, `BukuBesar.php`, `JurnalUmum.php`, `JurnalUmumRinci.php` | `dokumentasi/fondasi/konvensi-bukubesar-coa.md` |
+| `bootstrap/app.php`, `app/Providers/*`, struktur `app/` secara umum | `dokumentasi/fondasi/overview-arsitektur.md` |
+| Istilah domain baru | `dokumentasi/fondasi/glosarium.md` |
+
+### Pre-Completion Checklist (Documentation)
+- [ ] Endpoint baru/berubah tercermin di tabel Entry Point/API dokumen terkait.
+- [ ] Perubahan alur bisnis/efek samping (buku besar, log, transaksi) diperbarui di flowchart & algoritma.
+- [ ] Perubahan aturan validasi (Form Request) diperbarui di bagian Validasi Request.
+- [ ] Dokumen fondasi diperbarui bila perubahan bersifat lintas modul.
+- [ ] `dokumentasi/README.md` dan tabel pemetaan di atas tetap konsisten (untuk modul baru).
