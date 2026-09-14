@@ -23,9 +23,8 @@
         .group-title { color: #0076b5; font-size: 10.5pt; margin: 0 0 6px; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         td { padding: 5px 0; vertical-align: top; }
-        .date { width: 16%; padding-left: 10px; }
-        .code { width: 20%; }
-        .account { width: 39%; }
+        .code { width: 24%; }
+        .account { width: 51%; }
         .amount { width: 25%; text-align: right; white-space: nowrap; }
         .group-total td { color: #24bd72; padding-top: 7px; }
         .group-total .amount { border-top: 1px solid #24bd72; }
@@ -62,14 +61,13 @@
                     <table>
                         @foreach ($kelompok['rincian'] as $rincian)
                             <tr>
-                                <td class="date">{{ \Carbon\Carbon::parse($rincian->tanggal)->format('Y-m-d') }}</td>
                                 <td class="code">{{ $rincian->kode_akun_format }}</td>
                                 <td class="account">{{ $rincian->nama_akun }}</td>
                                 <td class="amount">Rp {{ number_format((float) $rincian->total_pendapatan, 2, '.', ',') }}</td>
                             </tr>
                         @endforeach
                         <tr class="group-total">
-                            <td colspan="3">Total {{ $kelompok['nama'] }}</td>
+                            <td colspan="2">Total {{ $kelompok['nama'] }}</td>
                             <td class="amount">Rp {{ number_format($kelompok['subtotal'], 2, '.', ',') }}</td>
                         </tr>
                     </table>
