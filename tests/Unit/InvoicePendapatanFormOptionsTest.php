@@ -72,7 +72,7 @@ class InvoicePendapatanFormOptionsTest extends TestCase
             'status_aktif' => true,
             'is_postable' => true,
         ]);
-        Coa::query()->create([
+        $akunPiutangUsaha = Coa::query()->create([
             'kode' => '1102',
             'nama' => 'Piutang Usaha Lama',
             'tipe_coa' => 'Piutang Usaha',
@@ -105,7 +105,7 @@ class InvoicePendapatanFormOptionsTest extends TestCase
         ]);
 
         $this->assertSame([$activePelanggan->id], $this->service->getPelangganOptions()->pluck('id')->all());
-        $this->assertSame([$akunPiutang->id], $this->service->getReceivableCoaOptions()->pluck('id')->all());
+        $this->assertSame([$akunPiutang->id, $akunPiutangUsaha->id], $this->service->getReceivableCoaOptions()->pluck('id')->all());
         $this->assertSame([$akunPendapatan->id], $this->service->getRevenueCoaOptions()->pluck('id')->all());
         $this->assertSame([$pelaksanaAktif->id], $this->service->getPelaksanaOptions()->pluck('id')->all());
     }

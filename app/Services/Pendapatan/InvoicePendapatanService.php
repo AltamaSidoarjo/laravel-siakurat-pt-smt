@@ -43,11 +43,31 @@ class InvoicePendapatanService
             ->get();
     }
 
+    public function syncPelangganOptionsFromApi(SupportCollection $options): SupportCollection
+    {
+        return $options->map(function (array $option): Pelanggan {
+            $pelanggan = Pelanggan::query()
+                ->where('kode_pelanggan', (string) $option['id'])
+                ->first();
+
+            if ($pelanggan === null) {
+                $pelanggan = new Pelanggan;
+            }
+
+            $pelanggan->kode_pelanggan = (string) $option['id'];
+            $pelanggan->nama_pelanggan = (string) $option['nama'];
+            $pelanggan->status_aktif = true;
+            $pelanggan->save();
+
+            return $pelanggan;
+        })->sortBy('nama_pelanggan', SORT_NATURAL | SORT_FLAG_CASE)->values();
+    }
+
     public function getReceivableCoaOptions(): Collection
     {
         return Coa::query()->selectableTransaction()
             ->where('is_postable', true)
-            ->whereRaw('LOWER(tipe_coa) = ?', ['akun piutang'])
+            ->whereRaw('LOWER(tipe_coa) LIKE ?', ['%piutang%'])
             ->get(['id', 'kode', 'nama', 'tipe_coa']);
     }
 

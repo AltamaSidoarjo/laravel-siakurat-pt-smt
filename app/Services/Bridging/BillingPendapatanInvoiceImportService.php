@@ -51,6 +51,8 @@ class BillingPendapatanInvoiceImportService
             $spesialisId,
             $dokterId,
         )->groupBy('external_id');
+        $penjaminApi = $this->billingPendapatanApiService->getPenjaminOptions()
+            ->keyBy(fn (array $option) => Str::lower(trim($option['nama'])));
 
         $hasil = [];
 
@@ -71,6 +73,15 @@ class BillingPendapatanInvoiceImportService
             }
 
             $billing = $candidateRows->first();
+
+            $namaPenjamin = trim((string) ($billing['penjamin'] ?? ''));
+            $namaPenjamin = Str::lower($namaPenjamin === '' || $namaPenjamin === 'U/Px' ? 'Umum' : $namaPenjamin);
+            $penjaminApiItem = $penjaminApi->get($namaPenjamin);
+            if ($penjaminApiItem === null) {
+                $hasil[] = $this->failedResult($billing, 'Penjamin tidak ditemukan pada Billing API.');
+                continue;
+            }
+            $billing['penjamin_id'] = (int) $penjaminApiItem['id'];
 
             try {
                 $hasil[] = $this->imporSatu($billing, $actor);
@@ -126,9 +137,15 @@ class BillingPendapatanInvoiceImportService
         ): void {
             $this->pastikanBelumDiimpor($noRawat);
 
-            $pelanggan = $this->cariAtauBuatPenjamin($penjamin);
-
             $invoice = new FakturPenjualan;
+            $pelanggan = Pelanggan::query()->updateOrCreate(
+                ['kode_pelanggan' => (string) $billing['penjamin_id']],
+                [
+                    'nama_pelanggan' => $penjamin['nama'],
+                    'status_aktif' => true,
+                ],
+            );
+
             $invoice->pelanggan_id = (int) $pelanggan->id;
             $invoice->akun_piutang_id = (int) $akunPiutang->id;
             $invoice->nomor_faktur = $noRawat;
@@ -389,25 +406,6 @@ class BillingPendapatanInvoiceImportService
             'kode' => $nilaiPenjamin,
             'nama' => $nilaiPenjamin,
         ];
-    }
-
-    private function cariAtauBuatPenjamin(array $penjamin): Pelanggan
-    {
-        $pelanggan = Pelanggan::query()
-            ->whereRaw('LOWER(TRIM(kode_pelanggan)) = ?', [Str::lower($penjamin['kode'])])
-            ->first();
-
-        if ($pelanggan !== null) {
-            return $pelanggan;
-        }
-
-        $pelanggan = new Pelanggan;
-        $pelanggan->status_aktif = true;
-        $pelanggan->kode_pelanggan = $penjamin['kode'];
-        $pelanggan->nama_pelanggan = $penjamin['nama'];
-        $pelanggan->save();
-
-        return $pelanggan;
     }
 
     private function pastikanBelumDiimpor(string $noRawat): void

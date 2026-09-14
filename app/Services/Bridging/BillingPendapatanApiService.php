@@ -42,12 +42,14 @@ class BillingPendapatanApiService
     public function getPenjaminOptions(): Collection
     {
         return collect($this->billingApiClient->getPenjamin())
-            ->filter(fn (mixed $row) => is_array($row) && filled($row['PxRS'] ?? null))
+            ->filter(fn (mixed $row) => is_array($row)
+                && filled($row['ID'] ?? null)
+                && filled($row['PxRS'] ?? null))
             ->map(function (array $row): array {
                 $name = trim((string) $row['PxRS']);
 
                 return [
-                    'id' => (string) ($row['ID'] ?? $name),
+                    'id' => (string) $row['ID'],
                     'nama' => strcasecmp($name, 'U/Px') === 0 ? 'Umum' : $name,
                 ];
             })

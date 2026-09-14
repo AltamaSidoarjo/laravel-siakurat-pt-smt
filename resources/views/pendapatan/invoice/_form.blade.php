@@ -33,7 +33,9 @@
                     <select id="pelanggan_id" name="pelanggan_id" class="form-select select2 select2-header" required @disabled($isImported)>
                         <option value="">Pilih Penjamin</option>
                         @foreach ($pelangganOptions as $pelanggan)
-                            <option value="{{ $pelanggan->id }}" @selected((string) old('pelanggan_id', $invoicePendapatan->pelanggan_id ?? '') === (string) $pelanggan->id)>{{ $pelanggan->kode_pelanggan }} - {{ $pelanggan->nama_pelanggan }}</option>
+                            @php($pelangganId = data_get($pelanggan, 'id'))
+                            @php($pelangganNama = data_get($pelanggan, 'nama', data_get($pelanggan, 'nama_pelanggan')))
+                            <option value="{{ $pelangganId }}" @selected((string) old('pelanggan_id', $invoicePendapatan->pelanggan_id ?? '') === (string) $pelangganId)>{{ $pelangganNama }}</option>
                         @endforeach
                     </select>
                     @if ($isImported)<input type="hidden" name="pelanggan_id" value="{{ $invoicePendapatan->pelanggan_id }}">@endif

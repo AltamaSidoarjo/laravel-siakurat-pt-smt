@@ -9,6 +9,7 @@ use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class BillingApiClient
@@ -90,7 +91,12 @@ class BillingApiClient
             return $this->request()
                 ->withToken($this->getToken())
                 ->get($endpoint, $query);
-        } catch (ConnectionException) {
+        } catch (ConnectionException $exception) {
+            Log::error('Billing API connection failed.', [
+                'endpoint' => $endpoint,
+                'message' => $exception->getMessage(),
+            ]);
+
             throw new BillingApiException('Tidak dapat terhubung ke Billing API. Silakan coba kembali.');
         }
     }
@@ -115,7 +121,12 @@ class BillingApiClient
                 'username' => $username,
                 'password' => $password,
             ]);
-        } catch (ConnectionException) {
+        } catch (ConnectionException $exception) {
+            Log::error('Billing API token connection failed.', [
+                'endpoint' => '/get-token',
+                'message' => $exception->getMessage(),
+            ]);
+
             throw new BillingApiException('Tidak dapat terhubung ke Billing API. Silakan coba kembali.');
         }
 

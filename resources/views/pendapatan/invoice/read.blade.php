@@ -47,7 +47,7 @@
 
                                 @foreach ([
                                     'Sumber' => $isImported ? 'Bridging SIMRS' : 'Manual',
-                                    'Penjamin' => trim(($invoicePendapatan->kode_penjamin ?? '').' - '.($invoicePendapatan->nama_penjamin ?? ''), ' -'),
+                                    'Penjamin' => $invoicePendapatan->nama_penjamin ?: '-',
                                     'Akun Piutang' => $invoicePendapatan->akunPiutang ? $invoicePendapatan->akunPiutang->kode.' - '.$invoicePendapatan->akunPiutang->nama : '-',
                                     'Nomor Rawat' => $invoicePendapatan->nomer_rawat ?: '-',
                                     'No. RM' => $invoicePendapatan->nomer_rekam_medis ?: '-',

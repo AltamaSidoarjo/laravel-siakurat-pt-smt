@@ -140,17 +140,23 @@ class InvoicePendapatanController extends Controller
     {
         $dokterOptions = collect();
         $poliOptions = collect();
+        $penjaminOptions = collect();
         $apiOptionsError = null;
 
         try {
             $dokterOptions = $this->billingPendapatanApiService->getDokterOptions();
             $poliOptions = $this->billingPendapatanApiService->getSpesialisOptions();
+            $penjaminOptions = $this->billingPendapatanApiService->getPenjaminOptions();
         } catch (BillingApiException $exception) {
             $apiOptionsError = $exception->getMessage();
         }
 
+        $pelangganOptions = $penjaminOptions->isNotEmpty()
+            ? $this->invoicePendapatanService->syncPelangganOptionsFromApi($penjaminOptions)
+            : $this->invoicePendapatanService->getPelangganOptions($invoice);
+
         return [
-            'pelangganOptions' => $this->invoicePendapatanService->getPelangganOptions($invoice),
+            'pelangganOptions' => $pelangganOptions,
             'receivableCoaOptions' => $this->invoicePendapatanService->getReceivableCoaOptions(),
             'revenueCoaOptions' => $this->invoicePendapatanService->getRevenueCoaOptions(),
             'pelaksanaOptions' => $this->invoicePendapatanService->getPelaksanaOptions($invoice),

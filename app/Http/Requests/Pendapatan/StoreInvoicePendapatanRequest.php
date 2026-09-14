@@ -62,7 +62,7 @@ class StoreInvoicePendapatanRequest extends FormRequest
 
     protected function validateCoaTypes($validator): void
     {
-        $this->validateCoa($validator, (int) $this->input('akun_piutang_id'), 'akun piutang', 'akun_piutang_id', true);
+        $this->validateCoa($validator, (int) $this->input('akun_piutang_id'), 'piutang', 'akun_piutang_id');
 
         foreach ($this->input('rincian', []) as $index => $row) {
             $this->validateCoa($validator, (int) ($row['coa_id'] ?? 0), 'pendapatan', "rincian.$index.coa_id", true);
