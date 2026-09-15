@@ -4,8 +4,8 @@
 
 Modul **Invoice Pembelian** (faktur pembelian) digunakan untuk:
 
-1. menampilkan daftar invoice pembelian per periode (DataTables) dengan status lunas/belum lunas,
-2. mengekspor daftar ke CSV,
+1. menampilkan daftar invoice pembelian per periode dan multi-supplier (DataTables) dengan status lunas/belum lunas,
+2. mengekspor daftar sesuai filter periode dan supplier ke CSV,
 3. melihat detail satu invoice (read-only),
 4. mencetak invoice.
 
@@ -16,6 +16,7 @@ Implementasi utama:
 
 - `routes/web.php`
 - `app/Http/Controllers/Pembelian/InvoicePembelianController.php`
+- `app/Http/Requests/Pembelian/InvoicePembelianFilterRequest.php`
 - `app/Services/Pembelian/InvoicePembelianService.php`
 - `app/Models/FakturPembelian.php`, `app/Models/FakturPembelianRinci.php`, `app/Models/Supplier.php`
 
@@ -33,21 +34,25 @@ Implementasi utama:
 
 ```mermaid
 flowchart TD
-    A["GET /pembelian/invoice"] --> B["index() (default awal bulan s.d hari ini)"]
-    B --> C["Render view pembelian.invoice.index"]
-    C --> D["DataTable /load-data -> InvoicePembelianService::getIndexQuery() (with supplier)"]
-    D --> E["Format tanggal, nama_supplier, grandtotal, sudah_terbayar, status_text"]
-    E --> F["DataTables::eloquent()->toJson()"]
-    C --> G["Export CSV -> streamCsvExport()"]
+    A["GET /pembelian/invoice"] --> B["Validasi periode dan supplierIds[]"]
+    B --> C["index() (default awal bulan s.d hari ini; supplier kosong = semua)"]
+    C --> D["Render view pembelian.invoice.index + opsi supplier"]
+    D --> E["DataTable /load-data -> getIndexQuery() (periode + whereIn supplier opsional)"]
+    E --> F["Format tanggal, nama_supplier, grandtotal, sudah_terbayar, status_text"]
+    F --> G["DataTables::eloquent()->toJson()"]
+    D --> H["Export CSV dengan filter supplier yang sama -> streamCsvExport()"]
 ```
 
 ### Algoritma
 
-1. `getIndexQuery()` mengambil `FakturPembelian` per periode (urut `tanggal_faktur`/`id` desc, eager `supplier`).
-2. DataTable menambahkan kolom turunan: `nama_supplier`, `grandtotal_display`, `sudah_terbayar_display`,
+1. Filter menerima `startDate`, `endDate`, dan `supplierIds[]`. Setiap ID supplier harus berupa integer,
+   unik, dan tersedia pada tabel `supplier`; pilihan kosong berarti semua supplier.
+2. `getIndexQuery()` mengambil `FakturPembelian` per periode dan menerapkan `whereIn(supplier_id)`
+   saat supplier dipilih (urut `tanggal_faktur`/`id` desc, eager `supplier`).
+3. DataTable menambahkan kolom turunan: `nama_supplier`, `grandtotal_display`, `sudah_terbayar_display`,
    `status_text` (`Sudah Lunas` bila `sudah_terbayar >= grandtotal`), `nomer_link` (ke read).
-3. Ekspor CSV memuat kolom Nomor faktur, Tanggal faktur, Tgl jatuh tempo, Supplier, Kode bangsal,
-   Kategori faktur, Grandtotal, Sudah terbayar, Status.
+4. Ekspor CSV memakai filter supplier aktif dari halaman dan memuat kolom Nomor faktur, Tanggal
+   faktur, Tgl jatuh tempo, Supplier, Kode bangsal, Kategori faktur, Grandtotal, Sudah terbayar, Status.
 
 ## Alur 2: Lihat Detail & Cetak
 

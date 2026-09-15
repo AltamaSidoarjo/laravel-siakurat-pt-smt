@@ -24,19 +24,39 @@
                                 @include('partials.flash-message')
                                 @include('partials.validation-errors')
 
-                                <form method="get" action="">
+                                <form method="get" action="{{ route('pembelian.invoice.index') }}">
                                     <div class="row g-3">
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="form-label">Dari tanggal</label>
                                             <input type="date" name="startDate" class="form-control" value="{{ $startDate }}">
                                         </div>
 
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="form-label">Sampai tanggal</label>
                                             <input type="date" name="endDate" class="form-control" value="{{ $endDate }}">
                                         </div>
 
-                                        <div class="col-md-4 d-flex align-items-end justify-content-end gap-2 flex-wrap">
+                                        <div class="col-md-6">
+                                            <label for="supplierSelect" class="form-label">Supplier</label>
+                                            <select
+                                                name="supplierIds[]"
+                                                id="supplierSelect"
+                                                class="form-select select2"
+                                                multiple
+                                                data-placeholder="Semua supplier"
+                                            >
+                                                @foreach ($supplierOptions as $supplier)
+                                                    <option value="{{ $supplier->id }}" @selected(in_array((int) $supplier->id, $supplierIds, true))>
+                                                        [{{ $supplier->kode_supplier }}] {{ $supplier->nama_supplier }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <small class="text-muted">
+                                                {{ $supplierIds === [] ? 'Kosong berarti semua supplier.' : count($supplierIds).' supplier dipilih.' }}
+                                            </small>
+                                        </div>
+
+                                        <div class="col-12 d-flex justify-content-end gap-2 flex-wrap">
                                             <a href="{{ route('pembelian.invoice.index') }}" class="btn btn-light">Reset</a>
                                             <button type="submit" class="btn btn-primary">
                                                 <i class="bi bi-funnel me-1"></i> Filter
@@ -74,7 +94,15 @@
             </div>
         </div>
     </div>
-    @include('partials.export-csv-modal', ['exportRoute' => route('pembelian.invoice.export-csv'), 'exportTitle' => 'Invoice Pembelian', 'startDate' => $startDate, 'endDate' => $endDate])
+    @include('partials.export-csv-modal', [
+        'exportRoute' => route('pembelian.invoice.export-csv'),
+        'exportTitle' => 'Invoice Pembelian',
+        'startDate' => $startDate,
+        'endDate' => $endDate,
+        'additionalHiddenFields' => collect($supplierIds)
+            ->map(fn ($supplierId) => ['name' => 'supplierIds[]', 'value' => $supplierId])
+            ->all(),
+    ])
 @endsection
 
 @push('scripts')
@@ -96,6 +124,7 @@
                     data: function (d) {
                         d.startDate = '{{ $startDate }}';
                         d.endDate = '{{ $endDate }}';
+                        d.supplierIds = @json($supplierIds);
                     }
                 },
                 lengthMenu: [[10, 25, 50, 100, 1000], [10, 25, 50, 100, 1000]],

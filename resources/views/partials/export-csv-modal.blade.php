@@ -1,6 +1,9 @@
 <div class="modal fade" id="exportCsvModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
         <form method="get" action="{{ $exportRoute }}">
+            @foreach ($additionalHiddenFields ?? [] as $field)
+                <input type="hidden" name="{{ $field['name'] }}" value="{{ $field['value'] }}">
+            @endforeach
             <div class="modal-header"><h5 class="modal-title">Export CSV {{ $exportTitle }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body"><div class="row g-3">
                 <div class="col-md-6"><label class="form-label">Dari tanggal</label><input type="date" name="startDate" class="form-control" value="{{ $startDate }}" required></div>
