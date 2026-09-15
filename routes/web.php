@@ -260,6 +260,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/pembelian/buku-pembantu-hutang', [LaporanPembelianController::class, 'bukuPembantuHutang'])->name('pembelian.buku-pembantu-hutang');
             Route::get('/pembelian/buku-pembantu-hutang/search-supplier', [LaporanPembelianController::class, 'searchSupplier'])->name('pembelian.buku-pembantu-hutang.search-supplier');
             Route::get('/pembelian/buku-pembantu-hutang/export-csv', [LaporanPembelianController::class, 'exportCsv'])->name('pembelian.buku-pembantu-hutang.export-csv');
+            Route::get('/pembelian/rangkuman-buku-pembantu-hutang', [LaporanPembelianController::class, 'rangkumanBukuPembantuHutang'])->name('pembelian.rangkuman-buku-pembantu-hutang');
+            Route::get('/pembelian/rangkuman-buku-pembantu-hutang/export-csv', [LaporanPembelianController::class, 'exportRangkumanCsv'])->name('pembelian.rangkuman-buku-pembantu-hutang.export-csv');
         });
     });
 

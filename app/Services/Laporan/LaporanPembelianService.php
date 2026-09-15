@@ -183,6 +183,25 @@ class LaporanPembelianService
         ];
     }
 
+    public function getRangkumanBukuPembantuHutang(string $reportDate, array $supplierIds = []): array
+    {
+        $report = $this->getBukuPembantuHutang($reportDate, $supplierIds);
+
+        return [
+            'rows' => array_map(fn (array $card): array => [
+                'supplier_id' => $card['supplier_id'],
+                'kode_supplier' => $card['kode_supplier'],
+                'nama_supplier' => $card['nama_supplier'],
+                'days_0_30' => $card['totals']['days_0_30'],
+                'days_31_60' => $card['totals']['days_31_60'],
+                'days_61_90' => $card['totals']['days_61_90'],
+                'days_over_90' => $card['totals']['days_over_90'],
+                'total_hutang' => $card['saldo_hutang'],
+            ], $report['cards']),
+            'summary' => $report['summary'],
+        ];
+    }
+
     public function streamBukuPembantuHutangCsv(array $report): void
     {
         $handle = fopen('php://output', 'wb');
@@ -246,6 +265,50 @@ class LaporanPembelianService
             $this->formatCsvNumber($report['summary']['days_31_60']),
             $this->formatCsvNumber($report['summary']['days_61_90']),
             $this->formatCsvNumber($report['summary']['days_over_90']),
+        ]);
+
+        fclose($handle);
+    }
+
+    public function streamRangkumanBukuPembantuHutangCsv(array $report): void
+    {
+        $handle = fopen('php://output', 'wb');
+
+        if ($handle === false) {
+            throw new RuntimeException('Gagal membuka output stream CSV.');
+        }
+
+        fwrite($handle, "\xEF\xBB\xBF");
+        fputcsv($handle, [
+            'Kode Supplier',
+            'Nama Supplier',
+            '0 - 30 Hari',
+            '31 - 60 Hari',
+            '61 - 90 Hari',
+            '> 90 Hari',
+            'Total Hutang',
+        ]);
+
+        foreach ($report['rows'] as $row) {
+            fputcsv($handle, [
+                $row['kode_supplier'],
+                $row['nama_supplier'],
+                $this->formatCsvNumber($row['days_0_30']),
+                $this->formatCsvNumber($row['days_31_60']),
+                $this->formatCsvNumber($row['days_61_90']),
+                $this->formatCsvNumber($row['days_over_90']),
+                $this->formatCsvNumber($row['total_hutang']),
+            ]);
+        }
+
+        fputcsv($handle, [
+            '',
+            'GRAND TOTAL',
+            $this->formatCsvNumber($report['summary']['days_0_30']),
+            $this->formatCsvNumber($report['summary']['days_31_60']),
+            $this->formatCsvNumber($report['summary']['days_61_90']),
+            $this->formatCsvNumber($report['summary']['days_over_90']),
+            $this->formatCsvNumber($report['summary']['saldo_hutang']),
         ]);
 
         fclose($handle);

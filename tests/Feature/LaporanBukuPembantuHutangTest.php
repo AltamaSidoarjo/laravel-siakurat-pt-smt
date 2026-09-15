@@ -183,6 +183,87 @@ class LaporanBukuPembantuHutangTest extends TestCase
         $this->assertStringContainsString('"GRAND TOTAL",1000.00,0.00,0.00,0.00', $content);
     }
 
+    public function test_summary_page_uses_today_and_has_no_currency_labels(): void
+    {
+        Carbon::setTestNow('2026-09-15 08:00:00');
+        [$supplierId] = $this->seedMasterData();
+        $this->createInvoice($supplierId, 'INV-SUMMARY', '2026-09-01', 1000, dueDate: '2026-09-10');
+
+        $this->actingAs($this->makeUser())
+            ->get(route('laporan.pembelian.rangkuman-buku-pembantu-hutang'))
+            ->assertOk()
+            ->assertViewHas('reportDate', '2026-09-15')
+            ->assertViewHas('supplierIds', [])
+            ->assertSee('RANGKUMAN BUKU PEMBANTU HUTANG')
+            ->assertSee('PT SEHAT FARMA | SUP-001')
+            ->assertSee('0 - 30 Hari')
+            ->assertSee('1.000,00')
+            ->assertDontSee('Mata Uang')
+            ->assertDontSee('MATA UANG DASAR')
+            ->assertDontSee('IDR');
+    }
+
+    public function test_summary_totals_match_detail_and_historical_payment_cutoff(): void
+    {
+        [$firstSupplierId, $akunBankId, $akunHutangId] = $this->seedMasterData();
+        $secondSupplierId = $this->createSupplier('SUP-002', 'PT Farma Dua');
+        $invoiceId = $this->createInvoice(
+            $firstSupplierId,
+            'INV-HISTORY-SUMMARY',
+            '2026-08-01',
+            1000,
+            paid: 500,
+            dueDate: '2026-08-15',
+        );
+        $this->createPayment($firstSupplierId, $akunBankId, $akunHutangId, $invoiceId, 'BYR-BEFORE', '2026-09-10', 200);
+        $this->createPayment($firstSupplierId, $akunBankId, $akunHutangId, $invoiceId, 'BYR-AFTER', '2026-09-20', 300);
+        $this->createInvoice($secondSupplierId, 'INV-SUMMARY-SECOND', '2026-06-01', 400, dueDate: '2026-06-01');
+
+        $service = app(LaporanPembelianService::class);
+        $detail = $service->getBukuPembantuHutang('2026-09-15');
+        $summary = $service->getRangkumanBukuPembantuHutang('2026-09-15');
+
+        $this->assertCount(2, $summary['rows']);
+        $this->assertSame($detail['summary'], $summary['summary']);
+        $this->assertSame($detail['cards'][0]['totals'], [
+            'days_0_30' => $summary['rows'][0]['days_0_30'],
+            'days_31_60' => $summary['rows'][0]['days_31_60'],
+            'days_61_90' => $summary['rows'][0]['days_61_90'],
+            'days_over_90' => $summary['rows'][0]['days_over_90'],
+        ]);
+        $this->assertSame(800.0, $summary['rows'][0]['total_hutang']);
+        $this->assertSame(400.0, $summary['rows'][1]['days_over_90']);
+        $this->assertSame(1200.0, $summary['summary']['saldo_hutang']);
+
+        $filtered = $service->getRangkumanBukuPembantuHutang('2026-09-15', [$secondSupplierId]);
+        $this->assertCount(1, $filtered['rows']);
+        $this->assertSame('SUP-002', $filtered['rows'][0]['kode_supplier']);
+        $this->assertSame(400.0, $filtered['summary']['saldo_hutang']);
+    }
+
+    public function test_summary_csv_contains_supplier_totals_and_grand_total(): void
+    {
+        [$supplierId] = $this->seedMasterData();
+        $this->createInvoice($supplierId, 'INV-SUMMARY-CSV', '2026-09-01', 1000, dueDate: '2026-09-10');
+
+        $response = $this->actingAs($this->makeUser())
+            ->get(route('laporan.pembelian.rangkuman-buku-pembantu-hutang.export-csv', [
+                'reportDate' => '2026-09-15',
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=UTF-8')
+            ->assertHeader('content-disposition', 'attachment; filename=rangkuman-buku-pembantu-hutang-20260915.csv');
+
+        $content = str_replace(["\xEF\xBB\xBF", "\r\n"], ['', "\n"], $response->streamedContent());
+        $this->assertStringContainsString('"Nama Supplier","0 - 30 Hari","31 - 60 Hari","61 - 90 Hari","> 90 Hari","Total Hutang"', $content);
+        $this->assertStringContainsString('SUP-001,"PT Sehat Farma",1000.00,0.00,0.00,0.00,1000.00', $content);
+        $this->assertStringContainsString('"GRAND TOTAL",1000.00,0.00,0.00,0.00,1000.00', $content);
+        $this->assertStringNotContainsString('Mata Uang', $content);
+        $this->assertStringNotContainsString('IDR', $content);
+    }
+
     public function test_request_validates_report_date_and_supplier_ids(): void
     {
         $this->actingAs($this->makeUser())

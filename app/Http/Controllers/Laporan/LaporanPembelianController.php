@@ -23,15 +23,33 @@ class LaporanPembelianController extends Controller
 
     public function bukuPembantuHutang(BukuPembantuHutangRequest $request): View
     {
-        $data = $request->validated();
-        $reportDate = $data['reportDate'] ?? now()->format('Y-m-d');
-        $supplierIds = collect($data['supplierIds'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
+        [$reportDate, $supplierIds] = $this->resolveReportFilters($request);
         $report = $this->laporanPembelianService->getBukuPembantuHutang(
             reportDate: $reportDate,
             supplierIds: $supplierIds,
         );
 
         return view('laporan.pembelian.buku-pembantu-hutang', array_merge(
+            $this->laporanPembelianService->getIdentitasLaporan(),
+            $report,
+            [
+                'page' => 'app',
+                'reportDate' => $reportDate,
+                'supplierIds' => $supplierIds,
+                'supplierOptions' => $this->laporanPembelianService->getSupplierOptions(),
+            ],
+        ));
+    }
+
+    public function rangkumanBukuPembantuHutang(BukuPembantuHutangRequest $request): View
+    {
+        [$reportDate, $supplierIds] = $this->resolveReportFilters($request);
+        $report = $this->laporanPembelianService->getRangkumanBukuPembantuHutang(
+            reportDate: $reportDate,
+            supplierIds: $supplierIds,
+        );
+
+        return view('laporan.pembelian.rangkuman-buku-pembantu-hutang', array_merge(
             $this->laporanPembelianService->getIdentitasLaporan(),
             $report,
             [
@@ -58,9 +76,7 @@ class LaporanPembelianController extends Controller
 
     public function exportCsv(BukuPembantuHutangRequest $request): StreamedResponse
     {
-        $data = $request->validated();
-        $reportDate = $data['reportDate'] ?? now()->format('Y-m-d');
-        $supplierIds = collect($data['supplierIds'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
+        [$reportDate, $supplierIds] = $this->resolveReportFilters($request);
         $report = $this->laporanPembelianService->getBukuPembantuHutang(
             reportDate: $reportDate,
             supplierIds: $supplierIds,
@@ -75,5 +91,37 @@ class LaporanPembelianController extends Controller
             $fileName,
             ['Content-Type' => 'text/csv; charset=UTF-8'],
         );
+    }
+
+    public function exportRangkumanCsv(BukuPembantuHutangRequest $request): StreamedResponse
+    {
+        [$reportDate, $supplierIds] = $this->resolveReportFilters($request);
+        $report = $this->laporanPembelianService->getRangkumanBukuPembantuHutang(
+            reportDate: $reportDate,
+            supplierIds: $supplierIds,
+        );
+        $fileName = sprintf(
+            'rangkuman-buku-pembantu-hutang-%s.csv',
+            str_replace('-', '', $reportDate),
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPembelianService->streamRangkumanBukuPembantuHutangCsv($report),
+            $fileName,
+            ['Content-Type' => 'text/csv; charset=UTF-8'],
+        );
+    }
+
+    private function resolveReportFilters(BukuPembantuHutangRequest $request): array
+    {
+        $data = $request->validated();
+        $reportDate = $data['reportDate'] ?? now()->format('Y-m-d');
+        $supplierIds = collect($data['supplierIds'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        return [$reportDate, $supplierIds];
     }
 }

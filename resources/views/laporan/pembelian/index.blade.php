@@ -41,6 +41,21 @@
                 </div>
             </a>
         </div>
+
+        <div class="col">
+            <a href="{{ route('laporan.pembelian.rangkuman-buku-pembantu-hutang') }}" class="card h-100 text-decoration-none text-dark shadow-sm border-0 report-card">
+                <div class="card-body p-4 d-flex align-items-center gap-3">
+                    <div class="icon-wrapper bg-primary-subtle text-primary rounded-4 d-flex align-items-center justify-content-center">
+                        <i class="bi bi-bar-chart-line fs-3"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h5 class="fw-bold mb-1 report-card-title">Rangkuman Buku Pembantu Hutang</h5>
+                        <div class="text-muted small">Ringkasan posisi dan umur hutang per supplier pada tanggal laporan.</div>
+                    </div>
+                    <i class="bi bi-chevron-right fs-4 text-muted"></i>
+                </div>
+            </a>
+        </div>
     </div>
 @endsection
 

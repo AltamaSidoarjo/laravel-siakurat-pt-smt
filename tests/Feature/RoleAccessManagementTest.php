@@ -131,6 +131,7 @@ class RoleAccessManagementTest extends TestCase
             ->assertOk()
             ->assertSee('Pusat Laporan Pembelian')
             ->assertSee('Rincian Buku Pembantu Hutang')
+            ->assertSee('Rangkuman Buku Pembantu Hutang')
             ->assertSee('Laporan Pembelian')
             ->assertDontSee('Laporan Pendapatan');
 
@@ -138,6 +139,10 @@ class RoleAccessManagementTest extends TestCase
 
         $this->actingAs($blocked)
             ->get(route('laporan.pembelian.index'))
+            ->assertForbidden();
+
+        $this->actingAs($blocked)
+            ->get(route('laporan.pembelian.rangkuman-buku-pembantu-hutang'))
             ->assertForbidden();
     }
 
