@@ -130,7 +130,7 @@ class RoleAccessManagementTest extends TestCase
             ->get(route('laporan.pembelian.index'))
             ->assertOk()
             ->assertSee('Pusat Laporan Pembelian')
-            ->assertSee('Buku Pembantu Hutang')
+            ->assertSee('Rincian Buku Pembantu Hutang')
             ->assertSee('Laporan Pembelian')
             ->assertDontSee('Laporan Pendapatan');
 

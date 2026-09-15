@@ -1,198 +1,463 @@
 @extends('layouts.app')
 
-@section('title', 'Buku Pembantu Hutang')
+@section('title', 'Rincian Buku Pembantu Hutang')
 
 @php
     use Illuminate\Support\Carbon;
-    $startDateCarbon = Carbon::parse($startDate);
-    $endDateCarbon = Carbon::parse($endDate);
+
+    $reportDateCarbon = Carbon::parse($reportDate);
+    $formatAmount = fn ($value) => (float) $value > 0
+        ? number_format((float) $value, 2, ',', '.')
+        : '-';
 @endphp
 
 @section('content')
-    <div class="row mb-3">
+    <div class="row mb-3 no-print">
         <div class="col">
             <div class="d-flex align-items-center gap-3 fs-3">
-                <a href="{{ route('laporan.pembelian.index') }}" class="text-dark"><i class="bi bi-arrow-left"></i></a>
-                <span class="fw-bold">Buku Pembantu Hutang</span>
+                <a href="{{ route('laporan.pembelian.index') }}" class="text-dark" aria-label="Kembali ke laporan pembelian">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <span class="fw-bold">Rincian Buku Pembantu Hutang</span>
             </div>
         </div>
     </div>
 
-    <div class="card border-muhammadiyah mb-2">
+    <div class="card border-muhammadiyah mb-2 report-shell">
         <div class="card-body d-flex flex-column gap-3">
             @isset($errors)
-                @include('partials.validation-errors')
+                <div class="no-print">
+                    @include('partials.validation-errors')
+                </div>
             @endisset
 
-            <div class="card border-light shadow-sm">
+            <div class="card border-light shadow-sm no-print">
                 <div class="card-body">
                     <form method="get" action="{{ route('laporan.pembelian.buku-pembantu-hutang') }}" id="filterForm">
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <label class="form-label">Dari tanggal</label>
-                                <input type="date" name="startDate" class="form-control" value="{{ $startDate }}" required>
+                        <div class="row g-3 filter-fields-row">
+                            <div class="col-md-4 col-lg-3 filter-control-group">
+                                <label for="reportDate" class="form-label">Tanggal Laporan</label>
+                                <input
+                                    type="date"
+                                    name="reportDate"
+                                    id="reportDate"
+                                    class="form-control"
+                                    value="{{ $reportDate }}"
+                                    required
+                                >
                             </div>
-                            <div class="col-md-3">
-                                <label class="form-label">Sampai tanggal</label>
-                                <input type="date" name="endDate" class="form-control" value="{{ $endDate }}" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Supplier <span class="text-danger">*</span></label>
-                                <select name="supplierIds[]" id="supplierSelect" class="form-select select2" multiple data-placeholder="Cari dan pilih supplier...">
+
+                            <div class="col-md-8 col-lg-6 filter-control-group">
+                                <label for="supplierSelect" class="form-label">Supplier</label>
+                                <select
+                                    name="supplierIds[]"
+                                    id="supplierSelect"
+                                    class="form-select select2"
+                                    multiple
+                                    data-placeholder="Semua supplier yang masih memiliki hutang"
+                                >
                                     @foreach ($supplierOptions as $supplier)
                                         <option value="{{ $supplier->id }}" @selected(in_array((int) $supplier->id, $supplierIds, true))>
                                             [{{ $supplier->kode_supplier }}] {{ $supplier->nama_supplier }}
                                         </option>
                                     @endforeach
                                 </select>
-                                <small class="text-muted">Wajib memilih minimal satu supplier.</small>
+                                <small class="text-muted d-block mt-1">
+                                    {{ $supplierIds === [] ? 'Kosong berarti semua supplier yang masih memiliki hutang.' : count($supplierIds).' supplier dipilih.' }}
+                                </small>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Status Saldo Akhir</label>
-                                <select name="statusSaldo" class="form-select">
-                                    <option value="semua" @selected($statusSaldo === 'semua')>Semua</option>
-                                    <option value="masih-hutang" @selected($statusSaldo === 'masih-hutang')>Masih Hutang</option>
-                                    <option value="lunas" @selected($statusSaldo === 'lunas')>Lunas</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 d-flex align-items-end justify-content-end gap-2 flex-wrap">
-                                <a href="{{ route('laporan.pembelian.buku-pembantu-hutang') }}" class="btn btn-light">Reset</a>
-                                <button type="submit" class="btn btn-primary"><i class="bi bi-funnel me-1"></i>Tampilkan</button>
-                                <button type="submit" class="btn btn-outline-success" formaction="{{ route('laporan.pembelian.buku-pembantu-hutang.export-csv') }}" @disabled(! $hasSelection)>
-                                    <i class="bi bi-filetype-csv me-1"></i>Export CSV
+
+                            <div class="col-lg-3 filter-primary-actions d-flex justify-content-lg-end gap-2 flex-wrap">
+                                <a href="{{ route('laporan.pembelian.buku-pembantu-hutang') }}" class="btn btn-light">
+                                    Reset
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-funnel me-1"></i>Tampilkan
                                 </button>
                             </div>
+                        </div>
+
+                        <div class="d-flex justify-content-center gap-2 flex-wrap mt-3">
+                            <button type="button" class="btn btn-outline-dark" onclick="window.print()">
+                                <i class="bi bi-printer me-1"></i>Print
+                            </button>
+                            <button
+                                type="submit"
+                                class="btn btn-outline-success"
+                                formaction="{{ route('laporan.pembelian.buku-pembantu-hutang.export-csv') }}"
+                            >
+                                <i class="bi bi-filetype-csv me-1"></i>Export CSV
+                            </button>
                         </div>
                     </form>
                 </div>
             </div>
 
-            @if (! $hasSelection)
-                <div class="card border-light shadow-sm">
-                    <div class="card-body text-center text-muted py-5">
-                        <i class="bi bi-truck fs-1 d-block mb-3"></i>
-                        <p class="mb-1 fw-semibold">Pilih minimal satu supplier untuk menampilkan laporan.</p>
-                        <p class="mb-0">Pemilihan supplier diperlukan agar laporan tetap ringan dan fokus.</p>
-                    </div>
-                </div>
-            @else
-                <div class="card border-light shadow-sm">
-                    <div class="card-body text-center">
-                        @if ($logoRsUrl)
-                            <img src="{{ $logoRsUrl }}" alt="Logo rumah sakit" class="report-logo mb-2">
-                        @endif
-                        <div class="fw-bold fs-5">{{ $namaRumahSakit }}</div>
-                        <div class="fw-bold">BUKU PEMBANTU HUTANG</div>
-                        <div class="text-muted">Periode {{ $startDateCarbon->translatedFormat('d F Y') }} s/d {{ $endDateCarbon->translatedFormat('d F Y') }}</div>
-                        <div class="text-muted small">{{ count($supplierIds) }} supplier dipilih</div>
-                    </div>
-                </div>
+            <div class="aging-report" id="agingReport">
+                <header class="report-header text-center mb-4">
+                    @if ($logoRsUrl)
+                        <img src="{{ $logoRsUrl }}" alt="Logo rumah sakit" class="report-logo mb-2">
+                    @endif
+                    <div class="hospital-name">{{ $namaRumahSakit }}</div>
+                    <h1>RINCIAN BUKU PEMBANTU HUTANG</h1>
+                    <div class="report-date">Posisi per {{ $reportDateCarbon->translatedFormat('d F Y') }}</div>
+                </header>
 
-                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-4 g-3">
-                    <div class="col"><div class="card h-100 border-light shadow-sm"><div class="card-body"><div class="text-muted small">Saldo Awal</div><div class="fw-bold fs-5">Rp {{ number_format($summary['saldo_awal'], 2, ',', '.') }}</div></div></div></div>
-                    <div class="col"><div class="card h-100 border-light shadow-sm"><div class="card-body"><div class="text-muted small">Penambahan Hutang</div><div class="fw-bold fs-5 text-primary">Rp {{ number_format($summary['total_kredit'], 2, ',', '.') }}</div></div></div></div>
-                    <div class="col"><div class="card h-100 border-light shadow-sm"><div class="card-body"><div class="text-muted small">Pembayaran</div><div class="fw-bold fs-5 text-success">Rp {{ number_format($summary['total_debit'], 2, ',', '.') }}</div></div></div></div>
-                    <div class="col"><div class="card h-100 border-light shadow-sm"><div class="card-body"><div class="text-muted small">Saldo Akhir</div><div class="fw-bold fs-5">Rp {{ number_format($summary['saldo_akhir'], 2, ',', '.') }}</div></div></div></div>
-                </div>
+                @forelse ($cards as $card)
+                    <section class="supplier-section">
+                        <h2 class="supplier-title">
+                            {{ strtoupper($card['nama_supplier']) }} | {{ $card['kode_supplier'] ?: '-' }} (IDR)
+                        </h2>
 
-                <div class="card border-light shadow-sm">
-                    <div class="card-body">
-                        <label for="transactionSearch" class="form-label">Cari transaksi</label>
-                        <input type="search" id="transactionSearch" class="form-control" placeholder="Cari nomor faktur, pembayaran, supplier, akun, atau keterangan...">
-                        <div class="text-muted small mt-2" id="searchResultInfo"></div>
-                    </div>
-                </div>
-
-                <div id="supplierCards" class="d-flex flex-column gap-3">
-                    @forelse ($cards as $card)
-                        <div class="card border-light shadow-sm supplier-card" data-supplier="{{ strtolower($card['kode_supplier'].' '.$card['nama_supplier']) }}">
-                            <div class="card-header bg-white d-flex flex-wrap align-items-center justify-content-between gap-2">
-                                <div>
-                                    <div class="fw-bold text-primary">[{{ $card['kode_supplier'] ?: '-' }}] {{ $card['nama_supplier'] }}</div>
-                                    <div class="text-muted small">Akun pembayaran: {{ $card['akun'] ? implode(', ', $card['akun']) : '-' }}</div>
-                                </div>
-                                @if ($card['saldo_akhir'] > 0)
-                                    <span class="badge bg-danger">Saldo Hutang: Rp {{ number_format($card['saldo_akhir'], 2, ',', '.') }}</span>
-                                @elseif ($card['saldo_akhir'] < 0)
-                                    <span class="badge bg-warning text-dark">Saldo Debit: Rp {{ number_format(abs($card['saldo_akhir']), 2, ',', '.') }}</span>
-                                @else
-                                    <span class="badge bg-success">Lunas</span>
-                                @endif
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-bordered table-hover mb-0 ledger-table">
-                                        <thead class="table-light"><tr><th>Tanggal</th><th>Nomor</th><th>Jenis</th><th>Ref. Faktur</th><th>Keterangan</th><th>COA</th><th class="text-end">Debit</th><th class="text-end">Kredit</th><th class="text-end">Saldo</th></tr></thead>
-                                        <tbody>
-                                            <tr class="table-info fw-semibold ledger-row">
-                                                <td>{{ $startDateCarbon->format('d-m-Y') }}</td><td>-</td><td>Saldo Awal</td><td>-</td>
-                                                <td>Saldo s/d {{ $startDateCarbon->copy()->subDay()->format('d-m-Y') }}</td><td>-</td><td class="text-end">-</td><td class="text-end">-</td><td class="text-end">{{ number_format($card['saldo_awal'], 2, ',', '.') }}</td>
-                                            </tr>
-                                            @foreach ($card['rows'] as $row)
-                                                <tr class="ledger-row">
-                                                    <td class="text-nowrap">{{ Carbon::parse($row['tanggal'])->format('d-m-Y') }}</td>
-                                                    <td class="text-nowrap">
-                                                        @if ($row['jenis'] === 'Pembayaran' && $row['pembayaran_id'])
-                                                            <a href="{{ route('pembelian.pembayaran.print', $row['pembayaran_id']) }}" class="text-decoration-none fw-semibold">{{ $row['nomor'] }}</a>
-                                                        @elseif ($row['faktur_id'])
-                                                            <a href="{{ route('pembelian.invoice.read', $row['faktur_id']) }}" class="text-decoration-none fw-semibold">{{ $row['nomor'] }}</a>
-                                                        @else
-                                                            {{ $row['nomor'] }}
-                                                        @endif
-                                                    </td>
-                                                    <td>{{ $row['jenis'] }}</td><td class="text-nowrap">{{ $row['referensi_faktur'] }}</td><td>{{ $row['keterangan'] }}</td><td>{{ $row['akun'] }}</td>
-                                                    <td class="text-end">{{ $row['debit'] != 0 ? number_format($row['debit'], 2, ',', '.') : '-' }}</td>
-                                                    <td class="text-end">{{ $row['kredit'] != 0 ? number_format($row['kredit'], 2, ',', '.') : '-' }}</td>
-                                                    <td class="text-end fw-semibold">{{ number_format($row['saldo'], 2, ',', '.') }}</td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                        <tfoot class="table-secondary fw-bold"><tr><td colspan="6" class="text-end">Total Periode / Saldo Akhir</td><td class="text-end">{{ number_format($card['total_debit'], 2, ',', '.') }}</td><td class="text-end">{{ number_format($card['total_kredit'], 2, ',', '.') }}</td><td class="text-end">{{ number_format($card['saldo_akhir'], 2, ',', '.') }}</td></tr></tfoot>
-                                    </table>
-                                </div>
-                            </div>
+                        <div class="table-responsive report-table-wrapper">
+                            <table class="table table-sm mb-0 aging-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tanggal</th>
+                                        <th>Jatuh Tempo</th>
+                                        <th>Tipe</th>
+                                        <th>No. Referensi</th>
+                                        <th class="text-end">0 - 30 Hari</th>
+                                        <th class="text-end">31 - 60 Hari</th>
+                                        <th class="text-end">61 - 90 Hari</th>
+                                        <th class="text-end">&gt; 90 Hari</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($card['rows'] as $row)
+                                        <tr>
+                                            <td class="text-nowrap">{{ Carbon::parse($row['tanggal'])->format('d/m/Y') }}</td>
+                                            <td class="text-nowrap">{{ Carbon::parse($row['tanggal_jatuh_tempo'])->format('d/m/Y') }}</td>
+                                            <td>{{ $row['tipe'] }}</td>
+                                            <td class="text-nowrap">
+                                                <a href="{{ route('pembelian.invoice.read', $row['faktur_id']) }}" class="reference-link">
+                                                    {{ $row['nomor_referensi'] }}
+                                                </a>
+                                            </td>
+                                            <td class="text-end">{{ $formatAmount($row['days_0_30']) }}</td>
+                                            <td class="text-end">{{ $formatAmount($row['days_31_60']) }}</td>
+                                            <td class="text-end">{{ $formatAmount($row['days_61_90']) }}</td>
+                                            <td class="text-end">{{ $formatAmount($row['days_over_90']) }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="4">Saldo {{ $card['nama_supplier'] }}:</td>
+                                        <td class="text-end">{{ number_format($card['totals']['days_0_30'], 2, ',', '.') }}</td>
+                                        <td class="text-end">{{ number_format($card['totals']['days_31_60'], 2, ',', '.') }}</td>
+                                        <td class="text-end">{{ number_format($card['totals']['days_61_90'], 2, ',', '.') }}</td>
+                                        <td class="text-end">{{ number_format($card['totals']['days_over_90'], 2, ',', '.') }}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
                         </div>
-                    @empty
-                        <div class="card border-light shadow-sm"><div class="card-body text-center text-muted py-5"><i class="bi bi-inbox fs-1 d-block mb-3"></i><p class="mb-1 fw-semibold">Tidak ada data hutang sesuai filter.</p><p class="mb-0">Coba ubah periode, supplier, atau status saldo akhir.</p></div></div>
-                    @endforelse
-                </div>
-            @endif
+                    </section>
+                @empty
+                    <div class="empty-report text-center text-muted py-5">
+                        <i class="bi bi-inbox fs-1 d-block mb-3 no-print"></i>
+                        <p class="mb-1 fw-semibold">Tidak ada hutang terbuka pada tanggal laporan.</p>
+                        <p class="mb-0 no-print">Coba ubah tanggal laporan atau pilihan supplier.</p>
+                    </div>
+                @endforelse
+
+                @if ($cards !== [])
+                    <div class="table-responsive report-table-wrapper grand-total-wrapper">
+                        <table class="table table-sm mb-0 aging-table grand-total-table">
+                            <tbody>
+                                <tr>
+                                    <td colspan="4">GRAND TOTAL</td>
+                                    <td class="text-end">{{ number_format($summary['days_0_30'], 2, ',', '.') }}</td>
+                                    <td class="text-end">{{ number_format($summary['days_31_60'], 2, ',', '.') }}</td>
+                                    <td class="text-end">{{ number_format($summary['days_61_90'], 2, ',', '.') }}</td>
+                                    <td class="text-end">{{ number_format($summary['days_over_90'], 2, ',', '.') }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-end fw-bold mt-2 report-balance">
+                        Total Hutang: IDR {{ number_format($summary['saldo_hutang'], 2, ',', '.') }}
+                    </div>
+                @endif
+            </div>
         </div>
     </div>
 @endsection
 
-@push('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const searchInput = document.getElementById('transactionSearch');
-            const resultInfo = document.getElementById('searchResultInfo');
-            searchInput?.addEventListener('input', function () {
-                const keyword = this.value.toLowerCase().trim();
-                let visibleRows = 0;
-                let totalRows = 0;
-                document.querySelectorAll('.supplier-card').forEach(function (card) {
-                    const supplierMatched = keyword !== '' && (card.dataset.supplier || '').includes(keyword);
-                    let cardHasMatch = keyword === '' || supplierMatched;
-                    card.querySelectorAll('tbody .ledger-row').forEach(function (row) {
-                        totalRows++;
-                        const matched = keyword === '' || supplierMatched || row.textContent.toLowerCase().includes(keyword);
-                        row.classList.toggle('d-none', !matched);
-                        cardHasMatch = cardHasMatch || matched;
-                        if (matched) visibleRows++;
-                    });
-                    card.classList.toggle('d-none', !cardHasMatch);
-                });
-                if (resultInfo) resultInfo.textContent = keyword === '' ? '' : `Menampilkan ${visibleRows} dari ${totalRows} baris.`;
-            });
-        });
-    </script>
-@endpush
-
 @push('styles')
     <style>
-        .report-logo { display: inline-block; max-width: 100%; max-height: 70px; width: auto; height: auto; object-fit: contain; }
-        .ledger-table th, .ledger-table td { vertical-align: middle; }
-        .ledger-table th { white-space: nowrap; }
-        .select2-container--bootstrap-5 .select2-selection--multiple { min-height: 38px; }
+        .report-logo {
+            display: inline-block;
+            width: auto;
+            height: auto;
+            max-width: 100%;
+            max-height: 58px;
+            object-fit: contain;
+        }
+
+        .aging-report {
+            background: #fff;
+            padding: 1.5rem;
+        }
+
+        .hospital-name {
+            color: #202020;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .report-header h1 {
+            color: #1680a8;
+            font-size: 1.15rem;
+            font-weight: 800;
+            margin: .35rem 0;
+        }
+
+        .report-date {
+            color: #842029;
+            font-size: .82rem;
+            font-weight: 600;
+        }
+
+        .supplier-section {
+            margin-bottom: 1.25rem;
+        }
+
+        .supplier-title {
+            color: #1680a8;
+            font-size: .95rem;
+            font-weight: 800;
+            margin: 0 0 .4rem;
+            text-align: center;
+        }
+
+        .aging-table {
+            border-collapse: collapse;
+            font-size: .76rem;
+            table-layout: fixed;
+            width: 100%;
+        }
+
+        .aging-table th,
+        .aging-table td {
+            border: 0;
+            padding: .32rem .4rem;
+            vertical-align: middle;
+        }
+
+        .aging-table thead th {
+            background: #e9e9e9;
+            color: #222;
+            font-size: .7rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .aging-table tbody tr:nth-child(even) td {
+            background: #f2f2f2;
+        }
+
+        .aging-table tfoot td,
+        .grand-total-table td {
+            background: #d9d9d9;
+            font-weight: 800;
+        }
+
+        .aging-table th:nth-child(1),
+        .aging-table td:nth-child(1),
+        .aging-table th:nth-child(2),
+        .aging-table td:nth-child(2) {
+            width: 11%;
+        }
+
+        .aging-table th:nth-child(3),
+        .aging-table td:nth-child(3) {
+            width: 7%;
+        }
+
+        .aging-table th:nth-child(4),
+        .aging-table td:nth-child(4) {
+            width: 21%;
+        }
+
+        .aging-table th:nth-child(n+5),
+        .aging-table td:nth-child(n+5) {
+            width: 12.5%;
+        }
+
+        .reference-link {
+            color: inherit;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .reference-link:hover {
+            color: var(--bs-primary);
+            text-decoration: underline;
+        }
+
+        .grand-total-wrapper {
+            margin-top: .25rem;
+        }
+
+        .grand-total-table td {
+            border-top: 2px solid #777;
+        }
+
+        .empty-report {
+            border: 1px dashed var(--bs-border-color);
+            border-radius: .5rem;
+        }
+
+        .filter-fields-row {
+            align-items: flex-start;
+        }
+
+        .filter-control-group .form-label {
+            display: block;
+            margin-bottom: .5rem;
+        }
+
+        .filter-primary-actions {
+            align-items: center;
+            min-height: calc(1.5em + .75rem + 2px);
+            margin-top: 2rem;
+        }
+
+        #filterForm .select2-container--bootstrap-5 .select2-selection--multiple {
+            display: flex;
+            align-items: center;
+            min-height: calc(1.5em + .75rem + 2px);
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+
+        #filterForm .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__rendered {
+            display: flex;
+            align-items: center;
+            flex: 1 1 auto;
+            flex-wrap: wrap;
+            gap: .25rem;
+            margin: 0;
+            padding-top: .25rem;
+            padding-bottom: .25rem;
+        }
+
+        #filterForm .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice,
+        #filterForm .select2-container--bootstrap-5 .select2-selection--multiple .select2-search {
+            margin-bottom: 0;
+            margin-top: 0;
+        }
+
+        @media (max-width: 991.98px) {
+            .filter-primary-actions {
+                justify-content: flex-start;
+                margin-top: 0;
+            }
+        }
+
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 8mm;
+            }
+
+            #app-sidebar,
+            #sidebar-backdrop,
+            #mobile-sidebar-toggle,
+            footer,
+            .no-print {
+                display: none !important;
+            }
+
+            html,
+            body,
+            #app-content,
+            main,
+            .container-fluid {
+                background: #fff !important;
+                margin: 0 !important;
+                max-width: none !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+
+            .report-shell,
+            .report-shell > .card-body {
+                border: 0 !important;
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .aging-report {
+                padding: 0;
+            }
+
+            .report-logo {
+                max-height: 42px;
+            }
+
+            .report-header {
+                margin-bottom: 4mm !important;
+            }
+
+            .hospital-name {
+                font-size: 10pt;
+            }
+
+            .report-header h1 {
+                font-size: 11pt;
+            }
+
+            .report-date,
+            .supplier-title {
+                font-size: 8pt;
+            }
+
+            .supplier-section {
+                break-inside: auto;
+                margin-bottom: 4mm;
+            }
+
+            .supplier-title {
+                break-after: avoid;
+            }
+
+            .report-table-wrapper {
+                overflow: visible !important;
+            }
+
+            .aging-table {
+                font-size: 6.8pt;
+            }
+
+            .aging-table thead {
+                display: table-header-group;
+            }
+
+            .aging-table tfoot {
+                display: table-row-group;
+            }
+
+            .aging-table tr {
+                break-inside: avoid;
+            }
+
+            .aging-table th,
+            .aging-table td {
+                padding: 1.2mm 1mm;
+            }
+
+            .reference-link {
+                color: #000 !important;
+                text-decoration: none !important;
+            }
+
+            .grand-total-wrapper,
+            .report-balance {
+                break-inside: avoid;
+            }
+        }
     </style>
 @endpush

@@ -24,15 +24,11 @@ class LaporanPembelianController extends Controller
     public function bukuPembantuHutang(BukuPembantuHutangRequest $request): View
     {
         $data = $request->validated();
-        $startDate = $data['startDate'] ?? now()->startOfMonth()->format('Y-m-d');
-        $endDate = $data['endDate'] ?? now()->format('Y-m-d');
+        $reportDate = $data['reportDate'] ?? now()->format('Y-m-d');
         $supplierIds = collect($data['supplierIds'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
-        $statusSaldo = $data['statusSaldo'] ?? 'semua';
         $report = $this->laporanPembelianService->getBukuPembantuHutang(
-            startDate: $startDate,
-            endDate: $endDate,
+            reportDate: $reportDate,
             supplierIds: $supplierIds,
-            statusSaldo: $statusSaldo,
         );
 
         return view('laporan.pembelian.buku-pembantu-hutang', array_merge(
@@ -40,12 +36,9 @@ class LaporanPembelianController extends Controller
             $report,
             [
                 'page' => 'app',
-                'startDate' => $startDate,
-                'endDate' => $endDate,
+                'reportDate' => $reportDate,
                 'supplierIds' => $supplierIds,
                 'supplierOptions' => $this->laporanPembelianService->getSupplierOptions(),
-                'statusSaldo' => $statusSaldo,
-                'hasSelection' => $supplierIds !== [],
             ],
         ));
     }
@@ -66,17 +59,15 @@ class LaporanPembelianController extends Controller
     public function exportCsv(BukuPembantuHutangRequest $request): StreamedResponse
     {
         $data = $request->validated();
-        $supplierIds = collect($data['supplierIds'])->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $reportDate = $data['reportDate'] ?? now()->format('Y-m-d');
+        $supplierIds = collect($data['supplierIds'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
         $report = $this->laporanPembelianService->getBukuPembantuHutang(
-            startDate: $data['startDate'],
-            endDate: $data['endDate'],
+            reportDate: $reportDate,
             supplierIds: $supplierIds,
-            statusSaldo: $data['statusSaldo'] ?? 'semua',
         );
         $fileName = sprintf(
-            'buku-pembantu-hutang-%s-%s.csv',
-            str_replace('-', '', $data['startDate']),
-            str_replace('-', '', $data['endDate']),
+            'rincian-buku-pembantu-hutang-%s.csv',
+            str_replace('-', '', $reportDate),
         );
 
         return response()->streamDownload(

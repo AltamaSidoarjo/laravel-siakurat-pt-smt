@@ -34,8 +34,8 @@
                         <i class="bi bi-journal-text fs-3"></i>
                     </div>
                     <div class="flex-grow-1">
-                        <h5 class="fw-bold mb-1 report-card-title">Buku Pembantu Hutang</h5>
-                        <div class="text-muted small">Kartu mutasi dan saldo hutang per supplier berdasarkan faktur dan pembayaran pembelian.</div>
+                        <h5 class="fw-bold mb-1 report-card-title">Rincian Buku Pembantu Hutang</h5>
+                        <div class="text-muted small">Rincian posisi dan umur hutang per faktur yang dikelompokkan berdasarkan supplier.</div>
                     </div>
                     <i class="bi bi-chevron-right fs-4 text-muted"></i>
                 </div>

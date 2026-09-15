@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\Laporan\LaporanPembelianService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\WithoutMiddleware;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -28,6 +29,8 @@ class LaporanBukuPembantuHutangTest extends TestCase
 
     protected function tearDown(): void
     {
+        Carbon::setTestNow();
+
         Schema::disableForeignKeyConstraints();
         foreach ($this->tables() as $table) {
             Schema::dropIfExists($table);
@@ -37,138 +40,166 @@ class LaporanBukuPembantuHutangTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_initial_page_does_not_load_supplier_cards(): void
+    public function test_initial_page_uses_today_and_loads_all_suppliers_with_open_debt(): void
     {
-        $this->actingAs($this->makeUser())
-            ->get(route('laporan.pembelian.buku-pembantu-hutang'))
-            ->assertOk()
-            ->assertSee('Pilih minimal satu supplier')
-            ->assertSee('class="form-select select2"', false)
-            ->assertViewHas('cards', []);
-    }
-
-    public function test_initial_page_renders_supplier_options_without_ajax(): void
-    {
+        Carbon::setTestNow('2026-09-15 08:00:00');
         [$supplierId] = $this->seedMasterData();
-        $this->createSupplier('SUP-EMPTY', 'PT Tanpa Faktur');
-        $this->createInvoice($supplierId, 'INV-OPTION', '2026-09-01', 100, 0);
+        $this->createInvoice($supplierId, 'INV-OPEN', '2026-09-01', 1000, dueDate: '2026-09-10');
 
         $this->actingAs($this->makeUser())
             ->get(route('laporan.pembelian.buku-pembantu-hutang'))
             ->assertOk()
-            ->assertSee('[SUP-001] PT Sehat Farma')
-            ->assertSee('[SUP-EMPTY] PT Tanpa Faktur')
-            ->assertDontSee('ajax: {', false);
+            ->assertViewHas('reportDate', '2026-09-15')
+            ->assertViewHas('supplierIds', [])
+            ->assertSee('Rincian Buku Pembantu Hutang')
+            ->assertSee('RINCIAN BUKU PEMBANTU HUTANG')
+            ->assertDontSee('MATA UANG DASAR')
+            ->assertSee('INV-OPEN')
+            ->assertSee('0 - 30 Hari')
+            ->assertDontSee('Mata Uang')
+            ->assertSee('Print')
+            ->assertSee('Export CSV');
     }
 
-    public function test_report_calculates_opening_invoices_direct_payments_allocations_and_running_balance(): void
+    public function test_supplier_filter_limits_the_report_but_options_still_include_all_suppliers(): void
     {
-        [$supplierId, $akunBankId, $akunHutangId] = $this->seedMasterData();
-        $invoiceLama = $this->createInvoice($supplierId, 'INV-LAMA', '2026-08-20', 1000, 400);
-        $invoicePeriode = $this->createInvoice($supplierId, 'INV-PERIODE', '2026-09-05', 800, 500);
-
-        $this->createPayment($supplierId, $akunBankId, $akunHutangId, $invoiceLama, 'BYR-001', '2026-08-25', 400);
-        $this->createPayment($supplierId, $akunBankId, $akunHutangId, $invoicePeriode, 'BYR-002', '2026-09-10', 200);
-        $this->createPayment($supplierId, $akunBankId, $akunHutangId, $invoiceLama, 'BYR-003', '2026-09-12', 100);
-
-        $report = app(LaporanPembelianService::class)->getBukuPembantuHutang(
-            '2026-09-01',
-            '2026-09-30',
-            [$supplierId],
-        );
-
-        $this->assertCount(1, $report['cards']);
-        $card = $report['cards'][0];
-        $this->assertSame(600.0, $card['saldo_awal']);
-        $this->assertSame(600.0, $card['total_debit']);
-        $this->assertSame(800.0, $card['total_kredit']);
-        $this->assertSame(800.0, $card['saldo_akhir']);
-        $this->assertSame(
-            ['Faktur', 'Pembayaran langsung', 'Pembayaran', 'Pembayaran'],
-            array_column($card['rows'], 'jenis'),
-        );
-        $this->assertSame([1400.0, 1100.0, 900.0, 800.0], array_column($card['rows'], 'saldo'));
-        $this->assertSame('-', $card['rows'][0]['akun']);
-        $this->assertSame('[210.01] Hutang Usaha', $card['rows'][2]['akun']);
+        [$firstSupplierId] = $this->seedMasterData();
+        $secondSupplierId = $this->createSupplier('SUP-002', 'PT Farma Dua');
+        $this->createInvoice($firstSupplierId, 'INV-FIRST', '2026-09-01', 100);
+        $this->createInvoice($secondSupplierId, 'INV-SECOND', '2026-09-01', 200);
 
         $this->actingAs($this->makeUser())
             ->get(route('laporan.pembelian.buku-pembantu-hutang', [
-                'startDate' => '2026-09-01',
-                'endDate' => '2026-09-30',
-                'supplierIds' => [$supplierId],
+                'reportDate' => '2026-09-15',
+                'supplierIds' => [$secondSupplierId],
             ]))
             ->assertOk()
-            ->assertSee('PT Sehat Farma')
-            ->assertSee('INV-PERIODE')
-            ->assertSee('BYR-003');
+            ->assertSee('[SUP-001] PT Sehat Farma')
+            ->assertSee('[SUP-002] PT Farma Dua')
+            ->assertSee('INV-SECOND')
+            ->assertDontSee('INV-FIRST');
     }
 
-    public function test_status_filter_and_summary_handle_multiple_suppliers_and_negative_balance(): void
+    public function test_report_assigns_exact_aging_boundaries_and_falls_back_to_invoice_date(): void
     {
-        [$supplierId, $akunBankId, $akunHutangId] = $this->seedMasterData();
-        $supplierLunas = $this->createSupplier('SUP-002', 'PT Lunas Selalu');
-        $invoiceHutang = $this->createInvoice($supplierId, 'INV-HUTANG', '2026-09-01', 500, 0);
-        $invoiceLunas = $this->createInvoice($supplierLunas, 'INV-LUNAS', '2026-09-01', 200, 200);
-        $this->createPayment($supplierLunas, $akunBankId, $akunHutangId, $invoiceLunas, 'BYR-LUNAS', '2026-09-02', 250);
-        DB::table('faktur_pembelian')->where('id', $invoiceLunas)->update(['sudah_terbayar' => 250]);
+        [$supplierId] = $this->seedMasterData();
+        $reportDate = Carbon::parse('2026-09-15');
 
-        $service = app(LaporanPembelianService::class);
-        $all = $service->getBukuPembantuHutang('2026-09-01', '2026-09-30', [$supplierId, $supplierLunas]);
-        $this->assertCount(2, $all['cards']);
-        $this->assertSame(450.0, $all['summary']['saldo_akhir']);
+        $this->createInvoice($supplierId, 'INV-FUTURE', '2026-09-01', 100, dueDate: $reportDate->copy()->addDays(5)->format('Y-m-d'));
+        foreach ([30, 31, 60, 61, 90, 91] as $age) {
+            $this->createInvoice(
+                $supplierId,
+                'INV-'.$age,
+                '2026-01-01',
+                $age * 10,
+                dueDate: $reportDate->copy()->subDays($age)->format('Y-m-d'),
+            );
+        }
+        $fallbackDate = $reportDate->copy()->subDays(61)->format('Y-m-d');
+        $this->createInvoice($supplierId, 'INV-FALLBACK', $fallbackDate, 610);
 
-        $outstanding = $service->getBukuPembantuHutang('2026-09-01', '2026-09-30', [$supplierId, $supplierLunas], 'masih-hutang');
-        $this->assertCount(1, $outstanding['cards']);
-        $this->assertSame($invoiceHutang, $outstanding['cards'][0]['rows'][0]['faktur_id']);
+        $report = app(LaporanPembelianService::class)->getBukuPembantuHutang('2026-09-15', [$supplierId]);
+        $rows = collect($report['cards'][0]['rows'])->keyBy('nomor_referensi');
 
-        $paid = $service->getBukuPembantuHutang('2026-09-01', '2026-09-30', [$supplierId, $supplierLunas], 'lunas');
-        $this->assertSame([], $paid['cards']);
-        $this->assertSame(-50.0, $all['cards'][1]['saldo_akhir']);
+        $this->assertSame(100.0, $rows['INV-FUTURE']['days_0_30']);
+        $this->assertSame(300.0, $rows['INV-30']['days_0_30']);
+        $this->assertSame(310.0, $rows['INV-31']['days_31_60']);
+        $this->assertSame(600.0, $rows['INV-60']['days_31_60']);
+        $this->assertSame(610.0, $rows['INV-61']['days_61_90']);
+        $this->assertSame(900.0, $rows['INV-90']['days_61_90']);
+        $this->assertSame(910.0, $rows['INV-91']['days_over_90']);
+        $this->assertSame($fallbackDate, $rows['INV-FALLBACK']['tanggal_jatuh_tempo']);
+        $this->assertSame(610.0, $rows['INV-FALLBACK']['days_61_90']);
     }
 
-    public function test_csv_uses_the_same_filters_and_running_balances(): void
+    public function test_historical_balance_ignores_later_payments_and_includes_direct_payment(): void
     {
         [$supplierId, $akunBankId, $akunHutangId] = $this->seedMasterData();
-        $invoiceId = $this->createInvoice($supplierId, 'INV-CSV', '2026-09-05', 1000, 250);
-        $this->createPayment($supplierId, $akunBankId, $akunHutangId, $invoiceId, 'BYR-CSV', '2026-09-10', 250);
+        $invoiceId = $this->createInvoice(
+            $supplierId,
+            'INV-HISTORY',
+            '2026-08-01',
+            1000,
+            paid: 600,
+            dueDate: '2026-08-15',
+        );
+        $this->createPayment($supplierId, $akunBankId, $akunHutangId, $invoiceId, 'BYR-BEFORE', '2026-09-10', 200);
+        $this->createPayment($supplierId, $akunBankId, $akunHutangId, $invoiceId, 'BYR-AFTER', '2026-09-20', 300);
+
+        $this->createInvoice($supplierId, 'INV-PAID', '2026-08-01', 100, paid: 100);
+        $this->createInvoice($supplierId, 'INV-OVERPAID', '2026-08-01', 100, paid: 150);
+
+        $report = app(LaporanPembelianService::class)->getBukuPembantuHutang('2026-09-15');
+        $rows = collect($report['cards'][0]['rows'])->keyBy('nomor_referensi');
+
+        $this->assertSame(700.0, $rows['INV-HISTORY']['sisa_hutang']);
+        $this->assertSame(700.0, $rows['INV-HISTORY']['days_31_60']);
+        $this->assertFalse($rows->has('INV-PAID'));
+        $this->assertFalse($rows->has('INV-OVERPAID'));
+    }
+
+    public function test_supplier_subtotals_and_grand_totals_match_visible_rows(): void
+    {
+        [$firstSupplierId] = $this->seedMasterData();
+        $secondSupplierId = $this->createSupplier('SUP-002', 'PT Farma Dua');
+        $this->createInvoice($firstSupplierId, 'INV-A', '2026-09-01', 100, dueDate: '2026-09-10');
+        $this->createInvoice($firstSupplierId, 'INV-B', '2026-06-01', 400, dueDate: '2026-06-01');
+        $this->createInvoice($secondSupplierId, 'INV-C', '2026-08-01', 250, dueDate: '2026-08-01');
+        $this->createInvoice($secondSupplierId, 'INV-FUTURE-DATED', '2026-09-20', 999, dueDate: '2026-09-20');
+
+        $report = app(LaporanPembelianService::class)->getBukuPembantuHutang('2026-09-15');
+
+        $this->assertSame(['SUP-001', 'SUP-002'], array_column($report['cards'], 'kode_supplier'));
+        $this->assertSame(100.0, $report['cards'][0]['totals']['days_0_30']);
+        $this->assertSame(400.0, $report['cards'][0]['totals']['days_over_90']);
+        $this->assertSame(500.0, $report['cards'][0]['saldo_hutang']);
+        $this->assertSame(250.0, $report['cards'][1]['totals']['days_31_60']);
+        $this->assertSame(100.0, $report['summary']['days_0_30']);
+        $this->assertSame(250.0, $report['summary']['days_31_60']);
+        $this->assertSame(400.0, $report['summary']['days_over_90']);
+        $this->assertSame(750.0, $report['summary']['saldo_hutang']);
+    }
+
+    public function test_csv_uses_aging_columns_rows_subtotals_and_report_date_filename(): void
+    {
+        [$supplierId] = $this->seedMasterData();
+        $this->createInvoice($supplierId, 'INV-CSV', '2026-09-01', 1000, dueDate: '2026-09-10');
 
         $response = $this->actingAs($this->makeUser())
             ->get(route('laporan.pembelian.buku-pembantu-hutang.export-csv', [
-                'startDate' => '2026-09-01',
-                'endDate' => '2026-09-30',
-                'supplierIds' => [$supplierId],
-                'statusSaldo' => 'semua',
+                'reportDate' => '2026-09-15',
             ]));
 
         $response
             ->assertOk()
             ->assertHeader('content-type', 'text/csv; charset=UTF-8')
-            ->assertHeader('content-disposition', 'attachment; filename=buku-pembantu-hutang-20260901-20260930.csv');
+            ->assertHeader('content-disposition', 'attachment; filename=rincian-buku-pembantu-hutang-20260915.csv');
 
         $content = str_replace(["\xEF\xBB\xBF", "\r\n"], ['', "\n"], $response->streamedContent());
-        $this->assertStringContainsString('INV-CSV,Faktur,INV-CSV', $content);
-        $this->assertStringContainsString('BYR-CSV,Pembayaran,INV-CSV', $content);
-        $this->assertStringContainsString('0.00,1000.00,1000.00', $content);
-        $this->assertStringContainsString('250.00,0.00,750.00', $content);
+        $this->assertStringContainsString('"Jatuh Tempo",Tipe,"No. Referensi","0 - 30 Hari","31 - 60 Hari","61 - 90 Hari","> 90 Hari"', $content);
+        $this->assertStringNotContainsString('Mata Uang', $content);
+        $this->assertStringContainsString('2026-09-01,2026-09-10,FP,INV-CSV,1000.00,,,', $content);
+        $this->assertStringContainsString('"Saldo PT Sehat Farma",1000.00,0.00,0.00,0.00', $content);
+        $this->assertStringContainsString('"GRAND TOTAL",1000.00,0.00,0.00,0.00', $content);
     }
 
-    public function test_export_requires_dates_and_at_least_one_supplier(): void
+    public function test_request_validates_report_date_and_supplier_ids(): void
     {
         $this->actingAs($this->makeUser())
             ->from(route('laporan.pembelian.buku-pembantu-hutang'))
-            ->get(route('laporan.pembelian.buku-pembantu-hutang.export-csv', [
-                'startDate' => '2026-09-30',
-                'endDate' => '2026-09-01',
+            ->get(route('laporan.pembelian.buku-pembantu-hutang', [
+                'reportDate' => '15-09-2026',
+                'supplierIds' => [999],
             ]))
             ->assertRedirect(route('laporan.pembelian.buku-pembantu-hutang'))
-            ->assertSessionHasErrors(['endDate', 'supplierIds']);
+            ->assertSessionHasErrors(['reportDate', 'supplierIds.0']);
     }
 
-    public function test_supplier_search_returns_suppliers_without_invoices(): void
+    public function test_supplier_search_returns_suppliers_with_or_without_invoices(): void
     {
         [$supplierId] = $this->seedMasterData();
         $supplierTanpaFakturId = $this->createSupplier('SUP-EMPTY', 'PT Tanpa Faktur');
-        $this->createInvoice($supplierId, 'INV-CARI', '2026-09-01', 100, 0);
+        $this->createInvoice($supplierId, 'INV-CARI', '2026-09-01', 100);
 
         $this->actingAs($this->makeUser())
             ->getJson(route('laporan.pembelian.buku-pembantu-hutang.search-supplier', ['q' => 'Sehat']))
@@ -181,21 +212,7 @@ class LaporanBukuPembantuHutangTest extends TestCase
             ->getJson(route('laporan.pembelian.buku-pembantu-hutang.search-supplier', ['q' => 'Tanpa Faktur']))
             ->assertOk()
             ->assertJsonCount(1, 'results')
-            ->assertJsonPath('results.0.id', (string) $supplierTanpaFakturId)
-            ->assertJsonPath('results.0.text', '[SUP-EMPTY] PT Tanpa Faktur');
-    }
-
-    public function test_supplier_search_returns_initial_options_without_keyword(): void
-    {
-        [$supplierId] = $this->seedMasterData();
-        $this->createSupplier('SUP-EMPTY', 'PT Tanpa Faktur');
-        $this->createInvoice($supplierId, 'INV-AWAL', '2026-09-01', 100, 0);
-
-        $this->actingAs($this->makeUser())
-            ->getJson(route('laporan.pembelian.buku-pembantu-hutang.search-supplier'))
-            ->assertOk()
-            ->assertJsonCount(2, 'results')
-            ->assertJsonPath('results.0.id', (string) $supplierId);
+            ->assertJsonPath('results.0.id', (string) $supplierTanpaFakturId);
     }
 
     private function tables(): array
@@ -232,6 +249,7 @@ class LaporanBukuPembantuHutangTest extends TestCase
             $table->unsignedBigInteger('supplier_id')->nullable();
             $table->string('nomer_faktur');
             $table->date('tanggal_faktur')->nullable();
+            $table->date('tanggal_jatuh_tempo')->nullable();
             $table->string('keterangan')->nullable();
             $table->string('kategori_faktur')->nullable();
             $table->decimal('grandtotal', 15, 2)->default(0);
@@ -290,16 +308,23 @@ class LaporanBukuPembantuHutangTest extends TestCase
         ]);
     }
 
-    private function createInvoice(int $supplierId, string $nomor, string $tanggal, float $grandtotal, float $sudahTerbayar): int
-    {
+    private function createInvoice(
+        int $supplierId,
+        string $nomor,
+        string $tanggal,
+        float $grandtotal,
+        float $paid = 0,
+        ?string $dueDate = null,
+    ): int {
         return DB::table('faktur_pembelian')->insertGetId([
             'supplier_id' => $supplierId,
             'nomer_faktur' => $nomor,
             'tanggal_faktur' => $tanggal,
+            'tanggal_jatuh_tempo' => $dueDate,
             'keterangan' => 'Pembelian persediaan',
             'kategori_faktur' => 'Obat & BHP',
             'grandtotal' => $grandtotal,
-            'sudah_terbayar' => $sudahTerbayar,
+            'sudah_terbayar' => $paid,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
