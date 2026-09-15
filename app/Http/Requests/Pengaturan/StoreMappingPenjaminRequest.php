@@ -4,7 +4,6 @@ namespace App\Http\Requests\Pengaturan;
 
 use App\Models\Coa;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class StoreMappingPenjaminRequest extends FormRequest
@@ -41,12 +40,10 @@ class StoreMappingPenjaminRequest extends FormRequest
 
                 if ($coa === null
                     || (int) $coa->status_aktif !== 1
-                    || ! (bool) $coa->is_postable
-                    || (int) $coa->children_count > 0
-                    || ! str_contains(Str::lower((string) $coa->tipe_coa), 'piutang')) {
+                    || (int) $coa->children_count > 0) {
                     $validator->errors()->add(
                         'coa_id',
-                        'Akun harus merupakan COA piutang yang aktif, postable, dan tidak memiliki akun turunan.',
+                        'Akun harus merupakan COA aktif yang tidak memiliki akun turunan.',
                     );
                 }
             },

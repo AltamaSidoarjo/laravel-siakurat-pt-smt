@@ -8,7 +8,6 @@ use App\Services\Bridging\BillingPendapatanApiService;
 use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 class MappingPenjaminPiutangService
@@ -43,8 +42,6 @@ class MappingPenjaminPiutangService
     {
         return Coa::query()
             ->selectableTransaction()
-            ->where('is_postable', true)
-            ->whereRaw('LOWER(tipe_coa) LIKE ?', ['%piutang%'])
             ->get(['id', 'kode', 'nama']);
     }
 
@@ -60,7 +57,7 @@ class MappingPenjaminPiutangService
         }
 
         $coa = Coa::query()->withCount('children')->find((int) $data['coa_id']);
-        $this->ensureValidReceivableCoa($coa);
+        $this->ensureValidActiveLeafCoa($coa);
 
         $mapping = MappingPenjaminPiutang::query()->create([
             'penjamin_id' => $penjaminId,
@@ -88,15 +85,13 @@ class MappingPenjaminPiutangService
         $mapping->delete();
     }
 
-    private function ensureValidReceivableCoa(?Coa $coa): void
+    private function ensureValidActiveLeafCoa(?Coa $coa): void
     {
         if ($coa === null
             || (int) $coa->status_aktif !== 1
-            || ! (bool) $coa->is_postable
-            || (int) $coa->children_count > 0
-            || ! str_contains(Str::lower((string) $coa->tipe_coa), 'piutang')) {
+            || (int) $coa->children_count > 0) {
             throw new RuntimeException(
-                'Akun harus merupakan COA piutang yang aktif, postable, dan tidak memiliki akun turunan.',
+                'Akun harus merupakan COA aktif yang tidak memiliki akun turunan.',
             );
         }
     }

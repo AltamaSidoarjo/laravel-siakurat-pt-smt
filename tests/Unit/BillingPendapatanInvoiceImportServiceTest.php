@@ -279,7 +279,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
 
     public function test_invalid_receivable_coa_rolls_back_all_writes(): void
     {
-        $bpjs = $this->createCoa('103000024', 'Piutang Pasien BPJS Kesehatan', 'Piutang Usaha', false);
+        $bpjs = $this->createCoa('103000024', 'Piutang Pasien BPJS Kesehatan', 'Piutang Usaha', true, false);
         $this->createCoa('440410001', 'Pendapatan Poli', 'Pendapatan');
         $this->createMapping('2', 'BPJS', $bpjs);
 
@@ -290,7 +290,25 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $result = $this->import(['ext-1']);
 
         $this->assertFalse($result[0]['berhasil']);
-        $this->assertStringContainsString('COA piutang pada mapping penjamin BPJS tidak aktif', $result[0]['alasan_gagal']);
+        $this->assertStringContainsString('COA pada mapping penjamin BPJS tidak aktif', $result[0]['alasan_gagal']);
+        $this->assertNoImportWrites();
+    }
+
+    public function test_parent_coa_on_guarantor_mapping_rolls_back_all_writes(): void
+    {
+        $parent = $this->createCoa('103000024', 'Aset Lancar', 'Aset');
+        $this->createCoa('103000024-1', 'Akun Mapping BPJS', 'Aset Lain', false, true, $parent->id);
+        $this->createCoa('440410001', 'Pendapatan Poli', 'Pendapatan');
+        $this->createMapping('2', 'BPJS', $parent);
+
+        $this->expectCandidates([$this->candidate()]);
+        $this->expectRevenueDetails('ext-1');
+        $this->logService->shouldNotReceive('log');
+
+        $result = $this->import(['ext-1']);
+
+        $this->assertFalse($result[0]['berhasil']);
+        $this->assertStringContainsString('bukan akun leaf', $result[0]['alasan_gagal']);
         $this->assertNoImportWrites();
     }
 
@@ -452,9 +470,9 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         ]);
     }
 
-    public function test_mapping_uses_coa_id_without_matching_receivable_name(): void
+    public function test_mapping_uses_active_leaf_coa_regardless_of_type_and_postable_flag(): void
     {
-        $selected = $this->createCoa('103000024-A', 'Piutang Pasien BPJS Kesehatan', 'Piutang Usaha');
+        $selected = $this->createCoa('103000024-A', 'Akun Mapping BPJS', 'Aset Lain', false);
         $this->createCoa('103000024-B', ' piutang pasien bpjs kesehatan ', 'Piutang Usaha');
         $this->createCoa('440410001', 'Pendapatan Poli', 'Pendapatan');
         $this->createMapping('2', 'BPJS', $selected);
@@ -712,10 +730,12 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         string $nama,
         string $tipe,
         bool $isPostable = true,
+        bool $aktif = true,
+        ?int $parentCoa = null,
     ): Coa {
         return Coa::query()->create([
-            'status_aktif' => 1,
-            'parent_coa' => null,
+            'status_aktif' => $aktif ? 1 : 0,
+            'parent_coa' => $parentCoa,
             'tipe_coa' => $tipe,
             'kode' => $kode,
             'nama' => $nama,

@@ -376,12 +376,10 @@ class BillingPendapatanInvoiceImportService
         $coa = $mapping->coa;
         if ($coa === null
             || (int) $coa->status_aktif !== 1
-            || ! (bool) $coa->is_postable
-            || (int) $coa->children_count > 0
-            || ! str_contains(Str::lower((string) $coa->tipe_coa), 'piutang')) {
+            || (int) $coa->children_count > 0) {
             throw new RuntimeException(
-                'COA piutang pada mapping penjamin '.$mapping->nama_penjamin
-                .' tidak aktif, tidak postable, bukan akun leaf, atau bukan tipe piutang.',
+                'COA pada mapping penjamin '.$mapping->nama_penjamin
+                .' tidak aktif atau bukan akun leaf.',
             );
         }
 

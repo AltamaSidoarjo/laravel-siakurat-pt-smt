@@ -52,12 +52,9 @@ class MappingPenjaminPiutangServiceTest extends TestCase
         $this->service = new MappingPenjaminPiutangService($this->billingService, $this->logService);
     }
 
-    public function test_available_options_exclude_mapped_guarantors_and_only_offer_valid_receivables(): void
+    public function test_available_guarantor_options_exclude_mapped_guarantors(): void
     {
         $valid = $this->createCoa('1031', 'Piutang Valid', 'Piutang Usaha');
-        $this->createCoa('1032', 'Piutang Nonaktif', 'Piutang Usaha', false);
-        $this->createCoa('1033', 'Piutang Nonpostable', 'Piutang Usaha', true, false);
-        $this->createCoa('4101', 'Pendapatan', 'Pendapatan');
         MappingPenjaminPiutang::query()->create([
             'penjamin_id' => '1',
             'nama_penjamin' => 'Umum',
@@ -69,12 +66,25 @@ class MappingPenjaminPiutangServiceTest extends TestCase
         ]));
 
         $this->assertSame(['2'], $this->service->getAvailablePenjaminOptions()->pluck('id')->all());
-        $this->assertSame([$valid->id], $this->service->getCoaOptions()->pluck('id')->all());
+    }
+
+    public function test_coa_options_offer_all_active_leaf_accounts_regardless_of_type_and_postable_flag(): void
+    {
+        $parent = $this->createCoa('1000', 'Aset Lancar', 'Aset', true, false);
+        $child = $this->createCoa('1001', 'Kas', 'Kasbank', true, false, $parent->id);
+        $receivable = $this->createCoa('1031', 'Piutang Valid', 'Piutang Usaha');
+        $revenue = $this->createCoa('4101', 'Pendapatan', 'Pendapatan', true, false);
+        $this->createCoa('5101', 'Beban Nonaktif', 'Beban', false, false);
+
+        $this->assertSame(
+            [$child->id, $receivable->id, $revenue->id],
+            $this->service->getCoaOptions()->pluck('id')->all(),
+        );
     }
 
     public function test_create_uses_canonical_billing_name_and_delete_is_logged(): void
     {
-        $coa = $this->createCoa('1031', 'Piutang BPJS', 'Piutang Usaha');
+        $coa = $this->createCoa('4101', 'Pendapatan BPJS', 'Pendapatan', true, false);
         $this->billingService->shouldReceive('getPenjaminOptions')->once()->andReturn(collect([
             ['id' => '002', 'nama' => 'BPJS Kesehatan'],
         ]));
@@ -87,6 +97,35 @@ class MappingPenjaminPiutangServiceTest extends TestCase
 
         $this->service->delete($mapping);
         $this->assertDatabaseMissing('mapping_penjamin_piutang', ['penjamin_id' => '002']);
+    }
+
+    public function test_create_rejects_inactive_coa(): void
+    {
+        $coa = $this->createCoa('5101', 'Beban Nonaktif', 'Beban', false, false);
+        $this->billingService->shouldReceive('getPenjaminOptions')->once()->andReturn(collect([
+            ['id' => '002', 'nama' => 'BPJS Kesehatan'],
+        ]));
+        $this->logService->shouldNotReceive('log');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Akun harus merupakan COA aktif yang tidak memiliki akun turunan.');
+
+        $this->service->create(['penjamin_id' => '002', 'coa_id' => $coa->id]);
+    }
+
+    public function test_create_rejects_parent_coa(): void
+    {
+        $parent = $this->createCoa('1000', 'Aset Lancar', 'Aset', true, false);
+        $this->createCoa('1001', 'Kas', 'Kasbank', true, false, $parent->id);
+        $this->billingService->shouldReceive('getPenjaminOptions')->once()->andReturn(collect([
+            ['id' => '002', 'nama' => 'BPJS Kesehatan'],
+        ]));
+        $this->logService->shouldNotReceive('log');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Akun harus merupakan COA aktif yang tidak memiliki akun turunan.');
+
+        $this->service->create(['penjamin_id' => '002', 'coa_id' => $parent->id]);
     }
 
     public function test_create_rejects_unknown_billing_guarantor(): void
@@ -107,9 +146,11 @@ class MappingPenjaminPiutangServiceTest extends TestCase
         string $tipe,
         bool $aktif = true,
         bool $postable = true,
+        ?int $parentCoa = null,
     ): Coa {
         return Coa::query()->create([
             'status_aktif' => $aktif ? 1 : 0,
+            'parent_coa' => $parentCoa,
             'tipe_coa' => $tipe,
             'kode' => $kode,
             'nama' => $nama,

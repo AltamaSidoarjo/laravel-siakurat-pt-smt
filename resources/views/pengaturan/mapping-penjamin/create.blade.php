@@ -38,7 +38,7 @@
                                         </div>
                                     @elseif ($coaOptions->isEmpty())
                                         <div class="alert alert-info mb-0">
-                                            Tidak ada COA piutang aktif dan postable yang dapat dipilih.
+                                            Tidak ada COA aktif tanpa akun turunan yang dapat dipilih.
                                         </div>
                                     @else
                                         <div class="row g-3">
