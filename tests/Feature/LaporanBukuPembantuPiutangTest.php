@@ -54,6 +54,8 @@ class LaporanBukuPembantuPiutangTest extends TestCase
             ->assertSee('Rincian Buku Pembantu Piutang')
             ->assertSee('RINCIAN BUKU PEMBANTU PIUTANG')
             ->assertSee('INV-OPEN')
+            ->assertSee('Tagihan pasien')
+            ->assertSeeInOrder(['No. Referensi', 'Keterangan', '0 - 30 Hari'])
             ->assertSee('0 - 30 Hari')
             ->assertSee('Print')
             ->assertSee('Export CSV')
@@ -118,12 +120,43 @@ class LaporanBukuPembantuPiutangTest extends TestCase
         $rows = collect($report['cards'][0]['rows'])->keyBy('nomor_referensi');
 
         $this->assertSame(100.0, $rows['INV-0']['days_0_30']);
+        $this->assertSame('Tagihan pasien', $rows['INV-0']['keterangan']);
         $this->assertSame(130.0, $rows['INV-30']['days_0_30']);
         $this->assertSame(131.0, $rows['INV-31']['days_31_60']);
         $this->assertSame(160.0, $rows['INV-60']['days_31_60']);
         $this->assertSame(161.0, $rows['INV-61']['days_61_90']);
         $this->assertSame(190.0, $rows['INV-90']['days_61_90']);
         $this->assertSame(191.0, $rows['INV-91']['days_over_90']);
+    }
+
+    public function test_empty_invoice_description_is_normalized_and_displayed_as_placeholder(): void
+    {
+        [$pelangganId] = $this->seedMasterData();
+        $this->createInvoice(
+            $pelangganId,
+            'INV-NO-DESCRIPTION',
+            '2026-09-01',
+            1000,
+            keterangan: null,
+        );
+
+        $report = app(LaporanPendapatanService::class)->getBukuPembantuPiutang('2026-09-15');
+
+        $this->assertSame('', $report['cards'][0]['rows'][0]['keterangan']);
+
+        $this->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.buku-pembantu-piutang', ['reportDate' => '2026-09-15']))
+            ->assertOk()
+            ->assertSee('INV-NO-DESCRIPTION')
+            ->assertSee('>-</td>', false);
+
+        $response = $this->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.buku-pembantu-piutang.export-csv', [
+                'reportDate' => '2026-09-15',
+            ]));
+
+        $content = str_replace(["\xEF\xBB\xBF", "\r\n"], ['', "\n"], $response->streamedContent());
+        $this->assertStringContainsString('2026-09-01,FJ,INV-NO-DESCRIPTION,,1000.00,,,', $content);
     }
 
     public function test_historical_balance_ignores_later_receipts_and_includes_direct_payment(): void
@@ -190,10 +223,10 @@ class LaporanBukuPembantuPiutangTest extends TestCase
             ->assertHeader('content-disposition', 'attachment; filename=rincian-buku-pembantu-piutang-20260915.csv');
 
         $content = str_replace(["\xEF\xBB\xBF", "\r\n"], ['', "\n"], $response->streamedContent());
-        $this->assertStringContainsString('Tanggal,Tipe,"No. Referensi","0 - 30 Hari","31 - 60 Hari","61 - 90 Hari","> 90 Hari"', $content);
-        $this->assertStringContainsString('2026-09-01,FJ,INV-CSV,1000.00,,,', $content);
-        $this->assertStringContainsString('"Saldo BPJS Kesehatan",1000.00,0.00,0.00,0.00', $content);
-        $this->assertStringContainsString('"GRAND TOTAL",1000.00,0.00,0.00,0.00', $content);
+        $this->assertStringContainsString('Tanggal,Tipe,"No. Referensi",Keterangan,"0 - 30 Hari","31 - 60 Hari","61 - 90 Hari","> 90 Hari"', $content);
+        $this->assertStringContainsString('2026-09-01,FJ,INV-CSV,"Tagihan pasien",1000.00,,,', $content);
+        $this->assertStringContainsString('"Saldo BPJS Kesehatan",,1000.00,0.00,0.00,0.00', $content);
+        $this->assertStringContainsString('"GRAND TOTAL",,1000.00,0.00,0.00,0.00', $content);
         $this->assertStringNotContainsString('Mata Uang', $content);
     }
 
@@ -431,13 +464,14 @@ class LaporanBukuPembantuPiutangTest extends TestCase
         float $grandtotal,
         float $paid = 0,
         ?int $akunPiutangId = null,
+        ?string $keterangan = 'Tagihan pasien',
     ): int {
         return DB::table('faktur_penjualan')->insertGetId([
             'pelanggan_id' => $pelangganId,
             'akun_piutang_id' => $akunPiutangId,
             'nomor_faktur' => $nomor,
             'tanggal_faktur' => $tanggal,
-            'keterangan' => 'Tagihan pasien',
+            'keterangan' => $keterangan,
             'grandtotal' => $grandtotal,
             'sudah_terbayar' => $paid,
             'nama_pasien' => 'Pasien Contoh',

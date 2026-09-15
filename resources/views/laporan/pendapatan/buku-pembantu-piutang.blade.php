@@ -60,6 +60,7 @@
                                         <th>Tanggal</th>
                                         <th>Tipe</th>
                                         <th>No. Referensi</th>
+                                        <th>Keterangan</th>
                                         <th class="text-end">0 - 30 Hari</th>
                                         <th class="text-end">31 - 60 Hari</th>
                                         <th class="text-end">61 - 90 Hari</th>
@@ -76,6 +77,7 @@
                                                     {{ $row['nomor_referensi'] }}
                                                 </a>
                                             </td>
+                                            <td>{{ $row['keterangan'] !== '' ? $row['keterangan'] : '-' }}</td>
                                             <td class="text-end">{{ $formatAmount($row['days_0_30']) }}</td>
                                             <td class="text-end">{{ $formatAmount($row['days_31_60']) }}</td>
                                             <td class="text-end">{{ $formatAmount($row['days_61_90']) }}</td>
@@ -85,7 +87,7 @@
                                 </tbody>
                                 <tfoot>
                                     <tr>
-                                        <td colspan="3">Saldo {{ $card['nama_pelanggan'] }}:</td>
+                                        <td colspan="4">Saldo {{ $card['nama_pelanggan'] }}:</td>
                                         <td class="text-end">{{ number_format($card['totals']['days_0_30'], 2, ',', '.') }}</td>
                                         <td class="text-end">{{ number_format($card['totals']['days_31_60'], 2, ',', '.') }}</td>
                                         <td class="text-end">{{ number_format($card['totals']['days_61_90'], 2, ',', '.') }}</td>
@@ -108,7 +110,7 @@
                         <table class="table table-sm mb-0 aging-table grand-total-table">
                             <tbody>
                                 <tr>
-                                    <td colspan="3">GRAND TOTAL</td>
+                                    <td colspan="4">GRAND TOTAL</td>
                                     <td class="text-end">{{ number_format($summary['days_0_30'], 2, ',', '.') }}</td>
                                     <td class="text-end">{{ number_format($summary['days_31_60'], 2, ',', '.') }}</td>
                                     <td class="text-end">{{ number_format($summary['days_61_90'], 2, ',', '.') }}</td>
@@ -207,22 +209,27 @@
 
         .aging-table th:nth-child(1),
         .aging-table td:nth-child(1) {
-            width: 12%;
+            width: 10%;
         }
 
         .aging-table th:nth-child(2),
         .aging-table td:nth-child(2) {
-            width: 8%;
+            width: 7%;
         }
 
         .aging-table th:nth-child(3),
         .aging-table td:nth-child(3) {
-            width: 20%;
+            width: 17%;
         }
 
-        .aging-table th:nth-child(n+4),
-        .aging-table td:nth-child(n+4) {
-            width: 15%;
+        .aging-table th:nth-child(4),
+        .aging-table td:nth-child(4) {
+            width: 18%;
+        }
+
+        .aging-table th:nth-child(n+5),
+        .aging-table td:nth-child(n+5) {
+            width: 12%;
         }
 
         .reference-link {
