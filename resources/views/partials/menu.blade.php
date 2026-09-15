@@ -18,6 +18,7 @@
     $canPembelianPembayaran = $can('pembelian.pembayaran');
     $canLaporanKeuangan = $can('laporan.keuangan');
     $canLaporanPendapatan = $can('laporan.pendapatan');
+    $canLaporanPembelian = $can('laporan.pembelian');
     $canPengaturanMappingPendapatan = $can('pengaturan.mapping-pendapatan');
     $canPengaturanMappingGeneral = $can('pengaturan.mapping-general');
     $canPengaturanSettingRba = $can('pengaturan.setting-rba');
@@ -38,7 +39,8 @@
         || $canPembelianInvoice
         || $canPembelianPembayaran
         || $canLaporanKeuangan
-        || $canLaporanPendapatan;
+        || $canLaporanPendapatan
+        || $canLaporanPembelian;
 
     $canSeePengaturan = $canPengaturanMappingPendapatan
         || $canPengaturanMappingGeneral
@@ -231,11 +233,11 @@
                         @endif
                     </ul>
                 </li>
-                @if ($canLaporanKeuangan || $canLaporanPendapatan)
+                @if ($canLaporanKeuangan || $canLaporanPendapatan || $canLaporanPembelian)
                     <li><hr class="dropdown-divider"></li>
                 @endif
             @endif
-            @if ($canLaporanKeuangan || $canLaporanPendapatan)
+            @if ($canLaporanKeuangan || $canLaporanPendapatan || $canLaporanPembelian)
                 <li class="dropdown-submenu">
                     <a class="dropdown-item dropdown-toggle {{ str_starts_with($path, '/laporan') ? 'active fw-bold bg-success-subtle text-success' : 'fw-semibold' }}" href="#">Laporan</a>
                     <ul class="dropdown-menu">
@@ -255,6 +257,14 @@
                                 <a class="dropdown-item {{ str_starts_with($path, '/laporan/pendapatan') ? 'active fw-bold bg-success-subtle text-success' : '' }}"
                                     href="{{ route('laporan.pendapatan.index') }}">
                                     Laporan Pendapatan
+                                </a>
+                            </li>
+                        @endif
+                        @if ($canLaporanPembelian)
+                            <li>
+                                <a class="dropdown-item {{ str_starts_with($path, '/laporan/pembelian') ? 'active fw-bold bg-success-subtle text-success' : '' }}"
+                                    href="{{ route('laporan.pembelian.index') }}">
+                                    Laporan Pembelian
                                 </a>
                             </li>
                         @endif
