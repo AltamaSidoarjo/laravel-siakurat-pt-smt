@@ -259,6 +259,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/pendapatan/buku-pembantu-piutang/export-csv', [LaporanPendapatanController::class, 'exportBukuPembantuPiutangCsv'])->name('pendapatan.buku-pembantu-piutang.export-csv');
             Route::get('/pendapatan/rangkuman-buku-pembantu-piutang', [LaporanPendapatanController::class, 'rangkumanBukuPembantuPiutang'])->name('pendapatan.rangkuman-buku-pembantu-piutang');
             Route::get('/pendapatan/rangkuman-buku-pembantu-piutang/export-csv', [LaporanPendapatanController::class, 'exportRangkumanBukuPembantuPiutangCsv'])->name('pendapatan.rangkuman-buku-pembantu-piutang.export-csv');
+            Route::get('/pendapatan/buku-pembantu-piutang-mutasi', [LaporanPendapatanController::class, 'bukuPembantuPiutangMutasi'])->name('pendapatan.buku-pembantu-piutang-mutasi');
+            Route::get('/pendapatan/buku-pembantu-piutang-mutasi/export-csv', [LaporanPendapatanController::class, 'exportBukuPembantuPiutangMutasiCsv'])->name('pendapatan.buku-pembantu-piutang-mutasi.export-csv');
         });
 
         Route::middleware('module.access:laporan.pembelian,view')->group(function () {

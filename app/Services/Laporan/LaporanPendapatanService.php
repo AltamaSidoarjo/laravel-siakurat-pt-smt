@@ -5,6 +5,7 @@ namespace App\Services\Laporan;
 use App\Models\Coa;
 use App\Models\FakturPenjualan;
 use App\Models\Pelanggan;
+use App\Models\PenerimaanPenjualanRinci;
 use App\Models\PreferensiPerusahaan;
 use App\Models\SimrsImportPendapatan;
 use App\Models\SimrsImportPendapatanJualObat;
@@ -41,6 +42,7 @@ class LaporanPendapatanService
         return Pelanggan::query()
             ->whereIn('id', $pelangganIds)
             ->orderBy('kode_pelanggan')
+            ->orderBy('nama_pelanggan')
             ->get(['id', 'kode_pelanggan', 'nama_pelanggan']);
     }
 
@@ -355,6 +357,248 @@ class LaporanPendapatanService
         fclose($handle);
     }
 
+    public function getBukuPembantuPiutangMutasi(
+        string $startDate,
+        string $endDate,
+        array $pelangganIds,
+        string $statusSaldo = 'semua',
+    ): array {
+        if ($pelangganIds === []) {
+            return $this->emptyPiutangMutasiReport();
+        }
+
+        $pelanggans = $this->getPelangganTerpilih($pelangganIds)->keyBy('id');
+        $transactionsByPelanggan = $pelanggans->map(fn () => [])->all();
+
+        $fakturs = FakturPenjualan::query()
+            ->select([
+                'id',
+                'pelanggan_id',
+                'akun_piutang_id',
+                'nomor_faktur',
+                'tanggal_faktur',
+                'keterangan',
+                'nama_pasien',
+                'grandtotal',
+                'sudah_terbayar',
+            ])
+            ->with('akunPiutang:id,kode,nama')
+            ->withSum('penerimaanPenjualanRincis as total_alokasi', 'nominal_bayar')
+            ->whereIn('pelanggan_id', $pelanggans->keys())
+            ->whereNotNull('tanggal_faktur')
+            ->whereDate('tanggal_faktur', '<=', $endDate)
+            ->get();
+
+        foreach ($fakturs as $faktur) {
+            $pelangganId = (int) $faktur->pelanggan_id;
+            $tanggal = $faktur->tanggal_faktur->format('Y-m-d');
+            $akunPiutang = $this->formatAkunPiutang($faktur->akunPiutang);
+
+            $transactionsByPelanggan[$pelangganId][] = [
+                'tanggal' => $tanggal,
+                'nomor' => (string) $faktur->nomor_faktur,
+                'jenis' => 'Faktur',
+                'referensi_faktur' => (string) $faktur->nomor_faktur,
+                'keterangan' => (string) ($faktur->keterangan ?: $faktur->nama_pasien ?: 'Faktur pendapatan'),
+                'akun' => $akunPiutang,
+                'debit' => round((float) $faktur->grandtotal, 2),
+                'kredit' => 0.0,
+                'urutan_jenis' => 10,
+                'urutan_id' => (int) $faktur->id,
+                'faktur_id' => (int) $faktur->id,
+                'penerimaan_id' => null,
+            ];
+
+            $penerimaanLangsung = max(
+                0,
+                round((float) $faktur->sudah_terbayar - (float) ($faktur->total_alokasi ?? 0), 2),
+            );
+
+            if ($penerimaanLangsung > 0) {
+                $transactionsByPelanggan[$pelangganId][] = [
+                    'tanggal' => $tanggal,
+                    'nomor' => (string) $faktur->nomor_faktur,
+                    'jenis' => 'Penerimaan langsung',
+                    'referensi_faktur' => (string) $faktur->nomor_faktur,
+                    'keterangan' => 'Penerimaan yang telah melekat saat faktur dibuat',
+                    'akun' => $akunPiutang,
+                    'debit' => 0.0,
+                    'kredit' => $penerimaanLangsung,
+                    'urutan_jenis' => 20,
+                    'urutan_id' => (int) $faktur->id,
+                    'faktur_id' => (int) $faktur->id,
+                    'penerimaan_id' => null,
+                ];
+            }
+        }
+
+        $penerimaanRincis = PenerimaanPenjualanRinci::query()
+            ->with([
+                'penerimaanPenjualan:id,akun_piutang_id,nomer,tanggal,keterangan',
+                'penerimaanPenjualan.akunPiutang:id,kode,nama',
+                'fakturPenjualan:id,pelanggan_id,nomor_faktur',
+            ])
+            ->whereHas('fakturPenjualan', fn (Builder $query) => $query->whereIn('pelanggan_id', $pelanggans->keys()))
+            ->whereHas('penerimaanPenjualan', fn (Builder $query) => $query->whereDate('tanggal', '<=', $endDate))
+            ->get(['id', 'penerimaan_penjualan_id', 'faktur_penjualan_id', 'nominal_bayar']);
+
+        foreach ($penerimaanRincis as $rincian) {
+            $penerimaan = $rincian->penerimaanPenjualan;
+            $faktur = $rincian->fakturPenjualan;
+
+            if ($penerimaan === null || $faktur === null || $penerimaan->tanggal === null) {
+                continue;
+            }
+
+            $pelangganId = (int) $faktur->pelanggan_id;
+            $transactionsByPelanggan[$pelangganId][] = [
+                'tanggal' => $penerimaan->tanggal->format('Y-m-d'),
+                'nomor' => (string) $penerimaan->nomer,
+                'jenis' => 'Penerimaan',
+                'referensi_faktur' => (string) $faktur->nomor_faktur,
+                'keterangan' => (string) ($penerimaan->keterangan ?: 'Penerimaan faktur '.$faktur->nomor_faktur),
+                'akun' => $this->formatAkunPiutang($penerimaan->akunPiutang),
+                'debit' => 0.0,
+                'kredit' => round((float) $rincian->nominal_bayar, 2),
+                'urutan_jenis' => 30,
+                'urutan_id' => (int) $rincian->id,
+                'faktur_id' => (int) $faktur->id,
+                'penerimaan_id' => (int) $penerimaan->id,
+            ];
+        }
+
+        $cards = [];
+
+        foreach ($pelanggans as $pelangganId => $pelanggan) {
+            $transactions = $transactionsByPelanggan[$pelangganId] ?? [];
+
+            if ($transactions === []) {
+                continue;
+            }
+
+            usort($transactions, fn (array $left, array $right): int => [
+                $left['tanggal'],
+                $left['urutan_jenis'],
+                $left['urutan_id'],
+            ] <=> [
+                $right['tanggal'],
+                $right['urutan_jenis'],
+                $right['urutan_id'],
+            ]);
+
+            $saldoAwal = 0.0;
+            $rows = [];
+
+            foreach ($transactions as $transaction) {
+                if ($transaction['tanggal'] < $startDate) {
+                    $saldoAwal += $transaction['debit'] - $transaction['kredit'];
+
+                    continue;
+                }
+
+                $rows[] = $transaction;
+            }
+
+            $saldoBerjalan = round($saldoAwal, 2);
+
+            foreach ($rows as &$row) {
+                $saldoBerjalan = round($saldoBerjalan + $row['debit'] - $row['kredit'], 2);
+                $row['saldo'] = $saldoBerjalan;
+            }
+            unset($row);
+
+            if (! $this->matchesPiutangStatusSaldo($saldoBerjalan, $statusSaldo)) {
+                continue;
+            }
+
+            $accounts = collect($transactions)
+                ->pluck('akun')
+                ->unique()
+                ->values()
+                ->all();
+
+            $cards[] = [
+                'pelanggan_id' => (int) $pelanggan->id,
+                'kode_pelanggan' => (string) ($pelanggan->kode_pelanggan ?? ''),
+                'nama_pelanggan' => (string) $pelanggan->nama_pelanggan,
+                'akun' => $accounts,
+                'saldo_awal' => round($saldoAwal, 2),
+                'total_debit' => round(collect($rows)->sum('debit'), 2),
+                'total_kredit' => round(collect($rows)->sum('kredit'), 2),
+                'saldo_akhir' => $saldoBerjalan,
+                'rows' => $rows,
+            ];
+        }
+
+        return [
+            'cards' => $cards,
+            'summary' => [
+                'saldo_awal' => round(collect($cards)->sum('saldo_awal'), 2),
+                'total_debit' => round(collect($cards)->sum('total_debit'), 2),
+                'total_kredit' => round(collect($cards)->sum('total_kredit'), 2),
+                'saldo_akhir' => round(collect($cards)->sum('saldo_akhir'), 2),
+            ],
+        ];
+    }
+
+    public function streamBukuPembantuPiutangMutasiCsv(array $report): void
+    {
+        $handle = fopen('php://output', 'wb');
+
+        if ($handle === false) {
+            throw new RuntimeException('Gagal membuka output stream CSV.');
+        }
+
+        fwrite($handle, "\xEF\xBB\xBF");
+        fputcsv($handle, [
+            'Kode Pelanggan',
+            'Nama Pelanggan',
+            'Akun',
+            'Tanggal',
+            'Nomor',
+            'Jenis',
+            'Referensi Faktur',
+            'Keterangan',
+            'Debit',
+            'Kredit',
+            'Saldo',
+        ]);
+
+        foreach ($report['cards'] as $card) {
+            fputcsv($handle, [
+                $card['kode_pelanggan'],
+                $card['nama_pelanggan'],
+                implode('; ', $card['akun']),
+                '',
+                '',
+                'Saldo Awal',
+                '',
+                '',
+                $this->formatCsvNumber(0),
+                $this->formatCsvNumber(0),
+                $this->formatCsvNumber($card['saldo_awal']),
+            ]);
+
+            foreach ($card['rows'] as $row) {
+                fputcsv($handle, [
+                    $card['kode_pelanggan'],
+                    $card['nama_pelanggan'],
+                    $row['akun'],
+                    $row['tanggal'],
+                    $row['nomor'],
+                    $row['jenis'],
+                    $row['referensi_faktur'],
+                    $row['keterangan'],
+                    $this->formatCsvNumber($row['debit']),
+                    $this->formatCsvNumber($row['kredit']),
+                    $this->formatCsvNumber($row['saldo']),
+                ]);
+            }
+        }
+
+        fclose($handle);
+    }
+
     public function getQueryKunjungan(
         string $startDate,
         string $endDate,
@@ -500,6 +744,37 @@ class LaporanPendapatanService
     private function formatCsvNumber(mixed $value): string
     {
         return number_format((float) $value, 2, '.', '');
+    }
+
+    private function emptyPiutangMutasiReport(): array
+    {
+        return [
+            'cards' => [],
+            'summary' => [
+                'saldo_awal' => 0.0,
+                'total_debit' => 0.0,
+                'total_kredit' => 0.0,
+                'saldo_akhir' => 0.0,
+            ],
+        ];
+    }
+
+    private function matchesPiutangStatusSaldo(float $saldoAkhir, string $statusSaldo): bool
+    {
+        return match ($statusSaldo) {
+            'masih-piutang' => $saldoAkhir > 0,
+            'lunas' => abs($saldoAkhir) < 0.005,
+            default => true,
+        };
+    }
+
+    private function formatAkunPiutang(mixed $coa): string
+    {
+        if ($coa === null) {
+            return 'Tanpa akun piutang';
+        }
+
+        return sprintf('[%s] %s', $coa->kode, $coa->nama);
     }
 
     private function emptyPiutangBuckets(): array

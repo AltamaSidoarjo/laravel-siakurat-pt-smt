@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Laporan;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Laporan\BukuPembantuPiutangMutasiRequest;
 use App\Http\Requests\Laporan\BukuPembantuPiutangRequest;
 use App\Services\Laporan\LaporanPendapatanService;
 use Illuminate\Database\Eloquent\Builder;
@@ -252,6 +253,68 @@ class LaporanPendapatanController extends Controller
 
         return response()->streamDownload(
             fn () => $this->laporanPendapatanService->streamRangkumanBukuPembantuPiutangCsv($report),
+            $fileName,
+            ['Content-Type' => 'text/csv; charset=UTF-8'],
+        );
+    }
+
+    public function bukuPembantuPiutangMutasi(BukuPembantuPiutangMutasiRequest $request): View
+    {
+        $data = $request->validated();
+        $startDate = $data['startDate'] ?? now()->startOfMonth()->format('Y-m-d');
+        $endDate = $data['endDate'] ?? now()->format('Y-m-d');
+        $pelangganIds = collect($data['pelangganIds'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+        $statusSaldo = $data['statusSaldo'] ?? 'semua';
+
+        $report = $this->laporanPendapatanService->getBukuPembantuPiutangMutasi(
+            startDate: $startDate,
+            endDate: $endDate,
+            pelangganIds: $pelangganIds,
+            statusSaldo: $statusSaldo,
+        );
+
+        return view('laporan.pendapatan.buku-pembantu-piutang-mutasi', array_merge(
+            $this->laporanPendapatanService->getIdentitasLaporan(),
+            $report,
+            [
+                'page' => 'app',
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'pelangganIds' => $pelangganIds,
+                'pelangganOptions' => $this->laporanPendapatanService->getPelangganOptions(),
+                'statusSaldo' => $statusSaldo,
+                'hasSelection' => $pelangganIds !== [],
+            ],
+        ));
+    }
+
+    public function exportBukuPembantuPiutangMutasiCsv(BukuPembantuPiutangMutasiRequest $request): StreamedResponse
+    {
+        $data = $request->validated();
+        $pelangganIds = collect($data['pelangganIds'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $report = $this->laporanPendapatanService->getBukuPembantuPiutangMutasi(
+            startDate: $data['startDate'],
+            endDate: $data['endDate'],
+            pelangganIds: $pelangganIds,
+            statusSaldo: $data['statusSaldo'] ?? 'semua',
+        );
+        $fileName = sprintf(
+            'buku-pembantu-piutang-mutasi-%s-%s.csv',
+            str_replace('-', '', $data['startDate']),
+            str_replace('-', '', $data['endDate']),
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPendapatanService->streamBukuPembantuPiutangMutasiCsv($report),
             $fileName,
             ['Content-Type' => 'text/csv; charset=UTF-8'],
         );

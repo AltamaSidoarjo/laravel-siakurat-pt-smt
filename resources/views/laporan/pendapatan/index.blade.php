@@ -32,6 +32,13 @@
             'color' => 'info',
             'description' => 'Ringkasan posisi dan umur piutang per pelanggan pada tanggal laporan.',
         ],
+        [
+            'label' => 'Buku Pembantu Piutang (Mutasi)',
+            'route' => route('laporan.pendapatan.buku-pembantu-piutang-mutasi'),
+            'icon' => 'bi-arrow-left-right',
+            'color' => 'danger',
+            'description' => 'Kartu mutasi piutang per pelanggan: saldo awal, penambahan, penerimaan, dan saldo akhir dalam satu periode.',
+        ],
     ];
 @endphp
 
