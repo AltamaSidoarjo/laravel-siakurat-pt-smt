@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Laporan;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Laporan\BukuPembantuHutangMutasiRequest;
 use App\Http\Requests\Laporan\BukuPembantuHutangRequest;
 use App\Services\Laporan\LaporanPembelianService;
 use Illuminate\Http\JsonResponse;
@@ -59,6 +60,68 @@ class LaporanPembelianController extends Controller
                 'supplierOptions' => $this->laporanPembelianService->getSupplierOptions(),
             ],
         ));
+    }
+
+    public function bukuPembantuHutangMutasi(BukuPembantuHutangMutasiRequest $request): View
+    {
+        $data = $request->validated();
+        $startDate = $data['startDate'] ?? now()->startOfMonth()->format('Y-m-d');
+        $endDate = $data['endDate'] ?? now()->format('Y-m-d');
+        $supplierIds = collect($data['supplierIds'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+        $statusSaldo = $data['statusSaldo'] ?? 'semua';
+
+        $report = $this->laporanPembelianService->getBukuPembantuHutangMutasi(
+            startDate: $startDate,
+            endDate: $endDate,
+            supplierIds: $supplierIds,
+            statusSaldo: $statusSaldo,
+        );
+
+        return view('laporan.pembelian.buku-pembantu-hutang-mutasi', array_merge(
+            $this->laporanPembelianService->getIdentitasLaporan(),
+            $report,
+            [
+                'page' => 'app',
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'supplierIds' => $supplierIds,
+                'supplierOptions' => $this->laporanPembelianService->getSupplierOptions(),
+                'statusSaldo' => $statusSaldo,
+                'hasSelection' => $supplierIds !== [],
+            ],
+        ));
+    }
+
+    public function exportMutasiCsv(BukuPembantuHutangMutasiRequest $request): StreamedResponse
+    {
+        $data = $request->validated();
+        $supplierIds = collect($data['supplierIds'])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $report = $this->laporanPembelianService->getBukuPembantuHutangMutasi(
+            startDate: $data['startDate'],
+            endDate: $data['endDate'],
+            supplierIds: $supplierIds,
+            statusSaldo: $data['statusSaldo'] ?? 'semua',
+        );
+        $fileName = sprintf(
+            'buku-pembantu-hutang-mutasi-%s-%s.csv',
+            str_replace('-', '', $data['startDate']),
+            str_replace('-', '', $data['endDate']),
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPembelianService->streamBukuPembantuHutangMutasiCsv($report),
+            $fileName,
+            ['Content-Type' => 'text/csv; charset=UTF-8'],
+        );
     }
 
     public function searchSupplier(Request $request): JsonResponse
