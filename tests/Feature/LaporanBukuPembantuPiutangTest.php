@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\Laporan\LaporanPendapatanService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\WithoutMiddleware;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -19,18 +20,19 @@ class LaporanBukuPembantuPiutangTest extends TestCase
         parent::setUp();
 
         Schema::disableForeignKeyConstraints();
-        foreach (['preferensi_perusahaan', 'penerimaan_penjualan_rinci', 'penerimaan_penjualan', 'faktur_penjualan', 'coa', 'pelanggan'] as $table) {
+        foreach ($this->tables() as $table) {
             Schema::dropIfExists($table);
         }
         Schema::enableForeignKeyConstraints();
-
         $this->createTables();
     }
 
     protected function tearDown(): void
     {
+        Carbon::setTestNow();
+
         Schema::disableForeignKeyConstraints();
-        foreach (['preferensi_perusahaan', 'penerimaan_penjualan_rinci', 'penerimaan_penjualan', 'faktur_penjualan', 'coa', 'pelanggan'] as $table) {
+        foreach ($this->tables() as $table) {
             Schema::dropIfExists($table);
         }
         Schema::enableForeignKeyConstraints();
@@ -38,169 +40,287 @@ class LaporanBukuPembantuPiutangTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_initial_page_does_not_load_customer_cards(): void
+    public function test_initial_page_uses_today_and_loads_all_customers_with_open_receivables(): void
     {
-        $response = $this
-            ->actingAs($this->makeUser())
-            ->get(route('laporan.pendapatan.buku-pembantu-piutang'));
+        Carbon::setTestNow('2026-09-15 08:00:00');
+        [$pelangganId] = $this->seedMasterData();
+        $this->createInvoice($pelangganId, 'INV-OPEN', '2026-09-01', 1000);
 
-        $response
+        $this->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.buku-pembantu-piutang'))
             ->assertOk()
-            ->assertSee('Pilih minimal satu pelanggan')
-            ->assertSee('class="form-select select2"', false)
-            ->assertDontSee('name="akunPiutang"', false)
-            ->assertViewHas('cards', []);
+            ->assertViewHas('reportDate', '2026-09-15')
+            ->assertViewHas('pelangganIds', [])
+            ->assertSee('Rincian Buku Pembantu Piutang')
+            ->assertSee('RINCIAN BUKU PEMBANTU PIUTANG')
+            ->assertSee('INV-OPEN')
+            ->assertSee('0 - 30 Hari')
+            ->assertSee('Print')
+            ->assertSee('Export CSV')
+            ->assertSee('(IDR)')
+            ->assertDontSee('MATA UANG DASAR')
+            ->assertDontSee('Mata Uang')
+            ->assertDontSee('Jatuh Tempo');
     }
 
-    public function test_report_calculates_opening_direct_payment_allocations_and_running_balance(): void
+    public function test_customer_filter_limits_report_but_options_include_all_customers(): void
     {
-        [$pelangganId, $akunPiutangId, $akunBankId] = $this->seedMasterData();
-        $invoiceLama = $this->createInvoice($pelangganId, $akunPiutangId, 'INV-LAMA', '2026-08-20', 1000, 500);
-        $invoicePeriode = $this->createInvoice($pelangganId, $akunPiutangId, 'INV-PERIODE', '2026-09-05', 800, 500);
+        [$firstCustomerId] = $this->seedMasterData();
+        $secondCustomerId = $this->createCustomer('PLG-002', 'Asuransi Sehat');
+        $this->createInvoice($firstCustomerId, 'INV-FIRST', '2026-09-01', 100);
+        $this->createInvoice($secondCustomerId, 'INV-SECOND', '2026-09-01', 200);
 
-        $this->createReceipt($pelangganId, $akunBankId, $akunPiutangId, $invoiceLama, 'PNP-001', '2026-08-25', 400);
-        $this->createReceipt($pelangganId, $akunBankId, $akunPiutangId, $invoicePeriode, 'PNP-002', '2026-09-10', 200);
-        $this->createReceipt($pelangganId, $akunBankId, $akunPiutangId, $invoiceLama, 'PNP-003', '2026-09-12', 100);
-
-        $report = app(LaporanPendapatanService::class)->getBukuPembantuPiutang(
-            '2026-09-01',
-            '2026-09-30',
-            [$pelangganId],
-        );
-
-        $this->assertCount(1, $report['cards']);
-        $card = $report['cards'][0];
-        $this->assertSame(600.0, $card['saldo_awal']);
-        $this->assertSame(800.0, $card['total_debit']);
-        $this->assertSame(600.0, $card['total_kredit']);
-        $this->assertSame(800.0, $card['saldo_akhir']);
-        $this->assertSame(
-            ['Faktur', 'Pembayaran langsung', 'Penerimaan', 'Penerimaan'],
-            array_column($card['rows'], 'jenis'),
-        );
-        $this->assertSame([1400.0, 1100.0, 900.0, 800.0], array_column($card['rows'], 'saldo'));
-
-        $this
-            ->actingAs($this->makeUser())
+        $this->actingAs($this->makeUser())
             ->get(route('laporan.pendapatan.buku-pembantu-piutang', [
-                'startDate' => '2026-09-01',
-                'endDate' => '2026-09-30',
-                'pelangganIds' => [$pelangganId],
+                'reportDate' => '2026-09-15',
+                'pelangganIds' => [$secondCustomerId],
             ]))
             ->assertOk()
-            ->assertSee('BPJS Kesehatan')
-            ->assertSee('INV-PERIODE')
-            ->assertSee('PNP-003');
+            ->assertSee('[PLG-001] BPJS Kesehatan')
+            ->assertSee('[PLG-002] Asuransi Sehat')
+            ->assertSee('INV-SECOND')
+            ->assertDontSee('INV-FIRST');
     }
 
-    public function test_account_and_status_filters_keep_zero_and_negative_balances_distinct(): void
+    public function test_customers_without_open_receivables_are_not_reported(): void
     {
-        [$pelangganId, $akunPiutangId, $akunBankId] = $this->seedMasterData();
-        $invoiceLunas = $this->createInvoice($pelangganId, null, 'INV-TUNAI', '2026-09-01', 200, 200);
-        $invoicePiutang = $this->createInvoice($pelangganId, $akunPiutangId, 'INV-PIUTANG', '2026-09-02', 500, 0);
+        [$pelangganId] = $this->seedMasterData();
+        $this->createInvoice($pelangganId, 'INV-LUNAS', '2026-09-01', 100, paid: 100);
 
-        $service = app(LaporanPendapatanService::class);
-        $tanpaAkun = $service->getBukuPembantuPiutang('2026-09-01', '2026-09-30', [$pelangganId], 'tanpa-akun');
-        $this->assertSame(0.0, $tanpaAkun['cards'][0]['saldo_akhir']);
-        $this->assertSame(['Faktur', 'Pembayaran langsung'], array_column($tanpaAkun['cards'][0]['rows'], 'jenis'));
+        $this->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.buku-pembantu-piutang', ['reportDate' => '2026-09-15']))
+            ->assertOk()
+            ->assertViewHas('cards', [])
+            ->assertSee('Tidak ada piutang terbuka pada tanggal laporan.');
 
-        $masihPiutang = $service->getBukuPembantuPiutang('2026-09-01', '2026-09-30', [$pelangganId], (string) $akunPiutangId, 'masih-piutang');
-        $this->assertSame(500.0, $masihPiutang['cards'][0]['saldo_akhir']);
-
-        $lunas = $service->getBukuPembantuPiutang('2026-09-01', '2026-09-30', [$pelangganId], 'tanpa-akun', 'lunas');
-        $this->assertCount(1, $lunas['cards']);
-
-        $receiptId = $this->createReceipt($pelangganId, $akunBankId, $akunPiutangId, $invoicePiutang, 'PNP-LEBIH', '2026-09-03', 550);
-        DB::table('faktur_penjualan')->where('id', $invoicePiutang)->update(['sudah_terbayar' => 550]);
-        $this->assertNotNull($receiptId);
-
-        $negativeAll = $service->getBukuPembantuPiutang('2026-09-01', '2026-09-30', [$pelangganId], (string) $akunPiutangId, 'semua');
-        $this->assertSame(-50.0, $negativeAll['cards'][0]['saldo_akhir']);
-        $negativePaid = $service->getBukuPembantuPiutang('2026-09-01', '2026-09-30', [$pelangganId], (string) $akunPiutangId, 'lunas');
-        $this->assertSame([], $negativePaid['cards']);
+        $this->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.rangkuman-buku-pembantu-piutang', ['reportDate' => '2026-09-15']))
+            ->assertOk()
+            ->assertViewHas('rows', [])
+            ->assertSee('Tidak ada piutang terbuka pada tanggal laporan.');
     }
 
-    public function test_csv_uses_the_same_filters_and_running_balances(): void
+    public function test_report_assigns_exact_aging_boundaries_from_invoice_date(): void
+    {
+        [$pelangganId] = $this->seedMasterData();
+        $reportDate = Carbon::parse('2026-09-15');
+
+        foreach ([0, 30, 31, 60, 61, 90, 91] as $age) {
+            $this->createInvoice(
+                $pelangganId,
+                'INV-'.$age,
+                $reportDate->copy()->subDays($age)->format('Y-m-d'),
+                100 + $age,
+            );
+        }
+
+        $report = app(LaporanPendapatanService::class)->getBukuPembantuPiutang('2026-09-15', [$pelangganId]);
+        $rows = collect($report['cards'][0]['rows'])->keyBy('nomor_referensi');
+
+        $this->assertSame(100.0, $rows['INV-0']['days_0_30']);
+        $this->assertSame(130.0, $rows['INV-30']['days_0_30']);
+        $this->assertSame(131.0, $rows['INV-31']['days_31_60']);
+        $this->assertSame(160.0, $rows['INV-60']['days_31_60']);
+        $this->assertSame(161.0, $rows['INV-61']['days_61_90']);
+        $this->assertSame(190.0, $rows['INV-90']['days_61_90']);
+        $this->assertSame(191.0, $rows['INV-91']['days_over_90']);
+    }
+
+    public function test_historical_balance_ignores_later_receipts_and_includes_direct_payment(): void
     {
         [$pelangganId, $akunPiutangId, $akunBankId] = $this->seedMasterData();
-        $invoiceId = $this->createInvoice($pelangganId, $akunPiutangId, 'INV-CSV', '2026-09-05', 1000, 250);
-        $this->createReceipt($pelangganId, $akunBankId, $akunPiutangId, $invoiceId, 'PNP-CSV', '2026-09-10', 250);
+        $invoiceId = $this->createInvoice(
+            $pelangganId,
+            'INV-HISTORY',
+            '2026-08-01',
+            1000,
+            paid: 600,
+            akunPiutangId: $akunPiutangId,
+        );
+        $this->createReceipt($pelangganId, $akunBankId, $akunPiutangId, $invoiceId, 'PNP-BEFORE', '2026-09-10', 200);
+        $this->createReceipt($pelangganId, $akunBankId, $akunPiutangId, $invoiceId, 'PNP-AFTER', '2026-09-20', 300);
 
-        $response = $this
-            ->actingAs($this->makeUser())
+        $this->createInvoice($pelangganId, 'INV-PAID', '2026-08-01', 100, paid: 100);
+        $this->createInvoice($pelangganId, 'INV-OVERPAID', '2026-08-01', 100, paid: 150);
+
+        $report = app(LaporanPendapatanService::class)->getBukuPembantuPiutang('2026-09-15');
+        $rows = collect($report['cards'][0]['rows'])->keyBy('nomor_referensi');
+
+        $this->assertSame(700.0, $rows['INV-HISTORY']['sisa_piutang']);
+        $this->assertSame(700.0, $rows['INV-HISTORY']['days_31_60']);
+        $this->assertFalse($rows->has('INV-PAID'));
+        $this->assertFalse($rows->has('INV-OVERPAID'));
+    }
+
+    public function test_customer_subtotals_and_grand_totals_match_visible_rows(): void
+    {
+        [$firstCustomerId] = $this->seedMasterData();
+        $secondCustomerId = $this->createCustomer('PLG-002', 'Asuransi Sehat');
+        $this->createInvoice($firstCustomerId, 'INV-A', '2026-09-15', 100);
+        $this->createInvoice($firstCustomerId, 'INV-B', '2026-06-16', 400);
+        $this->createInvoice($secondCustomerId, 'INV-C', '2026-08-15', 250);
+        $this->createInvoice($secondCustomerId, 'INV-FUTURE', '2026-09-20', 999);
+
+        $report = app(LaporanPendapatanService::class)->getBukuPembantuPiutang('2026-09-15');
+
+        $this->assertSame(['PLG-001', 'PLG-002'], array_column($report['cards'], 'kode_pelanggan'));
+        $this->assertSame(100.0, $report['cards'][0]['totals']['days_0_30']);
+        $this->assertSame(400.0, $report['cards'][0]['totals']['days_over_90']);
+        $this->assertSame(500.0, $report['cards'][0]['saldo_piutang']);
+        $this->assertSame(250.0, $report['cards'][1]['totals']['days_31_60']);
+        $this->assertSame(100.0, $report['summary']['days_0_30']);
+        $this->assertSame(250.0, $report['summary']['days_31_60']);
+        $this->assertSame(400.0, $report['summary']['days_over_90']);
+        $this->assertSame(750.0, $report['summary']['saldo_piutang']);
+    }
+
+    public function test_detail_csv_uses_aging_columns_and_report_date_filename(): void
+    {
+        [$pelangganId] = $this->seedMasterData();
+        $this->createInvoice($pelangganId, 'INV-CSV', '2026-09-01', 1000);
+
+        $response = $this->actingAs($this->makeUser())
             ->get(route('laporan.pendapatan.buku-pembantu-piutang.export-csv', [
-                'startDate' => '2026-09-01',
-                'endDate' => '2026-09-30',
-                'pelangganIds' => [$pelangganId],
-                'akunPiutang' => (string) $akunPiutangId,
-                'statusSaldo' => 'semua',
+                'reportDate' => '2026-09-15',
             ]));
 
         $response
             ->assertOk()
             ->assertHeader('content-type', 'text/csv; charset=UTF-8')
-            ->assertHeader('content-disposition', 'attachment; filename=buku-pembantu-piutang-20260901-20260930.csv');
+            ->assertHeader('content-disposition', 'attachment; filename=rincian-buku-pembantu-piutang-20260915.csv');
 
         $content = str_replace(["\xEF\xBB\xBF", "\r\n"], ['', "\n"], $response->streamedContent());
-        $this->assertStringContainsString('INV-CSV,Faktur,INV-CSV', $content);
-        $this->assertStringContainsString('PNP-CSV,Penerimaan,INV-CSV', $content);
-        $this->assertStringContainsString('1000.00,0.00,1000.00', $content);
-        $this->assertStringContainsString('0.00,250.00,750.00', $content);
+        $this->assertStringContainsString('Tanggal,Tipe,"No. Referensi","0 - 30 Hari","31 - 60 Hari","61 - 90 Hari","> 90 Hari"', $content);
+        $this->assertStringContainsString('2026-09-01,FJ,INV-CSV,1000.00,,,', $content);
+        $this->assertStringContainsString('"Saldo BPJS Kesehatan",1000.00,0.00,0.00,0.00', $content);
+        $this->assertStringContainsString('"GRAND TOTAL",1000.00,0.00,0.00,0.00', $content);
+        $this->assertStringNotContainsString('Mata Uang', $content);
     }
 
-    public function test_export_requires_dates_and_at_least_one_customer(): void
+    public function test_summary_page_uses_today_and_has_no_currency_labels(): void
     {
-        $response = $this
-            ->actingAs($this->makeUser())
-            ->from(route('laporan.pendapatan.buku-pembantu-piutang'))
-            ->get(route('laporan.pendapatan.buku-pembantu-piutang.export-csv', [
-                'startDate' => '2026-09-30',
-                'endDate' => '2026-09-01',
+        Carbon::setTestNow('2026-09-15 08:00:00');
+        [$pelangganId] = $this->seedMasterData();
+        $this->createInvoice($pelangganId, 'INV-SUMMARY', '2026-09-01', 1000);
+
+        $this->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.rangkuman-buku-pembantu-piutang'))
+            ->assertOk()
+            ->assertViewHas('reportDate', '2026-09-15')
+            ->assertViewHas('pelangganIds', [])
+            ->assertSee('RANGKUMAN BUKU PEMBANTU PIUTANG')
+            ->assertSee('BPJS KESEHATAN | PLG-001')
+            ->assertSee('1.000,00')
+            ->assertDontSee('Mata Uang')
+            ->assertDontSee('MATA UANG DASAR')
+            ->assertDontSee('IDR');
+    }
+
+    public function test_summary_totals_match_detail_and_customer_filter(): void
+    {
+        [$firstCustomerId, $akunPiutangId, $akunBankId] = $this->seedMasterData();
+        $secondCustomerId = $this->createCustomer('PLG-002', 'Asuransi Sehat');
+        $invoiceId = $this->createInvoice(
+            $firstCustomerId,
+            'INV-HISTORY-SUMMARY',
+            '2026-08-01',
+            1000,
+            paid: 500,
+            akunPiutangId: $akunPiutangId,
+        );
+        $this->createReceipt($firstCustomerId, $akunBankId, $akunPiutangId, $invoiceId, 'PNP-BEFORE', '2026-09-10', 200);
+        $this->createReceipt($firstCustomerId, $akunBankId, $akunPiutangId, $invoiceId, 'PNP-AFTER', '2026-09-20', 300);
+        $this->createInvoice($secondCustomerId, 'INV-SUMMARY-SECOND', '2026-06-01', 400);
+
+        $service = app(LaporanPendapatanService::class);
+        $detail = $service->getBukuPembantuPiutang('2026-09-15');
+        $summary = $service->getRangkumanBukuPembantuPiutang('2026-09-15');
+
+        $this->assertCount(2, $summary['rows']);
+        $this->assertSame($detail['summary'], $summary['summary']);
+        $this->assertSame($detail['cards'][0]['totals'], [
+            'days_0_30' => $summary['rows'][0]['days_0_30'],
+            'days_31_60' => $summary['rows'][0]['days_31_60'],
+            'days_61_90' => $summary['rows'][0]['days_61_90'],
+            'days_over_90' => $summary['rows'][0]['days_over_90'],
+        ]);
+        $this->assertSame(800.0, $summary['rows'][0]['total_piutang']);
+        $this->assertSame(400.0, $summary['rows'][1]['days_over_90']);
+        $this->assertSame(1200.0, $summary['summary']['saldo_piutang']);
+
+        $filtered = $service->getRangkumanBukuPembantuPiutang('2026-09-15', [$secondCustomerId]);
+        $this->assertCount(1, $filtered['rows']);
+        $this->assertSame('PLG-002', $filtered['rows'][0]['kode_pelanggan']);
+        $this->assertSame(400.0, $filtered['summary']['saldo_piutang']);
+    }
+
+    public function test_summary_csv_contains_customer_totals_and_grand_total(): void
+    {
+        [$pelangganId] = $this->seedMasterData();
+        $this->createInvoice($pelangganId, 'INV-SUMMARY-CSV', '2026-09-01', 1000);
+
+        $response = $this->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.rangkuman-buku-pembantu-piutang.export-csv', [
+                'reportDate' => '2026-09-15',
             ]));
 
         $response
-            ->assertRedirect(route('laporan.pendapatan.buku-pembantu-piutang'))
-            ->assertSessionHasErrors(['endDate', 'pelangganIds']);
+            ->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=UTF-8')
+            ->assertHeader('content-disposition', 'attachment; filename=rangkuman-buku-pembantu-piutang-20260915.csv');
+
+        $content = str_replace(["\xEF\xBB\xBF", "\r\n"], ['', "\n"], $response->streamedContent());
+        $this->assertStringContainsString('"Nama Pelanggan","0 - 30 Hari","31 - 60 Hari","61 - 90 Hari","> 90 Hari","Total Piutang"', $content);
+        $this->assertStringContainsString('PLG-001,"BPJS Kesehatan",1000.00,0.00,0.00,0.00,1000.00', $content);
+        $this->assertStringContainsString('"GRAND TOTAL",1000.00,0.00,0.00,0.00,1000.00', $content);
+        $this->assertStringNotContainsString('Mata Uang', $content);
+        $this->assertStringNotContainsString('IDR', $content);
     }
 
-    public function test_customer_and_receivable_account_search_endpoints_return_select2_results(): void
+    public function test_request_validates_report_date_and_customer_ids(): void
+    {
+        $this->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.buku-pembantu-piutang', [
+                'reportDate' => '15-09-2026',
+                'pelangganIds' => [999999, 999999],
+            ]))
+            ->assertRedirect()
+            ->assertSessionHasErrors(['reportDate', 'pelangganIds.0', 'pelangganIds.1']);
+    }
+
+    public function test_customer_and_receivable_account_search_endpoints_remain_available(): void
     {
         [$pelangganId, $akunPiutangId] = $this->seedMasterData();
-        $this->createInvoice($pelangganId, $akunPiutangId, 'INV-CARI', '2026-09-01', 100, 0);
-        $pelangganTanpaFakturId = DB::table('pelanggan')->insertGetId([
-            'status_aktif' => true,
-            'kode_pelanggan' => 'PLG-002',
-            'nama_pelanggan' => 'Pelanggan Tanpa Faktur',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $pelangganTanpaFakturId = $this->createCustomer('PLG-002', 'Pelanggan Tanpa Faktur');
 
-        $this
-            ->actingAs($this->makeUser())
+        $this->actingAs($this->makeUser())
             ->getJson(route('laporan.pendapatan.buku-pembantu-piutang.search-pelanggan', ['q' => 'BPJS']))
             ->assertOk()
             ->assertJsonPath('results.0.id', (string) $pelangganId)
             ->assertJsonPath('results.0.text', '[PLG-001] BPJS Kesehatan');
 
-        $this
-            ->actingAs($this->makeUser())
+        $this->actingAs($this->makeUser())
             ->getJson(route('laporan.pendapatan.buku-pembantu-piutang.search-pelanggan', ['q' => 'Tanpa Faktur']))
             ->assertOk()
-            ->assertJsonPath('results.0.id', (string) $pelangganTanpaFakturId)
-            ->assertJsonPath('results.0.text', '[PLG-002] Pelanggan Tanpa Faktur');
+            ->assertJsonPath('results.0.id', (string) $pelangganTanpaFakturId);
 
-        $this
-            ->actingAs($this->makeUser())
-            ->get(route('laporan.pendapatan.buku-pembantu-piutang'))
-            ->assertOk()
-            ->assertSee('[PLG-002] Pelanggan Tanpa Faktur');
-
-        $this
-            ->actingAs($this->makeUser())
+        $this->actingAs($this->makeUser())
             ->getJson(route('laporan.pendapatan.buku-pembantu-piutang.search-coa', ['q' => 'Piutang']))
             ->assertOk()
             ->assertJsonPath('results.0.id', 'tanpa-akun')
             ->assertJsonPath('results.1.id', (string) $akunPiutangId);
+    }
+
+    private function tables(): array
+    {
+        return [
+            'preferensi_perusahaan',
+            'penerimaan_penjualan_rinci',
+            'penerimaan_penjualan',
+            'faktur_penjualan',
+            'coa',
+            'pelanggan',
+        ];
     }
 
     private function createTables(): void
@@ -270,13 +390,7 @@ class LaporanBukuPembantuPiutangTest extends TestCase
 
     private function seedMasterData(): array
     {
-        $pelangganId = DB::table('pelanggan')->insertGetId([
-            'status_aktif' => true,
-            'kode_pelanggan' => 'PLG-001',
-            'nama_pelanggan' => 'BPJS Kesehatan',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $pelangganId = $this->createCustomer('PLG-001', 'BPJS Kesehatan');
         $akunPiutangId = DB::table('coa')->insertGetId([
             'status_aktif' => true,
             'tipe_coa' => 'Akun Piutang',
@@ -299,13 +413,24 @@ class LaporanBukuPembantuPiutangTest extends TestCase
         return [$pelangganId, $akunPiutangId, $akunBankId];
     }
 
+    private function createCustomer(string $code, string $name): int
+    {
+        return DB::table('pelanggan')->insertGetId([
+            'status_aktif' => true,
+            'kode_pelanggan' => $code,
+            'nama_pelanggan' => $name,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     private function createInvoice(
         int $pelangganId,
-        ?int $akunPiutangId,
         string $nomor,
         string $tanggal,
         float $grandtotal,
-        float $sudahTerbayar,
+        float $paid = 0,
+        ?int $akunPiutangId = null,
     ): int {
         return DB::table('faktur_penjualan')->insertGetId([
             'pelanggan_id' => $pelangganId,
@@ -314,7 +439,7 @@ class LaporanBukuPembantuPiutangTest extends TestCase
             'tanggal_faktur' => $tanggal,
             'keterangan' => 'Tagihan pasien',
             'grandtotal' => $grandtotal,
-            'sudah_terbayar' => $sudahTerbayar,
+            'sudah_terbayar' => $paid,
             'nama_pasien' => 'Pasien Contoh',
             'nomer_rekam_medis' => 'RM-001',
             'created_at' => now(),
