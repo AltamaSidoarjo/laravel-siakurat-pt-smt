@@ -120,29 +120,29 @@ class RoleAccessManagementTest extends TestCase
             ->assertDontSee('Role Akses');
     }
 
-    public function test_laporan_pembelian_permission_controls_route_and_menu(): void
+    public function test_laporan_pendapatan_permission_controls_piutang_routes_and_menu(): void
     {
         $viewer = $this->makeUserWithPermissions([
-            'laporan.pembelian' => ['view' => true],
+            'laporan.pendapatan' => ['view' => true],
         ]);
 
         $this->actingAs($viewer)
-            ->get(route('laporan.pembelian.index'))
+            ->get(route('laporan.pendapatan.index'))
             ->assertOk()
-            ->assertSee('Pusat Laporan Pembelian')
-            ->assertSee('Rincian Buku Pembantu Hutang')
-            ->assertSee('Rangkuman Buku Pembantu Hutang')
-            ->assertSee('Laporan Pembelian')
-            ->assertDontSee('Laporan Pendapatan');
+            ->assertSee('Pusat Laporan Pendapatan')
+            ->assertSee('Rincian Buku Pembantu Piutang')
+            ->assertSee('Rangkuman Buku Pembantu Piutang')
+            ->assertSee('Laporan Pendapatan')
+            ->assertDontSee('Laporan Pembelian');
 
-        $blocked = $this->makeUserWithPermissions([], 'laporan-blocked@example.com');
+        $blocked = $this->makeUserWithPermissions([], 'laporan-pendapatan-blocked@example.com');
 
         $this->actingAs($blocked)
-            ->get(route('laporan.pembelian.index'))
+            ->get(route('laporan.pendapatan.index'))
             ->assertForbidden();
 
         $this->actingAs($blocked)
-            ->get(route('laporan.pembelian.rangkuman-buku-pembantu-hutang'))
+            ->get(route('laporan.pendapatan.rangkuman-buku-pembantu-piutang'))
             ->assertForbidden();
     }
 

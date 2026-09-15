@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Laporan;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Database\Eloquent\Builder;
+use App\Http\Requests\Laporan\BukuPembantuPiutangRequest;
 use App\Services\Laporan\LaporanPendapatanService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -15,8 +16,7 @@ class LaporanPendapatanController extends Controller
 {
     public function __construct(
         private readonly LaporanPendapatanService $laporanPendapatanService,
-    ) {
-    }
+    ) {}
 
     public function index(): View
     {
@@ -147,6 +147,127 @@ class LaporanPendapatanController extends Controller
                 'Content-Type' => 'text/csv; charset=UTF-8',
             ]
         );
+    }
+
+    public function bukuPembantuPiutang(BukuPembantuPiutangRequest $request): View
+    {
+        [$reportDate, $pelangganIds] = $this->resolvePiutangReportFilters($request);
+        $report = $this->laporanPendapatanService->getBukuPembantuPiutang(
+            reportDate: $reportDate,
+            pelangganIds: $pelangganIds,
+        );
+
+        return view('laporan.pendapatan.buku-pembantu-piutang', array_merge(
+            $this->laporanPendapatanService->getIdentitasLaporan(),
+            $report,
+            [
+                'page' => 'app',
+                'reportDate' => $reportDate,
+                'pelangganIds' => $pelangganIds,
+                'pelangganOptions' => $this->laporanPendapatanService->getPelangganOptions(),
+            ],
+        ));
+    }
+
+    public function rangkumanBukuPembantuPiutang(BukuPembantuPiutangRequest $request): View
+    {
+        [$reportDate, $pelangganIds] = $this->resolvePiutangReportFilters($request);
+        $report = $this->laporanPendapatanService->getRangkumanBukuPembantuPiutang(
+            reportDate: $reportDate,
+            pelangganIds: $pelangganIds,
+        );
+
+        return view('laporan.pendapatan.rangkuman-buku-pembantu-piutang', array_merge(
+            $this->laporanPendapatanService->getIdentitasLaporan(),
+            $report,
+            [
+                'page' => 'app',
+                'reportDate' => $reportDate,
+                'pelangganIds' => $pelangganIds,
+                'pelangganOptions' => $this->laporanPendapatanService->getPelangganOptions(),
+            ],
+        ));
+    }
+
+    public function searchBukuPembantuPiutangPelanggan(Request $request): JsonResponse
+    {
+        $search = $request->string('q')->trim()->toString();
+        $results = $this->laporanPendapatanService->searchPelangganPiutang($search)
+            ->map(fn ($pelanggan) => [
+                'id' => (string) $pelanggan->id,
+                'text' => trim(sprintf('[%s] %s', $pelanggan->kode_pelanggan, $pelanggan->nama_pelanggan)),
+            ])
+            ->values();
+
+        return response()->json(['results' => $results]);
+    }
+
+    public function searchBukuPembantuPiutangCoa(Request $request): JsonResponse
+    {
+        $search = $request->string('q')->trim()->toString();
+        $results = $this->laporanPendapatanService->searchCoaPiutang($search)
+            ->map(fn ($coa) => [
+                'id' => (string) $coa->id,
+                'text' => sprintf('[%s] %s', $coa->kode, $coa->nama),
+            ])
+            ->prepend([
+                'id' => 'tanpa-akun',
+                'text' => 'Tanpa akun piutang',
+            ])
+            ->values();
+
+        return response()->json(['results' => $results]);
+    }
+
+    public function exportBukuPembantuPiutangCsv(BukuPembantuPiutangRequest $request): StreamedResponse
+    {
+        [$reportDate, $pelangganIds] = $this->resolvePiutangReportFilters($request);
+        $report = $this->laporanPendapatanService->getBukuPembantuPiutang(
+            reportDate: $reportDate,
+            pelangganIds: $pelangganIds,
+        );
+        $fileName = sprintf(
+            'rincian-buku-pembantu-piutang-%s.csv',
+            str_replace('-', '', $reportDate),
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPendapatanService->streamBukuPembantuPiutangCsv($report),
+            $fileName,
+            ['Content-Type' => 'text/csv; charset=UTF-8'],
+        );
+    }
+
+    public function exportRangkumanBukuPembantuPiutangCsv(BukuPembantuPiutangRequest $request): StreamedResponse
+    {
+        [$reportDate, $pelangganIds] = $this->resolvePiutangReportFilters($request);
+        $report = $this->laporanPendapatanService->getRangkumanBukuPembantuPiutang(
+            reportDate: $reportDate,
+            pelangganIds: $pelangganIds,
+        );
+        $fileName = sprintf(
+            'rangkuman-buku-pembantu-piutang-%s.csv',
+            str_replace('-', '', $reportDate),
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPendapatanService->streamRangkumanBukuPembantuPiutangCsv($report),
+            $fileName,
+            ['Content-Type' => 'text/csv; charset=UTF-8'],
+        );
+    }
+
+    private function resolvePiutangReportFilters(BukuPembantuPiutangRequest $request): array
+    {
+        $data = $request->validated();
+        $reportDate = $data['reportDate'] ?? now()->format('Y-m-d');
+        $pelangganIds = collect($data['pelangganIds'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        return [$reportDate, $pelangganIds];
     }
 
     private function resolveDateRange(Request $request): array
