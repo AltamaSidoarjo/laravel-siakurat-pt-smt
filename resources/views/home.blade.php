@@ -5,8 +5,20 @@
 @php
     $chartCards = [
         ['id' => 'kunjunganHarianChart', 'title' => 'Kunjungan Harian', 'tone' => 'emerald'],
-        ['id' => 'poliChart', 'title' => 'Distribusi Poli', 'tone' => 'blue'],
-        ['id' => 'dokterChart', 'title' => 'Top Dokter', 'tone' => 'amber'],
+        [
+            'id' => 'poliChart',
+            'title' => 'Distribusi Poli',
+            'tone' => 'blue',
+            'ranking' => true,
+            'description' => '10 poli dengan kunjungan terbanyak dan akumulasi poli lainnya.',
+        ],
+        [
+            'id' => 'dokterChart',
+            'title' => 'Top Dokter',
+            'tone' => 'amber',
+            'ranking' => true,
+            'description' => '10 dokter dengan jumlah pasien terbanyak.',
+        ],
         ['id' => 'pendapatanHarianChart', 'title' => 'Pendapatan Harian', 'tone' => 'teal'],
         ['id' => 'penjaminChart', 'title' => 'Komposisi Penjamin', 'tone' => 'indigo'],
     ];
@@ -68,14 +80,21 @@
     <div class="row g-4">
         @foreach ($chartCards as $chartCard)
             <div class="col-12 col-xl-6">
-                <div class="card shadow-sm dashboard-graph-card dashboard-graph-card--{{ $chartCard['tone'] }}">
+                <div class="card shadow-sm dashboard-graph-card dashboard-graph-card--{{ $chartCard['tone'] }} {{ ($chartCard['ranking'] ?? false) ? 'dashboard-graph-card--ranking' : '' }}">
                     <div class="card-body">
                         <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
                             <div>
-                                <div class="text-uppercase dashboard-eyebrow">{{ $chartCard['title'] }}</div>
+                                @if (! ($chartCard['ranking'] ?? false))
+                                    <div class="text-uppercase dashboard-eyebrow">{{ $chartCard['title'] }}</div>
+                                @endif
                                 <h5 class="mb-0">{{ $chartCard['title'] }}</h5>
+                                @if ($chartCard['ranking'] ?? false)
+                                    <div class="text-muted small mt-1">{{ $chartCard['description'] }}</div>
+                                @endif
                             </div>
-                            <div class="dashboard-chart-badge">Live</div>
+                            @if (! ($chartCard['ranking'] ?? false))
+                                <div class="dashboard-chart-badge">Live</div>
+                            @endif
                         </div>
                         <div class="dashboard-chart-shell">
                             <canvas id="{{ $chartCard['id'] }}"></canvas>
@@ -146,14 +165,17 @@
                 },
                 poliChart: {
                     endpoint: '{{ route('home.poli') }}',
+                    adaptiveRowHeight: 34,
                     transform: (rows) => ({
                         labels: rows.map(row => row.poli),
                         datasets: [{
                             label: 'Total Pasien',
                             data: rows.map(row => Number(row.total) || 0),
-                            backgroundColor: ['#155dfc', '#0ea5e9', '#38bdf8', '#7dd3fc', '#bfdbfe', '#1d4ed8'],
-                            borderRadius: 10,
-                            maxBarThickness: 36,
+                            backgroundColor: '#287a4b',
+                            hoverBackgroundColor: '#1f633c',
+                            borderRadius: 3,
+                            borderSkipped: false,
+                            maxBarThickness: 24,
                         }],
                     }),
                     options: {
@@ -163,7 +185,28 @@
                         scales: {
                             x: {
                                 beginAtZero: true,
-                                ticks: { precision: 0 }
+                                border: { display: false },
+                                grid: { color: 'rgba(71, 85, 105, 0.12)' },
+                                ticks: {
+                                    color: '#64748b',
+                                    precision: 0,
+                                }
+                            },
+                            y: {
+                                border: { display: false },
+                                grid: { display: false },
+                                ticks: {
+                                    autoSkip: false,
+                                    color: '#334155',
+                                    callback: chartLabelCallback,
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => `Jumlah pasien: ${formatNumber(context.raw)}`,
+                                }
                             }
                         }
                     },
@@ -171,25 +214,48 @@
                 },
                 dokterChart: {
                     endpoint: '{{ route('home.dokter') }}',
+                    adaptiveRowHeight: 38,
                     transform: (rows) => ({
                         labels: rows.map(row => row.dokter),
                         datasets: [{
                             label: 'Jumlah Pasien',
                             data: rows.map(row => Number(row.total) || 0),
-                            backgroundColor: '#f59e0b',
-                            borderColor: '#b45309',
-                            borderWidth: 1,
-                            borderRadius: 10,
-                            maxBarThickness: 34,
+                            backgroundColor: '#287a4b',
+                            hoverBackgroundColor: '#1f633c',
+                            borderRadius: 3,
+                            borderSkipped: false,
+                            maxBarThickness: 24,
                         }],
                     }),
                     options: {
+                        indexAxis: 'y',
                         responsive: true,
                         maintainAspectRatio: false,
                         scales: {
-                            y: {
+                            x: {
                                 beginAtZero: true,
-                                ticks: { precision: 0 }
+                                border: { display: false },
+                                grid: { color: 'rgba(71, 85, 105, 0.12)' },
+                                ticks: {
+                                    color: '#64748b',
+                                    precision: 0,
+                                }
+                            },
+                            y: {
+                                border: { display: false },
+                                grid: { display: false },
+                                ticks: {
+                                    autoSkip: false,
+                                    color: '#334155',
+                                    callback: chartLabelCallback,
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => `Jumlah pasien: ${formatNumber(context.raw)}`,
+                                }
                             }
                         }
                     },
@@ -266,6 +332,37 @@
                 return new Intl.NumberFormat('id-ID').format(Number(value) || 0);
             }
 
+            function formatNumber(value) {
+                return new Intl.NumberFormat('id-ID').format(Number(value) || 0);
+            }
+
+            function wrapChartLabel(label, maximumLength = 28) {
+                const words = String(label).split(' ');
+                const lines = [];
+                let currentLine = '';
+
+                words.forEach((word) => {
+                    const candidate = currentLine ? `${currentLine} ${word}` : word;
+                    if (candidate.length <= maximumLength || currentLine === '') {
+                        currentLine = candidate;
+                        return;
+                    }
+
+                    lines.push(currentLine);
+                    currentLine = word;
+                });
+
+                if (currentLine) {
+                    lines.push(currentLine);
+                }
+
+                return lines;
+            }
+
+            function chartLabelCallback(value) {
+                return wrapChartLabel(this.getLabelForValue(value));
+            }
+
             function getQueryString() {
                 const dariTanggal = inputDari.value;
                 const sampaiTanggal = inputSampai.value;
@@ -293,6 +390,19 @@
                 emptyState.classList.toggle('d-none', !isEmpty);
             }
 
+            function resizeChartShell(canvas, rowHeight, rowCount) {
+                const shell = canvas.closest('.dashboard-chart-shell');
+                if (!shell) {
+                    return;
+                }
+
+                const height = rowHeight
+                    ? Math.max(320, (rowCount * rowHeight) + 64)
+                    : 320;
+
+                shell.style.setProperty('--dashboard-chart-height', `${height}px`);
+            }
+
             async function loadChart(chartId, config) {
                 const response = await fetch(`${config.endpoint}${getQueryString()}`);
                 const rows = await response.json();
@@ -313,6 +423,7 @@
                 }
 
                 const canvas = document.getElementById(chartId);
+                resizeChartShell(canvas, config.adaptiveRowHeight, chartData.labels.length);
                 chartInstances[chartId] = new Chart(canvas, {
                     type: config.type,
                     data: chartData,
@@ -320,12 +431,13 @@
                         animation: {
                             duration: 600,
                         },
+                        ...config.options,
                         plugins: {
                             legend: {
                                 display: config.type === 'doughnut',
-                            }
+                            },
+                            ...(config.options.plugins ?? {}),
                         },
-                        ...config.options,
                     }
                 });
             }
@@ -412,14 +524,20 @@
             background: linear-gradient(90deg, #3730a3, #818cf8);
         }
 
+        .dashboard-graph-card--ranking::before {
+            height: 1px;
+            background: #d7e3dc;
+        }
+
         .dashboard-chart-shell {
             position: relative;
-            min-height: 320px;
+            min-height: var(--dashboard-chart-height, 320px);
+            height: var(--dashboard-chart-height, 320px);
         }
 
         .dashboard-chart-shell canvas {
             width: 100% !important;
-            height: 320px !important;
+            height: var(--dashboard-chart-height, 320px) !important;
         }
 
         .dashboard-chart-empty {
@@ -454,10 +572,8 @@
         }
 
         @media (max-width: 991.98px) {
-            .dashboard-chart-shell,
-            .dashboard-chart-shell canvas {
-                min-height: 280px;
-                height: 280px !important;
+            .dashboard-chart-shell {
+                --dashboard-chart-height: 280px;
             }
         }
     </style>

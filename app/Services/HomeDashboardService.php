@@ -24,16 +24,30 @@ class HomeDashboardService
 
     public function getDistribusiPoli(string $startDate, string $endDate): Collection
     {
-        return $this->jalankanQueryAman(fn () => SimrsImportPendapatan::query()
-            ->betweenDates($startDate, $endDate)
-            ->selectRaw('COALESCE(NULLIF(TRIM(poli), ""), "Tanpa Poli") as label_poli, COUNT(*) as total')
-            ->groupBy('label_poli')
-            ->orderByDesc('total')
-            ->get()
-            ->map(fn (SimrsImportPendapatan $row) => [
-                'poli' => (string) $row->label_poli,
-                'total' => (int) $row->total,
-            ]));
+        return $this->jalankanQueryAman(function () use ($startDate, $endDate) {
+            $distribusiPoli = SimrsImportPendapatan::query()
+                ->betweenDates($startDate, $endDate)
+                ->selectRaw('COALESCE(NULLIF(TRIM(poli), ""), "Tanpa Poli") as label_poli, COUNT(*) as total')
+                ->groupBy('label_poli')
+                ->orderByDesc('total')
+                ->get()
+                ->map(fn (SimrsImportPendapatan $row) => [
+                    'poli' => (string) $row->label_poli,
+                    'total' => (int) $row->total,
+                ]);
+
+            if ($distribusiPoli->count() <= 10) {
+                return $distribusiPoli;
+            }
+
+            return $distribusiPoli
+                ->take(10)
+                ->push([
+                    'poli' => 'Lainnya',
+                    'total' => $distribusiPoli->slice(10)->sum('total'),
+                ])
+                ->values();
+        });
     }
 
     public function getTopDokter(string $startDate, string $endDate): Collection
