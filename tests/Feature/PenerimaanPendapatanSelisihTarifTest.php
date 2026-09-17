@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\PenerimaanPenjualan;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\WithoutMiddleware;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\ViewErrorBag;
 use Tests\TestCase;
 
 class PenerimaanPendapatanSelisihTarifTest extends TestCase
@@ -15,6 +18,8 @@ class PenerimaanPendapatanSelisihTarifTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        View::share('errors', new ViewErrorBag());
 
         Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('preferensi_perusahaan');
@@ -339,6 +344,47 @@ class PenerimaanPendapatanSelisihTarifTest extends TestCase
         $response
             ->assertRedirect(route('pendapatan.penerimaan.create'))
             ->assertSessionHasErrors(['akun_selisih_tarif_id']);
+    }
+
+    public function test_create_form_shows_check_all_invoice_control(): void
+    {
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get(route('pendapatan.penerimaan.create'));
+
+        $response
+            ->assertOk()
+            ->assertSee('id="check_all_invoices"', false)
+            ->assertSee('aria-label="Centang semua"', false)
+            ->assertSee('function syncCheckAllInvoices()', false);
+    }
+
+    public function test_edit_form_does_not_show_check_all_invoice_control(): void
+    {
+        [$pelangganId, $akunBankId, $akunPiutangId] = $this->seedMasterData();
+
+        $penerimaanId = \DB::table('penerimaan_penjualan')->insertGetId([
+            'pelanggan_id' => $pelangganId,
+            'akun_bank_id' => $akunBankId,
+            'akun_piutang_id' => $akunPiutangId,
+            'nomer' => 'PPD-EDIT-001',
+            'tanggal' => '2026-05-20',
+            'jumlah_pembayaran' => 0,
+            'selisih_tarif' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $penerimaan = PenerimaanPenjualan::query()
+            ->with(['pelanggan', 'rincian.fakturPenjualan'])
+            ->findOrFail($penerimaanId);
+
+        $view = $this->view('pendapatan.penerimaan._form', [
+            'penerimaanPendapatan' => $penerimaan,
+            'coaOptions' => collect(),
+        ]);
+
+        $view->assertDontSee('id="check_all_invoices"', false);
     }
 
     // --- helpers ---

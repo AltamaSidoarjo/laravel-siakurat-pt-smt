@@ -11,6 +11,7 @@
         const nominalBankInput = document.getElementById('input_nominal_bank');
         const template = document.getElementById('detail-row-template');
         const invoiceAlert = document.getElementById('invoice_alert');
+        const checkAllInvoices = document.getElementById('check_all_invoices');
 
         if (!table || !tableBody || !totalPiutangAwalInput || !totalPiutangSisaInput || !totalRincianPiutangInput || !template) {
             return;
@@ -77,6 +78,18 @@
             }
         }
 
+        function syncCheckAllInvoices() {
+            if (!checkAllInvoices) {
+                return;
+            }
+
+            const checkboxes = Array.from(tableBody.querySelectorAll('.check'));
+            const checkedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
+
+            checkAllInvoices.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+            checkAllInvoices.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+        }
+
         function updateTotals() {
             let totalPiutangAwal = 0;
             let totalPiutangSisa = 0;
@@ -96,6 +109,7 @@
             totalPiutangSisaInput.value = formatIdInteger(totalPiutangSisa);
             totalRincianPiutangInput.value = formatIdInteger(totalRincian);
             updateNominalBank();
+            syncCheckAllInvoices();
         }
 
         function showTable() {
@@ -227,6 +241,16 @@
                 updateTotals();
             }
         });
+
+        if (checkAllInvoices) {
+            checkAllInvoices.addEventListener('change', function () {
+                tableBody.querySelectorAll('.check').forEach((checkbox) => {
+                    checkbox.checked = this.checked;
+                });
+
+                updateTotals();
+            });
+        }
 
         if (selisihTarifInput) {
             selisihTarifInput.addEventListener('input', function () {

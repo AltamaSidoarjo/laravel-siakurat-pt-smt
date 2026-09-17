@@ -133,7 +133,13 @@
                             <th class="text-center align-middle" style="min-width: 170px;">Nominal</th>
                             <th class="text-center align-middle" style="min-width: 170px;">Terhutang</th>
                             <th class="text-center align-middle" style="min-width: 170px;">Bayar<span class="text-danger">*</span></th>
-                            <th class="text-center align-middle" style="min-width: 50px;">#</th>
+                            <th class="text-center align-middle" style="min-width: 50px;">
+                                @if (! $isEdit)
+                                    <input type="checkbox" id="check_all_invoices" class="form-check-input" aria-label="Centang semua" title="Centang semua">
+                                @else
+                                    #
+                                @endif
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
