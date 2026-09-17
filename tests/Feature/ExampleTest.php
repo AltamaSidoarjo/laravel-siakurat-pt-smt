@@ -226,7 +226,11 @@ class ExampleTest extends TestCase
             ->assertOk()
             ->assertSee('Menu Laporan Pendapatan')
             ->assertSee('Laporan Pendapatan Kunjungan')
-            ->assertSee('Laporan Pendapatan Penjualan Obat');
+            ->assertSee('Laporan Pendapatan Dokter')
+            ->assertSee('Laporan Pendapatan Penjualan Obat')
+            ->assertSee('Rincian Buku Pembantu Piutang')
+            ->assertSee('Rangkuman Buku Pembantu Piutang')
+            ->assertSee('Buku Pembantu Piutang (Mutasi)');
     }
 
     public function test_laporan_pendapatan_kunjungan_page_can_be_opened_with_authenticated_user(): void
