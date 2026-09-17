@@ -3,12 +3,13 @@
 namespace Tests\Unit;
 
 use App\Models\Coa;
-use App\Models\Pelanggan;
 use App\Models\Pelaksana;
+use App\Models\Pelanggan;
 use App\Services\Bukubesar\BukuBesarService;
 use App\Services\LogAktifitasService;
 use App\Services\Pendapatan\InvoicePendapatanService;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
 use Tests\TestCase;
@@ -25,7 +26,7 @@ class InvoicePendapatanFormOptionsTest extends TestCase
             $table->increments('id');
             $table->boolean('status_aktif')->default(true);
             $table->string('kode_pelanggan');
-            $table->string('nama_pelanggan');
+            $table->string('nama_pelanggan')->unique();
             $table->timestamps();
         });
         Schema::create('coa', function (Blueprint $table): void {
@@ -108,5 +109,58 @@ class InvoicePendapatanFormOptionsTest extends TestCase
         $this->assertSame([$akunPiutang->id, $akunPiutangUsaha->id], $this->service->getReceivableCoaOptions()->pluck('id')->all());
         $this->assertSame([$akunPendapatan->id], $this->service->getRevenueCoaOptions()->pluck('id')->all());
         $this->assertSame([$pelaksanaAktif->id], $this->service->getPelaksanaOptions()->pluck('id')->all());
+    }
+
+    public function test_sync_pelanggan_uses_name_as_identity_and_updates_existing_code(): void
+    {
+        $pelanggan = Pelanggan::query()->create([
+            'kode_pelanggan' => 'OLD',
+            'nama_pelanggan' => 'Keluarga Karyawan',
+            'status_aktif' => false,
+        ]);
+
+        $options = collect([
+            ['id' => '12', 'nama' => ' Keluarga Karyawan '],
+            ['id' => '12', 'nama' => 'keluarga karyawan'],
+        ]);
+
+        $result = $this->service->syncPelangganOptionsFromApi($options);
+
+        $this->assertCount(1, $result);
+        $this->assertSame($pelanggan->id, $result->first()->id);
+        $this->assertDatabaseCount('pelanggan', 1);
+        $this->assertDatabaseHas('pelanggan', [
+            'id' => $pelanggan->id,
+            'kode_pelanggan' => '12',
+            'nama_pelanggan' => 'Keluarga Karyawan',
+            'status_aktif' => true,
+        ]);
+    }
+
+    public function test_sync_pelanggan_is_idempotent_and_creates_new_customer_once(): void
+    {
+        $options = collect([
+            ['id' => '20', 'nama' => 'Penjamin Baru'],
+        ]);
+
+        $firstResult = $this->service->syncPelangganOptionsFromApi($options);
+        $secondResult = $this->service->syncPelangganOptionsFromApi($options);
+
+        $this->assertSame($firstResult->first()->id, $secondResult->first()->id);
+        $this->assertDatabaseCount('pelanggan', 1);
+    }
+
+    public function test_sync_pelanggan_skips_invalid_options_and_logs_warning(): void
+    {
+        Log::shouldReceive('warning')->times(3);
+
+        $result = $this->service->syncPelangganOptionsFromApi(collect([
+            'invalid',
+            ['id' => '', 'nama' => 'Tanpa Kode'],
+            ['id' => '21', 'nama' => ''],
+        ]));
+
+        $this->assertTrue($result->isEmpty());
+        $this->assertDatabaseCount('pelanggan', 0);
     }
 }

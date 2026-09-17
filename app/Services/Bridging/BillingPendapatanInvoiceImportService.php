@@ -7,7 +7,6 @@ use App\Models\Coa;
 use App\Models\FakturPenjualan;
 use App\Models\FakturPenjualanRinci;
 use App\Models\MappingPenjaminPiutang;
-use App\Models\Pelanggan;
 use App\Models\Pelaksana;
 use App\Models\SimrsImportPendapatan;
 use App\Services\LogAktifitasService;
@@ -82,6 +81,7 @@ class BillingPendapatanInvoiceImportService
             $penjaminApiItem = $penjaminApi->get($namaPenjamin);
             if ($penjaminApiItem === null) {
                 $hasil[] = $this->failedResult($billing, 'Penjamin tidak ditemukan pada Billing API.');
+
                 continue;
             }
             $billing['penjamin_id'] = (string) $penjaminApiItem['id'];
@@ -91,6 +91,7 @@ class BillingPendapatanInvoiceImportService
                     $billing,
                     'Mapping akun piutang untuk penjamin '.$penjaminApiItem['nama'].' belum disetting.',
                 );
+
                 continue;
             }
 
@@ -117,8 +118,7 @@ class BillingPendapatanInvoiceImportService
         array $billing,
         MappingPenjaminPiutang $mappingPiutang,
         string $actor,
-    ): array
-    {
+    ): array {
         $noRawat = trim((string) ($billing['no_rawat'] ?? ''));
 
         if ($noRawat === '') {
@@ -153,13 +153,14 @@ class BillingPendapatanInvoiceImportService
             $this->pastikanBelumDiimpor($noRawat);
 
             $invoice = new FakturPenjualan;
-            $pelanggan = Pelanggan::query()->updateOrCreate(
-                ['kode_pelanggan' => (string) $billing['penjamin_id']],
-                [
-                    'nama_pelanggan' => $penjamin['nama'],
-                    'status_aktif' => true,
-                ],
+            $pelanggan = $this->invoicePendapatanService->resolvePelangganFromApi(
+                (string) $billing['penjamin_id'],
+                $penjamin['nama'],
             );
+
+            if ($pelanggan === null) {
+                throw new RuntimeException('Data penjamin dari Billing API tidak lengkap.');
+            }
 
             $invoice->pelanggan_id = (int) $pelanggan->id;
             $invoice->akun_piutang_id = (int) $akunPiutang->id;

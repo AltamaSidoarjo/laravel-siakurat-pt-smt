@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Models\Coa;
+use App\Models\FakturPenjualan;
 use App\Models\MappingPenjaminPiutang;
 use App\Models\Pelaksana;
 use App\Services\Bridging\BillingApiClient;
@@ -207,6 +208,36 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $this->assertDatabaseHas('faktur_penjualan', ['nomor_faktur' => 'RJ-002', 'nama_pasien' => 'Pasien Dua']);
     }
 
+    public function test_import_reuses_customer_name_and_updates_changed_guarantor_code(): void
+    {
+        $this->createRequiredCoas();
+        $pelangganId = DB::table('pelanggan')->insertGetId([
+            'kode_pelanggan' => 'OLD',
+            'nama_pelanggan' => 'Inhealth Indemity',
+            'status_aktif' => false,
+        ]);
+        $candidate = $this->candidate('ext-1', 'RJ-001', 'Inhealth Indemity', 'Nama Pasien');
+
+        $this->expectCandidates([$candidate]);
+        $this->expectRevenueDetails('ext-1');
+        $this->logService->shouldReceive('log')->once();
+
+        $result = $this->import(['ext-1']);
+
+        $this->assertTrue($result[0]['berhasil']);
+        $this->assertDatabaseCount('pelanggan', 1);
+        $this->assertDatabaseHas('pelanggan', [
+            'id' => $pelangganId,
+            'kode_pelanggan' => '4',
+            'nama_pelanggan' => 'Inhealth Indemity',
+            'status_aktif' => true,
+        ]);
+        $this->assertDatabaseHas('faktur_penjualan', [
+            'nomor_faktur' => 'RJ-001',
+            'pelanggan_id' => $pelangganId,
+        ]);
+    }
+
     public function test_negative_revenue_line_reverses_side_and_keeps_net_ledger_balanced(): void
     {
         $this->createRequiredCoas();
@@ -377,7 +408,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
 
     public function test_paid_invoice_cannot_be_edited_or_deleted(): void
     {
-        $invoice = new \App\Models\FakturPenjualan;
+        $invoice = new FakturPenjualan;
         $invoice->id = 99;
         $invoice->sudah_terbayar = 1;
 
@@ -777,7 +808,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
             $table->increments('id');
             $table->boolean('status_aktif')->default(true);
             $table->string('kode_pelanggan');
-            $table->string('nama_pelanggan');
+            $table->string('nama_pelanggan')->unique();
             $table->timestamps();
         });
 

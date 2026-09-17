@@ -6,8 +6,8 @@ use App\Models\BukuBesar;
 use App\Models\Coa;
 use App\Models\FakturPenjualan;
 use App\Models\LogHapusImportPendapatan;
-use App\Models\Pelanggan;
 use App\Models\Pelaksana;
+use App\Models\Pelanggan;
 use App\Models\SimrsImportPendapatan;
 use App\Services\Bukubesar\BukuBesarService;
 use App\Services\LogAktifitasService;
@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class InvoicePendapatanService
@@ -45,22 +47,48 @@ class InvoicePendapatanService
 
     public function syncPelangganOptionsFromApi(SupportCollection $options): SupportCollection
     {
-        return $options->map(function (array $option): Pelanggan {
-            $pelanggan = Pelanggan::query()
-                ->where('kode_pelanggan', (string) $option['id'])
-                ->first();
+        return $options
+            ->map(function (mixed $option): ?array {
+                if (! is_array($option)) {
+                    Log::warning('Opsi penjamin Billing API diabaikan karena formatnya tidak valid.');
 
-            if ($pelanggan === null) {
-                $pelanggan = new Pelanggan;
-            }
+                    return null;
+                }
 
-            $pelanggan->kode_pelanggan = (string) $option['id'];
-            $pelanggan->nama_pelanggan = (string) $option['nama'];
-            $pelanggan->status_aktif = true;
-            $pelanggan->save();
+                return [
+                    'id' => trim((string) ($option['id'] ?? '')),
+                    'nama' => trim((string) ($option['nama'] ?? '')),
+                ];
+            })
+            ->filter()
+            ->unique(fn (array $option): string => Str::lower($option['nama']))
+            ->map(fn (array $option): ?Pelanggan => $this->resolvePelangganFromApi(
+                $option['id'],
+                $option['nama'],
+            ))
+            ->filter()
+            ->sortBy('nama_pelanggan', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+    }
 
-            return $pelanggan;
-        })->sortBy('nama_pelanggan', SORT_NATURAL | SORT_FLAG_CASE)->values();
+    public function resolvePelangganFromApi(string $kode, string $nama): ?Pelanggan
+    {
+        $kode = trim($kode);
+        $nama = trim($nama);
+
+        if ($kode === '' || $nama === '') {
+            Log::warning('Opsi penjamin Billing API diabaikan karena kode atau nama kosong.');
+
+            return null;
+        }
+
+        return Pelanggan::query()->updateOrCreate(
+            ['nama_pelanggan' => $nama],
+            [
+                'kode_pelanggan' => $kode,
+                'status_aktif' => true,
+            ],
+        );
     }
 
     public function getReceivableCoaOptions(): Collection
