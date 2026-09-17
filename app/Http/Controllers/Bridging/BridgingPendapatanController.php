@@ -94,14 +94,21 @@ class BridgingPendapatanController extends Controller
         $jenisLayanan = $this->resolveJenisLayanan($request);
         $dokterOptions = collect();
         $spesialisOptions = collect();
+        $penjaminOptions = collect();
         $apiError = null;
+
+        try {
+            $penjaminOptions = $this->billingPendapatanApiService->getPenjaminOptions();
+        } catch (BillingApiException $exception) {
+            $apiError = $exception->getMessage();
+        }
 
         if ($jenisLayanan === BillingPendapatanApiService::RAWAT_JALAN) {
             try {
                 $spesialisOptions = $this->billingPendapatanApiService->getSpesialisOptions();
                 $dokterOptions = $this->billingPendapatanApiService->getDokterOptions();
             } catch (BillingApiException $exception) {
-                $apiError = $exception->getMessage();
+                $apiError ??= $exception->getMessage();
             }
         }
 
@@ -112,8 +119,10 @@ class BridgingPendapatanController extends Controller
             'jenisLayanan' => $jenisLayanan,
             'spesialisId' => $request->string('spesialisId')->toString(),
             'dokterId' => $request->string('dokterId')->toString(),
+            'penjamin' => $request->string('penjamin')->trim()->toString(),
             'spesialisOptions' => $spesialisOptions,
             'dokterOptions' => $dokterOptions,
+            'penjaminOptions' => $penjaminOptions,
             'apiError' => $apiError,
         ]);
     }
@@ -129,6 +138,7 @@ class BridgingPendapatanController extends Controller
                 $data['endDate'],
                 $data['spesialisId'] ?? null,
                 $data['dokterId'] ?? null,
+                $data['penjamin'] ?? null,
             );
         } catch (BillingApiException $exception) {
             return response()->json([
@@ -181,6 +191,7 @@ class BridgingPendapatanController extends Controller
                 $data['endDate'],
                 $data['spesialisId'] ?? null,
                 $data['dokterId'] ?? null,
+                $data['penjamin'] ?? null,
                 auth()->user()?->name ?? auth()->user()?->email ?? 'system',
             );
         } catch (BillingApiException $exception) {
@@ -191,6 +202,7 @@ class BridgingPendapatanController extends Controller
                     'jenisLayanan' => $data['jenisLayanan'],
                     'spesialisId' => $data['spesialisId'] ?? null,
                     'dokterId' => $data['dokterId'] ?? null,
+                    'penjamin' => $data['penjamin'] ?? null,
                 ])
                 ->with('error', $exception->getMessage());
         }

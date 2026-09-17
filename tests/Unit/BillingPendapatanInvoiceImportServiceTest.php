@@ -714,7 +714,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $this->candidateService
             ->shouldReceive('getKandidatUntukImpor')
             ->once()
-            ->with('rawat_jalan', '2026-08-15', '2026-08-15', null, null)
+            ->with('rawat_jalan', '2026-08-15', '2026-08-15', null, null, null)
             ->andReturn(collect($candidates));
     }
 
@@ -732,6 +732,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
             'rawat_jalan',
             '2026-08-15',
             '2026-08-15',
+            null,
             null,
             null,
             'Tester',

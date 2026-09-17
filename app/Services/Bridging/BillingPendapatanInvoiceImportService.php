@@ -36,6 +36,7 @@ class BillingPendapatanInvoiceImportService
         string $endDate,
         ?string $spesialisId,
         ?string $dokterId,
+        ?string $penjamin,
         string $actor,
     ): array {
         $kandidat = $this->billingPendapatanApiService->getKandidatUntukImpor(
@@ -44,6 +45,7 @@ class BillingPendapatanInvoiceImportService
             $endDate,
             $spesialisId,
             $dokterId,
+            $penjamin,
         )->groupBy('external_id');
         $penjaminApi = $this->billingPendapatanApiService->getPenjaminOptions()
             ->keyBy(fn (array $option) => Str::lower(trim($option['nama'])));

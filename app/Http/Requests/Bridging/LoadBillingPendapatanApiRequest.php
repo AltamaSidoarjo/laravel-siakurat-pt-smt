@@ -19,6 +19,7 @@ class LoadBillingPendapatanApiRequest extends FormRequest
             'jenisLayanan' => ['required', 'in:rawat_jalan,igd'],
             'spesialisId' => ['nullable', 'string', 'max:100'],
             'dokterId' => ['nullable', 'string', 'max:100'],
+            'penjamin' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

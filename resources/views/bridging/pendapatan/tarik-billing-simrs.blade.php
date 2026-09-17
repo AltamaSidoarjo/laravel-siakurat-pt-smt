@@ -32,20 +32,34 @@
                             <div class="card-body">
                                 <form method="get" action="">
                                     <div class="row g-3">
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="form-label">Dari tanggal</label>
                                             <input type="date" name="startDate" class="form-control" value="{{ $startDate }}">
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="form-label">Sampai tanggal</label>
                                             <input type="date" name="endDate" class="form-control" value="{{ $endDate }}">
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label for="jenisLayanan" class="form-label">Jenis layanan</label>
                                             <select name="jenisLayanan" id="jenisLayanan" class="form-select">
                                                 <option value="rawat_jalan" @selected($jenisLayanan === 'rawat_jalan')>Rawat Jalan</option>
                                                 <option value="igd" @selected($jenisLayanan === 'igd')>IGD</option>
                                                 <option value="rawat_inap" disabled>Rawat Inap — Endpoint belum tersedia</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="penjamin" class="form-label">Penjamin</label>
+                                            <select name="penjamin" id="penjamin" class="form-select select2">
+                                                <option value="">Semua penjamin</option>
+                                                @if ($penjamin !== '' && ! $penjaminOptions->contains(fn (array $option) => $option['nama'] === $penjamin))
+                                                    <option value="{{ $penjamin }}" selected>{{ $penjamin }}</option>
+                                                @endif
+                                                @foreach ($penjaminOptions as $option)
+                                                    <option value="{{ $option['nama'] }}" @selected($penjamin === $option['nama'])>
+                                                        {{ $option['nama'] }}
+                                                    </option>
+                                                @endforeach
                                             </select>
                                         </div>
                                         <div class="col-md-6 rawat-jalan-filter">
@@ -90,6 +104,7 @@
                                     <input type="hidden" name="jenisLayanan" value="{{ $jenisLayanan }}">
                                     <input type="hidden" name="spesialisId" value="{{ $spesialisId }}">
                                     <input type="hidden" name="dokterId" value="{{ $dokterId }}">
+                                    <input type="hidden" name="penjamin" value="{{ $penjamin }}">
                                     <div id="selectedExternalIds"></div>
 
                                     <div class="alert alert-info fw-bold mb-3">
@@ -192,6 +207,7 @@
                         d.jenisLayanan = @json($jenisLayanan);
                         d.spesialisId = @json($spesialisId);
                         d.dokterId = @json($dokterId);
+                        d.penjamin = @json($penjamin);
                     }
                 },
                 columns: [

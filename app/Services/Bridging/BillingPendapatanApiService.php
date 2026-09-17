@@ -85,6 +85,7 @@ class BillingPendapatanApiService
         string $endDate,
         ?string $spesialisId = null,
         ?string $dokterId = null,
+        ?string $penjamin = null,
     ): Collection {
         return $this->ambilKandidat(
             $jenisLayanan,
@@ -92,6 +93,7 @@ class BillingPendapatanApiService
             $endDate,
             $spesialisId,
             $dokterId,
+            $penjamin,
             true,
         );
     }
@@ -102,6 +104,7 @@ class BillingPendapatanApiService
         string $endDate,
         ?string $spesialisId = null,
         ?string $dokterId = null,
+        ?string $penjamin = null,
     ): Collection {
         return $this->ambilKandidat(
             $jenisLayanan,
@@ -109,6 +112,7 @@ class BillingPendapatanApiService
             $endDate,
             $spesialisId,
             $dokterId,
+            $penjamin,
             false,
         );
     }
@@ -119,6 +123,7 @@ class BillingPendapatanApiService
         string $endDate,
         ?string $spesialisId,
         ?string $dokterId,
+        ?string $penjamin,
         bool $excludeImported,
     ): Collection {
         $rows = match ($jenisLayanan) {
@@ -139,13 +144,28 @@ class BillingPendapatanApiService
                 ->mapWithKeys(fn (mixed $nomor) => [(string) $nomor => true])
             : collect();
 
+        $penjaminFilter = mb_strtolower($this->normalisasiNamaPenjamin($penjamin));
+
         return collect($rows)
             ->filter(fn (mixed $row) => is_array($row)
                 && filled($row['ID'] ?? null)
                 && filled($row['RegNum'] ?? null))
             ->map(fn (array $row) => $this->normalisasiKunjungan($row, $jenisLayanan))
+            ->when(
+                $penjaminFilter !== '',
+                fn (Collection $collection) => $collection->filter(
+                    fn (array $row) => mb_strtolower($this->normalisasiNamaPenjamin($row['penjamin'])) === $penjaminFilter,
+                ),
+            )
             ->reject(fn (array $row) => $nomorRawatTerimpor->has($row['no_rawat']))
             ->values();
+    }
+
+    private function normalisasiNamaPenjamin(?string $penjamin): string
+    {
+        $nama = trim((string) $penjamin);
+
+        return strcasecmp($nama, 'U/Px') === 0 ? 'Umum' : $nama;
     }
 
     private function normalisasiKunjungan(array $row, string $jenisLayanan): array

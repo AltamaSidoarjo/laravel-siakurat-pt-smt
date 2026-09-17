@@ -137,6 +137,73 @@ class BridgingPendapatanApiTest extends TestCase
         Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/rawat-jalan'));
     }
 
+    public function test_candidate_table_filters_penjamin_exactly_and_normalizes_umum(): void
+    {
+        Http::fake([
+            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
+            'http://billing.test/api/rawat-jalan*' => Http::response([
+                'status' => true,
+                'data' => [
+                    ['ID' => '1', 'RegNum' => 'RJ-UMUM', 'PxRS' => 'U/Px'],
+                    ['ID' => '2', 'RegNum' => 'RJ-BPJS', 'PxRS' => 'BPJS'],
+                    ['ID' => '3', 'RegNum' => 'RJ-BPJS-COB', 'PxRS' => 'BPJS-COB'],
+                ],
+            ]),
+        ]);
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->getJson(route('bridging.pendapatan.load-billing-simrs', $this->dataTableRequest([
+                'startDate' => '2026-08-15',
+                'endDate' => '2026-08-15',
+                'jenisLayanan' => 'rawat_jalan',
+                'penjamin' => 'umum',
+            ])));
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('recordsTotal', 1)
+            ->assertJsonPath('data.0.no_rawat', 'RJ-UMUM');
+
+        $this
+            ->actingAs($this->makeUser())
+            ->getJson(route('bridging.pendapatan.load-billing-simrs', $this->dataTableRequest([
+                'startDate' => '2026-08-15',
+                'endDate' => '2026-08-15',
+                'jenisLayanan' => 'rawat_jalan',
+                'penjamin' => 'bpjs',
+            ])))
+            ->assertOk()
+            ->assertJsonPath('recordsTotal', 1)
+            ->assertJsonPath('data.0.no_rawat', 'RJ-BPJS');
+    }
+
+    public function test_igd_candidate_table_applies_penjamin_filter(): void
+    {
+        Http::fake([
+            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
+            'http://billing.test/api/igd*' => Http::response([
+                'status' => true,
+                'data' => [
+                    ['ID' => '1', 'RegNum' => 'IGD-BPJS', 'PxRS' => 'BPJS'],
+                    ['ID' => '2', 'RegNum' => 'IGD-UMUM', 'PxRS' => 'U/Px'],
+                ],
+            ]),
+        ]);
+
+        $this
+            ->actingAs($this->makeUser())
+            ->getJson(route('bridging.pendapatan.load-billing-simrs', $this->dataTableRequest([
+                'startDate' => '2026-08-15',
+                'endDate' => '2026-08-15',
+                'jenisLayanan' => 'igd',
+                'penjamin' => 'BPJS',
+            ])))
+            ->assertOk()
+            ->assertJsonPath('recordsTotal', 1)
+            ->assertJsonPath('data.0.no_rawat', 'IGD-BPJS');
+    }
+
     public function test_billing_account_detail_endpoint_returns_normalized_rows_and_total(): void
     {
         Http::fake([
@@ -339,6 +406,13 @@ class BridgingPendapatanApiTest extends TestCase
             'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
             'http://billing.test/api/spesialis' => Http::response(['status' => true, 'data' => []]),
             'http://billing.test/api/dokter' => Http::response(['status' => true, 'data' => []]),
+            'http://billing.test/api/pxrs' => Http::response([
+                'status' => true,
+                'data' => [
+                    ['ID' => 45, 'PxRS' => 'ASKES/BPJS'],
+                    ['ID' => 1, 'PxRS' => 'U/Px'],
+                ],
+            ]),
         ]);
 
         $response = $this
@@ -351,6 +425,10 @@ class BridgingPendapatanApiTest extends TestCase
             ->assertSee('Rawat Inap — Endpoint belum tersedia')
             ->assertSee('id="spesialisId" class="form-select select2"', false)
             ->assertSee('id="dokterId" class="form-select select2"', false)
+            ->assertSee('id="penjamin" class="form-select select2"', false)
+            ->assertSee('Semua penjamin')
+            ->assertSee('ASKES/BPJS')
+            ->assertSee('Umum')
             ->assertSee('Total data terpilih')
             ->assertSee('Invoice Pendapatan dengan tanggal pengakuan sesuai tanggal registrasi')
             ->assertSee('<th>Penjamin</th>', false)
@@ -365,6 +443,62 @@ class BridgingPendapatanApiTest extends TestCase
             ->assertDontSee('name="basisTanggalPengakuan"', false)
             ->assertSee('id="importButton" disabled', false)
             ->assertSee('selectedExternalIds[]');
+    }
+
+    public function test_pull_page_remains_available_when_penjamin_options_fail(): void
+    {
+        Http::fake([
+            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
+            'http://billing.test/api/pxrs' => Http::response(['status' => false], 503),
+            'http://billing.test/api/spesialis' => Http::response(['status' => true, 'data' => []]),
+            'http://billing.test/api/dokter' => Http::response(['status' => true, 'data' => []]),
+        ]);
+
+        $this
+            ->actingAs($this->makeUser())
+            ->get(route('bridging.pendapatan.tarik-billing-simrs'))
+            ->assertOk()
+            ->assertSee('Billing API sedang tidak tersedia. Silakan coba kembali.')
+            ->assertSee('Semua penjamin');
+    }
+
+    public function test_failed_import_redirect_preserves_penjamin_filter(): void
+    {
+        $invoiceService = Mockery::mock(BillingPendapatanInvoiceImportService::class);
+        $invoiceService->shouldReceive('imporBanyak')
+            ->once()
+            ->with(
+                ['1761891'],
+                'igd',
+                '2026-08-15',
+                '2026-08-15',
+                null,
+                null,
+                'BPJS',
+                'Tester',
+            )
+            ->andThrow(new BillingApiException('Billing API sedang tidak tersedia. Silakan coba kembali.'));
+        $this->app->instance(BillingPendapatanInvoiceImportService::class, $invoiceService);
+
+        $response = $this
+            ->withoutMiddleware(EnsureModuleAccess::class)
+            ->actingAs($this->makeUser())
+            ->post(route('bridging.pendapatan.process-import'), [
+                'selectedExternalIds' => ['1761891'],
+                'startDate' => '2026-08-15',
+                'endDate' => '2026-08-15',
+                'jenisLayanan' => 'igd',
+                'penjamin' => 'BPJS',
+            ]);
+
+        $response
+            ->assertRedirect(route('bridging.pendapatan.tarik-billing-simrs', [
+                'startDate' => '2026-08-15',
+                'endDate' => '2026-08-15',
+                'jenisLayanan' => 'igd',
+                'penjamin' => 'BPJS',
+            ]))
+            ->assertSessionHas('error', 'Billing API sedang tidak tersedia. Silakan coba kembali.');
     }
 
     public function test_import_post_calls_api_invoice_service_and_not_legacy_import(): void
@@ -383,6 +517,7 @@ class BridgingPendapatanApiTest extends TestCase
                 '2026-08-15',
                 '7',
                 '380',
+                'BPJS',
                 'Tester',
             )
             ->andReturn([[
@@ -402,6 +537,7 @@ class BridgingPendapatanApiTest extends TestCase
                 'jenisLayanan' => 'rawat_jalan',
                 'spesialisId' => '7',
                 'dokterId' => '380',
+                'penjamin' => 'BPJS',
             ]);
 
         $response
