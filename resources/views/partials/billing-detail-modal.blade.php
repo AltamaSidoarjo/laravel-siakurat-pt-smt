@@ -26,7 +26,11 @@
                         </table>
                     </div>
                     @endif
-                    <div id="billingAccountDetailLoading" class="text-muted">Memuat rincian billing...</div>
+                    <div id="billingAccountDetailLoading" class="rounded-3 border bg-light px-3 py-5 text-center" role="status" aria-live="polite">
+                        <div class="spinner-border text-success" style="width: 2.75rem; height: 2.75rem;" aria-hidden="true"></div>
+                        <div class="mt-3 fw-semibold text-dark">Memuat rincian billing...</div>
+                        <div class="mt-1 small text-muted">Mohon tunggu, data sedang diproses.</div>
+                    </div>
                     <div id="billingAccountDetailError" class="alert alert-warning mb-0" hidden></div>
                     <div id="billingAccountDetailTable" class="table-responsive" hidden>
                         <table class="table table-sm table-striped table-bordered mb-2">
@@ -101,8 +105,15 @@
             section.hidden = false;
             loading.hidden = false;
             error.hidden = true;
+            error.textContent = '';
             table.hidden = true;
             document.getElementById('billingAccountDetailBody').replaceChildren();
+            document.getElementById('billingAccountDetailTotal').textContent = 'Rp 0';
+
+            const receivableAccount = document.getElementById('billingReceivableAccount');
+            if (receivableAccount) {
+                receivableAccount.textContent = '-';
+            }
 
             try {
                 const url = new URL(@json(route('bridging.pendapatan.load-billing-account-detail')), window.location.href);
@@ -127,7 +138,6 @@
                 }
 
                 renderAccountRows(payload.data);
-                const receivableAccount = document.getElementById('billingReceivableAccount');
                 if (receivableAccount) {
                     receivableAccount.textContent = payload.akunPiutang || '-';
                 }
@@ -167,8 +177,8 @@
                 body.appendChild(row);
             });
 
-            window.bootstrap.Modal.getOrCreateInstance(document.getElementById('billingDetailModal')).show();
             loadAccountDetail(detailQuery);
+            window.bootstrap.Modal.getOrCreateInstance(document.getElementById('billingDetailModal')).show();
         };
 
         document.getElementById('billingDetailModal').addEventListener('hidden.bs.modal', () => {
