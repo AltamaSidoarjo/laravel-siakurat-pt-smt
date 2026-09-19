@@ -63,6 +63,28 @@ class LaporanPendapatanKunjunganExportCsvTest extends TestCase
         );
     }
 
+    public function test_export_csv_applies_multiple_poli_and_penjamin_filters(): void
+    {
+        $this->seedImportedPendapatanRows();
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.kunjungan.export-csv', [
+                'startDate' => '2026-05-01',
+                'endDate' => '2026-05-31',
+                'poli' => ['Poli Umum', 'Poli Anak'],
+                'penjamin' => ['Umum', 'BPJS'],
+            ]));
+
+        $content = $this->normalizeStreamedContent($response->streamedContent());
+
+        $response->assertOk();
+        $this->assertStringContainsString('BILL-001', $content);
+        $this->assertStringContainsString('BILL-003', $content);
+        $this->assertStringNotContainsString('BILL-002', $content);
+        $this->assertStringNotContainsString('BILL-004', $content);
+    }
+
     public function test_export_csv_requires_valid_dates(): void
     {
         $response = $this

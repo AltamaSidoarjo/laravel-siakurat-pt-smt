@@ -29,12 +29,20 @@
                                 <input type="date" name="endDate" class="form-control" value="{{ $endDate }}">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Poli</label>
-                                <input type="text" name="poli" class="form-control" value="{{ $poli }}" placeholder="Cari poli">
+                                <label for="poli" class="form-label">Poli</label>
+                                <select id="poli" name="poli[]" class="form-select select2" multiple data-placeholder="Semua poli">
+                                    @foreach ($poliOptions as $option)
+                                        <option value="{{ $option }}" @selected(in_array($option, $poli, true))>{{ $option }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Penjamin</label>
-                                <input type="text" name="penjamin" class="form-control" value="{{ $penjamin }}" placeholder="Cari penjamin">
+                                <label for="penjamin" class="form-label">Penjamin</label>
+                                <select id="penjamin" name="penjamin[]" class="form-select select2" multiple data-placeholder="Semua penjamin">
+                                    @foreach ($penjaminOptions as $option)
+                                        <option value="{{ $option }}" @selected(in_array($option, $penjamin, true))>{{ $option }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                             <div class="col-md-12 d-flex justify-content-end gap-2">
                                 <a href="{{ route('laporan.pendapatan.kunjungan') }}" class="btn btn-light">Reset</a>
@@ -82,6 +90,12 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <form method="get" action="{{ route('laporan.pendapatan.kunjungan.export-csv') }}">
+                    @foreach ($poli as $selectedPoli)
+                        <input type="hidden" name="poli[]" value="{{ $selectedPoli }}">
+                    @endforeach
+                    @foreach ($penjamin as $selectedPenjamin)
+                        <input type="hidden" name="penjamin[]" value="{{ $selectedPenjamin }}">
+                    @endforeach
                     <div class="modal-header">
                         <h5 class="modal-title" id="exportCsvModalLabel">Export CSV Pendapatan Kunjungan</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -123,8 +137,8 @@
                     data: function (d) {
                         d.startDate = '{{ $startDate }}';
                         d.endDate = '{{ $endDate }}';
-                        d.poli = document.querySelector('[name="poli"]').value;
-                        d.penjamin = document.querySelector('[name="penjamin"]').value;
+                        d.poli = @json($poli);
+                        d.penjamin = @json($penjamin);
                     }
                 },
                 dom: 'frltip',

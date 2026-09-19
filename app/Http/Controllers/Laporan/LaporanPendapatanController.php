@@ -40,8 +40,10 @@ class LaporanPendapatanController extends Controller
             'page' => 'app',
             'startDate' => $startDate,
             'endDate' => $endDate,
-            'poli' => $request->string('poli')->trim()->toString(),
-            'penjamin' => $request->string('penjamin')->trim()->toString(),
+            'poli' => $this->normalizeMultiSelectFilter($request->input('poli')),
+            'penjamin' => $this->normalizeMultiSelectFilter($request->input('penjamin')),
+            'poliOptions' => $this->laporanPendapatanService->getKunjunganPoliOptions(),
+            'penjaminOptions' => $this->laporanPendapatanService->getKunjunganPenjaminOptions(),
         ]);
     }
 
@@ -172,8 +174,8 @@ class LaporanPendapatanController extends Controller
     public function loadKunjungan(Request $request): JsonResponse
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
-        $poli = $request->string('poli')->trim()->toString();
-        $penjamin = $request->string('penjamin')->trim()->toString();
+        $poli = $this->normalizeMultiSelectFilter($request->input('poli'));
+        $penjamin = $this->normalizeMultiSelectFilter($request->input('penjamin'));
 
         $baseQuery = $this->laporanPendapatanService->getQueryKunjungan(
             startDate: $startDate,
@@ -197,9 +199,18 @@ class LaporanPendapatanController extends Controller
 
     public function exportKunjunganCsv(Request $request): StreamedResponse
     {
+        $request->merge([
+            'poli' => $this->normalizeMultiSelectFilter($request->input('poli')),
+            'penjamin' => $this->normalizeMultiSelectFilter($request->input('penjamin')),
+        ]);
+
         $validated = $request->validate([
             'startDate' => ['required', 'date_format:Y-m-d'],
             'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+            'poli' => ['array'],
+            'poli.*' => ['string', 'max:255'],
+            'penjamin' => ['array'],
+            'penjamin.*' => ['string', 'max:255'],
         ]);
 
         $fileName = sprintf(
@@ -212,6 +223,8 @@ class LaporanPendapatanController extends Controller
             fn () => $this->laporanPendapatanService->streamKunjunganCsv(
                 startDate: $validated['startDate'],
                 endDate: $validated['endDate'],
+                poli: $validated['poli'],
+                penjamin: $validated['penjamin'],
             ),
             $fileName,
             [
@@ -469,6 +482,17 @@ class LaporanPendapatanController extends Controller
         $endDate = $request->date('endDate')?->format('Y-m-d') ?? now()->format('Y-m-d');
 
         return [$startDate, $endDate];
+    }
+
+    private function normalizeMultiSelectFilter(mixed $value): array
+    {
+        return collect(is_array($value) ? $value : [$value])
+            ->filter(fn (mixed $item) => is_scalar($item))
+            ->map(fn (mixed $item) => trim((string) $item))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function applyKunjunganDataTableSearch(Builder $query, Request $request): void

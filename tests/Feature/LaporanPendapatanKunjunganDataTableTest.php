@@ -33,6 +33,29 @@ class LaporanPendapatanKunjunganDataTableTest extends TestCase
             ->assertJsonPath('grandTotal', 6000);
     }
 
+    public function test_page_displays_local_multiselect_options_and_keeps_selected_values(): void
+    {
+        $this->seedImportedPendapatanRows();
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.kunjungan', [
+                'startDate' => '2026-05-01',
+                'endDate' => '2026-05-31',
+                'poli' => ['Poli Anak', 'Poli Umum'],
+                'penjamin' => ['BPJS'],
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertSee('name="poli[]"', false)
+            ->assertSee('name="penjamin[]"', false)
+            ->assertSee('multiple', false)
+            ->assertSee('<option value="Poli Anak" selected>Poli Anak</option>', false)
+            ->assertSee('<option value="Poli Umum" selected>Poli Umum</option>', false)
+            ->assertSee('<option value="BPJS" selected>BPJS</option>', false);
+    }
+
     public function test_grand_total_uses_form_filters_before_search(): void
     {
         $this->seedImportedPendapatanRows();
@@ -42,13 +65,32 @@ class LaporanPendapatanKunjunganDataTableTest extends TestCase
             ->get(route('laporan.pendapatan.kunjungan.load-data', $this->dataTableRequest([
                 'startDate' => '2026-05-01',
                 'endDate' => '2026-05-31',
-                'poli' => 'Anak',
+                'poli' => 'Poli Anak',
                 'penjamin' => 'BPJS',
             ])));
 
         $response
             ->assertOk()
             ->assertJsonPath('grandTotal', 3000);
+    }
+
+    public function test_grand_total_supports_multiple_poli_and_penjamin_values(): void
+    {
+        $this->seedImportedPendapatanRows();
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.kunjungan.load-data', $this->dataTableRequest([
+                'startDate' => '2026-05-01',
+                'endDate' => '2026-05-31',
+                'poli' => ['Poli Umum', 'Poli Anak'],
+                'penjamin' => ['Umum', 'BPJS'],
+            ])));
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('recordsFiltered', 2)
+            ->assertJsonPath('grandTotal', 4000);
     }
 
     public function test_grand_total_changes_when_global_search_filters_kunjungan_rows(): void
@@ -77,7 +119,7 @@ class LaporanPendapatanKunjunganDataTableTest extends TestCase
             ->get(route('laporan.pendapatan.kunjungan.load-data', $this->dataTableRequest([
                 'startDate' => '2026-05-01',
                 'endDate' => '2026-05-31',
-                'poli' => 'Anak',
+                'poli' => 'Poli Anak',
                 'penjamin' => 'BPJS',
                 'search' => ['value' => 'Siti'],
             ])));

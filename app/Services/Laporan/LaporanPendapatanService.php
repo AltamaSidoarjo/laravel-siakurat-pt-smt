@@ -739,15 +739,35 @@ class LaporanPendapatanService
     public function getQueryKunjungan(
         string $startDate,
         string $endDate,
-        string $poli = '',
-        string $penjamin = '',
+        array $poli = [],
+        array $penjamin = [],
     ): Builder {
         return SimrsImportPendapatan::query()
             ->betweenDates($startDate, $endDate)
-            ->when($poli !== '', fn (Builder $query) => $query->where('poli', 'like', "%{$poli}%"))
-            ->when($penjamin !== '', fn (Builder $query) => $query->where('penjamin', 'like', "%{$penjamin}%"))
+            ->when($poli !== [], fn (Builder $query) => $query->whereIn('poli', $poli))
+            ->when($penjamin !== [], fn (Builder $query) => $query->whereIn('penjamin', $penjamin))
             ->orderByDesc('tanggal_reg')
             ->orderByDesc('id');
+    }
+
+    public function getKunjunganPoliOptions(): Collection
+    {
+        return SimrsImportPendapatan::query()
+            ->whereNotNull('poli')
+            ->where('poli', '<>', '')
+            ->distinct()
+            ->orderBy('poli')
+            ->pluck('poli');
+    }
+
+    public function getKunjunganPenjaminOptions(): Collection
+    {
+        return SimrsImportPendapatan::query()
+            ->whereNotNull('penjamin')
+            ->where('penjamin', '<>', '')
+            ->distinct()
+            ->orderBy('penjamin')
+            ->pluck('penjamin');
     }
 
     public function getQueryPenjualanObat(string $startDate, string $endDate): Builder
@@ -758,8 +778,12 @@ class LaporanPendapatanService
             ->orderByDesc('id');
     }
 
-    public function streamKunjunganCsv(string $startDate, string $endDate): void
-    {
+    public function streamKunjunganCsv(
+        string $startDate,
+        string $endDate,
+        array $poli = [],
+        array $penjamin = [],
+    ): void {
         $handle = fopen('php://output', 'wb');
 
         if ($handle === false) {
@@ -779,7 +803,7 @@ class LaporanPendapatanService
             'Nominal',
         ]);
 
-        $this->getQueryKunjunganForExport($startDate, $endDate)
+        $this->getQueryKunjunganForExport($startDate, $endDate, $poli, $penjamin)
             ->lazyById(1000, 'id')
             ->each(function (SimrsImportPendapatan $row) use ($handle) {
                 fputcsv($handle, [
@@ -1030,8 +1054,12 @@ class LaporanPendapatanService
         }
     }
 
-    private function getQueryKunjunganForExport(string $startDate, string $endDate): Builder
-    {
+    private function getQueryKunjunganForExport(
+        string $startDate,
+        string $endDate,
+        array $poli,
+        array $penjamin,
+    ): Builder {
         return SimrsImportPendapatan::query()
             ->select([
                 'id',
@@ -1045,6 +1073,8 @@ class LaporanPendapatanService
                 'total_tagihan',
             ])
             ->betweenDates($startDate, $endDate)
+            ->when($poli !== [], fn (Builder $query) => $query->whereIn('poli', $poli))
+            ->when($penjamin !== [], fn (Builder $query) => $query->whereIn('penjamin', $penjamin))
             ->orderBy('id');
     }
 
