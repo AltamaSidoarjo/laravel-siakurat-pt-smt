@@ -46,18 +46,18 @@ class BillingPendapatanJournalImportServiceTest extends TestCase
         $cash = $this->createCoa(' 110.01 ', 'Kasbank');
         $revenue = $this->createCoa('410.01', 'Pendapatan lain');
 
-        $this->expectCandidates([$this->candidate()]);
-        $this->apiClient->shouldReceive('getAkun')->once()->with('ext-1')->andReturn([
+        $this->expectCandidates([$this->candidate('1761891', '1761891')]);
+        $this->apiClient->shouldReceive('getAkun')->once()->with('1761891')->andReturn([
             ['akun' => '110.01', 'biaya' => 100, 'jml' => 2, 'job' => 'Pembayaran'],
             ['akun' => '410.01', 'biaya' => 200, 'jml' => 1, 'job' => null],
         ]);
         $this->logService->shouldReceive('log')->once();
 
-        $result = $this->import(['ext-1']);
+        $result = $this->import(['1761891']);
 
         $this->assertTrue($result[0]['berhasil']);
         $this->assertDatabaseHas('jurnal_umum', [
-            'nomer' => 'RJ-001',
+            'nomer' => '1761891',
             'tanggal' => '2026-08-15 00:00:00',
             'debit' => 200,
             'kredit' => 200,
@@ -76,18 +76,18 @@ class BillingPendapatanJournalImportServiceTest extends TestCase
         ]);
         $this->assertDatabaseHas('bukubesar', [
             'coa_id' => $cash->id,
-            'nomer' => 'RJ-001',
+            'nomer' => '1761891',
             'tipe_mutasi' => 'D',
             'nominal' => 200,
         ]);
         $this->assertDatabaseHas('bukubesar', [
             'coa_id' => $revenue->id,
-            'nomer' => 'RJ-001',
+            'nomer' => '1761891',
             'tipe_mutasi' => 'K',
             'nominal' => 200,
         ]);
         $this->assertDatabaseHas('simrs_import_pendapatan', [
-            'nomer_billing' => 'RJ-001',
+            'nomer_billing' => '1761891',
             'nama_pasien' => 'Pasien API',
             'import_ke' => 'Jurnal Umum',
             'total_tagihan' => 200,

@@ -67,10 +67,10 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $this->createDefaultMappings($umum, $bpjs, $asuransi);
 
         $candidates = [
-            $this->candidate('ext-umum', 'RJ-UMUM', ' u/PX ', 'Pasien Umum'),
-            $this->candidate('ext-bpjs', 'RJ-BPJS', 'bpjs', 'Pasien BPJS'),
-            $this->candidate('ext-insurance', 'RJ-INSURANCE', 'Asuransi ABC', 'Pasien Asuransi'),
-            $this->candidate('ext-empty', 'RJ-EMPTY', '', 'Pasien Tanpa Penjamin'),
+            $this->candidate('1001', '1001', ' u/PX ', 'Pasien Umum'),
+            $this->candidate('1002', '1002', 'bpjs', 'Pasien BPJS'),
+            $this->candidate('1003', '1003', 'Asuransi ABC', 'Pasien Asuransi'),
+            $this->candidate('1004', '1004', '', 'Pasien Tanpa Penjamin'),
         ];
 
         $this->expectCandidates($candidates);
@@ -88,7 +88,8 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
 
         $this->assertTrue(collect($results)->every(fn (array $row) => $row['berhasil']));
         $this->assertDatabaseHas('faktur_penjualan', [
-            'nomor_faktur' => 'RJ-UMUM',
+            'nomor_faktur' => '1001',
+            'nomer_rawat' => '1001',
             'akun_piutang_id' => $umum->id,
             'kode_penjamin' => '1',
             'nama_penjamin' => 'Umum',
@@ -98,15 +99,15 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
             'status_proses' => 0,
         ]);
         $this->assertDatabaseHas('faktur_penjualan', [
-            'nomor_faktur' => 'RJ-BPJS',
+            'nomor_faktur' => '1002',
             'akun_piutang_id' => $bpjs->id,
         ]);
         $this->assertDatabaseHas('faktur_penjualan', [
-            'nomor_faktur' => 'RJ-INSURANCE',
+            'nomor_faktur' => '1003',
             'akun_piutang_id' => $asuransi->id,
         ]);
         $this->assertDatabaseHas('faktur_penjualan', [
-            'nomor_faktur' => 'RJ-EMPTY',
+            'nomor_faktur' => '1004',
             'akun_piutang_id' => $umum->id,
             'kode_penjamin' => '1',
             'nama_penjamin' => 'Umum',
@@ -117,12 +118,12 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         ]);
         $this->assertSame(3, DB::table('pelanggan')->count());
         $this->assertSame(
-            DB::table('faktur_penjualan')->where('nomor_faktur', 'RJ-UMUM')->value('pelanggan_id'),
-            DB::table('faktur_penjualan')->where('nomor_faktur', 'RJ-EMPTY')->value('pelanggan_id'),
+            DB::table('faktur_penjualan')->where('nomor_faktur', '1001')->value('pelanggan_id'),
+            DB::table('faktur_penjualan')->where('nomor_faktur', '1004')->value('pelanggan_id'),
         );
 
         $invoiceId = (int) DB::table('faktur_penjualan')
-            ->where('nomor_faktur', 'RJ-BPJS')
+            ->where('nomor_faktur', '1002')
             ->value('id');
         $this->assertDatabaseHas('faktur_penjualan_rinci', [
             'faktur_penjualan_id' => $invoiceId,
@@ -151,6 +152,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
             DB::table('bukubesar')->where('sumber_id', $invoiceId)->where('tipe_mutasi', 'D')->sum('nominal'),
             DB::table('bukubesar')->where('sumber_id', $invoiceId)->where('tipe_mutasi', 'K')->sum('nominal'),
         );
+        $this->assertDatabaseHas('simrs_import_pendapatan', ['nomer_billing' => '1002']);
     }
 
     public function test_invoice_uses_guarantor_as_customer_and_keeps_patient_on_invoice(): void

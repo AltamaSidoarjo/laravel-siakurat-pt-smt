@@ -148,8 +148,7 @@ class BillingPendapatanApiService
 
         return collect($rows)
             ->filter(fn (mixed $row) => is_array($row)
-                && filled($row['ID'] ?? null)
-                && filled($row['RegNum'] ?? null))
+                && filled($row['ID'] ?? null))
             ->map(fn (array $row) => $this->normalisasiKunjungan($row, $jenisLayanan))
             ->when(
                 $penjaminFilter !== '',
@@ -171,10 +170,11 @@ class BillingPendapatanApiService
     private function normalisasiKunjungan(array $row, string $jenisLayanan): array
     {
         $isIgd = $jenisLayanan === self::IGD;
+        $externalId = trim((string) ($row['ID'] ?? ''));
 
         return [
-            'external_id' => trim((string) ($row['ID'] ?? '')),
-            'no_rawat' => trim((string) $row['RegNum']),
+            'external_id' => $externalId,
+            'no_rawat' => $externalId,
             'tanggal_registrasi' => $this->tanggalTanpaJam($row['Tanggal'] ?? ''),
             'nama_pasien' => (string) ($row['Nama'] ?? ''),
             'nama_dokter' => (string) ($row['Dokter'] ?? ''),

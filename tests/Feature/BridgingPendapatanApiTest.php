@@ -67,7 +67,7 @@ class BridgingPendapatanApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('recordsTotal', 1)
             ->assertJsonPath('data.0.external_id', '1761891')
-            ->assertJsonPath('data.0.no_rawat', 'RJ-001')
+            ->assertJsonPath('data.0.no_rawat', '1761891')
             ->assertJsonPath('data.0.tanggal_registrasi', '2026-08-15')
             ->assertJsonPath('data.0.nama_pasien', 'Pasien API')
             ->assertJsonPath('data.0.nama_dokter', 'Dokter API')
@@ -117,6 +117,8 @@ class BridgingPendapatanApiTest extends TestCase
 
         $response
             ->assertOk()
+            ->assertJsonPath('data.0.external_id', '200')
+            ->assertJsonPath('data.0.no_rawat', '200')
             ->assertJsonPath('data.0.nama_dokter', '')
             ->assertJsonPath('data.0.nama_poli', 'IGD')
             ->assertJsonPath('data.0.status_lanjut', 'IGD')
@@ -144,9 +146,9 @@ class BridgingPendapatanApiTest extends TestCase
             'http://billing.test/api/rawat-jalan*' => Http::response([
                 'status' => true,
                 'data' => [
-                    ['ID' => '1', 'RegNum' => 'RJ-UMUM', 'PxRS' => 'U/Px'],
-                    ['ID' => '2', 'RegNum' => 'RJ-BPJS', 'PxRS' => 'BPJS'],
-                    ['ID' => '3', 'RegNum' => 'RJ-BPJS-COB', 'PxRS' => 'BPJS-COB'],
+                    ['ID' => '1', 'PxRS' => 'U/Px'],
+                    ['ID' => '2', 'PxRS' => 'BPJS'],
+                    ['ID' => '3', 'PxRS' => 'BPJS-COB'],
                 ],
             ]),
         ]);
@@ -163,7 +165,7 @@ class BridgingPendapatanApiTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('recordsTotal', 1)
-            ->assertJsonPath('data.0.no_rawat', 'RJ-UMUM');
+            ->assertJsonPath('data.0.no_rawat', '1');
 
         $this
             ->actingAs($this->makeUser())
@@ -175,7 +177,7 @@ class BridgingPendapatanApiTest extends TestCase
             ])))
             ->assertOk()
             ->assertJsonPath('recordsTotal', 1)
-            ->assertJsonPath('data.0.no_rawat', 'RJ-BPJS');
+            ->assertJsonPath('data.0.no_rawat', '2');
     }
 
     public function test_igd_candidate_table_applies_penjamin_filter(): void
@@ -201,7 +203,7 @@ class BridgingPendapatanApiTest extends TestCase
             ])))
             ->assertOk()
             ->assertJsonPath('recordsTotal', 1)
-            ->assertJsonPath('data.0.no_rawat', 'IGD-BPJS');
+            ->assertJsonPath('data.0.no_rawat', '1');
     }
 
     public function test_billing_account_detail_endpoint_returns_normalized_rows_and_total(): void
@@ -349,7 +351,11 @@ class BridgingPendapatanApiTest extends TestCase
     public function test_candidate_table_applies_search_pagination_and_excludes_imported_number(): void
     {
         SimrsImportPendapatan::query()->create([
-            'nomer_billing' => 'RJ-IMPORTED',
+            'nomer_billing' => '1',
+            'tanggal_reg' => '2026-08-15',
+        ]);
+        SimrsImportPendapatan::query()->create([
+            'nomer_billing' => 'RJ-AVAILABLE-1',
             'tanggal_reg' => '2026-08-15',
         ]);
 
@@ -380,7 +386,8 @@ class BridgingPendapatanApiTest extends TestCase
             ->assertJsonPath('recordsTotal', 2)
             ->assertJsonPath('recordsFiltered', 1)
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.no_rawat', 'RJ-AVAILABLE-1');
+            ->assertJsonPath('data.0.external_id', '2')
+            ->assertJsonPath('data.0.no_rawat', '2');
     }
 
     public function test_rawat_inap_cannot_be_requested(): void
@@ -526,7 +533,7 @@ class BridgingPendapatanApiTest extends TestCase
                 'Tester',
             )
             ->andReturn([[
-                'no_rawat' => 'RJ-001',
+                'no_rawat' => '1761891',
                 'berhasil' => true,
                 'alasan_gagal' => null,
             ]]);
@@ -548,7 +555,7 @@ class BridgingPendapatanApiTest extends TestCase
         $response
             ->assertRedirect(route('bridging.pendapatan.index'))
             ->assertSessionHas('bridging_pendapatan_message', 'Proses import Invoice Pendapatan selesai.')
-            ->assertSessionHas('bridging_pendapatan_results.0.no_rawat', 'RJ-001');
+            ->assertSessionHas('bridging_pendapatan_results.0.no_rawat', '1761891');
     }
 
     private function dataTableRequest(array $overrides): array
