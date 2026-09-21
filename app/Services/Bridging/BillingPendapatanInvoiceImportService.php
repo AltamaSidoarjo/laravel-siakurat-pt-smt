@@ -178,6 +178,7 @@ class BillingPendapatanInvoiceImportService
             $invoice->nama_dokter = (string) ($billing['nama_dokter'] ?? '');
             $invoice->nama_pasien = (string) ($billing['nama_pasien'] ?? '');
             $invoice->nomer_rawat = $noRawat;
+            $invoice->nomer_rekam_medis = trim((string) ($billing['nomer_rekam_medis'] ?? ''));
             $invoice->tanggal_registrasi = $tanggalRegistrasi;
             $invoice->kode_penjamin = (string) $billing['penjamin_id'];
             $invoice->nama_penjamin = $penjamin['nama'];

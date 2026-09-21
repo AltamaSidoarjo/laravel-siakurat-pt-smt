@@ -175,6 +175,7 @@ class BillingPendapatanApiService
         return [
             'external_id' => $externalId,
             'no_rawat' => $externalId,
+            'nomer_rekam_medis' => trim((string) ($row['RegNum'] ?? '')),
             'tanggal_registrasi' => $this->tanggalTanpaJam($row['Tanggal'] ?? ''),
             'nama_pasien' => (string) ($row['Nama'] ?? ''),
             'nama_dokter' => (string) ($row['Dokter'] ?? ''),

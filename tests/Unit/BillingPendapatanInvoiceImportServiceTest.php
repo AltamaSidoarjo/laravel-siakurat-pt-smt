@@ -177,6 +177,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $this->assertDatabaseHas('faktur_penjualan', [
             'nomor_faktur' => 'RJ-001',
             'nama_pasien' => 'Nama Pasien',
+            'nomer_rekam_medis' => 'RM-001',
             'kode_penjamin' => '4',
             'nama_penjamin' => 'Inhealth Indemity',
             'keterangan' => 'Poli API - Inhealth Indemity - ext-1 - Nama Pasien',
@@ -194,6 +195,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $this->createRequiredCoas();
         $candidate = $this->candidate('ext-blank', 'RJ-BLANK', '', '');
         $candidate['nama_poli'] = '   ';
+        $candidate['nomer_rekam_medis'] = '   ';
 
         $this->expectCandidates([$candidate]);
         $this->expectRevenueDetails('ext-blank');
@@ -204,6 +206,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $this->assertTrue($result[0]['berhasil']);
         $this->assertDatabaseHas('faktur_penjualan', [
             'nomor_faktur' => 'RJ-BLANK',
+            'nomer_rekam_medis' => '',
             'keterangan' => 'ext-blank',
         ]);
     }
@@ -772,6 +775,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
             'no_rawat' => $noRawat,
             'tanggal_registrasi' => '2026-08-15 09:30:45',
             'nama_pasien' => $namaPasien,
+            'nomer_rekam_medis' => ' RM-001 ',
             'nama_dokter' => 'Dokter API',
             'nama_poli' => 'Poli API',
             'status_lanjut' => 'Rawat Jalan',
