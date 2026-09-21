@@ -446,12 +446,17 @@ class BillingPendapatanInvoiceImportService
 
     private function buatNarasi(array $billing): string
     {
-        return sprintf(
-            'Bridging invoice pendapatan Billing API %s %s - %s',
-            (string) ($billing['status_lanjut'] ?? ''),
-            (string) ($billing['no_rawat'] ?? ''),
-            (string) ($billing['nama_pasien'] ?? ''),
+        $bagian = array_map(
+            fn (mixed $nilai): string => trim((string) $nilai),
+            [
+                $billing['nama_poli'] ?? '',
+                $billing['penjamin'] ?? '',
+                $billing['external_id'] ?? '',
+                $billing['nama_pasien'] ?? '',
+            ],
         );
+
+        return implode(' - ', array_filter($bagian, fn (string $nilai): bool => $nilai !== ''));
     }
 
     private function failedResult(array $billing, string $message): array
