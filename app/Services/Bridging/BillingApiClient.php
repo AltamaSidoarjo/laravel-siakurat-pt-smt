@@ -43,12 +43,18 @@ class BillingApiClient
         ], fn (mixed $value) => $value !== null && $value !== ''));
     }
 
-    public function getIgd(string $startDate, string $endDate): array
-    {
-        return $this->getData('/igd', [
+    public function getIgd(
+        string $startDate,
+        string $endDate,
+        ?string $spesialisId = null,
+        ?string $dokterId = null,
+    ): array {
+        return $this->getData('/igd', array_filter([
             'tgl_awal' => $startDate,
             'tgl_akhir' => $endDate,
-        ]);
+            'id_spesialis' => $spesialisId,
+            'dokter_id' => $dokterId,
+        ], fn (mixed $value) => $value !== null && $value !== ''));
     }
 
     public function getRawatInap(string $startDate, string $endDate): array

@@ -103,7 +103,10 @@ class BridgingPendapatanController extends Controller
             $apiError = $exception->getMessage();
         }
 
-        if ($jenisLayanan === BillingPendapatanApiService::RAWAT_JALAN) {
+        if (in_array($jenisLayanan, [
+            BillingPendapatanApiService::RAWAT_JALAN,
+            BillingPendapatanApiService::IGD,
+        ], true)) {
             try {
                 $spesialisOptions = $this->billingPendapatanApiService->getSpesialisOptions();
                 $dokterOptions = $this->billingPendapatanApiService->getDokterOptions();

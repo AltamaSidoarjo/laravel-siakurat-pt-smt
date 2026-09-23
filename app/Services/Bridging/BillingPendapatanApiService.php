@@ -135,7 +135,12 @@ class BillingPendapatanApiService
                 $spesialisId,
                 $dokterId,
             ),
-            self::IGD => $this->billingApiClient->getIgd($startDate, $endDate),
+            self::IGD => $this->billingApiClient->getIgd(
+                $startDate,
+                $endDate,
+                $spesialisId,
+                $dokterId,
+            ),
             self::RAWAT_INAP => $this->billingApiClient->getRawatInap($startDate, $endDate),
             default => [],
         };

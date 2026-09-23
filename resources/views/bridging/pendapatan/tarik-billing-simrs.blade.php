@@ -62,7 +62,7 @@
                                                 @endforeach
                                             </select>
                                         </div>
-                                        <div class="col-md-6 rawat-jalan-filter">
+                                        <div class="col-md-6 kunjungan-filter">
                                             <label for="spesialisId" class="form-label">Spesialis</label>
                                             <select name="spesialisId" id="spesialisId" class="form-select select2">
                                                 <option value="">Semua spesialis</option>
@@ -73,7 +73,7 @@
                                                 @endforeach
                                             </select>
                                         </div>
-                                        <div class="col-md-6 rawat-jalan-filter">
+                                        <div class="col-md-6 kunjungan-filter">
                                             <label for="dokterId" class="form-label">Dokter</label>
                                             <select name="dokterId" id="dokterId" class="form-select select2">
                                                 <option value="">Semua dokter</option>
@@ -153,17 +153,17 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const jenisLayanan = document.getElementById('jenisLayanan');
-            const rawatJalanFilters = document.querySelectorAll('.rawat-jalan-filter');
-            const toggleRawatJalanFilters = () => {
-                const show = jenisLayanan?.value === 'rawat_jalan';
+            const kunjunganFilters = document.querySelectorAll('.kunjungan-filter');
+            const toggleKunjunganFilters = () => {
+                const show = ['rawat_jalan', 'igd'].includes(jenisLayanan?.value);
 
-                rawatJalanFilters.forEach((element) => {
+                kunjunganFilters.forEach((element) => {
                     element.classList.toggle('d-none', !show);
                 });
             };
 
-            jenisLayanan?.addEventListener('change', toggleRawatJalanFilters);
-            toggleRawatJalanFilters();
+            jenisLayanan?.addEventListener('change', toggleKunjunganFilters);
+            toggleKunjunganFilters();
 
             if (!(window.jQuery && window.jQuery.fn.DataTable)) {
                 return;

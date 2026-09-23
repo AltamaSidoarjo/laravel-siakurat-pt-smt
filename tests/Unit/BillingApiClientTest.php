@@ -84,6 +84,34 @@ class BillingApiClientTest extends TestCase
             && $request->hasHeader('Authorization', 'Bearer fresh-token'));
     }
 
+    public function test_igd_filters_are_forwarded(): void
+    {
+        Http::fake([
+            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
+            'http://billing.test/api/igd*' => Http::response([
+                'status' => true,
+                'data' => [],
+            ]),
+        ]);
+
+        app(BillingApiClient::class)->getIgd('2026-08-18', '2026-08-18', '7', '380');
+
+        Http::assertSent(function (Request $request): bool {
+            if (! str_contains($request->url(), '/igd')) {
+                return false;
+            }
+
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+            return $query === [
+                'tgl_awal' => '2026-08-18',
+                'tgl_akhir' => '2026-08-18',
+                'id_spesialis' => '7',
+                'dokter_id' => '380',
+            ];
+        });
+    }
+
     public function test_rawat_inap_endpoint_receives_only_date_filters(): void
     {
         Http::fake([

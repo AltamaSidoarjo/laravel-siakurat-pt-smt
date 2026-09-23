@@ -89,7 +89,7 @@ class BridgingPendapatanApiTest extends TestCase
         Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/igd'));
     }
 
-    public function test_igd_endpoint_only_receives_date_filters_and_handles_optional_fields(): void
+    public function test_igd_endpoint_receives_visit_filters_and_handles_optional_fields(): void
     {
         Http::fake([
             'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
@@ -136,6 +136,8 @@ class BridgingPendapatanApiTest extends TestCase
             return $query === [
                 'tgl_awal' => '2026-08-18',
                 'tgl_akhir' => '2026-08-18',
+                'id_spesialis' => '7',
+                'dokter_id' => '380',
             ];
         });
         Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/rawat-jalan'));
@@ -495,6 +497,35 @@ class BridgingPendapatanApiTest extends TestCase
             ->assertDontSee('name="basisTanggalPengakuan"', false)
             ->assertSee('id="importButton" disabled', false)
             ->assertSee('selectedExternalIds[]');
+    }
+
+    public function test_igd_pull_page_loads_and_displays_visit_filters(): void
+    {
+        Http::fake([
+            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
+            'http://billing.test/api/pxrs' => Http::response(['status' => true, 'data' => []]),
+            'http://billing.test/api/spesialis' => Http::response([
+                'status' => true,
+                'data' => [['ID' => '7', 'Spesialis' => 'Spesialis IGD']],
+            ]),
+            'http://billing.test/api/dokter' => Http::response([
+                'status' => true,
+                'data' => [['ID' => '380', 'Dokter' => 'Dokter IGD']],
+            ]),
+        ]);
+
+        $this
+            ->actingAs($this->makeUser())
+            ->get(route('bridging.pendapatan.tarik-billing-simrs', [
+                'jenisLayanan' => 'igd',
+                'spesialisId' => '7',
+                'dokterId' => '380',
+            ]))
+            ->assertOk()
+            ->assertSee('Spesialis IGD')
+            ->assertSee('Dokter IGD')
+            ->assertSee("['rawat_jalan', 'igd'].includes", false)
+            ->assertDontSee('rawat-jalan-filter');
     }
 
     public function test_pull_page_remains_available_when_penjamin_options_fail(): void
