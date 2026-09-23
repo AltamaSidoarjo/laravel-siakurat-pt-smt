@@ -298,6 +298,7 @@ class BridgingPendapatanController extends Controller
         return in_array($jenisLayanan, [
             BillingPendapatanApiService::RAWAT_JALAN,
             BillingPendapatanApiService::IGD,
+            BillingPendapatanApiService::RAWAT_INAP,
         ], true) ? $jenisLayanan : BillingPendapatanApiService::RAWAT_JALAN;
     }
 

@@ -45,7 +45,7 @@
                                             <select name="jenisLayanan" id="jenisLayanan" class="form-select">
                                                 <option value="rawat_jalan" @selected($jenisLayanan === 'rawat_jalan')>Rawat Jalan</option>
                                                 <option value="igd" @selected($jenisLayanan === 'igd')>IGD</option>
-                                                <option value="rawat_inap" disabled>Rawat Inap — Endpoint belum tersedia</option>
+                                                <option value="rawat_inap" @selected($jenisLayanan === 'rawat_inap')>Rawat Inap</option>
                                             </select>
                                         </div>
                                         <div class="col-md-3">

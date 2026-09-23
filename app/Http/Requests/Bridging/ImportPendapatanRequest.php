@@ -18,7 +18,7 @@ class ImportPendapatanRequest extends FormRequest
             'selectedExternalIds.*' => ['required', 'string', 'max:100', 'distinct'],
             'startDate' => ['required', 'date_format:Y-m-d'],
             'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
-            'jenisLayanan' => ['required', 'in:rawat_jalan,igd'],
+            'jenisLayanan' => ['required', 'in:rawat_jalan,igd,rawat_inap'],
             'spesialisId' => ['nullable', 'string', 'max:100'],
             'dokterId' => ['nullable', 'string', 'max:100'],
             'penjamin' => ['nullable', 'string', 'max:255'],

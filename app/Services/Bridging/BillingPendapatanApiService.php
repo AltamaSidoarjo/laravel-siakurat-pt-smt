@@ -11,6 +11,8 @@ class BillingPendapatanApiService
 
     public const IGD = 'igd';
 
+    public const RAWAT_INAP = 'rawat_inap';
+
     public function __construct(
         private readonly BillingApiClient $billingApiClient,
     ) {}
@@ -134,6 +136,7 @@ class BillingPendapatanApiService
                 $dokterId,
             ),
             self::IGD => $this->billingApiClient->getIgd($startDate, $endDate),
+            self::RAWAT_INAP => $this->billingApiClient->getRawatInap($startDate, $endDate),
             default => [],
         };
 
@@ -170,6 +173,7 @@ class BillingPendapatanApiService
     private function normalisasiKunjungan(array $row, string $jenisLayanan): array
     {
         $isIgd = $jenisLayanan === self::IGD;
+        $isRawatInap = $jenisLayanan === self::RAWAT_INAP;
         $externalId = trim((string) ($row['ID'] ?? ''));
 
         return [
@@ -180,7 +184,11 @@ class BillingPendapatanApiService
             'nama_pasien' => (string) ($row['Nama'] ?? ''),
             'nama_dokter' => (string) ($row['Dokter'] ?? ''),
             'nama_poli' => $isIgd ? 'IGD' : (string) ($row['SubLayanan'] ?? ''),
-            'status_lanjut' => $isIgd ? 'IGD' : 'Rawat Jalan',
+            'status_lanjut' => match (true) {
+                $isIgd => 'IGD',
+                $isRawatInap => 'Rawat Inap',
+                default => 'Rawat Jalan',
+            },
             'penjamin' => trim((string) ($row['PxRS'] ?? '')),
         ];
     }

@@ -392,21 +392,57 @@ class BridgingPendapatanApiTest extends TestCase
             ->assertJsonPath('data.0.no_rawat', '2');
     }
 
-    public function test_rawat_inap_cannot_be_requested(): void
+    public function test_rawat_inap_endpoint_receives_date_filters_and_normalizes_rows(): void
     {
-        Http::fake();
+        Http::fake([
+            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
+            'http://billing.test/api/pasien-pulang*' => Http::response([
+                'status' => true,
+                'data' => [[
+                    'ID' => '300',
+                    'RegNum' => 'RI-001',
+                    'Tanggal' => '2026-08-18 10:30:00',
+                    'Nama' => 'Pasien Rawat Inap',
+                    'Dokter' => 'Dokter Inap',
+                    'SubLayanan' => 'Ruang Mawar',
+                    'PxRS' => 'BPJS',
+                ]],
+            ]),
+        ]);
 
-        $this
+        $response = $this
             ->actingAs($this->makeUser())
-            ->getJson(route('bridging.pendapatan.load-billing-simrs', [
+            ->getJson(route('bridging.pendapatan.load-billing-simrs', $this->dataTableRequest([
                 'startDate' => '2026-08-18',
                 'endDate' => '2026-08-18',
                 'jenisLayanan' => 'rawat_inap',
-            ]))
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('jenisLayanan');
+                'spesialisId' => '7',
+                'dokterId' => '380',
+            ])));
 
-        Http::assertNothingSent();
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.0.external_id', '300')
+            ->assertJsonPath('data.0.no_rawat', '300')
+            ->assertJsonPath('data.0.nomer_rekam_medis', 'RI-001')
+            ->assertJsonPath('data.0.tanggal_registrasi', '2026-08-18')
+            ->assertJsonPath('data.0.nama_dokter', 'Dokter Inap')
+            ->assertJsonPath('data.0.nama_poli', 'Ruang Mawar')
+            ->assertJsonPath('data.0.status_lanjut', 'Rawat Inap')
+            ->assertJsonPath('data.0.penjamin', 'BPJS');
+
+        Http::assertSent(function (Request $request): bool {
+            if (! str_contains($request->url(), '/pasien-pulang')) {
+                return false;
+            }
+
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+            return $query === [
+                'tgl_awal' => '2026-08-18',
+                'tgl_akhir' => '2026-08-18',
+            ];
+        });
     }
 
     public function test_pull_page_only_offers_invoice_import_and_displays_penjamin(): void
@@ -431,7 +467,9 @@ class BridgingPendapatanApiTest extends TestCase
         $response
             ->assertOk()
             ->assertSee('Billing Pasien API')
-            ->assertSee('Rawat Inap — Endpoint belum tersedia')
+            ->assertSee('value="rawat_inap"', false)
+            ->assertSee('Rawat Inap</option>', false)
+            ->assertDontSee('Endpoint belum tersedia')
             ->assertSee('id="spesialisId" class="form-select select2"', false)
             ->assertSee('id="dokterId" class="form-select select2"', false)
             ->assertSee('id="penjamin" class="form-select select2"', false)

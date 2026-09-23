@@ -84,6 +84,32 @@ class BillingApiClientTest extends TestCase
             && $request->hasHeader('Authorization', 'Bearer fresh-token'));
     }
 
+    public function test_rawat_inap_endpoint_receives_only_date_filters(): void
+    {
+        Http::fake([
+            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
+            'http://billing.test/api/pasien-pulang*' => Http::response([
+                'status' => true,
+                'data' => [],
+            ]),
+        ]);
+
+        app(BillingApiClient::class)->getRawatInap('2026-08-15', '2026-08-16');
+
+        Http::assertSent(function (Request $request): bool {
+            if (! str_contains($request->url(), '/pasien-pulang')) {
+                return false;
+            }
+
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+            return $query === [
+                'tgl_awal' => '2026-08-15',
+                'tgl_akhir' => '2026-08-16',
+            ] && $request->hasHeader('Authorization', 'Bearer first-token');
+        });
+    }
+
     public function test_akun_endpoint_receives_external_id_and_returns_only_data_rows(): void
     {
         Http::fake([

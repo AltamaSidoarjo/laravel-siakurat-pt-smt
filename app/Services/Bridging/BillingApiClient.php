@@ -51,6 +51,14 @@ class BillingApiClient
         ]);
     }
 
+    public function getRawatInap(string $startDate, string $endDate): array
+    {
+        return $this->getData('/pasien-pulang', [
+            'tgl_awal' => $startDate,
+            'tgl_akhir' => $endDate,
+        ]);
+    }
+
     public function getAkun(string $externalId): array
     {
         return $this->getData('/akun-all', [
