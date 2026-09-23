@@ -1,0 +1,77 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    private const MODULE_CODE = 'kasbank.buku-bank';
+
+    public function up(): void
+    {
+        if (! Schema::hasTable('access_modules') || ! Schema::hasTable('roles') || ! Schema::hasTable('role_permissions')) {
+            return;
+        }
+
+        $timestamp = now();
+        DB::table('access_modules')->updateOrInsert(
+            ['kode' => self::MODULE_CODE],
+            [
+                'nama' => 'Buku Bank',
+                'group_nama' => 'Kasbank',
+                'urutan' => 55,
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ],
+        );
+
+        $moduleId = DB::table('access_modules')->where('kode', self::MODULE_CODE)->value('id');
+        if ($moduleId === null) {
+            return;
+        }
+
+        $existingRoleIds = DB::table('role_permissions')
+            ->where('access_module_id', $moduleId)
+            ->pluck('role_id')
+            ->all();
+
+        $permissions = DB::table('roles')
+            ->select('id', 'is_system')
+            ->get()
+            ->reject(fn ($role) => in_array($role->id, $existingRoleIds, true))
+            ->map(fn ($role) => [
+                'role_id' => $role->id,
+                'access_module_id' => $moduleId,
+                'can_view' => (bool) $role->is_system,
+                'can_create' => false,
+                'can_update' => false,
+                'can_delete' => false,
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ])
+            ->all();
+
+        if ($permissions !== []) {
+            DB::table('role_permissions')->insert($permissions);
+        }
+    }
+
+    public function down(): void
+    {
+        if (! Schema::hasTable('access_modules')) {
+            return;
+        }
+
+        $moduleId = DB::table('access_modules')->where('kode', self::MODULE_CODE)->value('id');
+        if ($moduleId === null) {
+            return;
+        }
+
+        if (Schema::hasTable('role_permissions')) {
+            DB::table('role_permissions')->where('access_module_id', $moduleId)->delete();
+        }
+
+        DB::table('access_modules')->where('id', $moduleId)->delete();
+    }
+};

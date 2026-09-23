@@ -100,6 +100,28 @@ class RoleAccessManagementTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_buku_bank_permission_controls_route_and_sidebar_menu(): void
+    {
+        $viewer = $this->makeUserWithPermissions([
+            'kasbank.buku-bank' => ['view' => true],
+        ]);
+
+        $withoutAccess = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+        ], 'buku-bank-blocked@example.com');
+
+        $this->actingAs($withoutAccess)
+            ->get(route('kasbank.buku-bank.index'))
+            ->assertForbidden();
+
+        $this->actingAs($viewer)
+            ->view('partials.sidebar', [
+                'brandCompanyName' => 'RS Test',
+            ])
+            ->assertSee('Buku Bank')
+            ->assertDontSee('Penerimaan');
+    }
+
     public function test_user_with_view_permission_can_open_pengguna_page_and_hidden_menu_items_are_not_rendered(): void
     {
         $user = $this->makeUserWithPermissions([

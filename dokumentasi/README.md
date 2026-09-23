@@ -37,6 +37,7 @@ bagian **Documentation Policy**.
 | Bukubesar — COA | [bukubesar-coa.md](bukubesar-coa.md) | selesai |
 | Kasbank — Penerimaan | [kasbank-penerimaan.md](kasbank-penerimaan.md) | selesai |
 | Kasbank — Pembayaran | [kasbank-pembayaran.md](kasbank-pembayaran.md) | selesai |
+| Kasbank — Buku Bank | [kasbank-buku-bank.md](kasbank-buku-bank.md) | selesai |
 | Bridging — Pendapatan | [bridging-pendapatan.md](bridging-pendapatan.md) | selesai |
 | Bridging — Pendapatan Obat | [bridging-pendapatan-obat.md](bridging-pendapatan-obat.md) | selesai |
 | Bridging — Pembelian | [bridging-pembelian.md](bridging-pembelian.md) | selesai |

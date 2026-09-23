@@ -91,6 +91,7 @@ sama dengan `kode` yang dipakai pada middleware `module.access` di `routes/web.p
 | `bukubesar.coa` | COA | Bukubesar |
 | `kasbank.penerimaan` | Kasbank Penerimaan | Kasbank |
 | `kasbank.pembayaran` | Kasbank Pembayaran | Kasbank |
+| `kasbank.buku-bank` | Buku Bank | Kasbank |
 | `bridging.pendapatan` | Bridging Pendapatan | Bridging |
 | `bridging.pendapatan-obat` | Bridging Pendapatan Obat | Bridging |
 | `bridging.pembelian` | Bridging Pembelian | Bridging |
@@ -117,6 +118,7 @@ sama dengan `kode` yang dipakai pada middleware `module.access` di `routes/web.p
 | `bukubesar.coa` | ✔ | ✔ | ✔ | ✔ |
 | `kasbank.penerimaan` | ✔ | ✔ | ✔ | ✔ |
 | `kasbank.pembayaran` | ✔ | ✔ | ✔ | ✔ |
+| `kasbank.buku-bank` | ✔ | | | |
 | `bridging.pendapatan` | ✔ | | ✔ | ✔ |
 | `bridging.pendapatan-obat` | ✔ | | ✔ | ✔ |
 | `bridging.pembelian` | ✔ | | ✔ | ✔ |

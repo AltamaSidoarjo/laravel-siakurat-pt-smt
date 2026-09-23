@@ -74,6 +74,14 @@ Tabel `bukubesar` adalah **mutasi akun** yang diturunkan dari transaksi sumber.
 
 Scope: `BukuBesar::scopeForSource($sumberTransaksi, $sumberId)`.
 
+### Pembacaan Buku Bank
+
+`Kasbank\BukuBankService` membaca tabel `bukubesar` tanpa mengubah data. Akun yang dapat
+dipilih dibatasi pada akun daun dengan `tipe_coa = Kasbank` secara case-insensitive. Akun
+nonaktif tetap tersedia untuk penelusuran histori. Saldo awal dihitung dari debit dikurangi
+kredit sebelum tanggal mulai, kemudian setiap mutasi periode memperbarui saldo berjalan.
+Lihat [Kasbank — Buku Bank](../kasbank-buku-bank.md) untuk endpoint dan alur lengkap.
+
 ## Sinkronisasi via BukuBesarService
 
 `BukuBesarService` bertanggung jawab mengisi ulang mutasi buku besar dari transaksi sumber.

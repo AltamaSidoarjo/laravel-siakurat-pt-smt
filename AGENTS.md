@@ -278,6 +278,7 @@ documentation updates as part of the change, not an afterthought.
 | `app/Http/Controllers/Bukubesar/CoaController.php`, `app/Services/Bukubesar/CoaService.php`, `app/Http/Requests/Bukubesar/*Coa*` | `dokumentasi/bukubesar-coa.md` |
 | `app/Http/Controllers/Kasbank/KasbankPenerimaanController.php`, `app/Services/Kasbank/KasbankPenerimaanService.php`, `app/Http/Requests/Kasbank/*Penerimaan*` | `dokumentasi/kasbank-penerimaan.md` |
 | `app/Http/Controllers/Kasbank/KasbankPembayaranController.php`, `app/Services/Kasbank/KasbankPembayaranService.php`, `app/Http/Requests/Kasbank/*Pembayaran*` | `dokumentasi/kasbank-pembayaran.md` |
+| `app/Http/Controllers/Kasbank/BukuBankController.php`, `app/Services/Kasbank/BukuBankService.php`, `app/Http/Requests/Kasbank/BukuBankRequest.php` | `dokumentasi/kasbank-buku-bank.md` |
 | `app/Http/Controllers/Bridging/BridgingPendapatanController.php`, `app/Services/Bridging/BridgingPendapatanService.php`, `app/Http/Requests/Bridging/*Pendapatan*` (bukan obat) | `dokumentasi/bridging-pendapatan.md` |
 | `app/Http/Controllers/Bridging/BridgingPendapatanObatController.php`, `app/Services/Bridging/BridgingPendapatanObatService.php`, `app/Http/Requests/Bridging/*PendapatanObat*` | `dokumentasi/bridging-pendapatan-obat.md` |
 | `app/Http/Controllers/Bridging/BridgingPembelianController.php`, `app/Services/Bridging/BridgingPembelianService.php`, `app/Http/Requests/Bridging/*Pembelian*` | `dokumentasi/bridging-pembelian.md` |

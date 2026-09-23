@@ -7,6 +7,7 @@ use App\Http\Controllers\Bridging\BridgingPendapatanObatController;
 use App\Http\Controllers\Bukubesar\CoaController;
 use App\Http\Controllers\Bukubesar\JurnalUmumController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Kasbank\BukuBankController;
 use App\Http\Controllers\Kasbank\KasbankPembayaranController;
 use App\Http\Controllers\Kasbank\KasbankPenerimaanController;
 use App\Http\Controllers\Laporan\LaporanKeuanganController;
@@ -84,6 +85,11 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::prefix('kasbank')->name('kasbank.')->group(function () {
+        Route::middleware('module.access:kasbank.buku-bank,view')->group(function () {
+            Route::get('/buku-bank', [BukuBankController::class, 'index'])->name('buku-bank.index');
+            Route::get('/buku-bank/search-coa', [BukuBankController::class, 'searchCoa'])->name('buku-bank.search-coa');
+        });
+
         Route::middleware('module.access:kasbank.penerimaan,view')->group(function () {
             Route::get('/penerimaan', [KasbankPenerimaanController::class, 'index'])->name('penerimaan.index');
             Route::get('/penerimaan/load-data', [KasbankPenerimaanController::class, 'loadData'])->name('penerimaan.load-data');
