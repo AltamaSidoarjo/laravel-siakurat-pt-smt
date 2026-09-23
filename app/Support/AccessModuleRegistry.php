@@ -12,6 +12,7 @@ class AccessModuleRegistry
             ['kode' => 'bukubesar.coa', 'nama' => 'COA', 'group_nama' => 'Bukubesar', 'urutan' => 30],
             ['kode' => 'kasbank.penerimaan', 'nama' => 'Kasbank Penerimaan', 'group_nama' => 'Kasbank', 'urutan' => 40],
             ['kode' => 'kasbank.pembayaran', 'nama' => 'Kasbank Pembayaran', 'group_nama' => 'Kasbank', 'urutan' => 50],
+            ['kode' => 'kasbank.buku-bank', 'nama' => 'Buku Bank', 'group_nama' => 'Kasbank', 'urutan' => 55],
             ['kode' => 'bridging.pendapatan', 'nama' => 'Bridging Pendapatan', 'group_nama' => 'Bridging', 'urutan' => 60],
             ['kode' => 'bridging.pendapatan-obat', 'nama' => 'Bridging Pendapatan Obat', 'group_nama' => 'Bridging', 'urutan' => 70],
             ['kode' => 'bridging.pembelian', 'nama' => 'Bridging Pembelian', 'group_nama' => 'Bridging', 'urutan' => 80],

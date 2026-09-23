@@ -9,6 +9,7 @@
     $canBukubesarCoa = $can('bukubesar.coa');
     $canKasbankPenerimaan = $can('kasbank.penerimaan');
     $canKasbankPembayaran = $can('kasbank.pembayaran');
+    $canKasbankBukuBank = $can('kasbank.buku-bank');
     $canBridgingPendapatan = $can('bridging.pendapatan');
     $canBridgingPendapatanObat = $can('bridging.pendapatan-obat');
     $canBridgingPembelian = $can('bridging.pembelian');
@@ -115,7 +116,7 @@
         </li>
         @endif
 
-        @if ($canKasbankPenerimaan || $canKasbankPembayaran)
+        @if ($canKasbankPenerimaan || $canKasbankPembayaran || $canKasbankBukuBank)
         <li class="sidebar-item">
             <a class="sidebar-link sidebar-toggle {{ str_starts_with($path, '/kasbank') ? 'active' : '' }}"
                data-bs-toggle="collapse" href="#menu-kasbank" role="button"
@@ -139,6 +140,14 @@
                         <a class="sidebar-sublink {{ str_starts_with($path, '/kasbank/pembayaran') ? 'active' : '' }}"
                            href="{{ route('kasbank.pembayaran.index') }}">
                             <i class="bi bi-circle-fill sidebar-bullet"></i> Pembayaran
+                        </a>
+                    </li>
+                    @endif
+                    @if ($canKasbankBukuBank)
+                    <li>
+                        <a class="sidebar-sublink {{ str_starts_with($path, '/kasbank/buku-bank') ? 'active' : '' }}"
+                           href="{{ route('kasbank.buku-bank.index') }}">
+                            <i class="bi bi-circle-fill sidebar-bullet"></i> Buku Bank
                         </a>
                     </li>
                     @endif
