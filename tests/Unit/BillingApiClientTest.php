@@ -127,6 +127,18 @@ class BillingApiClientTest extends TestCase
             === 'https://billing.test/kunjungan/rawatjalan/2026-08-15/2026-08-16?page=2');
     }
 
+    public function test_today_is_rejected_before_request_to_external_api(): void
+    {
+        $today = now('Asia/Jakarta')->format('Y-m-d');
+
+        Http::fake();
+
+        $this->expectException(BillingApiException::class);
+        $this->expectExceptionMessage('Tanggal akhir tidak boleh lebih dari kemarin');
+
+        app(BillingApiClient::class)->getIgd($today, $today);
+    }
+
     public function test_invalid_or_unsupported_requests_fail_before_http_call(): void
     {
         Http::fake();

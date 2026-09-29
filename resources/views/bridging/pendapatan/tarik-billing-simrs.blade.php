@@ -34,11 +34,11 @@
                                     <div class="row g-3">
                                         <div class="col-md-3">
                                             <label class="form-label">Dari tanggal</label>
-                                            <input type="date" name="startDate" class="form-control" value="{{ $startDate }}">
+                                            <input type="date" name="startDate" class="form-control" value="{{ $startDate }}" max="{{ now('Asia/Jakarta')->subDay()->format('Y-m-d') }}">
                                         </div>
                                         <div class="col-md-3">
                                             <label class="form-label">Sampai tanggal</label>
-                                            <input type="date" name="endDate" class="form-control" value="{{ $endDate }}">
+                                            <input type="date" name="endDate" class="form-control" value="{{ $endDate }}" max="{{ now('Asia/Jakarta')->subDay()->format('Y-m-d') }}">
                                         </div>
                                         <div class="col-md-3">
                                             <label for="jenisLayanan" class="form-label">Jenis layanan</label>

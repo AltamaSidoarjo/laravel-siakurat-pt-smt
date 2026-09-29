@@ -230,9 +230,9 @@ class BillingApiClient
 
     private function validateDateRange(string $startDate, string $endDate): void
     {
-        $start = CarbonImmutable::createFromFormat('!Y-m-d', $startDate);
-        $end = CarbonImmutable::createFromFormat('!Y-m-d', $endDate);
-        $yesterday = CarbonImmutable::now('Asia/Jakarta')->startOfDay()->subDay();
+        $start = CarbonImmutable::createFromFormat('!Y-m-d', $startDate, 'Asia/Jakarta');
+        $end = CarbonImmutable::createFromFormat('!Y-m-d', $endDate, 'Asia/Jakarta');
+        $lastAvailableDate = CarbonImmutable::now('Asia/Jakarta')->startOfDay()->subDay();
 
         if (! $start || $start->format('Y-m-d') !== $startDate || ! $end || $end->format('Y-m-d') !== $endDate) {
             throw new BillingApiException('Tanggal awal atau tanggal akhir tidak valid.');
@@ -243,8 +243,8 @@ class BillingApiClient
         if ($start->diffInDays($end) + 1 > 30) {
             throw new BillingApiException('Tanggal awal dan tanggal akhir tidak boleh lebih dari 30 hari.');
         }
-        if ($end->gt($yesterday)) {
-            throw new BillingApiException('Tanggal awal dan tanggal akhir tidak boleh lebih dari tanggal sekarang.');
+        if ($end->gt($lastAvailableDate)) {
+            throw new BillingApiException('Tanggal akhir tidak boleh lebih dari kemarin karena API eksternal belum menyediakan data hari ini.');
         }
     }
 
