@@ -145,7 +145,7 @@ class InvoicePendapatanController extends Controller
 
         try {
             $dokterOptions = $this->billingPendapatanApiService->getDokterOptions();
-            $poliOptions = $this->billingPendapatanApiService->getSpesialisOptions();
+            $poliOptions = $this->billingPendapatanApiService->getPoliOptions();
             $penjaminOptions = $this->billingPendapatanApiService->getPenjaminOptions();
         } catch (BillingApiException $exception) {
             $apiOptionsError = $exception->getMessage();

@@ -26,7 +26,7 @@ class BridgingPendapatanApiTest extends TestCase
 
         config([
             'cache.default' => 'array',
-            'services.billing_api.base_url' => 'http://billing.test/api',
+            'services.billing_api.base_url' => 'https://billing.test',
             'services.billing_api.username' => 'api-user',
             'services.billing_api.password' => 'api-password',
         ]);
@@ -38,17 +38,26 @@ class BridgingPendapatanApiTest extends TestCase
     public function test_rawat_jalan_endpoint_receives_its_specific_filters_and_normalizes_rows(): void
     {
         Http::fake([
-            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
-            'http://billing.test/api/rawat-jalan*' => Http::response([
-                'status' => true,
+            'https://billing.test/api/auth/login' => Http::response($this->tokenPayload()),
+            'https://billing.test/kunjungan/rawatjalan/*' => Http::response([
+                'code' => 200,
+                'message' => 'OK',
+                'page' => 1,
+                'perPage' => 30,
+                'totalPage' => 1,
+                'total' => 1,
                 'data' => [[
-                    'ID' => '1761891',
-                    'RegNum' => 'RJ-001',
-                    'Tanggal' => '2026-08-15 09:30:45',
-                    'Nama' => 'Pasien API',
-                    'Dokter' => 'Dokter API',
-                    'SubLayanan' => 'Spesialis API',
-                    'PxRS' => 'BPJS',
+                    'id' => '1761891',
+                    'pxNo' => 'RJ-001',
+                    'nomorRm' => '0001***',
+                    'tanggal' => '2026-08-15',
+                    'nama' => 'P***** A**',
+                    'dokterId' => '380',
+                    'dokterNama' => 'Dokter API',
+                    'poliId' => '7',
+                    'poliNama' => 'Spesialis API',
+                    'penjaminNama' => 'BPJS',
+                    'noSep' => 'SEP-001',
                 ]],
             ]),
         ]);
@@ -67,41 +76,50 @@ class BridgingPendapatanApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('recordsTotal', 1)
             ->assertJsonPath('data.0.external_id', '1761891')
-            ->assertJsonPath('data.0.no_rawat', '1761891')
-            ->assertJsonPath('data.0.nomer_rekam_medis', 'RJ-001')
+            ->assertJsonPath('data.0.no_rawat', 'RJ-001')
+            ->assertJsonPath('data.0.nomer_rekam_medis', '0001***')
             ->assertJsonPath('data.0.tanggal_registrasi', '2026-08-15')
-            ->assertJsonPath('data.0.nama_pasien', 'Pasien API')
+            ->assertJsonPath('data.0.nama_pasien', 'P***** A**')
             ->assertJsonPath('data.0.nama_dokter', 'Dokter API')
             ->assertJsonPath('data.0.nama_poli', 'Spesialis API')
             ->assertJsonPath('data.0.status_lanjut', 'Rawat Jalan')
             ->assertJsonPath('data.0.penjamin', 'BPJS');
 
         Http::assertSent(function (Request $request): bool {
-            if (! str_contains($request->url(), '/rawat-jalan')) {
+            if (! str_contains($request->url(), '/kunjungan/rawatjalan/2026-08-15/2026-08-15')) {
                 return false;
             }
 
             parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
 
-            return ($query['id_spesialis'] ?? null) === '7'
-                && ($query['dokter_id'] ?? null) === '380';
+            return $query === ['page' => '1'];
         });
-        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/igd'));
+        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/kunjungan/igd/'));
     }
 
     public function test_igd_endpoint_receives_visit_filters_and_handles_optional_fields(): void
     {
         Http::fake([
-            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
-            'http://billing.test/api/igd*' => Http::response([
-                'status' => true,
+            'https://billing.test/api/auth/login' => Http::response($this->tokenPayload()),
+            'https://billing.test/kunjungan/igd/*' => Http::response([
+                'code' => 200,
+                'message' => 'OK',
+                'page' => 1,
+                'perPage' => 30,
+                'totalPage' => 1,
+                'total' => 1,
                 'data' => [[
-                    'ID' => '200',
-                    'RegNum' => 'IGD-001',
-                    'Tanggal' => '2026-08-18',
-                    'Nama' => 'Pasien IGD',
-                    'Dokter' => null,
-                    'SubLayanan' => null,
+                    'id' => '200',
+                    'pxNo' => 'IGD-001',
+                    'nomorRm' => '0002***',
+                    'tanggal' => '2026-08-18',
+                    'nama' => 'P***** I**',
+                    'dokterId' => '380',
+                    'dokterNama' => null,
+                    'poliId' => '7',
+                    'poliNama' => 'IGD',
+                    'penjaminNama' => null,
+                    'noSEP' => null,
                 ]],
             ]),
         ]);
@@ -119,40 +137,40 @@ class BridgingPendapatanApiTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('data.0.external_id', '200')
-            ->assertJsonPath('data.0.no_rawat', '200')
-            ->assertJsonPath('data.0.nomer_rekam_medis', 'IGD-001')
+            ->assertJsonPath('data.0.no_rawat', 'IGD-001')
+            ->assertJsonPath('data.0.nomer_rekam_medis', '0002***')
             ->assertJsonPath('data.0.nama_dokter', '')
             ->assertJsonPath('data.0.nama_poli', 'IGD')
             ->assertJsonPath('data.0.status_lanjut', 'IGD')
             ->assertJsonPath('data.0.penjamin', '');
 
         Http::assertSent(function (Request $request): bool {
-            if (! str_contains($request->url(), '/igd')) {
+            if (! str_contains($request->url(), '/kunjungan/igd/2026-08-18/2026-08-18')) {
                 return false;
             }
 
             parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
 
-            return $query === [
-                'tgl_awal' => '2026-08-18',
-                'tgl_akhir' => '2026-08-18',
-                'id_spesialis' => '7',
-                'dokter_id' => '380',
-            ];
+            return $query === ['page' => '1'];
         });
-        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/rawat-jalan'));
+        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), '/kunjungan/rawatjalan/'));
     }
 
     public function test_candidate_table_filters_penjamin_exactly_and_normalizes_umum(): void
     {
         Http::fake([
-            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
-            'http://billing.test/api/rawat-jalan*' => Http::response([
-                'status' => true,
+            'https://billing.test/api/auth/login' => Http::response($this->tokenPayload()),
+            'https://billing.test/kunjungan/rawatjalan/*' => Http::response([
+                'code' => 200,
+                'message' => 'OK',
+                'page' => 1,
+                'perPage' => 30,
+                'totalPage' => 1,
+                'total' => 3,
                 'data' => [
-                    ['ID' => '1', 'PxRS' => 'U/Px'],
-                    ['ID' => '2', 'PxRS' => 'BPJS'],
-                    ['ID' => '3', 'PxRS' => 'BPJS-COB'],
+                    ['id' => '1', 'pxNo' => '1', 'penjaminNama' => 'Umum'],
+                    ['id' => '2', 'pxNo' => '2', 'penjaminNama' => 'BPJS'],
+                    ['id' => '3', 'pxNo' => '3', 'penjaminNama' => 'BPJS-COB'],
                 ],
             ]),
         ]);
@@ -187,12 +205,17 @@ class BridgingPendapatanApiTest extends TestCase
     public function test_igd_candidate_table_applies_penjamin_filter(): void
     {
         Http::fake([
-            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
-            'http://billing.test/api/igd*' => Http::response([
-                'status' => true,
+            'https://billing.test/api/auth/login' => Http::response($this->tokenPayload()),
+            'https://billing.test/kunjungan/igd/*' => Http::response([
+                'code' => 200,
+                'message' => 'OK',
+                'page' => 1,
+                'perPage' => 30,
+                'totalPage' => 1,
+                'total' => 2,
                 'data' => [
-                    ['ID' => '1', 'RegNum' => 'IGD-BPJS', 'PxRS' => 'BPJS'],
-                    ['ID' => '2', 'RegNum' => 'IGD-UMUM', 'PxRS' => 'U/Px'],
+                    ['id' => '1', 'pxNo' => 'IGD-BPJS', 'penjaminNama' => 'BPJS'],
+                    ['id' => '2', 'pxNo' => 'IGD-UMUM', 'penjaminNama' => 'Umum'],
                 ],
             ]),
         ]);
@@ -207,22 +230,11 @@ class BridgingPendapatanApiTest extends TestCase
             ])))
             ->assertOk()
             ->assertJsonPath('recordsTotal', 1)
-            ->assertJsonPath('data.0.no_rawat', '1');
+            ->assertJsonPath('data.0.no_rawat', 'IGD-BPJS');
     }
 
-    public function test_billing_account_detail_endpoint_returns_normalized_rows_and_total(): void
+    public function test_billing_account_detail_endpoint_returns_controlled_unsupported_error(): void
     {
-        Http::fake([
-            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
-            'http://billing.test/api/akun-all*' => Http::response([
-                'status' => true,
-                'data' => [
-                    ['akun' => '410.01', 'biaya' => 150000, 'jml' => 2, 'job' => 'DR-01'],
-                    ['akun' => '410.02', 'biaya' => 50000, 'jml' => 1, 'job' => null],
-                ],
-            ]),
-        ]);
-
         $response = $this
             ->actingAs($this->makeUser())
             ->getJson(route('bridging.pendapatan.load-billing-account-detail', [
@@ -230,17 +242,10 @@ class BridgingPendapatanApiTest extends TestCase
             ]));
 
         $response
-            ->assertOk()
-            ->assertJsonPath('data.0.akun', '410.01')
-            ->assertJsonPath('data.0.biaya', 150000)
-            ->assertJsonPath('data.0.jumlah', 2)
-            ->assertJsonPath('data.0.job', 'DR-01')
-            ->assertJsonPath('data.0.subtotal', 300000)
-            ->assertJsonPath('grandTotal', 350000)
-            ->assertJsonPath('source', 'api');
+            ->assertStatus(502)
+            ->assertJsonPath('message', 'Rincian akun belum tersedia pada Billing API baru.');
 
-        Http::assertSent(fn (Request $request): bool => str_contains($request->url(), '/akun-all')
-            && $request['id'] === '1761891');
+        Http::assertNothingSent();
     }
 
     public function test_billing_account_detail_requires_exactly_one_identifier(): void
@@ -265,25 +270,15 @@ class BridgingPendapatanApiTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_empty_billing_account_detail_returns_an_empty_api_result(): void
+    public function test_billing_account_detail_api_source_is_unavailable(): void
     {
-        Http::fake([
-            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
-            'http://billing.test/api/akun-all*' => Http::response([
-                'status' => true,
-                'data' => [],
-            ]),
-        ]);
-
         $this
             ->actingAs($this->makeUser())
             ->getJson(route('bridging.pendapatan.load-billing-account-detail', [
                 'externalId' => 'billing-empty',
             ]))
-            ->assertOk()
-            ->assertJsonCount(0, 'data')
-            ->assertJsonPath('grandTotal', 0)
-            ->assertJsonPath('source', 'api');
+            ->assertStatus(502)
+            ->assertJsonPath('message', 'Rincian akun belum tersedia pada Billing API baru.');
     }
 
     public function test_billing_account_detail_accepts_import_context(): void
@@ -359,18 +354,23 @@ class BridgingPendapatanApiTest extends TestCase
             'tanggal_reg' => '2026-08-15',
         ]);
         SimrsImportPendapatan::query()->create([
-            'nomer_billing' => 'RJ-AVAILABLE-1',
+            'nomer_billing' => 'NOT-IN-API',
             'tanggal_reg' => '2026-08-15',
         ]);
 
         Http::fake([
-            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
-            'http://billing.test/api/rawat-jalan*' => Http::response([
-                'status' => true,
+            'https://billing.test/api/auth/login' => Http::response($this->tokenPayload()),
+            'https://billing.test/kunjungan/rawatjalan/*' => Http::response([
+                'code' => 200,
+                'message' => 'OK',
+                'page' => 1,
+                'perPage' => 30,
+                'totalPage' => 1,
+                'total' => 3,
                 'data' => [
-                    ['ID' => '1', 'RegNum' => 'RJ-IMPORTED', 'Nama' => 'Sudah Diimpor'],
-                    ['ID' => '2', 'RegNum' => 'RJ-AVAILABLE-1', 'Nama' => 'Budi'],
-                    ['ID' => '3', 'RegNum' => 'RJ-AVAILABLE-2', 'Nama' => 'Siti'],
+                    ['id' => '1', 'pxNo' => '1', 'nama' => 'Sudah Diimpor'],
+                    ['id' => '2', 'pxNo' => 'RJ-AVAILABLE-1', 'nama' => 'Budi'],
+                    ['id' => '3', 'pxNo' => 'RJ-AVAILABLE-2', 'nama' => 'Siti'],
                 ],
             ]),
         ]);
@@ -391,27 +391,11 @@ class BridgingPendapatanApiTest extends TestCase
             ->assertJsonPath('recordsFiltered', 1)
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.external_id', '2')
-            ->assertJsonPath('data.0.no_rawat', '2');
+            ->assertJsonPath('data.0.no_rawat', 'RJ-AVAILABLE-1');
     }
 
-    public function test_rawat_inap_endpoint_receives_date_filters_and_normalizes_rows(): void
+    public function test_rawat_inap_is_rejected_because_new_api_does_not_support_it(): void
     {
-        Http::fake([
-            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
-            'http://billing.test/api/pasien-pulang*' => Http::response([
-                'status' => true,
-                'data' => [[
-                    'ID' => '300',
-                    'RegNum' => 'RI-001',
-                    'Tanggal' => '2026-08-18 10:30:00',
-                    'Nama' => 'Pasien Rawat Inap',
-                    'Dokter' => 'Dokter Inap',
-                    'SubLayanan' => 'Ruang Mawar',
-                    'PxRS' => 'BPJS',
-                ]],
-            ]),
-        ]);
-
         $response = $this
             ->actingAs($this->makeUser())
             ->getJson(route('bridging.pendapatan.load-billing-simrs', $this->dataTableRequest([
@@ -423,41 +407,24 @@ class BridgingPendapatanApiTest extends TestCase
             ])));
 
         $response
-            ->assertOk()
-            ->assertJsonPath('data.0.external_id', '300')
-            ->assertJsonPath('data.0.no_rawat', '300')
-            ->assertJsonPath('data.0.nomer_rekam_medis', 'RI-001')
-            ->assertJsonPath('data.0.tanggal_registrasi', '2026-08-18')
-            ->assertJsonPath('data.0.nama_dokter', 'Dokter Inap')
-            ->assertJsonPath('data.0.nama_poli', 'Ruang Mawar')
-            ->assertJsonPath('data.0.status_lanjut', 'Rawat Inap')
-            ->assertJsonPath('data.0.penjamin', 'BPJS');
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['jenisLayanan']);
 
-        Http::assertSent(function (Request $request): bool {
-            if (! str_contains($request->url(), '/pasien-pulang')) {
-                return false;
-            }
-
-            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
-
-            return $query === [
-                'tgl_awal' => '2026-08-18',
-                'tgl_akhir' => '2026-08-18',
-            ];
-        });
+        Http::assertNothingSent();
     }
 
     public function test_pull_page_only_offers_invoice_import_and_displays_penjamin(): void
     {
         Http::fake([
-            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
-            'http://billing.test/api/spesialis' => Http::response(['status' => true, 'data' => []]),
-            'http://billing.test/api/dokter' => Http::response(['status' => true, 'data' => []]),
-            'http://billing.test/api/pxrs' => Http::response([
-                'status' => true,
+            'https://billing.test/api/auth/login' => Http::response($this->tokenPayload()),
+            'https://billing.test/referensi/poli' => Http::response(['code' => 200, 'message' => 'OK', 'total' => 0, 'data' => []]),
+            'https://billing.test/referensi/dokter' => Http::response(['code' => 200, 'message' => 'OK', 'total' => 0, 'data' => []]),
+            'https://billing.test/referensi/penjamin' => Http::response([
+                'code' => 200,
+                'message' => 'OK',
                 'data' => [
-                    ['ID' => 45, 'PxRS' => 'ASKES/BPJS'],
-                    ['ID' => 1, 'PxRS' => 'U/Px'],
+                    ['id' => '45', 'nama' => 'ASKES/BPJS', 'tipe' => 'ASURANSI'],
+                    ['id' => 'umum', 'nama' => 'UMUM', 'tipe' => 'UMUM'],
                 ],
             ]),
         ]);
@@ -469,8 +436,6 @@ class BridgingPendapatanApiTest extends TestCase
         $response
             ->assertOk()
             ->assertSee('Billing Pasien API')
-            ->assertSee('value="rawat_inap"', false)
-            ->assertSee('Rawat Inap</option>', false)
             ->assertDontSee('Endpoint belum tersedia')
             ->assertSee('id="spesialisId" class="form-select select2"', false)
             ->assertSee('id="dokterId" class="form-select select2"', false)
@@ -502,15 +467,17 @@ class BridgingPendapatanApiTest extends TestCase
     public function test_igd_pull_page_loads_and_displays_visit_filters(): void
     {
         Http::fake([
-            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
-            'http://billing.test/api/pxrs' => Http::response(['status' => true, 'data' => []]),
-            'http://billing.test/api/spesialis' => Http::response([
-                'status' => true,
-                'data' => [['ID' => '7', 'Spesialis' => 'Spesialis IGD']],
+            'https://billing.test/api/auth/login' => Http::response($this->tokenPayload()),
+            'https://billing.test/referensi/penjamin' => Http::response(['code' => 200, 'message' => 'OK', 'total' => 0, 'data' => []]),
+            'https://billing.test/referensi/poli' => Http::response([
+                'code' => 200,
+                'message' => 'OK',
+                'data' => [['id' => '7', 'nama' => 'Spesialis IGD']],
             ]),
-            'http://billing.test/api/dokter' => Http::response([
-                'status' => true,
-                'data' => [['ID' => '380', 'Dokter' => 'Dokter IGD']],
+            'https://billing.test/referensi/dokter' => Http::response([
+                'code' => 200,
+                'message' => 'OK',
+                'data' => [['id' => '380', 'nama' => 'Dokter IGD']],
             ]),
         ]);
 
@@ -531,17 +498,17 @@ class BridgingPendapatanApiTest extends TestCase
     public function test_pull_page_remains_available_when_penjamin_options_fail(): void
     {
         Http::fake([
-            'http://billing.test/api/get-token' => Http::response($this->tokenPayload()),
-            'http://billing.test/api/pxrs' => Http::response(['status' => false], 503),
-            'http://billing.test/api/spesialis' => Http::response(['status' => true, 'data' => []]),
-            'http://billing.test/api/dokter' => Http::response(['status' => true, 'data' => []]),
+            'https://billing.test/api/auth/login' => Http::response($this->tokenPayload()),
+            'https://billing.test/referensi/penjamin' => Http::response(['code' => 503, 'message' => 'Billing API sedang tidak tersedia.'], 503),
+            'https://billing.test/referensi/poli' => Http::response(['code' => 200, 'message' => 'OK', 'data' => []]),
+            'https://billing.test/referensi/dokter' => Http::response(['code' => 200, 'message' => 'OK', 'data' => []]),
         ]);
 
         $this
             ->actingAs($this->makeUser())
             ->get(route('bridging.pendapatan.tarik-billing-simrs'))
             ->assertOk()
-            ->assertSee('Billing API sedang tidak tersedia. Silakan coba kembali.')
+            ->assertSee('Billing API sedang tidak tersedia.')
             ->assertSee('Semua penjamin');
     }
 
@@ -657,9 +624,13 @@ class BridgingPendapatanApiTest extends TestCase
     private function tokenPayload(): array
     {
         return [
-            'status' => true,
-            'token' => 'test-token',
-            'expires_in' => 3600,
+            'code' => 200,
+            'message' => 'OK',
+            'accessToken' => 'test-token',
+            'refreshToken' => 'test-refresh-token',
+            'tokenType' => 'Bearer',
+            'username' => 'api-user',
+            'accessTokenExpiresInMs' => 900000,
         ];
     }
 

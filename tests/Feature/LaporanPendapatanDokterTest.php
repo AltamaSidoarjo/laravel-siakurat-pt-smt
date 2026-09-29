@@ -48,29 +48,33 @@ class LaporanPendapatanDokterTest extends TestCase
 
     public function test_report_page_loads_poli_and_guarantor_selects_from_billing_api(): void
     {
-        config()->set('services.billing_api.base_url', 'http://billing.test/api');
+        config()->set('services.billing_api.base_url', 'https://billing.test');
         config()->set('services.billing_api.username', 'tester');
         config()->set('services.billing_api.password', 'secret');
         Cache::flush();
 
         Http::fake([
-            'http://billing.test/api/get-token' => Http::response([
-                'status' => true,
-                'token' => 'test-token',
-                'expires_in' => 3600,
+            'https://billing.test/api/auth/login' => Http::response([
+                'code' => 200,
+                'message' => 'OK',
+                'accessToken' => 'test-token',
+                'refreshToken' => 'test-refresh-token',
+                'accessTokenExpiresInMs' => 900000,
             ]),
-            'http://billing.test/api/spesialis' => Http::response([
-                'status' => true,
+            'https://billing.test/referensi/poli' => Http::response([
+                'code' => 200,
+                'message' => 'OK',
                 'data' => [
-                    ['ID' => 2, 'Spesialis' => 'Poli Anak'],
-                    ['ID' => 1, 'Spesialis' => 'Poli Umum'],
+                    ['id' => 2, 'nama' => 'Poli Anak'],
+                    ['id' => 1, 'nama' => 'Poli Umum'],
                 ],
             ]),
-            'http://billing.test/api/pxrs' => Http::response([
-                'status' => true,
+            'https://billing.test/referensi/penjamin' => Http::response([
+                'code' => 200,
+                'message' => 'OK',
                 'data' => [
-                    ['ID' => 45, 'PxRS' => 'ASKES/BPJS'],
-                    ['ID' => 1, 'PxRS' => 'U/Px'],
+                    ['id' => 45, 'nama' => 'ASKES/BPJS'],
+                    ['id' => 'umum', 'nama' => 'UMUM'],
                 ],
             ]),
         ]);
@@ -88,8 +92,8 @@ class LaporanPendapatanDokterTest extends TestCase
             ->assertSee('ASKES/BPJS')
             ->assertSee('Umum');
 
-        Http::assertSent(fn ($request) => $request->url() === 'http://billing.test/api/spesialis');
-        Http::assertSent(fn ($request) => $request->url() === 'http://billing.test/api/pxrs');
+        Http::assertSent(fn ($request) => $request->url() === 'https://billing.test/referensi/poli');
+        Http::assertSent(fn ($request) => $request->url() === 'https://billing.test/referensi/penjamin');
     }
 
     public function test_report_filters_doctor_poli_and_guarantor(): void

@@ -43,7 +43,7 @@ class BridgingPendapatanController extends Controller
         $apiOptionsError = null;
 
         try {
-            $poliOptions = $this->billingPendapatanApiService->getSpesialisOptions();
+        $poliOptions = $this->billingPendapatanApiService->getPoliOptions();
             $penjaminOptions = $this->billingPendapatanApiService->getPenjaminOptions();
         } catch (BillingApiException $exception) {
             $apiOptionsError = $exception->getMessage();
@@ -108,7 +108,7 @@ class BridgingPendapatanController extends Controller
             BillingPendapatanApiService::IGD,
         ], true)) {
             try {
-                $spesialisOptions = $this->billingPendapatanApiService->getSpesialisOptions();
+                $spesialisOptions = $this->billingPendapatanApiService->getPoliOptions();
                 $dokterOptions = $this->billingPendapatanApiService->getDokterOptions();
             } catch (BillingApiException $exception) {
                 $apiError ??= $exception->getMessage();
@@ -301,7 +301,6 @@ class BridgingPendapatanController extends Controller
         return in_array($jenisLayanan, [
             BillingPendapatanApiService::RAWAT_JALAN,
             BillingPendapatanApiService::IGD,
-            BillingPendapatanApiService::RAWAT_INAP,
         ], true) ? $jenisLayanan : BillingPendapatanApiService::RAWAT_JALAN;
     }
 

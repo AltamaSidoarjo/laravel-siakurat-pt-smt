@@ -55,7 +55,7 @@ class LaporanPendapatanController extends Controller
         $apiOptionsError = null;
 
         try {
-            $poliOptions = $this->billingPendapatanApiService->getSpesialisOptions();
+            $poliOptions = $this->billingPendapatanApiService->getPoliOptions();
             $penjaminOptions = $this->billingPendapatanApiService->getPenjaminOptions();
         } catch (BillingApiException $exception) {
             $apiOptionsError = $exception->getMessage();
