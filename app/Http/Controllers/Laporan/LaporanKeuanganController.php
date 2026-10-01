@@ -129,6 +129,32 @@ class LaporanKeuanganController extends Controller
         ));
     }
 
+    public function labaRugiKomparasiBulanan(Request $request): View
+    {
+        $startDate = $request->date('startDate')?->format('Y-m-d') ?? now()->startOfYear()->format('Y-m-d');
+        $endDate = $request->date('endDate')?->format('Y-m-d') ?? now()->format('Y-m-d');
+
+        $data = $this->laporanKeuanganService->getLabaRugiKomparasiBulanan($startDate, $endDate);
+
+        return view('laporan.keuangan.laba-rugi-komparasi-bulanan', array_merge(
+            $this->laporanKeuanganService->getIdentitasLaporan(),
+            [
+                'page' => 'app',
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'months' => $data['months'],
+                'sections' => $data['sections'],
+                'summary' => $data['summary'] ?? [],
+                'summary_rows' => $data['summary_rows'] ?? [],
+                'labaKotor' => $data['laba_kotor'] ?? [],
+                'labaOperasional' => $data['laba_operasional'] ?? [],
+                'totalPendapatanBebanLain' => $data['total_pendapatan_beban_lain'] ?? [],
+                'labaBersih' => $data['laba_bersih'] ?? [],
+            ],
+            $data,
+        ));
+    }
+
     public function neracaStandard(Request $request): View
     {
         $perDate = $request->string('perDate')->toString() ?: now()->toDateString();

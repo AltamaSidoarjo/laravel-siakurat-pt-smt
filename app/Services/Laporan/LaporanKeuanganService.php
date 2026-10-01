@@ -225,6 +225,231 @@ class LaporanKeuanganService
         return $hasil->values();
     }
 
+    public function getLabaRugiKomparasiBulanan(string $startDate, string $endDate): array
+    {
+        $months = $this->generateDaftarBulanKomparasi($startDate, $endDate);
+        $mutasiPerCoaPerBulan = $this->ambilMutasiPerCoaPerBulan($startDate, $endDate);
+
+        $targetTipeCoa = [
+            'Pendapatan',
+            'Beban Pokok Penjualan',
+            'Beban',
+            'Pendapatan lain',
+            'Beban lain',
+        ];
+
+        $activeTipeCoa = $this->ambilNamaTipeLabaRugiAktif();
+        if (empty($activeTipeCoa)) {
+            $activeTipeCoa = $targetTipeCoa;
+        }
+
+        $allTargetCoa = Coa::query()
+            ->active()
+            ->whereIn('tipe_coa', $activeTipeCoa)
+            ->orderBy('kode')
+            ->get();
+
+        $sectionConfigs = [
+            'pendapatan' => [
+                'key' => 'pendapatan',
+                'title' => 'Pendapatan',
+                'tipe_coa' => 'Pendapatan',
+                'total_label' => 'Total dari Pendapatan',
+            ],
+            'beban_pokok_pendapatan' => [
+                'key' => 'beban_pokok_pendapatan',
+                'title' => 'Beban Pokok Pendapatan',
+                'tipe_coa' => 'Beban Pokok Penjualan',
+                'total_label' => 'Total dari Beban Pokok Pendapatan',
+            ],
+            'beban_operasional' => [
+                'key' => 'beban_operasional',
+                'title' => 'Beban Operasional',
+                'tipe_coa' => 'Beban',
+                'total_label' => 'Total dari Beban Operasional',
+            ],
+            'pendapatan_lain' => [
+                'key' => 'pendapatan_lain',
+                'title' => 'Pendapatan Lain-lain',
+                'tipe_coa' => 'Pendapatan lain',
+                'total_label' => 'Total Pendapatan Lain-lain',
+            ],
+            'beban_lain' => [
+                'key' => 'beban_lain',
+                'title' => 'Beban Lain-lain',
+                'tipe_coa' => 'Beban lain',
+                'total_label' => 'Total Beban Lain-lain',
+            ],
+        ];
+
+        $sections = [];
+        $sectionTotals = [];
+
+        foreach ($sectionConfigs as $secKey => $config) {
+            $sectionItems = $allTargetCoa
+                ->filter(fn (Coa $c) => (string) $c->tipe_coa === $config['tipe_coa'])
+                ->values();
+
+            $itemsById = $sectionItems->keyBy(fn (Coa $c) => (int) $c->id);
+            $childrenMap = $sectionItems->groupBy(fn (Coa $c) => (int) ($c->parent_coa ?? 0));
+            $membersById = $sectionItems->keyBy(fn (Coa $c) => (int) $c->id);
+
+            $topLevelCoa = $sectionItems
+                ->filter(fn (Coa $c) => $c->parent_coa === null || ! $membersById->has((int) $c->parent_coa))
+                ->sortBy('kode')
+                ->values();
+
+            $sectionRows = [];
+            foreach ($topLevelCoa as $topCoa) {
+                $this->recurseKomparasiRows(
+                    coa: $topCoa,
+                    allCoa: $itemsById,
+                    childrenMap: $childrenMap,
+                    mutasiPerCoaPerBulan: $mutasiPerCoaPerBulan,
+                    months: $months,
+                    level: 1,
+                    rows: $sectionRows
+                );
+            }
+
+            $topLevelRowsOnly = array_filter($sectionRows, fn (array $r) => (int) $r['level'] === 1);
+            $monthlySectionNominals = [];
+            foreach ($months as $month) {
+                $mKey = $month['key'];
+                $monthlySectionNominals[$mKey] = (float) array_sum(array_map(
+                    fn (array $r) => (float) ($r['monthly'][$mKey]['nominal'] ?? 0.0),
+                    $topLevelRowsOnly
+                ));
+            }
+
+            $totalRow = $this->buildSummaryRow($config['total_label'], $monthlySectionNominals, $months);
+            $sectionTotals[$secKey] = $monthlySectionNominals;
+
+            $sections[$secKey] = [
+                'key' => $config['key'],
+                'title' => $config['title'],
+                'tipe_coa' => $config['tipe_coa'],
+                'rows' => $sectionRows,
+                'total' => $totalRow,
+            ];
+        }
+
+        $pendapatanMonthly = $sectionTotals['pendapatan'];
+        $bppMonthly = $sectionTotals['beban_pokok_pendapatan'];
+        $bebanOpsMonthly = $sectionTotals['beban_operasional'];
+        $pendapatanLainMonthly = $sectionTotals['pendapatan_lain'];
+        $bebanLainMonthly = $sectionTotals['beban_lain'];
+
+        $labaKotorMonthly = [];
+        $labaOpsMonthly = [];
+        $pendapatanBebanLainMonthly = [];
+        $labaBersihMonthly = [];
+
+        foreach ($months as $month) {
+            $mKey = $month['key'];
+            $pendapatan = (float) ($pendapatanMonthly[$mKey] ?? 0.0);
+            $bpp = (float) ($bppMonthly[$mKey] ?? 0.0);
+            $labaKotor = $pendapatan - $bpp;
+            $labaKotorMonthly[$mKey] = $labaKotor;
+
+            $bebanOps = (float) ($bebanOpsMonthly[$mKey] ?? 0.0);
+            $labaOps = $labaKotor - $bebanOps;
+            $labaOpsMonthly[$mKey] = $labaOps;
+
+            $pendapatanLain = (float) ($pendapatanLainMonthly[$mKey] ?? 0.0);
+            $bebanLain = (float) ($bebanLainMonthly[$mKey] ?? 0.0);
+            $pendapatanBebanLain = $pendapatanLain - $bebanLain;
+            $pendapatanBebanLainMonthly[$mKey] = $pendapatanBebanLain;
+
+            $labaBersih = $labaOps + $pendapatanBebanLain;
+            $labaBersihMonthly[$mKey] = $labaBersih;
+        }
+
+        $totalPendapatanRow = $sections['pendapatan']['total'];
+        $totalBppRow = $sections['beban_pokok_pendapatan']['total'];
+        $labaKotorRow = $this->buildSummaryRow('Laba Kotor', $labaKotorMonthly, $months);
+        $totalBebanOpsRow = $sections['beban_operasional']['total'];
+        $labaOpsRow = $this->buildSummaryRow('Laba Operasional', $labaOpsMonthly, $months);
+        $totalPendapatanLainRow = $sections['pendapatan_lain']['total'];
+        $totalBebanLainRow = $sections['beban_lain']['total'];
+        $totalPendapatanBebanLainRow = $this->buildSummaryRow('Total dari Pendapatan (Beban Lain-lain)', $pendapatanBebanLainMonthly, $months);
+        $labaBersihRow = $this->buildSummaryRow('Laba Bersih', $labaBersihMonthly, $months);
+
+        $summaryRows = [
+            'total_pendapatan' => $totalPendapatanRow,
+            'total_beban_pokok' => $totalBppRow,
+            'laba_kotor' => $labaKotorRow,
+            'total_beban_operasional' => $totalBebanOpsRow,
+            'laba_operasional' => $labaOpsRow,
+            'total_pendapatan_lain' => $totalPendapatanLainRow,
+            'total_beban_lain' => $totalBebanLainRow,
+            'total_pendapatan_beban_lain' => $totalPendapatanBebanLainRow,
+            'laba_bersih' => $labaBersihRow,
+        ];
+
+        return [
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'months' => $months,
+            'sections' => $sections,
+            'summary' => $summaryRows,
+            'summary_rows' => $summaryRows,
+            'laba_kotor' => $labaKotorRow,
+            'laba_operasional' => $labaOpsRow,
+            'total_pendapatan_beban_lain' => $totalPendapatanBebanLainRow,
+            'laba_bersih' => $labaBersihRow,
+            'labaKotor' => $labaKotorRow,
+            'labaOperasional' => $labaOpsRow,
+            'totalPendapatanBebanLain' => $totalPendapatanBebanLainRow,
+            'labaBersih' => $labaBersihRow,
+        ];
+    }
+
+    public function generateDaftarBulanKomparasi(string $startDate, string $endDate): array
+    {
+        $start = CarbonImmutable::parse($startDate)->startOfDay();
+        $end = CarbonImmutable::parse($endDate)->startOfDay();
+
+        if ($start > $end) {
+            [$start, $end] = [$end, $start];
+        }
+
+        $months = [];
+        $cursor = $start->startOfMonth();
+        $endMonth = $end->startOfMonth();
+
+        while ($cursor <= $endMonth) {
+            $months[] = [
+                'key' => $cursor->format('Y-m'),
+                'label' => $cursor->format('F Y'),
+                'start' => $cursor->startOfMonth()->toDateString(),
+                'end' => $cursor->endOfMonth()->toDateString(),
+            ];
+
+            $cursor = $cursor->addMonth();
+        }
+
+        return $months;
+    }
+
+    public function hitungPertumbuhanBulanan(float $current, ?float $previous): float
+    {
+        if ($previous === null) {
+            return 0.0;
+        }
+
+        return $this->hitungPersenPerubahan($current, $previous);
+    }
+
+    public function hitungPersenPerubahan(float $current, float $prev): float
+    {
+        if (abs($prev) < 0.00001) {
+            return abs($current) < 0.00001 ? 0.0 : 100.0;
+        }
+
+        return round((($current - $prev) / abs($prev)) * 100, 2);
+    }
+
     public function getLabaRugiPerParentCoa(string $startDate, string $endDate, int $coaId): array
     {
         $parentCoa = Coa::query()->find($coaId);
@@ -1300,6 +1525,177 @@ class LaporanKeuanganService
         return in_array($tipeNeraca, ['PASIVA', 'EKUITAS'], true)
             ? $saldoRaw * -1
             : $saldoRaw;
+    }
+
+    private function ambilMutasiPerCoaPerBulan(string $startDate, string $endDate): array
+    {
+        $normalizedEnd = strlen($endDate) === 10 ? $endDate . ' 23:59:59' : $endDate;
+
+        $rows = BukuBesar::query()
+            ->selectRaw('
+                coa_id,
+                SUBSTR(tanggal, 1, 7) as bulan,
+                SUM(CASE WHEN tipe_mutasi = "D" THEN nominal ELSE 0 END) as debit,
+                SUM(CASE WHEN tipe_mutasi = "K" THEN nominal ELSE 0 END) as kredit
+            ')
+            ->whereBetween('tanggal', [$startDate, $normalizedEnd])
+            ->groupBy('coa_id', DB::raw('SUBSTR(tanggal, 1, 7)'))
+            ->get();
+
+        $hasil = [];
+        foreach ($rows as $row) {
+            $coaId = (int) $row->coa_id;
+            $bulan = (string) $row->bulan;
+            $hasil[$coaId][$bulan] = [
+                'debit' => (float) $row->debit,
+                'kredit' => (float) $row->kredit,
+            ];
+        }
+
+        return $hasil;
+    }
+
+    private function hitungNominalSubtreeLabaRugiLeafPerBulan(
+        int $coaId,
+        Collection $allCoa,
+        Collection $childrenMap,
+        array $mutasiPerCoaPerBulan,
+        string $monthKey,
+    ): float {
+        return (float) collect($this->kumpulkanLeafDescendantCoaIds($coaId, $childrenMap))
+            ->sum(function (int $descendantId) use ($allCoa, $mutasiPerCoaPerBulan, $monthKey) {
+                $coa = $allCoa->get($descendantId);
+                if ($coa === null) {
+                    return 0.0;
+                }
+
+                $debit = (float) ($mutasiPerCoaPerBulan[$descendantId][$monthKey]['debit'] ?? 0.0);
+                $kredit = (float) ($mutasiPerCoaPerBulan[$descendantId][$monthKey]['kredit'] ?? 0.0);
+
+                return $this->hitungSaldoLabaRugi(
+                    tipeCoa: (string) $coa->tipe_coa,
+                    debit: $debit,
+                    kredit: $kredit,
+                );
+            });
+    }
+
+    private function buildKomparasiRow(
+        Coa $coa,
+        Collection $allCoa,
+        Collection $childrenMap,
+        array $mutasiPerCoaPerBulan,
+        array $months,
+        int $level,
+    ): array {
+        $children = $childrenMap->get((int) $coa->id, collect());
+        $hasChildren = $children->isNotEmpty();
+
+        $monthlyNominals = [];
+        foreach ($months as $month) {
+            $monthKey = $month['key'];
+            $monthlyNominals[$monthKey] = $this->hitungNominalSubtreeLabaRugiLeafPerBulan(
+                coaId: (int) $coa->id,
+                allCoa: $allCoa,
+                childrenMap: $childrenMap,
+                mutasiPerCoaPerBulan: $mutasiPerCoaPerBulan,
+                monthKey: $monthKey,
+            );
+        }
+
+        $monthly = [];
+        $prevNominal = null;
+        $grandTotal = 0.0;
+
+        foreach ($months as $month) {
+            $monthKey = $month['key'];
+            $nominal = (float) ($monthlyNominals[$monthKey] ?? 0.0);
+            $grandTotal += $nominal;
+            $growth = $this->hitungPertumbuhanBulanan($nominal, $prevNominal);
+
+            $monthly[$monthKey] = [
+                'nominal' => $nominal,
+                'persen_perubahan' => $growth,
+                'growth' => $growth,
+                'persen' => $growth,
+            ];
+
+            $prevNominal = $nominal;
+        }
+
+        return [
+            'coa_id' => (int) $coa->id,
+            'kode' => (string) $coa->kode,
+            'nama' => (string) $coa->nama,
+            'deskripsi' => (string) $coa->nama,
+            'tipe_coa' => (string) $coa->tipe_coa,
+            'level' => $level,
+            'parent_coa' => $coa->parent_coa ? (int) $coa->parent_coa : null,
+            'has_children' => $hasChildren,
+            'is_parent' => $hasChildren,
+            'is_leaf' => ! $hasChildren,
+            'monthly' => $monthly,
+            'months' => $monthly,
+            'total' => $grandTotal,
+            'grand_total' => $grandTotal,
+            'total_akumulasi' => $grandTotal,
+        ];
+    }
+
+    private function recurseKomparasiRows(
+        Coa $coa,
+        Collection $allCoa,
+        Collection $childrenMap,
+        array $mutasiPerCoaPerBulan,
+        array $months,
+        int $level,
+        array &$rows,
+    ): void {
+        $rows[] = $this->buildKomparasiRow($coa, $allCoa, $childrenMap, $mutasiPerCoaPerBulan, $months, $level);
+
+        $children = $childrenMap->get((int) $coa->id, collect())->sortBy('kode')->values();
+        foreach ($children as $child) {
+            $this->recurseKomparasiRows($child, $allCoa, $childrenMap, $mutasiPerCoaPerBulan, $months, $level + 1, $rows);
+        }
+    }
+
+    private function buildSummaryRow(
+        string $label,
+        array $monthlyNominals,
+        array $months,
+        ?string $kode = null,
+    ): array {
+        $monthly = [];
+        $prevNominal = null;
+        $grandTotal = 0.0;
+
+        foreach ($months as $month) {
+            $monthKey = $month['key'];
+            $nominal = (float) ($monthlyNominals[$monthKey] ?? 0.0);
+            $grandTotal += $nominal;
+            $growth = $this->hitungPertumbuhanBulanan($nominal, $prevNominal);
+
+            $monthly[$monthKey] = [
+                'nominal' => $nominal,
+                'persen_perubahan' => $growth,
+                'growth' => $growth,
+                'persen' => $growth,
+            ];
+
+            $prevNominal = $nominal;
+        }
+
+        return [
+            'kode' => $kode ?? '',
+            'label' => $label,
+            'nama' => $label,
+            'deskripsi' => $label,
+            'monthly' => $monthly,
+            'months' => $monthly,
+            'total' => $grandTotal,
+            'grand_total' => $grandTotal,
+            'total_akumulasi' => $grandTotal,
+        ];
     }
 
 }

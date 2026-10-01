@@ -253,6 +253,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/keuangan/laba-rugi-detil', [LaporanKeuanganController::class, 'labaRugiDetil'])->name('keuangan.laba-rugi-detil');
             Route::get('/keuangan/laba-rugi-standard', [LaporanKeuanganController::class, 'labaRugiStandard'])->name('keuangan.laba-rugi-standard');
             Route::get('/keuangan/laba-rugi-per-parent-coa', [LaporanKeuanganController::class, 'labaRugiPerParentCoa'])->name('keuangan.laba-rugi-per-parent-coa');
+            Route::get('/keuangan/laba-rugi-komparasi-bulanan', [LaporanKeuanganController::class, 'labaRugiKomparasiBulanan'])->name('keuangan.laba-rugi-komparasi-bulanan');
             Route::get('/keuangan/neraca-standard', [LaporanKeuanganController::class, 'neracaStandard'])->name('keuangan.neraca-standard');
             Route::get('/keuangan/neraca-per-parent-coa', [LaporanKeuanganController::class, 'neracaPerParentCoa'])->name('keuangan.neraca-per-parent-coa');
             Route::get('/keuangan/bukubesar', [LaporanKeuanganController::class, 'bukubesar'])->name('keuangan.bukubesar');
