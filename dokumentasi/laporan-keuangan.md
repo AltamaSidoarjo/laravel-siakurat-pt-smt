@@ -7,7 +7,7 @@ Modul **Laporan Keuangan** menyajikan berbagai laporan akuntansi berbasis data B
 
 1. Rincian transaksi buku besar,
 2. Deteksi jurnal tidak balance,
-3. Laba rugi (detil, standard, per parent COA),
+3. Laba rugi (detil, standard, per parent COA, komparasi bulanan),
 4. Neraca (standard, per parent COA, saldo, detil, rinci),
 5. Buku besar per COA,
 6. Arus kas.
@@ -34,6 +34,7 @@ Semua endpoint memakai izin `laporan.keuangan,view`.
 | `GET` | `/laporan/keuangan/laba-rugi-detil` | `laporan.keuangan.laba-rugi-detil` | `labaRugiDetil()` |
 | `GET` | `/laporan/keuangan/laba-rugi-standard` | `laporan.keuangan.laba-rugi-standard` | `labaRugiStandard()` |
 | `GET` | `/laporan/keuangan/laba-rugi-per-parent-coa` | `laporan.keuangan.laba-rugi-per-parent-coa` | `labaRugiPerParentCoa()` |
+| `GET` | `/laporan/keuangan/laba-rugi-komparasi-bulanan` | `laporan.keuangan.laba-rugi-komparasi-bulanan` | `labaRugiKomparasiBulanan()` |
 | `GET` | `/laporan/keuangan/neraca-standard` | `laporan.keuangan.neraca-standard` | `neracaStandard()` |
 | `GET` | `/laporan/keuangan/neraca-per-parent-coa` | `laporan.keuangan.neraca-per-parent-coa` | `neracaPerParentCoa()` |
 | `GET` | `/laporan/keuangan/bukubesar` | `laporan.keuangan.bukubesar` | `bukubesar()` |
@@ -72,11 +73,12 @@ flowchart TD
     D --> E["DataTables::collection() + grandTotalSelisih"]
 ```
 
-### Laba Rugi (Detil / Standard / Per Parent COA)
+### Laba Rugi (Detil / Standard / Per Parent COA / Komparasi Bulanan)
 
 - `labaRugiDetil()` → `getLabaRugiDetil()`: baris laba rugi rinci per akun.
 - `labaRugiStandard()` → `getLabaRugiStandard()`: bentuk agregat standar (parent-child).
 - `labaRugiPerParentCoa()` (param `coaId`) → `getLabaRugiPerParentCoa()`: drill-down per parent COA.
+- `labaRugiKomparasiBulanan()` (param `startDate`, `endDate`) → `getLabaRugiKomparasiBulanan()`: komparasi bulanan dengan persentase pertumbuhan horizontal antar-bulan (format Jurnal.id) untuk 5 pos laba rugi (Pendapatan, BPP, Beban Ops, Pendapatan Lain, Beban Lain) dan baris ringkasan (Laba Kotor, Laba Operasional, Laba Bersih).
 
 Service melibatkan klasifikasi tipe (pendapatan vs biaya), agregasi subtree per akun daun, dan
 integrasi anggaran **RBA** (`ambilRbaPerCoa`, `hitungAlokasiBulanPerTahun`) untuk pembanding.
@@ -124,11 +126,11 @@ flowchart TD
 ## Fungsi yang Dipanggil
 
 - Controller: `index()`, `rincianTransaksiBukubesar()/loadRincianTransaksiBukubesar()`,
-  `deteksiJurnalTidakBalance()/loadDeteksiJurnalTidakBalance()`, `labaRugiDetil()/labaRugiStandard()/labaRugiPerParentCoa()`,
+  `deteksiJurnalTidakBalance()/loadDeteksiJurnalTidakBalance()`, `labaRugiDetil()/labaRugiStandard()/labaRugiPerParentCoa()/labaRugiKomparasiBulanan()`,
   `neracaStandard()/neracaPerParentCoa()/neracaSaldo()/neracaDetil()/neracaRinci()`,
   `bukubesar()/searchBukubesarCoa()`, `arusKas()`, `resolveDateRange()` (private).
 - Service: `getIdentitasLaporan()`, `getQueryRincianTransaksiBukubesar()`, `getJurnalTidakBalance()`,
-  `getLabaRugiDetil()/getLabaRugiStandard()/getLabaRugiPerParentCoa()`,
+  `getLabaRugiDetil()/getLabaRugiStandard()/getLabaRugiPerParentCoa()/getLabaRugiKomparasiBulanan()`,
   `getNeracaStandard()/getNeracaPerParentCoa()/getNeracaSaldo()/getNeracaDetil()/getNeracaRinci()`,
   `getBukubesar()/getBukubesarSelectedCoaOptions()/searchBukubesarCoaOptions()`,
   `getArusKas()`, `getDaftarTipeCoaAktif()` (plus banyak helper privat untuk agregasi & klasifikasi).
