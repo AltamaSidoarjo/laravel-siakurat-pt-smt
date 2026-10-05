@@ -100,6 +100,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/penerimaan/{kasbankPenerimaan}/print', [KasbankPenerimaanController::class, 'print'])->name('penerimaan.print');
         });
         Route::middleware('module.access:kasbank.penerimaan,create')->group(function () {
+            Route::get('/penerimaan/import', [KasbankPenerimaanController::class, 'importForm'])->name('penerimaan.import.form');
+            Route::get('/penerimaan/import/template', [KasbankPenerimaanController::class, 'importTemplate'])->name('penerimaan.import.template');
+            Route::post('/penerimaan/import', [KasbankPenerimaanController::class, 'import'])->name('penerimaan.import.store');
             Route::get('/penerimaan/create', [KasbankPenerimaanController::class, 'create'])->name('penerimaan.create');
             Route::post('/penerimaan', [KasbankPenerimaanController::class, 'store'])->name('penerimaan.store');
         });
