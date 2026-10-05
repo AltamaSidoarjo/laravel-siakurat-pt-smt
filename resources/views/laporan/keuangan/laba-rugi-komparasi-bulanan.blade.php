@@ -27,6 +27,11 @@
             return '<span class="text-danger fw-semibold growth-indicator">▼ ' . $formatted . '%</span>';
         }
     };
+
+    $labaKotor = $labaKotor ?? ($summary['laba_kotor'] ?? null);
+    $labaOperasional = $labaOperasional ?? ($summary['laba_operasional'] ?? null);
+    $totalPendapatanBebanLain = $totalPendapatanBebanLain ?? ($summary['total_pendapatan_beban_lain'] ?? null);
+    $labaBersih = $labaBersih ?? ($summary['laba_bersih'] ?? null);
 @endphp
 
 @section('content')
@@ -799,8 +804,8 @@
         /* ─── Laba Kotor & Laba Operasional (Standout Styling) ────────── */
         .table-komparasi tr.row-laba-kotor td,
         .table-komparasi tr.row-laba-operasional td {
-            background-color: #f0f7ff !important;
-            color: #0c4a6e;
+            background-color: #e0f2fe !important;
+            color: #0369a1;
             font-weight: 700;
             border-top: 2px solid #0f172a !important;
             border-bottom: 2px solid #0f172a !important;
@@ -808,33 +813,33 @@
 
         .table-komparasi tr.row-laba-kotor td.sticky-col,
         .table-komparasi tr.row-laba-operasional td.sticky-col {
-            background-color: #f0f7ff !important;
+            background-color: #e0f2fe !important;
         }
 
         /* ─── Laba Bersih (Double Bottom Border & Highlight) ─────────── */
         .table-komparasi tr.row-laba-bersih td {
             font-weight: 800;
             border-top: 2px solid #0f172a !important;
-            border-bottom: 3px double #0f172a !important;
-            font-size: 0.925rem;
+            border-bottom: 4px double #0f172a !important;
+            font-size: 0.95rem;
         }
 
         .table-komparasi tr.row-laba-bersih--positive td {
-            background-color: #ecfdf5 !important;
-            color: #065f46;
+            background-color: #dcfce7 !important;
+            color: #14532d;
         }
 
         .table-komparasi tr.row-laba-bersih--negative td {
-            background-color: #fef2f2 !important;
+            background-color: #fee2e2 !important;
             color: #991b1b;
         }
 
         .table-komparasi tr.row-laba-bersih--positive td.sticky-col {
-            background-color: #ecfdf5 !important;
+            background-color: #dcfce7 !important;
         }
 
         .table-komparasi tr.row-laba-bersih--negative td.sticky-col {
-            background-color: #fef2f2 !important;
+            background-color: #fee2e2 !important;
         }
 
         /* ─── Hover Behavior ─────────────────────────────────────────── */
