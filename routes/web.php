@@ -57,6 +57,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/jurnal-umum/{jurnalUmum}/print', [JurnalUmumController::class, 'print'])->name('jurnal-umum.print');
         });
         Route::middleware('module.access:bukubesar.jurnal-umum,create')->group(function () {
+            Route::get('/jurnal-umum/import', [JurnalUmumController::class, 'importForm'])->name('jurnal-umum.import.form');
+            Route::get('/jurnal-umum/import/template', [JurnalUmumController::class, 'importTemplate'])->name('jurnal-umum.import.template');
+            Route::post('/jurnal-umum/import', [JurnalUmumController::class, 'import'])->name('jurnal-umum.import.store');
             Route::get('/jurnal-umum/create', [JurnalUmumController::class, 'create'])->name('jurnal-umum.create');
             Route::post('/jurnal-umum', [JurnalUmumController::class, 'store'])->name('jurnal-umum.store');
         });

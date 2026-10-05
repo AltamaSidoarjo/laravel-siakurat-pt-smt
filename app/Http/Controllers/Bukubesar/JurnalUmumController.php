@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\StreamsCsvExport;
 use App\Http\Requests\Bukubesar\StoreJurnalUmumRequest;
 use App\Http\Requests\Bukubesar\UpdateJurnalUmumRequest;
+use App\Http\Requests\Bukubesar\ImportJurnalUmumRequest;
 use App\Models\JurnalUmum;
 use App\Services\Bukubesar\JurnalUmumService;
+use App\Services\Bukubesar\JurnalUmumImportService;
+use App\Services\Bukubesar\JurnalUmumImportException;
 use App\Services\PreferensiPerusahaanService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -16,6 +19,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 use Yajra\DataTables\Facades\DataTables;
 
 class JurnalUmumController extends Controller
@@ -23,6 +28,7 @@ class JurnalUmumController extends Controller
     use StreamsCsvExport;
     public function __construct(
         private readonly JurnalUmumService $jurnalUmumService,
+        private readonly JurnalUmumImportService $jurnalUmumImportService,
         private readonly PreferensiPerusahaanService $preferensiPerusahaanService,
     ) {
     }
@@ -114,6 +120,47 @@ class JurnalUmumController extends Controller
         return redirect()
             ->route('bukubesar.jurnal-umum.index')
             ->with('success', 'Data berhasil dibuat. Nomer: '.$jurnalUmum->nomer);
+    }
+
+    public function importForm(): View
+    {
+        return view('bukubesar.jurnal-umum.import', [
+            'page' => 'app',
+            'phpUploadMaxFileSize' => ini_get('upload_max_filesize') ?: 'tidak diketahui',
+            'phpPostMaxSize' => ini_get('post_max_size') ?: 'tidak diketahui',
+        ]);
+    }
+
+    public function importTemplate(): BinaryFileResponse
+    {
+        $template = $this->jurnalUmumImportService->buildTemplate();
+
+        return response()
+            ->download(
+                $template['output_path'],
+                $template['download_name'],
+                ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+            )
+            ->deleteFileAfterSend(true);
+    }
+
+    public function import(ImportJurnalUmumRequest $request): RedirectResponse
+    {
+        try {
+            $result = DB::transaction(
+                fn () => $this->jurnalUmumImportService->importFromXlsx($request->file('file'))
+            );
+        } catch (JurnalUmumImportException $exception) {
+            return back()->withErrors(['file' => $exception->errors()]);
+        } catch (Throwable $throwable) {
+            report($throwable);
+
+            return back()->withErrors(['file' => 'File gagal diproses. Pastikan file sesuai template.']);
+        }
+
+        return redirect()
+            ->route('bukubesar.jurnal-umum.index')
+            ->with('success', sprintf('Import berhasil. %d jurnal dibuat (%s).', $result['created'], implode(', ', $result['nomer'])));
     }
 
     public function edit(JurnalUmum $jurnalUmum): View

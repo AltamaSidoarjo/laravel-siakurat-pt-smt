@@ -49,6 +49,9 @@
                         <div class="card border-light shadow-sm">
                             <div class="card-body">
                                 <div class="d-flex justify-content-end gap-3 align-items-center">
+                                    <a href="{{ route('bukubesar.jurnal-umum.import.form') }}" class="btn btn-outline-success fw-bold">
+                                        <i class="bi bi-upload"></i> Import
+                                    </a>
                                     <a href="{{ route('bukubesar.jurnal-umum.create') }}" class="btn btn-success fw-bold">
                                         <i class="bi bi-plus-circle-fill"></i> Tambah
                                     </a>
