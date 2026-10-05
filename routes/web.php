@@ -118,6 +118,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/pembayaran/{kasbankPembayaran}/print', [KasbankPembayaranController::class, 'print'])->name('pembayaran.print');
         });
         Route::middleware('module.access:kasbank.pembayaran,create')->group(function () {
+            Route::get('/pembayaran/import', [KasbankPembayaranController::class, 'importForm'])->name('pembayaran.import.form');
+            Route::get('/pembayaran/import/template', [KasbankPembayaranController::class, 'importTemplate'])->name('pembayaran.import.template');
+            Route::post('/pembayaran/import', [KasbankPembayaranController::class, 'import'])->name('pembayaran.import.store');
             Route::get('/pembayaran/create', [KasbankPembayaranController::class, 'create'])->name('pembayaran.create');
             Route::post('/pembayaran', [KasbankPembayaranController::class, 'store'])->name('pembayaran.store');
         });

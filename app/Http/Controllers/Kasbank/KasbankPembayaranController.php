@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\StreamsCsvExport;
 use App\Http\Requests\Kasbank\StoreKasbankPembayaranRequest;
 use App\Http\Requests\Kasbank\UpdateKasbankPembayaranRequest;
+use App\Http\Requests\Kasbank\ImportKasbankPembayaranRequest;
 use App\Models\KasbankPembayaran;
 use App\Services\Kasbank\KasbankPembayaranService;
+use App\Services\Kasbank\KasbankPembayaranImportService;
+use App\Services\Kasbank\KasbankPembayaranImportException;
 use App\Services\PreferensiPerusahaanService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -16,6 +19,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 use Yajra\DataTables\Facades\DataTables;
 
 class KasbankPembayaranController extends Controller
@@ -23,6 +28,7 @@ class KasbankPembayaranController extends Controller
     use StreamsCsvExport;
     public function __construct(
         private readonly KasbankPembayaranService $kasbankPembayaranService,
+        private readonly KasbankPembayaranImportService $kasbankPembayaranImportService,
         private readonly PreferensiPerusahaanService $preferensiPerusahaanService,
     ) {
     }
@@ -79,6 +85,47 @@ class KasbankPembayaranController extends Controller
         return redirect()
             ->route('kasbank.pembayaran.index')
             ->with('success', 'Data berhasil dibuat. Nomer: '.$kasbankPembayaran->nomer);
+    }
+
+    public function importForm(): View
+    {
+        return view('kasbank.pembayaran.import', [
+            'page' => 'app',
+            'phpUploadMaxFileSize' => ini_get('upload_max_filesize') ?: 'tidak diketahui',
+            'phpPostMaxSize' => ini_get('post_max_size') ?: 'tidak diketahui',
+        ]);
+    }
+
+    public function importTemplate(): BinaryFileResponse
+    {
+        $template = $this->kasbankPembayaranImportService->buildTemplate();
+
+        return response()
+            ->download(
+                $template['output_path'],
+                $template['download_name'],
+                ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+            )
+            ->deleteFileAfterSend(true);
+    }
+
+    public function import(ImportKasbankPembayaranRequest $request): RedirectResponse
+    {
+        try {
+            $result = DB::transaction(
+                fn () => $this->kasbankPembayaranImportService->importFromXlsx($request->file('file'))
+            );
+        } catch (KasbankPembayaranImportException $exception) {
+            return back()->withErrors(['file' => $exception->errors()]);
+        } catch (Throwable $throwable) {
+            report($throwable);
+
+            return back()->withErrors(['file' => 'File gagal diproses. Pastikan file sesuai template.']);
+        }
+
+        return redirect()
+            ->route('kasbank.pembayaran.index')
+            ->with('success', sprintf('Import berhasil. %d pembayaran dibuat (%s).', $result['created'], implode(', ', $result['nomer'])));
     }
 
     public function edit(KasbankPembayaran $kasbankPembayaran): View

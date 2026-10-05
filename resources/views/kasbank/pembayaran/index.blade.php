@@ -49,6 +49,9 @@
                         <div class="card border-light shadow-sm">
                             <div class="card-body">
                                 <div class="d-flex justify-content-end gap-3 align-items-center">
+                                    <a href="{{ route('kasbank.pembayaran.import.form') }}" class="btn btn-outline-success fw-bold">
+                                        <i class="bi bi-upload"></i> Import
+                                    </a>
                                     <a href="{{ route('kasbank.pembayaran.create') }}" class="btn btn-success fw-bold">
                                         <i class="bi bi-plus-circle-fill"></i> Tambah
                                     </a>
