@@ -218,7 +218,7 @@ flowchart TD
     - `ambilNilaiTunggal()`.
 19. Untuk tindakan rawat inap, `cariKodeRanap()` mencari kode pada `no_rawat` utama terlebih dahulu. Jika tidak ditemukan, pencarian dilanjutkan ke episode anak melalui relasi `ranap_gabung.no_rawat2`.
 20. Untuk laboratorium, `cariKodeLaborat()` juga mencari pada `no_rawat` utama terlebih dahulu, kemudian memakai fallback `ranap_gabung.no_rawat2` jika kode belum ditemukan.
-21. Jika status bukan `Kamar`, service menentukan sumber tindakan melalui `tentukanSumberTindakan()`, lalu mencari mapping yang cocok dengan `mappingTindakanSesuai()`.
+21. Jika status bukan `Kamar`, service menentukan sumber tindakan melalui `tentukanSumberTindakan()`, lalu mencari mapping yang cocok dengan `mappingTindakanSesuai()`. Pada compare nama, nama perawatan dari rincian billing dan mapping sama-sama di-trim, diubah ke lowercase, dan rangkaian spasi/tab disatukan menjadi satu spasi. Nilai nama billing aslinya tetap dipakai untuk pencarian kode SIMRS dan catatan pendapatan.
 22. Jika status `Kamar`, service bisa memakai `lastKamarCoaId` untuk baris lanjutan, atau mencari `MappingPendapatanKamar` untuk baris utama.
 23. Setelah COA ditemukan, service membentuk baris pendapatan berisi `coa_id`, `debit`, `kredit`, `raw_total`, `quantity`, dan `catatan` dengan bantuan `buatCatatanPendapatan()`.
 24. Setelah seluruh rincian terpetakan, service menentukan akun lawan dengan `tentukanAkunLawanPendapatan()`.

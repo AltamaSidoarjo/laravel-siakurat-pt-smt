@@ -14,7 +14,7 @@ use ReflectionMethod;
 
 class BridgingPendapatanServiceTest extends TestCase
 {
-    public function test_mapping_tindakan_sesuai_mengabaikan_spasi_belakang_pada_nama_perawatan(): void
+    public function test_mapping_tindakan_sesuai_menormalisasi_nama_perawatan(): void
     {
         $service = new BridgingPendapatanService(
             $this->getMockBuilder(BukuBesarService::class)->disableOriginalConstructor()->getMock(),
@@ -27,13 +27,35 @@ class BridgingPendapatanServiceTest extends TestCase
         $mapping = new MappingPendapatan([
             'kode_jenis_perawatan' => 'J000789',
             'sumber_tindakan' => 'Rawat Jalan',
-            'nm_perawatan' => 'Administrasi   ',
+            'nm_perawatan' => "  ADMINISTRASI\t  RAWAT   JALAN  ",
             'coa_id' => 6,
         ]);
 
-        $result = $method->invoke($service, $mapping, 'J000789', 'Administrasi', 'Rawat Jalan');
+        $result = $method->invoke($service, $mapping, 'J000789', 'administrasi rawat jalan', 'Rawat Jalan');
 
         $this->assertTrue($result);
+    }
+
+    public function test_mapping_tindakan_tetap_memerlukan_nama_kode_dan_sumber_yang_sesuai(): void
+    {
+        $service = new BridgingPendapatanService(
+            $this->getMockBuilder(BukuBesarService::class)->disableOriginalConstructor()->getMock(),
+            $this->getMockBuilder(LogAktifitasService::class)->disableOriginalConstructor()->getMock(),
+        );
+
+        $method = new ReflectionMethod(BridgingPendapatanService::class, 'mappingTindakanSesuai');
+        $method->setAccessible(true);
+
+        $mapping = new MappingPendapatan([
+            'kode_jenis_perawatan' => 'J000789',
+            'sumber_tindakan' => 'Rawat Jalan',
+            'nm_perawatan' => 'Administrasi Rawat Jalan',
+            'coa_id' => 6,
+        ]);
+
+        $this->assertFalse($method->invoke($service, $mapping, 'J000789', 'Administrasi Rawat Inap', 'Rawat Jalan'));
+        $this->assertFalse($method->invoke($service, $mapping, 'J000780', 'Administrasi Rawat Jalan', 'Rawat Jalan'));
+        $this->assertFalse($method->invoke($service, $mapping, 'J000789', 'Administrasi Rawat Jalan', 'Rawat Inap'));
     }
 
     public function test_pilih_akun_lawan_pendapatan_simrs_memprioritaskan_exact_match(): void

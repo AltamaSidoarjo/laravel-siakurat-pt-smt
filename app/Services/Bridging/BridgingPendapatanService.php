@@ -1226,7 +1226,9 @@ class BridgingPendapatanService
 
     private function normalisasiNamaPerawatan(?string $namaPerawatan): string
     {
-        return trim((string) $namaPerawatan);
+        $namaPerawatan = mb_strtolower(trim((string) $namaPerawatan));
+
+        return preg_replace('/[ \t]+/u', ' ', $namaPerawatan) ?? $namaPerawatan;
     }
 
     private function formatTeksTebal(?string $nilai): string
@@ -1242,7 +1244,8 @@ class BridgingPendapatanService
         string $sumberTindakan,
     ): bool {
         return $mapping->kode_jenis_perawatan === $kode
-            && $this->normalisasiNamaPerawatan($mapping->nm_perawatan) === $namaPerawatan
+            && $this->normalisasiNamaPerawatan($mapping->nm_perawatan)
+                === $this->normalisasiNamaPerawatan($namaPerawatan)
             && $mapping->sumber_tindakan === $sumberTindakan;
     }
 }
