@@ -4,10 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\BukuBesar;
 use App\Models\Coa;
+use App\Models\TipeCoa;
 use App\Services\Laporan\LaporanKeuanganService;
-use ReflectionMethod;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class LaporanKeuanganBukubesarTest extends TestCase
@@ -321,10 +322,53 @@ class LaporanKeuanganBukubesarTest extends TestCase
         $this->assertSame($matchingLeaf->id, $byCode->first()['id']);
     }
 
+    public function test_search_bukubesar_coa_options_supports_empty_keyword_and_pagination(): void
+    {
+        Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '100.01',
+            'nama' => 'Kas Operasional',
+            'is_postable' => true,
+        ]);
+
+        Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '100.02',
+            'nama' => 'Kas Kecil',
+            'is_postable' => true,
+        ]);
+
+        Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Kasbank',
+            'kode' => '100.03',
+            'nama' => 'Kas Kasir',
+            'is_postable' => true,
+        ]);
+
+        $service = app(LaporanKeuanganService::class);
+
+        $page1 = $service->searchBukubesarCoaOptions(keyword: '', limit: 2, page: 1);
+        $page2 = $service->searchBukubesarCoaOptions(keyword: '', limit: 2, page: 2);
+        $total = $service->countBukubesarCoaOptions(keyword: '');
+
+        $this->assertCount(2, $page1);
+        $this->assertCount(1, $page2);
+        $this->assertSame(3, $total);
+        $this->assertSame('100.01', $page1[0]['kode']);
+        $this->assertSame('100.02', $page1[1]['kode']);
+        $this->assertSame('100.03', $page2[0]['kode']);
+    }
+
     public function test_neraca_standard_accumulates_laba_tahun_berjalan_since_start_of_year(): void
     {
         foreach (['Kasbank', 'Ekuitas', 'Pendapatan', 'Beban'] as $namaTipeCoa) {
-            \App\Models\TipeCoa::query()->create([
+            TipeCoa::query()->create([
                 'nama' => $namaTipeCoa,
                 'status_aktif' => 1,
             ]);
@@ -473,7 +517,7 @@ class LaporanKeuanganBukubesarTest extends TestCase
     public function test_neraca_per_parent_coa_returns_preorder_subtree_with_accumulated_balances(): void
     {
         foreach (['Kasbank', 'Ekuitas'] as $namaTipeCoa) {
-            \App\Models\TipeCoa::query()->create([
+            TipeCoa::query()->create([
                 'nama' => $namaTipeCoa,
                 'status_aktif' => 1,
             ]);
@@ -566,7 +610,7 @@ class LaporanKeuanganBukubesarTest extends TestCase
 
     public function test_neraca_per_parent_coa_returns_empty_rows_for_unknown_coa(): void
     {
-        \App\Models\TipeCoa::query()->create([
+        TipeCoa::query()->create([
             'nama' => 'Kasbank',
             'status_aktif' => 1,
         ]);
@@ -620,7 +664,7 @@ class LaporanKeuanganBukubesarTest extends TestCase
     public function test_neraca_detil_orders_accounts_by_code(): void
     {
         foreach (['Kasbank', 'Hutang', 'Pendapatan'] as $type) {
-            \App\Models\TipeCoa::query()->create(['nama' => $type, 'status_aktif' => 1]);
+            TipeCoa::query()->create(['nama' => $type, 'status_aktif' => 1]);
         }
 
         $accounts = collect([
@@ -659,7 +703,7 @@ class LaporanKeuanganBukubesarTest extends TestCase
 
         $service = app(LaporanKeuanganService::class);
 
-        $this->assertSame(['Kasbank', 'Hutang', 'Pendapatan'], \App\Models\TipeCoa::query()->pluck('nama')->all());
+        $this->assertSame(['Kasbank', 'Hutang', 'Pendapatan'], TipeCoa::query()->pluck('nama')->all());
         $this->assertCount(6, BukuBesar::query()->get());
         $neracaDetil = $service->getNeracaDetil('2026-05-20');
         $expectedCodes = ['110.01', '120.01', '210.01'];
@@ -731,7 +775,7 @@ class LaporanKeuanganBukubesarTest extends TestCase
     public function test_laba_rugi_standard_and_per_parent_only_count_leaf_accounts(): void
     {
         foreach (['Kasbank', 'Ekuitas', 'Pendapatan', 'Beban'] as $namaTipeCoa) {
-            \App\Models\TipeCoa::query()->create([
+            TipeCoa::query()->create([
                 'nama' => $namaTipeCoa,
                 'status_aktif' => 1,
             ]);
@@ -876,7 +920,7 @@ class LaporanKeuanganBukubesarTest extends TestCase
     public function test_laba_rugi_standard_does_not_duplicate_cross_type_children_between_roots(): void
     {
         foreach (['Pendapatan', 'Pendapatan lain'] as $namaTipeCoa) {
-            \App\Models\TipeCoa::query()->create([
+            TipeCoa::query()->create([
                 'nama' => $namaTipeCoa,
                 'status_aktif' => 1,
             ]);

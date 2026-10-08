@@ -746,7 +746,31 @@ class LaporanKeuanganService
             ->values();
     }
 
-    public function searchBukubesarCoaOptions(?string $keyword = null, int $limit = 30): Collection
+    public function searchBukubesarCoaOptions(?string $keyword = null, int $limit = 30, int $page = 1): Collection
+    {
+        $normalizedKeyword = trim((string) $keyword);
+        $offset = max(0, ($page - 1) * $limit);
+
+        return $this->queryBukubesarSelectableCoa()
+            ->when($normalizedKeyword !== '', function (Builder $query) use ($normalizedKeyword) {
+                $query->where(function (Builder $innerQuery) use ($normalizedKeyword) {
+                    $innerQuery
+                        ->where('kode', 'like', '%'.$normalizedKeyword.'%')
+                        ->orWhere('nama', 'like', '%'.$normalizedKeyword.'%');
+                });
+            })
+            ->offset($offset)
+            ->limit($limit)
+            ->get()
+            ->map(fn (Coa $coa) => [
+                'id' => (int) $coa->id,
+                'kode' => (string) $coa->kode,
+                'nama' => (string) $coa->nama,
+            ])
+            ->values();
+    }
+
+    public function countBukubesarCoaOptions(?string $keyword = null): int
     {
         $normalizedKeyword = trim((string) $keyword);
 
@@ -758,14 +782,7 @@ class LaporanKeuanganService
                         ->orWhere('nama', 'like', '%'.$normalizedKeyword.'%');
                 });
             })
-            ->limit($limit)
-            ->get()
-            ->map(fn (Coa $coa) => [
-                'id' => (int) $coa->id,
-                'kode' => (string) $coa->kode,
-                'nama' => (string) $coa->nama,
-            ])
-            ->values();
+            ->count();
     }
 
     public function getArusKas(string $startDate, string $endDate): array
@@ -1272,6 +1289,7 @@ class LaporanKeuanganService
 
             if ($periodeMulai > $periodeAkhir) {
                 $hasil[$tahun] = 0;
+
                 continue;
             }
 
@@ -1529,7 +1547,7 @@ class LaporanKeuanganService
 
     private function ambilMutasiPerCoaPerBulan(string $startDate, string $endDate): array
     {
-        $normalizedEnd = strlen($endDate) === 10 ? $endDate . ' 23:59:59' : $endDate;
+        $normalizedEnd = strlen($endDate) === 10 ? $endDate.' 23:59:59' : $endDate;
 
         $rows = BukuBesar::query()
             ->selectRaw('
@@ -1697,5 +1715,4 @@ class LaporanKeuanganService
             'total_akumulasi' => $grandTotal,
         ];
     }
-
 }

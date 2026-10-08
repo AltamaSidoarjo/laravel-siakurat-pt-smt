@@ -108,8 +108,8 @@ flowchart TD
     A["GET bukubesar (coaIds[])"] --> B["getBukubesar(start,end,coaIds)"]
     B --> C["rowsByCoa per akun terpilih"]
     C --> D["Render view dengan coaOptions terpilih"]
-    E["GET bukubesar/search-coa?q="] --> F["searchBukubesarCoaOptions(keyword)"]
-    F --> G["response json results (Select2)"]
+    E["GET bukubesar/search-coa?q=&page= (Select2 AJAX, minimumInputLength 0)"] --> F["searchBukubesarCoaOptions(keyword, limit, page) + countBukubesarCoaOptions()"]
+    F --> G["response json { results, pagination: { more } }"]
 ```
 
 ### Arus Kas
@@ -132,12 +132,13 @@ flowchart TD
 - Service: `getIdentitasLaporan()`, `getQueryRincianTransaksiBukubesar()`, `getJurnalTidakBalance()`,
   `getLabaRugiDetil()/getLabaRugiStandard()/getLabaRugiPerParentCoa()/getLabaRugiKomparasiBulanan()`,
   `getNeracaStandard()/getNeracaPerParentCoa()/getNeracaSaldo()/getNeracaDetil()/getNeracaRinci()`,
-  `getBukubesar()/getBukubesarSelectedCoaOptions()/searchBukubesarCoaOptions()`,
+  `getBukubesar()/getBukubesarSelectedCoaOptions()/searchBukubesarCoaOptions()/countBukubesarCoaOptions()`,
   `getArusKas()`, `getDaftarTipeCoaAktif()` (plus banyak helper privat untuk agregasi & klasifikasi).
 
 ## Catatan Penting Bisnis
 
 - Modul ini **read-only**; tidak mengubah data buku besar/jurnal.
+- Input Select2 Pilih COA pada Buku Besar menggunakan AJAX dengan `minimumInputLength: 0` dan pagination, sehingga saat dropdown diklik tanpa mengetik akan langsung menampilkan daftar opsi COA dari server.
 - Laporan laba rugi mengintegrasikan anggaran **RBA** sebagai pembanding.
 - Klasifikasi neraca dan arus kas bergantung pada `tipe_coa` dan `arus_kas_aktivitas`/`arus_kas_kelompok`
   pada COA (lihat [Konvensi Buku Besar & COA](fondasi/konvensi-bukubesar-coa.md)).
