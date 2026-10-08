@@ -11,6 +11,7 @@ class MappingPenjaminPiutang extends Model
     protected $fillable = [
         'penjamin_id',
         'nama_penjamin',
+        'jenis_layanan',
         'coa_id',
     ];
 

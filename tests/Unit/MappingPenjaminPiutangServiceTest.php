@@ -41,10 +41,12 @@ class MappingPenjaminPiutangServiceTest extends TestCase
 
         Schema::create('mapping_penjamin_piutang', function (Blueprint $table): void {
             $table->increments('id');
-            $table->string('penjamin_id')->unique();
+            $table->string('penjamin_id');
             $table->string('nama_penjamin');
+            $table->string('jenis_layanan')->default('rawat_jalan');
             $table->unsignedInteger('coa_id');
             $table->timestamps();
+            $table->unique(['penjamin_id', 'jenis_layanan']);
         });
 
         $this->billingService = Mockery::mock(BillingPendapatanApiService::class);
@@ -58,6 +60,7 @@ class MappingPenjaminPiutangServiceTest extends TestCase
         MappingPenjaminPiutang::query()->create([
             'penjamin_id' => '1',
             'nama_penjamin' => 'Umum',
+            'jenis_layanan' => 'rawat_jalan',
             'coa_id' => $valid->id,
         ]);
         $this->billingService->shouldReceive('getPenjaminOptions')->once()->andReturn(collect([
@@ -65,7 +68,12 @@ class MappingPenjaminPiutangServiceTest extends TestCase
             ['id' => '2', 'nama' => 'BPJS'],
         ]));
 
-        $this->assertSame(['2'], $this->service->getAvailablePenjaminOptions()->pluck('id')->all());
+        $this->assertSame(
+            ['rawat_inap:1', 'igd:1', 'rawat_jalan:2', 'rawat_inap:2', 'igd:2'],
+            $this->service->getAvailablePenjaminOptions()
+                ->map(fn (array $row) => $row['jenis_layanan'].':'.$row['id'])
+                ->all(),
+        );
     }
 
     public function test_coa_options_offer_all_active_leaf_accounts_regardless_of_type_and_postable_flag(): void
@@ -90,9 +98,14 @@ class MappingPenjaminPiutangServiceTest extends TestCase
         ]));
         $this->logService->shouldReceive('log')->twice();
 
-        $mapping = $this->service->create(['penjamin_id' => '002', 'coa_id' => $coa->id]);
+        $mapping = $this->service->create([
+            'penjamin_id' => '002',
+            'jenis_layanan' => 'rawat_inap',
+            'coa_id' => $coa->id,
+        ]);
 
         $this->assertSame('BPJS Kesehatan', $mapping->nama_penjamin);
+        $this->assertSame('rawat_inap', $mapping->jenis_layanan);
         $this->assertSame($coa->id, $mapping->coa_id);
 
         $this->service->delete($mapping);
@@ -110,7 +123,7 @@ class MappingPenjaminPiutangServiceTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Akun harus merupakan COA aktif yang tidak memiliki akun turunan.');
 
-        $this->service->create(['penjamin_id' => '002', 'coa_id' => $coa->id]);
+        $this->service->create(['penjamin_id' => '002', 'jenis_layanan' => 'rawat_jalan', 'coa_id' => $coa->id]);
     }
 
     public function test_create_rejects_parent_coa(): void
@@ -125,7 +138,7 @@ class MappingPenjaminPiutangServiceTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Akun harus merupakan COA aktif yang tidak memiliki akun turunan.');
 
-        $this->service->create(['penjamin_id' => '002', 'coa_id' => $parent->id]);
+        $this->service->create(['penjamin_id' => '002', 'jenis_layanan' => 'rawat_jalan', 'coa_id' => $parent->id]);
     }
 
     public function test_create_rejects_unknown_billing_guarantor(): void
@@ -137,7 +150,7 @@ class MappingPenjaminPiutangServiceTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Penjamin tidak ditemukan pada Billing API.');
 
-        $this->service->create(['penjamin_id' => 'missing', 'coa_id' => $coa->id]);
+        $this->service->create(['penjamin_id' => 'missing', 'jenis_layanan' => 'igd', 'coa_id' => $coa->id]);
     }
 
     private function createCoa(

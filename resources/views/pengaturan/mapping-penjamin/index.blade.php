@@ -41,6 +41,7 @@
                                         <thead class="table-light">
                                             <tr>
                                                 <th>Nama Penjamin</th>
+                                                <th>Jenis Layanan</th>
                                                 <th>Kode COA</th>
                                                 <th>Nama Akun Piutang</th>
                                                 <th class="text-center">Aksi</th>
@@ -50,6 +51,7 @@
                                             @foreach ($mappings as $mapping)
                                                 <tr>
                                                     <td>{{ $mapping->nama_penjamin }}</td>
+                                                    <td>{{ ['rawat_jalan' => 'Rawat Jalan', 'rawat_inap' => 'Rawat Inap', 'igd' => 'IGD'][$mapping->jenis_layanan] ?? $mapping->jenis_layanan }}</td>
                                                     <td>{{ $mapping->coa?->kode }}</td>
                                                     <td>{{ $mapping->coa?->nama }}</td>
                                                     <td class="text-center">

@@ -22,19 +22,33 @@ class MappingPenjaminPiutangService
         return MappingPenjaminPiutang::query()
             ->with('coa:id,kode,nama')
             ->orderBy('nama_penjamin')
+            ->orderBy('jenis_layanan')
             ->orderBy('penjamin_id')
             ->get();
     }
 
     public function getAvailablePenjaminOptions(): Collection
     {
-        $mappedIds = MappingPenjaminPiutang::query()
-            ->pluck('penjamin_id')
-            ->map(fn (mixed $id) => (string) $id);
+        $mappedPairs = MappingPenjaminPiutang::query()
+            ->get(['penjamin_id', 'jenis_layanan'])
+            ->mapWithKeys(fn (MappingPenjaminPiutang $mapping) => [
+                $mapping->jenis_layanan.'|'.$mapping->penjamin_id => true,
+            ]);
 
         return $this->billingPendapatanApiService
             ->getPenjaminOptions()
-            ->reject(fn (array $penjamin) => $mappedIds->containsStrict((string) $penjamin['id']))
+            ->flatMap(fn (array $penjamin) => collect([
+                ['jenis_layanan' => 'rawat_jalan', 'label' => 'Rawat Jalan'],
+                ['jenis_layanan' => 'rawat_inap', 'label' => 'Rawat Inap'],
+                ['jenis_layanan' => 'igd', 'label' => 'IGD'],
+            ])->map(fn (array $layanan) => [
+                ...$penjamin,
+                'jenis_layanan' => $layanan['jenis_layanan'],
+                'label' => $layanan['label'],
+            ]))
+            ->reject(fn (array $option) => $mappedPairs->has(
+                $option['jenis_layanan'].'|'.(string) $option['id'],
+            ))
             ->values();
     }
 
@@ -62,12 +76,14 @@ class MappingPenjaminPiutangService
         $mapping = MappingPenjaminPiutang::query()->create([
             'penjamin_id' => $penjaminId,
             'nama_penjamin' => (string) $penjamin['nama'],
+            'jenis_layanan' => (string) $data['jenis_layanan'],
             'coa_id' => (int) $coa->id,
         ]);
 
         $this->logService->log('Mapping Penjamin', 'create', null, [
             'penjamin_id' => $mapping->penjamin_id,
             'nama_penjamin' => $mapping->nama_penjamin,
+            'jenis_layanan' => $mapping->jenis_layanan,
             'coa_id' => $mapping->coa_id,
         ]);
 
@@ -79,6 +95,7 @@ class MappingPenjaminPiutangService
         $this->logService->log('Mapping Penjamin', 'delete', [
             'penjamin_id' => $mapping->penjamin_id,
             'nama_penjamin' => $mapping->nama_penjamin,
+            'jenis_layanan' => $mapping->jenis_layanan,
             'coa_id' => $mapping->coa_id,
         ]);
 

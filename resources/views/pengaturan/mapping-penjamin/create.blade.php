@@ -47,10 +47,19 @@
                                                 <select name="penjamin_id" id="penjamin_id" class="form-select select2-basic" required>
                                                     <option value="">-- Pilih Penjamin --</option>
                                                     @foreach ($penjaminOptions as $penjamin)
-                                                        <option value="{{ $penjamin['id'] }}" @selected((string) old('penjamin_id') === (string) $penjamin['id'])>
+                                                        <option value="{{ $penjamin['id'] }}" data-jenis-layanan="{{ $penjamin['jenis_layanan'] }}" @selected((string) old('penjamin_id') === (string) $penjamin['id'] && old('jenis_layanan') === $penjamin['jenis_layanan'])>
                                                             {{ $penjamin['nama'] }}
                                                         </option>
                                                     @endforeach
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="jenis_layanan" class="form-label">Jenis Layanan</label>
+                                                <select name="jenis_layanan" id="jenis_layanan" class="form-select select2-basic" required>
+                                                    <option value="">-- Pilih Jenis Layanan --</option>
+                                                    <option value="rawat_jalan" @selected(old('jenis_layanan') === 'rawat_jalan')>Rawat Jalan</option>
+                                                    <option value="rawat_inap" @selected(old('jenis_layanan') === 'rawat_inap')>Rawat Inap</option>
+                                                    <option value="igd" @selected(old('jenis_layanan') === 'igd')>IGD</option>
                                                 </select>
                                             </div>
                                             <div class="col-md-6">
@@ -108,6 +117,20 @@
                     allowClear: !$select.prop('required'),
                 });
             });
+            const $layanan = window.jQuery('#jenis_layanan');
+            const $penjamin = window.jQuery('#penjamin_id');
+            const syncOptions = function () {
+                const layanan = $layanan.val();
+                $penjamin.find('option[data-jenis-layanan]').each(function () {
+                    const $option = window.jQuery(this);
+                    $option.prop('disabled', Boolean(layanan) && $option.data('jenis-layanan') !== layanan);
+                });
+                if ($penjamin.find('option:selected').prop('disabled')) {
+                    $penjamin.val('').trigger('change');
+                }
+            };
+            $layanan.on('change', syncOptions);
+            syncOptions();
         });
     </script>
 @endpush

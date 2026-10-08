@@ -155,6 +155,53 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $this->assertDatabaseHas('simrs_import_pendapatan', ['nomer_billing' => '1002']);
     }
 
+    public function test_same_guarantor_uses_service_specific_receivable_mapping_including_igd(): void
+    {
+        $rawatJalan = $this->createCoa('103000024-RJ', 'Piutang BPJS Rawat Jalan', 'Piutang Usaha');
+        $rawatInap = $this->createCoa('103000024-RI', 'Piutang BPJS Rawat Inap', 'Piutang Usaha');
+        $igd = $this->createCoa('103000024-IGD', 'Piutang BPJS IGD', 'Piutang Usaha');
+        $this->createCoa('440410001', 'Pendapatan Poli', 'Pendapatan');
+        $this->createMappingForLayanan('2', 'BPJS', $rawatJalan, 'rawat_jalan');
+        $this->createMappingForLayanan('2', 'BPJS', $rawatInap, 'rawat_inap');
+        $this->createMappingForLayanan('2', 'BPJS', $igd, 'igd');
+
+        $candidates = [
+            $this->candidate('ext-rj', 'RJ-001'),
+            [...$this->candidate('ext-ri', 'RI-001'), 'status_lanjut' => 'Rawat Inap'],
+            [...$this->candidate('ext-igd', 'IGD-001'), 'status_lanjut' => 'IGD'],
+        ];
+        $this->expectCandidates($candidates);
+        foreach ($candidates as $candidate) {
+            $this->expectRevenueDetails($candidate['external_id']);
+        }
+        $this->logService->shouldReceive('log')->times(3);
+
+        $results = $this->import(array_column($candidates, 'external_id'));
+
+        $this->assertTrue(collect($results)->every(fn (array $result) => $result['berhasil']));
+        $this->assertDatabaseHas('faktur_penjualan', ['nomor_faktur' => 'RJ-001', 'akun_piutang_id' => $rawatJalan->id]);
+        $this->assertDatabaseHas('faktur_penjualan', ['nomor_faktur' => 'RI-001', 'akun_piutang_id' => $rawatInap->id]);
+        $this->assertDatabaseHas('faktur_penjualan', ['nomor_faktur' => 'IGD-001', 'akun_piutang_id' => $igd->id]);
+    }
+
+    public function test_missing_service_specific_mapping_reports_penjamin_and_service(): void
+    {
+        $this->createCoa('440410001', 'Pendapatan Poli', 'Pendapatan');
+        $candidate = [...$this->candidate('ext-igd', 'IGD-001'), 'status_lanjut' => 'IGD'];
+        $this->expectCandidates([$candidate]);
+        $this->apiClient->shouldNotReceive('getAkun');
+        $this->logService->shouldNotReceive('log');
+
+        $result = $this->import(['ext-igd']);
+
+        $this->assertFalse($result[0]['berhasil']);
+        $this->assertSame(
+            'Mapping akun piutang untuk penjamin BPJS layanan IGD belum disetting.',
+            $result[0]['alasan_gagal'],
+        );
+        $this->assertNoImportWrites();
+    }
+
     public function test_invoice_uses_guarantor_as_customer_and_keeps_patient_on_invoice(): void
     {
         $this->createRequiredCoas();
@@ -566,7 +613,10 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
 
         $this->assertTrue($result[0]['berhasil']);
         $this->assertFalse($result[1]['berhasil']);
-        $this->assertSame('Mapping akun piutang untuk penjamin BPJS belum disetting.', $result[1]['alasan_gagal']);
+        $this->assertSame(
+            'Mapping akun piutang untuk penjamin BPJS layanan Rawat Jalan belum disetting.',
+            $result[1]['alasan_gagal'],
+        );
         $this->assertDatabaseHas('faktur_penjualan', ['nomor_faktur' => 'RJ-OK']);
         $this->assertDatabaseMissing('faktur_penjualan', ['nomor_faktur' => 'RJ-FAIL']);
     }
@@ -727,9 +777,19 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
 
     private function createMapping(string $penjaminId, string $namaPenjamin, Coa $coa): void
     {
+        $this->createMappingForLayanan($penjaminId, $namaPenjamin, $coa, 'rawat_jalan');
+    }
+
+    private function createMappingForLayanan(
+        string $penjaminId,
+        string $namaPenjamin,
+        Coa $coa,
+        string $jenisLayanan,
+    ): void {
         MappingPenjaminPiutang::query()->create([
             'penjamin_id' => $penjaminId,
             'nama_penjamin' => $namaPenjamin,
+            'jenis_layanan' => $jenisLayanan,
             'coa_id' => $coa->id,
         ]);
     }
@@ -825,10 +885,12 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
 
         Schema::create('mapping_penjamin_piutang', function (Blueprint $table): void {
             $table->increments('id');
-            $table->string('penjamin_id')->unique();
+            $table->string('penjamin_id');
             $table->string('nama_penjamin');
+            $table->string('jenis_layanan')->default('rawat_jalan');
             $table->unsignedInteger('coa_id');
             $table->timestamps();
+            $table->unique(['penjamin_id', 'jenis_layanan']);
         });
 
         Schema::create('pelanggan', function (Blueprint $table): void {

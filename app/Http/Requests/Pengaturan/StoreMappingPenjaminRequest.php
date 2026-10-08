@@ -16,11 +16,11 @@ class StoreMappingPenjaminRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'jenis_layanan' => ['required', Rule::in(['rawat_jalan', 'rawat_inap', 'igd'])],
             'penjamin_id' => [
-                'required',
-                'string',
-                'max:100',
-                Rule::unique('mapping_penjamin_piutang', 'penjamin_id'),
+                'required', 'string', 'max:100',
+                Rule::unique('mapping_penjamin_piutang', 'penjamin_id')
+                    ->where('jenis_layanan', $this->input('jenis_layanan')),
             ],
             'coa_id' => ['required', 'integer', 'exists:coa,id'],
         ];
