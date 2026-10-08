@@ -143,7 +143,7 @@
                                             type="text"
                                             id="globalSearch"
                                             class="form-control"
-                                            placeholder="Cari Nomor / Sumber Transaksi / Keterangan..."
+                                            placeholder="Cari Nomor / Sumber Transaksi / Keterangan / Penjamin..."
                                         >
                                         <small class="text-muted">Pencarian hanya memfilter data yang sedang tampil (hasil filter tanggal &amp; COA).</small>
                                     </div>
@@ -252,18 +252,25 @@
                     allowClear: true,
                     width: '100%',
                     closeOnSelect: false,
-                    minimumInputLength: 1,
+                    minimumInputLength: 0,
                     ajax: {
                         url: '{{ route('laporan.keuangan.bukubesar.search-coa') }}',
                         dataType: 'json',
                         delay: 250,
                         data: function (params) {
                             return {
-                                q: params.term || ''
+                                q: params.term || '',
+                                page: params.page || 1
                             };
                         },
-                        processResults: function (data) {
-                            return data;
+                        processResults: function (data, params) {
+                            params.page = params.page || 1;
+                            return {
+                                results: data.results,
+                                pagination: {
+                                    more: Boolean(data.pagination && data.pagination.more)
+                                }
+                            };
                         },
                         cache: true
                     },
@@ -273,9 +280,6 @@
                         },
                         searching: function () {
                             return 'Mencari...';
-                        },
-                        inputTooShort: function () {
-                            return 'Ketik minimal 1 huruf untuk mencari COA';
                         }
                     }
                 });

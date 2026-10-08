@@ -188,6 +188,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/invoice', [InvoicePendapatanController::class, 'index'])->name('invoice.index');
             Route::get('/invoice/load-data', [InvoicePendapatanController::class, 'loadData'])->name('invoice.load-data');
             Route::get('/invoice/export-csv', [InvoicePendapatanController::class, 'exportCsv'])->name('invoice.export-csv');
+            Route::get('/invoice/{fakturPenjualan}/print', [InvoicePendapatanController::class, 'print'])->name('invoice.print');
             Route::get('/invoice/{fakturPenjualan}', [InvoicePendapatanController::class, 'read'])->name('invoice.read');
         });
 
