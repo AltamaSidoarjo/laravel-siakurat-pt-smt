@@ -204,6 +204,44 @@ class BridgingPendapatanServiceTest extends TestCase
         $this->assertNull($result['akun_piutang_id']);
     }
 
+    public function test_mapping_tindakan_sesuai_case_insensitive_dan_mengabaikan_spasi_ganda(): void
+    {
+        $service = $this->createService();
+        $method = new ReflectionMethod(BridgingPendapatanService::class, 'mappingTindakanSesuai');
+        $method->setAccessible(true);
+
+        $mapping = new MappingPendapatan([
+            'kode_jenis_perawatan' => 'j000789',
+            'sumber_tindakan' => 'Rawat Jalan',
+            'nm_perawatan' => 'KONSUL   DOKTER   SPESIALIS',
+            'coa_id' => 6,
+        ]);
+
+        $result = $method->invoke($service, $mapping, 'J000789', 'konsul dokter spesialis', 'rawat jalan');
+
+        $this->assertTrue($result);
+    }
+
+    public function test_normalisasi_teks_mereduksi_whitespace_dan_karakter_spasi_berlebih(): void
+    {
+        $input = "   Pemeriksaan \t  Laborat \n  Darah   Lengkap  ";
+        $this->assertSame('Pemeriksaan Laborat Darah Lengkap', BridgingPendapatanService::normalisasiTeks($input));
+        $this->assertSame('', BridgingPendapatanService::normalisasiTeks(null));
+    }
+
+    public function test_resolve_kategori_dengan_kode_case_insensitive(): void
+    {
+        $service = $this->createService();
+        $method = new ReflectionMethod(BridgingPendapatanService::class, 'resolveKategoriDenganKode');
+        $method->setAccessible(true);
+
+        $this->assertSame('Ralan Dokter', $method->invoke($service, 'ralan dokter'));
+        $this->assertSame('Ranap Dokter Paramedis', $method->invoke($service, 'RANAP  DOKTER  PARAMEDIS'));
+        $this->assertSame('Laborat', $method->invoke($service, 'laborat'));
+        $this->assertSame('Kamar', $method->invoke($service, 'kAmAr'));
+        $this->assertNull($method->invoke($service, 'Registrasi'));
+    }
+
     private function createService(): BridgingPendapatanService
     {
         return new BridgingPendapatanService(

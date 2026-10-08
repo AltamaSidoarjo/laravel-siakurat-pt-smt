@@ -629,15 +629,18 @@ class BridgingPendapatanService
         array $mappings,
         ?int &$lastKamarCoaId,
     ): array {
-        $status = (string) $detail['status_billing'];
-        $namaPerawatan = trim((string) $detail['nama_perawatan']);
+        $status = self::normalisasiTeks((string) $detail['status_billing']);
+        $namaPerawatan = self::normalisasiTeks((string) $detail['nama_perawatan']);
         $totalMentah = (float) $detail['total_biaya'];
         $coaId = null;
+
+        $kategoriDenganKode = $this->resolveKategoriDenganKode($status);
 
         // Pola pemetaan pendapatan mengikuti dua jalur:
         // - kategori yang butuh kode tindakan/kamar dari SIMRS
         // - kategori umum yang langsung dibaca dari mapping pendapatan umum per penjamin
-        if (in_array($status, self::KATEGORI_DENGAN_KODE, true)) {
+        if ($kategoriDenganKode !== null) {
+            $status = $kategoriDenganKode;
             if ($status === 'Kamar' && $detail['pemisah'] === ':' && ! str_contains($namaPerawatan, ',')) {
                 if ($lastKamarCoaId === null) {
                     throw new RuntimeException('Mapping kamar tidak ditemukan untuk biaya sekali rawat inap.');
@@ -645,7 +648,12 @@ class BridgingPendapatanService
 
                 $coaId = $lastKamarCoaId;
             } else {
-                $kode = $this->tentukanKodeKategori($status, $billing['no_rawat'], $namaPerawatan);
+                $namaUntukCariKode = ! empty($detail['nama_perawatan_asli']) ? (string) $detail['nama_perawatan_asli'] : $namaPerawatan;
+                $kode = $this->tentukanKodeKategori($status, $billing['no_rawat'], $namaUntukCariKode);
+                if (($kode === null || $kode === '') && $namaUntukCariKode !== $namaPerawatan) {
+                    $kode = $this->tentukanKodeKategori($status, $billing['no_rawat'], $namaPerawatan);
+                }
+
                 if ($kode === null || $kode === '') {
                     throw new RuntimeException(sprintf(
                         'Kode tindakan tidak ditemukan untuk status "%s" dan tindakan "%s".',
@@ -655,7 +663,9 @@ class BridgingPendapatanService
                 }
 
                 if ($status === 'Kamar') {
-                    $mappingKamar = $mappings['kamar']->firstWhere('kode_kamar', $kode);
+                    $mappingKamar = $mappings['kamar']->first(
+                        fn (MappingPendapatanKamar $item) => strcasecmp(trim((string) $item->kode_kamar), trim((string) $kode)) === 0
+                    );
                     if ($mappingKamar === null) {
                         throw new RuntimeException(
                             'Mapping kamar belum disetting untuk kode '.$this->formatTeksTebal($kode)
@@ -684,8 +694,8 @@ class BridgingPendapatanService
             }
         } else {
             $mappingUmum = $mappings['umum']->first(function (MappingPendapatanUmum $item) use ($status, $billing) {
-                return $item->nama === $status
-                    && $item->kode_penjamin === $billing['kode_penjamin'];
+                return strcasecmp(self::normalisasiTeks($item->nama), $status) === 0
+                    && strcasecmp(trim((string) $item->kode_penjamin), trim((string) $billing['kode_penjamin'])) === 0;
             });
 
             if ($mappingUmum === null) {
@@ -747,7 +757,7 @@ class BridgingPendapatanService
         // Nominal potongan/retur obat sudah diposting sebagai lawan debit di sisi pendapatan,
         // jadi nominal yang sama perlu dikeluarkan dari jurnal SIMRS sebelum akun lawan dipilih.
         $daftarNominalYangDiabaikan = $details
-            ->filter(fn (array $item) => in_array($item['status_billing'], ['Retur Obat', 'Potongan'], true))
+            ->filter(fn (array $item) => in_array(Str::lower(self::normalisasiTeks($item['status_billing'])), ['retur obat', 'potongan'], true))
             ->map(fn (array $item) => abs((float) $item['total_biaya']))
             ->filter(fn (float $value) => $value > 0)
             ->values()
@@ -791,7 +801,9 @@ class BridgingPendapatanService
         }
 
         return $akunLawanTergabung->map(function (array $item) use ($mappingLawan) {
-            $mappingAkunLawan = $mappingLawan->firstWhere('kode_coa_simrs', $item['kd_rek']);
+            $mappingAkunLawan = $mappingLawan->first(
+                fn (MappingLawanPendapatanSimrs $m) => strcasecmp(trim((string) $m->kode_coa_simrs), trim((string) $item['kd_rek'])) === 0
+            );
 
             if ($mappingAkunLawan === null) {
                 throw new RuntimeException(
@@ -814,7 +826,9 @@ class BridgingPendapatanService
     ): Collection {
         $akunKasAtauPiutang = $akunLawanTergabung
             ->filter(function (array $item) use ($mappingLawan, $coaLookup) {
-                $mappingAkunLawan = $mappingLawan->firstWhere('kode_coa_simrs', $item['kd_rek']);
+                $mappingAkunLawan = $mappingLawan->first(
+                    fn (MappingLawanPendapatanSimrs $m) => strcasecmp(trim((string) $m->kode_coa_simrs), trim((string) $item['kd_rek'])) === 0
+                );
                 if ($mappingAkunLawan === null) {
                     throw new RuntimeException(
                         'Mapping akun lawan pendapatan belum disetting untuk kode COA SIMRS '
@@ -908,7 +922,9 @@ class BridgingPendapatanService
 
     private function tentukanSumberTindakan(string $status): string
     {
-        return match ($status) {
+        $statusNormalized = $this->resolveKategoriDenganKode($status) ?? $status;
+
+        return match ($statusNormalized) {
             'Ralan Dokter', 'Ralan Dokter Paramedis', 'Ralan Paramedis' => 'Rawat Jalan',
             'Ranap Dokter', 'Ranap Dokter Paramedis', 'Ranap Paramedis', 'Kamar' => 'Rawat Inap',
             'Laborat' => 'Laborat',
@@ -1170,6 +1186,29 @@ class BridgingPendapatanService
         ];
     }
 
+    public static function normalisasiTeks(?string $teks): string
+    {
+        if ($teks === null) {
+            return '';
+        }
+
+        $cleaned = preg_replace('/[\s\x{00A0}]+/u', ' ', $teks);
+
+        return trim($cleaned ?? '');
+    }
+
+    private function resolveKategoriDenganKode(string $status): ?string
+    {
+        $statusNormalized = self::normalisasiTeks($status);
+        foreach (self::KATEGORI_DENGAN_KODE as $kategori) {
+            if (strcasecmp($kategori, $statusNormalized) === 0) {
+                return $kategori;
+            }
+        }
+
+        return null;
+    }
+
     private function ambilRincianBillingByNoRawat(string $noRawat): Collection
     {
         return collect(DB::connection('simrs')->select(
@@ -1193,13 +1232,14 @@ class BridgingPendapatanService
         ))->map(fn (object $baris) => [
             'no_rawat' => (string) $baris->no_rawat,
             'tanggal_bayar' => (string) $baris->tgl_byr,
-            'nama_perawatan' => (string) $baris->nm_perawatan,
+            'nama_perawatan' => self::normalisasiTeks((string) $baris->nm_perawatan),
+            'nama_perawatan_asli' => (string) $baris->nm_perawatan,
             'pemisah' => (string) ($baris->pemisah ?? ''),
             'biaya' => (float) $baris->biaya,
             'jumlah' => (float) $baris->jumlah,
             'tambahan' => (float) $baris->tambahan,
             'total_biaya' => (float) $baris->totalbiaya,
-            'status_billing' => (string) $baris->status,
+            'status_billing' => self::normalisasiTeks((string) $baris->status),
         ]);
     }
 
@@ -1215,18 +1255,20 @@ class BridgingPendapatanService
 
     private function buatCatatanPendapatan(string $status, string $namaPerawatan): string
     {
-        return match ($status) {
-            'Registrasi' => 'Registrasi',
-            'Service' => 'Servis admin',
-            'Potongan' => 'Potongan',
-            'Retur Obat' => 'Retur Obat',
-            default => $namaPerawatan !== '' && $namaPerawatan !== ':' ? $namaPerawatan : $status,
+        $statusLower = Str::lower(self::normalisasiTeks($status));
+
+        return match ($statusLower) {
+            'registrasi' => 'Registrasi',
+            'service' => 'Servis admin',
+            'potongan' => 'Potongan',
+            'retur obat' => 'Retur Obat',
+            default => ($namaPerawatan !== '' && $namaPerawatan !== ':') ? $namaPerawatan : $status,
         };
     }
 
     private function normalisasiNamaPerawatan(?string $namaPerawatan): string
     {
-        return trim((string) $namaPerawatan);
+        return self::normalisasiTeks($namaPerawatan);
     }
 
     private function formatTeksTebal(?string $nilai): string
@@ -1241,8 +1283,8 @@ class BridgingPendapatanService
         string $namaPerawatan,
         string $sumberTindakan,
     ): bool {
-        return $mapping->kode_jenis_perawatan === $kode
-            && $this->normalisasiNamaPerawatan($mapping->nm_perawatan) === $namaPerawatan
-            && $mapping->sumber_tindakan === $sumberTindakan;
+        return strcasecmp(trim((string) $mapping->kode_jenis_perawatan), trim((string) $kode)) === 0
+            && strcasecmp(self::normalisasiTeks($mapping->nm_perawatan), self::normalisasiTeks($namaPerawatan)) === 0
+            && strcasecmp(trim((string) $mapping->sumber_tindakan), trim((string) $sumberTindakan)) === 0;
     }
 }

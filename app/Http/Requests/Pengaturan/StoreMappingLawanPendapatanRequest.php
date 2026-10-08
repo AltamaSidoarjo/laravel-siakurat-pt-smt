@@ -4,6 +4,7 @@ namespace App\Http\Requests\Pengaturan;
 
 use App\Models\MappingLawanPendapatanSimrs;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 
 class StoreMappingLawanPendapatanRequest extends FormRequest
 {
@@ -24,8 +25,10 @@ class StoreMappingLawanPendapatanRequest extends FormRequest
     {
         return [
             function ($validator): void {
+                $kodeCoaSimrs = trim((string) $this->input('kode_coa_simrs'));
+
                 $exists = MappingLawanPendapatanSimrs::query()
-                    ->where('kode_coa_simrs', $this->input('kode_coa_simrs'))
+                    ->whereRaw('LOWER(TRIM(kode_coa_simrs)) = ?', [Str::lower($kodeCoaSimrs)])
                     ->exists();
 
                 if ($exists) {

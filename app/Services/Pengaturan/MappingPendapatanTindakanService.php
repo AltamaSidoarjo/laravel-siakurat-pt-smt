@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class MappingPendapatanTindakanService
@@ -188,16 +189,28 @@ class MappingPendapatanTindakanService
             ->get();
     }
 
+    public static function normalisasiTeks(?string $teks): string
+    {
+        if ($teks === null) {
+            return '';
+        }
+
+        $cleaned = preg_replace('/[\s\x{00A0}]+/u', ' ', $teks);
+
+        return trim($cleaned ?? '');
+    }
+
     public function getAvailableTindakan(string $typeKey): Collection
     {
         $references = $this->getSimrsTindakanReferences($typeKey);
 
         if ($this->isKamarType($typeKey)) {
             $mappedKeys = MappingPendapatanKamar::query()
-                ->pluck('kode_kamar');
+                ->pluck('kode_kamar')
+                ->map(fn ($k) => Str::lower(trim((string) $k)));
 
             return $references
-                ->reject(fn (array $item) => $mappedKeys->contains($item['selection_key']))
+                ->reject(fn (array $item) => $mappedKeys->contains(Str::lower(trim((string) $item['selection_key']))))
                 ->values();
         }
 
@@ -205,10 +218,10 @@ class MappingPendapatanTindakanService
         $mappedKeys = MappingPendapatan::query()
             ->where('sumber_tindakan', $definition['source'])
             ->get(['kode_jenis_perawatan', 'kode_penjamin'])
-            ->map(fn (MappingPendapatan $item) => $this->buildSelectionKey($item->kode_jenis_perawatan, $item->kode_penjamin));
+            ->map(fn (MappingPendapatan $item) => Str::lower($this->buildSelectionKey($item->kode_jenis_perawatan, $item->kode_penjamin)));
 
         return $references
-            ->reject(fn (array $item) => $mappedKeys->contains($item['selection_key']))
+            ->reject(fn (array $item) => $mappedKeys->contains(Str::lower($item['selection_key'])))
             ->values();
     }
 
@@ -245,8 +258,8 @@ class MappingPendapatanTindakanService
 
             $exists = MappingPendapatan::query()
                 ->where('sumber_tindakan', $definition['source'])
-                ->where('kode_jenis_perawatan', $reference['kd_jenis_prw'])
-                ->where('kode_penjamin', $reference['kd_pj'])
+                ->whereRaw('LOWER(TRIM(kode_jenis_perawatan)) = ?', [Str::lower(trim((string) $reference['kd_jenis_prw']))])
+                ->whereRaw('LOWER(TRIM(kode_penjamin)) = ?', [Str::lower(trim((string) $reference['kd_pj']))])
                 ->exists();
 
             if ($exists) {
@@ -265,14 +278,14 @@ class MappingPendapatanTindakanService
             }
 
             MappingPendapatan::query()->create([
-                'kode_jenis_perawatan' => $reference['kd_jenis_prw'],
-                'kode_penjamin' => $reference['kd_pj'],
-                'kode_poli' => $reference['kd_poli'],
+                'kode_jenis_perawatan' => trim((string) $reference['kd_jenis_prw']),
+                'kode_penjamin' => trim((string) $reference['kd_pj']),
+                'kode_poli' => blank($reference['kd_poli'] ?? null) ? null : trim((string) $reference['kd_poli']),
                 'coa_id' => (int) $row['coa_id'],
                 'user_create' => $actor,
                 'user_edit' => $actor,
                 'sumber_tindakan' => $definition['source'],
-                'nm_perawatan' => trim($reference['nm_perawatan']),
+                'nm_perawatan' => self::normalisasiTeks($reference['nm_perawatan']),
             ]);
 
             $successCount++;
@@ -339,8 +352,8 @@ class MappingPendapatanTindakanService
     public function createUmumMapping(array $data): MappingPendapatanUmum
     {
         $mapping = MappingPendapatanUmum::query()->create([
-            'nama' => $data['nama'],
-            'kode_penjamin' => $data['kode_penjamin'],
+            'nama' => self::normalisasiTeks($data['nama']),
+            'kode_penjamin' => trim((string) $data['kode_penjamin']),
             'coa_id' => (int) $data['coa_id'],
         ]);
 
@@ -374,7 +387,8 @@ class MappingPendapatanTindakanService
     public function getRekeningSimrsOptions(): Collection
     {
         $existingMapping = MappingLawanPendapatanSimrs::query()
-            ->pluck('kode_coa_simrs');
+            ->pluck('kode_coa_simrs')
+            ->map(fn ($k) => Str::lower(trim((string) $k)));
 
         return collect(DB::connection('simrs')->select(
             'SELECT kd_rek AS kode_rekening, nm_rek AS nama_rekening FROM rekening ORDER BY kd_rek ASC'
@@ -383,20 +397,21 @@ class MappingPendapatanTindakanService
                 'kode_rekening' => (string) $row->kode_rekening,
                 'nama_rekening' => blank($row->nama_rekening ?? null) ? null : (string) $row->nama_rekening,
             ])
-            ->reject(fn (array $row) => $existingMapping->contains($row['kode_rekening']))
+            ->reject(fn (array $row) => $existingMapping->contains(Str::lower(trim((string) $row['kode_rekening']))))
             ->values();
     }
 
     public function createLawanPendapatanMapping(array $data): MappingLawanPendapatanSimrs
     {
+        $kodeCoaSimrs = trim((string) $data['kode_coa_simrs']);
         $namaCoaSimrs = collect(DB::connection('simrs')->select(
             'SELECT kd_rek AS kode_rekening, nm_rek AS nama_rekening FROM rekening WHERE kd_rek = ? LIMIT 1',
-            [$data['kode_coa_simrs']]
+            [$kodeCoaSimrs]
         ))->first();
 
         $mapping = MappingLawanPendapatanSimrs::query()->create([
-            'kode_coa_simrs' => $data['kode_coa_simrs'],
-            'nama_coa_simrs' => (string) ($namaCoaSimrs->nama_rekening ?? ''),
+            'kode_coa_simrs' => $kodeCoaSimrs,
+            'nama_coa_simrs' => self::normalisasiTeks((string) ($namaCoaSimrs->nama_rekening ?? '')),
             'coa_id' => (int) $data['coa_id'],
         ]);
 
@@ -459,7 +474,7 @@ class MappingPendapatanTindakanService
 
     private function buildSelectionKey(string $kodeJenisPerawatan, string $kodePenjamin): string
     {
-        return $kodeJenisPerawatan.'||'.$kodePenjamin;
+        return trim($kodeJenisPerawatan).'||'.trim($kodePenjamin);
     }
 
     private function createKamarMappings(array $rows, string $actor): array
@@ -488,7 +503,7 @@ class MappingPendapatanTindakanService
             }
 
             $exists = MappingPendapatanKamar::query()
-                ->where('kode_kamar', $reference['kd_jenis_prw'])
+                ->whereRaw('LOWER(TRIM(kode_kamar)) = ?', [Str::lower(trim((string) $reference['kd_jenis_prw']))])
                 ->exists();
 
             if ($exists) {
@@ -507,8 +522,8 @@ class MappingPendapatanTindakanService
             }
 
             MappingPendapatanKamar::query()->create([
-                'kode_kamar' => $reference['kd_jenis_prw'],
-                'nama_kamar' => $reference['nm_perawatan'],
+                'kode_kamar' => trim((string) $reference['kd_jenis_prw']),
+                'nama_kamar' => self::normalisasiTeks($reference['nm_perawatan']),
                 'status_aktif' => '1',
                 'pendapatan_kamar_coa_id' => (int) $row['coa_id'],
             ]);

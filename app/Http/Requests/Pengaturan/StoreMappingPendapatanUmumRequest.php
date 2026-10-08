@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Pengaturan;
 
+use App\Models\MappingPendapatanUmum;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 
 class StoreMappingPendapatanUmumRequest extends FormRequest
 {
@@ -24,9 +26,12 @@ class StoreMappingPendapatanUmumRequest extends FormRequest
     {
         return [
             function ($validator): void {
-                $exists = \App\Models\MappingPendapatanUmum::query()
-                    ->where('nama', $this->input('nama'))
-                    ->where('kode_penjamin', $this->input('kode_penjamin'))
+                $nama = trim((string) $this->input('nama'));
+                $kodePenjamin = trim((string) $this->input('kode_penjamin'));
+
+                $exists = MappingPendapatanUmum::query()
+                    ->whereRaw('LOWER(TRIM(nama)) = ?', [Str::lower($nama)])
+                    ->whereRaw('LOWER(TRIM(kode_penjamin)) = ?', [Str::lower($kodePenjamin)])
                     ->exists();
 
                 if ($exists) {

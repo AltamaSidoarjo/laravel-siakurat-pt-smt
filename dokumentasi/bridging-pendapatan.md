@@ -199,7 +199,7 @@ flowchart TD
 8. Jika belum ada, service mengambil header billing melalui `ambilHeaderBillingByNoRawat()`.
 9. Service menentukan tanggal pengakuan dengan `tentukanTanggalPengakuan()`.
 10. Jika basis yang dipilih `TanggalKeluarRanap` dan pasien `Ranap`, service mencari tanggal keluar menggunakan `ambilNilaiTunggal()`. Jika tidak ada, fallback ke tanggal registrasi.
-11. Service mengambil rincian billing dengan `ambilRincianBillingByNoRawat()`.
+11. Service mengambil rincian billing dengan `ambilRincianBillingByNoRawat()`. Pada setiap baris rincian billing, nilai `nama_perawatan` dan `status_billing` dinormalisasi melalui `normalisasiTeks()` (mereduksi whitespace ganda/tab/spasi non-breaking dan memangkas spasi di awal/akhir) serta menyimpan `nama_perawatan_asli`.
 12. Jika rincian kosong, proses dihentikan untuk `no_rawat` tersebut.
 13. Service membuka `DB::transaction(...)`.
 14. Service memuat seluruh mapping yang dibutuhkan melalui `muatMapping()`, yaitu:
@@ -209,7 +209,7 @@ flowchart TD
     - `MappingLawanPendapatanSimrs`,
     - `Coa`.
 15. Service melakukan loop semua rincian billing dan memanggil `petakanBarisPendapatan()` pada tiap baris.
-16. Di dalam `petakanBarisPendapatan()`, sistem menentukan apakah status billing termasuk kategori yang butuh kode tindakan/kode kamar atau cukup memakai mapping umum.
+16. Di dalam `petakanBarisPendapatan()`, sistem memeriksa kategori status via `resolveKategoriDenganKode()` secara case-insensitive untuk menentukan apakah baris membutuhkan kode tindakan/kode kamar atau cukup memakai mapping umum.
 17. Jika butuh kode kategori, service memanggil `tentukanKodeKategori()`.
 18. `tentukanKodeKategori()` akan memanggil salah satu fungsi berikut sesuai status:
     - `cariKodeRalan()`,
@@ -218,8 +218,8 @@ flowchart TD
     - `ambilNilaiTunggal()`.
 19. Untuk tindakan rawat inap, `cariKodeRanap()` mencari kode pada `no_rawat` utama terlebih dahulu. Jika tidak ditemukan, pencarian dilanjutkan ke episode anak melalui relasi `ranap_gabung.no_rawat2`.
 20. Untuk laboratorium, `cariKodeLaborat()` juga mencari pada `no_rawat` utama terlebih dahulu, kemudian memakai fallback `ranap_gabung.no_rawat2` jika kode belum ditemukan.
-21. Jika status bukan `Kamar`, service menentukan sumber tindakan melalui `tentukanSumberTindakan()`, lalu mencari mapping yang cocok dengan `mappingTindakanSesuai()`.
-22. Jika status `Kamar`, service bisa memakai `lastKamarCoaId` untuk baris lanjutan, atau mencari `MappingPendapatanKamar` untuk baris utama.
+21. Jika status bukan `Kamar`, service menentukan sumber tindakan melalui `tentukanSumberTindakan()`, lalu mencari mapping yang cocok dengan `mappingTindakanSesuai()` secara case-insensitive pada kode jenis perawatan, sumber tindakan, dan nama perawatan yang dinormalisasi.
+22. Jika status `Kamar`, service bisa memakai `lastKamarCoaId` untuk baris lanjutan, atau mencari `MappingPendapatanKamar` (pencocokan case-insensitive pada kode kamar) untuk baris utama.
 23. Setelah COA ditemukan, service membentuk baris pendapatan berisi `coa_id`, `debit`, `kredit`, `raw_total`, `quantity`, dan `catatan` dengan bantuan `buatCatatanPendapatan()`.
 24. Setelah seluruh rincian terpetakan, service menentukan akun lawan dengan `tentukanAkunLawanPendapatan()`.
 25. Fungsi ini mengambil detail jurnal SIMRS terakhir yang berkaitan dengan `PEMBAYARAN` atau `PIUTANG`, membuang nominal `Retur Obat` dan `Potongan`, lalu mengelompokkan akun berdasarkan `kd_rek`.
@@ -459,3 +459,4 @@ Walaupun bukan proses inti import, halaman utama Bridging Pendapatan juga memili
 - Prioritas akun lawan serta informasi pembayaran Invoice Pendapatan mengikuti `tipe_coa` lokal (`Kasbank` atau mengandung `piutang`); kode/prefix COA tidak menjadi dasar klasifikasi.
 - Pada cabang `Jurnal Umum`, service akan menghentikan proses bila total debit dan kredit tidak balance.
 - Pada cabang `Invoice Pendapatan`, sinkronisasi buku besar dilakukan manual melalui `sinkronkanBukuBesarInvoicePendapatan()`, bukan melalui `syncFromJurnalUmum()`.
+- Rincian billing SIMRS dinormalisasi teksnya (`normalisasiTeks()`) untuk memangkas spasi depan/belakang dan mereduksi whitespace ganda/tab/non-breaking space menjadi satu spasi biasa. Seluruh proses pencocokan mapping (tindakan, kamar, umum, dan lawan pendapatan) dilakukan secara case-insensitive agar tidak sensitif terhadap perbedaan huruf besar/kecil.

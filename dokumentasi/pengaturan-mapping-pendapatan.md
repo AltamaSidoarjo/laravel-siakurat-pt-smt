@@ -100,6 +100,8 @@ flowchart TD
 
 - Mapping ini menjadi prasyarat proses Bridging Pendapatan; jika mapping tidak lengkap, import
   jurnal/invoice dapat gagal.
-- Rincian tindakan diambil dari SIMRS (`getAvailableTindakan`, `getRekeningSimrsOptions`).
+- Rincian tindakan diambil dari SIMRS (`getAvailableTindakan`, `getRekeningSimrsOptions`) dengan pemfilteran yang tidak case-sensitive pada selection key / kode.
 - Penyimpanan mapping tindakan bersifat batch dan melaporkan jumlah berhasil/gagal.
+- Setiap teks nama tindakan, nama kamar, nama mapping umum, dan nama lawan pendapatan disanitasi menggunakan `normalisasiTeks()` (mereduksi whitespace ganda/spasi liar) sebelum disimpan ke basis data.
+- Validasi duplikasi pada Form Request (`StoreMappingPendapatanUmumRequest` dan `StoreMappingLawanPendapatanRequest`) maupun pengecekan `exists` di service dilakukan secara case-insensitive agar tidak terjadi data mapping ganda.
 - Lihat [Bridging Pendapatan](bridging-pendapatan.md) dan [Sistem Otorisasi](fondasi/sistem-otorisasi.md).
