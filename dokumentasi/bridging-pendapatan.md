@@ -198,49 +198,50 @@ flowchart TD
 7. Jika sudah ada, proses untuk `no_rawat` tersebut langsung gagal tanpa melanjutkan import.
 8. Jika belum ada, service mengambil header billing melalui `ambilHeaderBillingByNoRawat()`.
 9. Service menentukan tanggal pengakuan dengan `tentukanTanggalPengakuan()`.
-10. Jika basis yang dipilih `TanggalKeluarRanap` dan pasien `Ranap`, service mencari tanggal keluar menggunakan `ambilNilaiTunggal()`. Jika tidak ada, fallback ke tanggal registrasi.
-11. Service mengambil rincian billing dengan `ambilRincianBillingByNoRawat()`.
-12. Jika rincian kosong, proses dihentikan untuk `no_rawat` tersebut.
-13. Service membuka `DB::transaction(...)`.
-14. Service memuat seluruh mapping yang dibutuhkan melalui `muatMapping()`, yaitu:
+10. Jika pasien `Ralan`, service mengambil `nota_jalan.tanggal` berdasarkan `no_rawat` menggunakan `ambilNilaiTunggal()`. Jika baris nota tidak ada atau tanggalnya `NULL`, tanggal pengakuan memakai `reg_periksa.tgl_registrasi`.
+11. Jika basis yang dipilih `TanggalKeluarRanap` dan pasien `Ranap`, service mencari tanggal keluar dari `kamar_inap` menggunakan `ambilNilaiTunggal()`. Jika tidak ada, fallback ke tanggal registrasi.
+12. Service mengambil rincian billing dengan `ambilRincianBillingByNoRawat()`.
+13. Jika rincian kosong, proses dihentikan untuk `no_rawat` tersebut.
+14. Service membuka `DB::transaction(...)`.
+15. Service memuat seluruh mapping yang dibutuhkan melalui `muatMapping()`, yaitu:
     - `MappingPendapatan`,
     - `MappingPendapatanUmum`,
     - `MappingPendapatanKamar`,
     - `MappingLawanPendapatanSimrs`,
     - `Coa`.
-15. Service melakukan loop semua rincian billing dan memanggil `petakanBarisPendapatan()` pada tiap baris.
-16. Di dalam `petakanBarisPendapatan()`, sistem menentukan apakah status billing termasuk kategori yang butuh kode tindakan/kode kamar atau cukup memakai mapping umum.
-17. Jika butuh kode kategori, service memanggil `tentukanKodeKategori()`.
-18. `tentukanKodeKategori()` akan memanggil salah satu fungsi berikut sesuai status:
+16. Service melakukan loop semua rincian billing dan memanggil `petakanBarisPendapatan()` pada tiap baris.
+17. Di dalam `petakanBarisPendapatan()`, sistem menentukan apakah status billing termasuk kategori yang butuh kode tindakan/kode kamar atau cukup memakai mapping umum.
+18. Jika butuh kode kategori, service memanggil `tentukanKodeKategori()`.
+19. `tentukanKodeKategori()` akan memanggil salah satu fungsi berikut sesuai status:
     - `cariKodeRalan()`,
     - `cariKodeRanap()`,
     - `cariKodeLaborat()`,
     - `ambilNilaiTunggal()`.
-19. Untuk tindakan rawat inap, `cariKodeRanap()` mencari kode pada `no_rawat` utama terlebih dahulu. Jika tidak ditemukan, pencarian dilanjutkan ke episode anak melalui relasi `ranap_gabung.no_rawat2`.
-20. Untuk laboratorium, `cariKodeLaborat()` juga mencari pada `no_rawat` utama terlebih dahulu, kemudian memakai fallback `ranap_gabung.no_rawat2` jika kode belum ditemukan.
-21. Jika status bukan `Kamar`, service menentukan sumber tindakan melalui `tentukanSumberTindakan()`, lalu mencari mapping yang cocok dengan `mappingTindakanSesuai()`.
-22. Jika status `Kamar`, service bisa memakai `lastKamarCoaId` untuk baris lanjutan, atau mencari `MappingPendapatanKamar` untuk baris utama.
-23. Setelah COA ditemukan, service membentuk baris pendapatan berisi `coa_id`, `debit`, `kredit`, `raw_total`, `quantity`, dan `catatan` dengan bantuan `buatCatatanPendapatan()`.
-24. Setelah seluruh rincian terpetakan, service menentukan akun lawan dengan `tentukanAkunLawanPendapatan()`.
-25. Fungsi ini mengambil detail jurnal SIMRS terakhir yang berkaitan dengan `PEMBAYARAN` atau `PIUTANG`, membuang nominal `Retur Obat` dan `Potongan`, lalu mengelompokkan akun berdasarkan `kd_rek`.
-26. `prioritaskanAkunLawanKasAtauPiutang()` memetakan `kd_rek` SIMRS ke COA lokal dan, bila tersedia, hanya mempertahankan akun dengan `tipe_coa = KasBank` atau `tipe_coa` yang mengandung teks `piutang` (pencocokan tanpa membedakan huruf besar/kecil). Prefix kode COA tidak digunakan untuk klasifikasi ini. Jika tidak ada akun dengan tipe tersebut, seluruh kandidat akun tetap dipakai.
-27. Kombinasi akun final dipilih melalui `pilihAkunLawanPendapatanSimrs()`.
-28. Jika mapping akun lawan SIMRS ke COA lokal belum ada, service melempar `RuntimeException`.
-29. Setelah semua validasi lolos, service menyimpan log import ke `simrs_import_pendapatan` melalui `simpanLogImport()`.
-30. Jika `jenisProses = InvoicePendapatan`, service memanggil `simpanInvoicePendapatan()`.
-31. Di dalam `simpanInvoicePendapatan()`, service:
+20. Untuk tindakan rawat inap, `cariKodeRanap()` mencari kode pada `no_rawat` utama terlebih dahulu. Jika tidak ditemukan, pencarian dilanjutkan ke episode anak melalui relasi `ranap_gabung.no_rawat2`.
+21. Untuk laboratorium, `cariKodeLaborat()` juga mencari pada `no_rawat` utama terlebih dahulu, kemudian memakai fallback `ranap_gabung.no_rawat2` jika kode belum ditemukan.
+22. Jika status bukan `Kamar`, service menentukan sumber tindakan melalui `tentukanSumberTindakan()`, lalu mencari mapping yang cocok dengan `mappingTindakanSesuai()`.
+23. Jika status `Kamar`, service bisa memakai `lastKamarCoaId` untuk baris lanjutan, atau mencari `MappingPendapatanKamar` untuk baris utama.
+24. Setelah COA ditemukan, service membentuk baris pendapatan berisi `coa_id`, `debit`, `kredit`, `raw_total`, `quantity`, dan `catatan` dengan bantuan `buatCatatanPendapatan()`.
+25. Setelah seluruh rincian terpetakan, service menentukan akun lawan dengan `tentukanAkunLawanPendapatan()`.
+26. Fungsi ini mengambil detail jurnal SIMRS terakhir yang berkaitan dengan `PEMBAYARAN` atau `PIUTANG`, membuang nominal `Retur Obat` dan `Potongan`, lalu mengelompokkan akun berdasarkan `kd_rek`.
+27. `prioritaskanAkunLawanKasAtauPiutang()` memetakan `kd_rek` SIMRS ke COA lokal dan, bila tersedia, hanya mempertahankan akun dengan `tipe_coa = KasBank` atau `tipe_coa` yang mengandung teks `piutang` (pencocokan tanpa membedakan huruf besar/kecil). Prefix kode COA tidak digunakan untuk klasifikasi ini. Jika tidak ada akun dengan tipe tersebut, seluruh kandidat akun tetap dipakai.
+28. Kombinasi akun final dipilih melalui `pilihAkunLawanPendapatanSimrs()`.
+29. Jika mapping akun lawan SIMRS ke COA lokal belum ada, service melempar `RuntimeException`.
+30. Setelah semua validasi lolos, service menyimpan log import ke `simrs_import_pendapatan` melalui `simpanLogImport()`.
+31. Jika `jenisProses = InvoicePendapatan`, service memanggil `simpanInvoicePendapatan()`.
+32. Di dalam `simpanInvoicePendapatan()`, service:
     - memastikan pelanggan tersedia lewat `cariAtauBuatPelanggan()`,
     - menghitung `sudah_terbayar` dari akun lawan bertipe COA `Kasbank`,
     - menentukan `akun_piutang_id` bila akun lawan tunggal memiliki tipe COA yang mengandung `piutang`,
     - membuat `FakturPenjualan`,
     - membuat `FakturPenjualanRinci`,
     - memanggil `sinkronkanBukuBesarInvoicePendapatan()`.
-32. `sinkronkanBukuBesarInvoicePendapatan()` menghapus buku besar lama untuk sumber yang sama, lalu mengisi ulang mutasi melalui `BukuBesar::insert(...)`.
-33. Jika `jenisProses = JurnalUmum`, service memanggil `simpanJurnalUmum()`.
-34. `simpanJurnalUmum()` membuat `JurnalUmum`, membuat `JurnalUmumRinci` untuk baris pendapatan dan akun lawan, mengecek keseimbangan debit-kredit, lalu memanggil `BukuBesarService::syncFromJurnalUmum(...)`.
-35. Setelah proses utama selesai, service mencatat aktivitas dengan `LogAktifitasService::log(...)`.
-36. `imporSatu()` mengembalikan hasil sukses atau gagal per `no_rawat`.
-37. `imporBanyak()` menggabungkan semua hasil dan controller menyimpannya ke session flash.
+33. `sinkronkanBukuBesarInvoicePendapatan()` menghapus buku besar lama untuk sumber yang sama, lalu mengisi ulang mutasi melalui `BukuBesar::insert(...)`.
+34. Jika `jenisProses = JurnalUmum`, service memanggil `simpanJurnalUmum()`.
+35. `simpanJurnalUmum()` membuat `JurnalUmum`, membuat `JurnalUmumRinci` untuk baris pendapatan dan akun lawan, mengecek keseimbangan debit-kredit, lalu memanggil `BukuBesarService::syncFromJurnalUmum(...)`.
+36. Setelah proses utama selesai, service mencatat aktivitas dengan `LogAktifitasService::log(...)`.
+37. `imporSatu()` mengembalikan hasil sukses atau gagal per `no_rawat`.
+38. `imporBanyak()` menggabungkan semua hasil dan controller menyimpannya ke session flash.
 
 ### Fungsi yang Dipanggil
 

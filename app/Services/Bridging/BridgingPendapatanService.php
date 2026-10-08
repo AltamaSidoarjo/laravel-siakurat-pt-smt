@@ -1076,6 +1076,20 @@ class BridgingPendapatanService
 
     private function tentukanTanggalPengakuan(array $billing, string $basisTanggalPengakuan): ?string
     {
+        if ($billing['status_lanjut'] === 'Ralan') {
+            $tanggalNota = $this->ambilNilaiTunggal(
+                <<<'SQL'
+                SELECT tanggal
+                FROM nota_jalan
+                WHERE no_rawat = ?
+                LIMIT 1
+                SQL,
+                [$billing['no_rawat']]
+            );
+
+            return $tanggalNota ?: $billing['tanggal_registrasi'];
+        }
+
         // Ranap bisa memakai tanggal keluar RS sebagai basis pengakuan.
         // Selain itu, fallback-nya tetap tanggal registrasi agar proses tidak memaksa data SIMRS
         // yang belum memiliki tanggal keluar valid.
