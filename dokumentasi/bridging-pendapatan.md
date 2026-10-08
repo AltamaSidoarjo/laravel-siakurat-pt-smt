@@ -217,6 +217,7 @@ flowchart TD
     - `cariKodeRanap()`,
     - `cariKodeLaborat()`,
     - `ambilNilaiTunggal()`.
+<<<<<<< HEAD
 20. Untuk tindakan rawat inap, `cariKodeRanap()` mencari kode pada `no_rawat` utama terlebih dahulu. Jika tidak ditemukan, pencarian dilanjutkan ke episode anak melalui relasi `ranap_gabung.no_rawat2`.
 21. Untuk laboratorium, `cariKodeLaborat()` juga mencari pada `no_rawat` utama terlebih dahulu, kemudian memakai fallback `ranap_gabung.no_rawat2` jika kode belum ditemukan.
 22. Jika status bukan `Kamar`, service menentukan sumber tindakan melalui `tentukanSumberTindakan()`, lalu mencari mapping yang cocok dengan `mappingTindakanSesuai()`.
@@ -230,6 +231,21 @@ flowchart TD
 30. Setelah semua validasi lolos, service menyimpan log import ke `simrs_import_pendapatan` melalui `simpanLogImport()`.
 31. Jika `jenisProses = InvoicePendapatan`, service memanggil `simpanInvoicePendapatan()`.
 32. Di dalam `simpanInvoicePendapatan()`, service:
+=======
+19. Untuk tindakan rawat inap, `cariKodeRanap()` mencari kode pada `no_rawat` utama terlebih dahulu. Jika tidak ditemukan, pencarian dilanjutkan ke episode anak melalui relasi `ranap_gabung.no_rawat2`.
+20. Untuk laboratorium, `cariKodeLaborat()` juga mencari pada `no_rawat` utama terlebih dahulu, kemudian memakai fallback `ranap_gabung.no_rawat2` jika kode belum ditemukan.
+21. Jika status bukan `Kamar`, service menentukan sumber tindakan melalui `tentukanSumberTindakan()`, lalu mencari mapping yang cocok dengan `mappingTindakanSesuai()`. Pada compare nama, nama perawatan dari rincian billing dan mapping sama-sama di-trim, diubah ke lowercase, dan rangkaian spasi/tab disatukan menjadi satu spasi. Nilai nama billing aslinya tetap dipakai untuk pencarian kode SIMRS dan catatan pendapatan.
+22. Jika status `Kamar`, service bisa memakai `lastKamarCoaId` untuk baris lanjutan, atau mencari `MappingPendapatanKamar` untuk baris utama.
+23. Setelah COA ditemukan, service membentuk baris pendapatan berisi `coa_id`, `debit`, `kredit`, `raw_total`, `quantity`, dan `catatan` dengan bantuan `buatCatatanPendapatan()`.
+24. Setelah seluruh rincian terpetakan, service menentukan akun lawan dengan `tentukanAkunLawanPendapatan()`.
+25. Fungsi ini mengambil detail jurnal SIMRS terakhir yang berkaitan dengan `PEMBAYARAN` atau `PIUTANG`, membuang nominal `Retur Obat` dan `Potongan`, lalu mengelompokkan akun berdasarkan `kd_rek`.
+26. `prioritaskanAkunLawanKasAtauPiutang()` memetakan `kd_rek` SIMRS ke COA lokal dan, bila tersedia, hanya mempertahankan akun dengan `tipe_coa = KasBank` atau `tipe_coa` yang mengandung teks `piutang` (pencocokan tanpa membedakan huruf besar/kecil). Prefix kode COA tidak digunakan untuk klasifikasi ini. Jika tidak ada akun dengan tipe tersebut, seluruh kandidat akun tetap dipakai.
+27. Kombinasi akun final dipilih melalui `pilihAkunLawanPendapatanSimrs()`.
+28. Jika mapping akun lawan SIMRS ke COA lokal belum ada, service melempar `RuntimeException`.
+29. Setelah semua validasi lolos, service menyimpan log import ke `simrs_import_pendapatan` melalui `simpanLogImport()`.
+30. Jika `jenisProses = InvoicePendapatan`, service memanggil `simpanInvoicePendapatan()`.
+31. Di dalam `simpanInvoicePendapatan()`, service:
+>>>>>>> normalisasi-text-rincian-billing-bridging-pendapatan
     - memastikan pelanggan tersedia lewat `cariAtauBuatPelanggan()`,
     - menghitung `sudah_terbayar` dari akun lawan bertipe COA `Kasbank`,
     - menentukan `akun_piutang_id` bila akun lawan tunggal memiliki tipe COA yang mengandung `piutang`,
