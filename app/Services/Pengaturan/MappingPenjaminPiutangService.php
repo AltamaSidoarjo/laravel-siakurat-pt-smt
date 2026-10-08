@@ -6,7 +6,7 @@ use App\Models\Coa;
 use App\Models\MappingPenjaminPiutang;
 use App\Services\Bridging\BillingPendapatanApiService;
 use App\Services\LogAktifitasService;
-use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use RuntimeException;
 
@@ -17,14 +17,18 @@ class MappingPenjaminPiutangService
         private readonly LogAktifitasService $logService,
     ) {}
 
-    public function getIndexData(): EloquentCollection
+    public function getIndexQuery(): Builder
     {
         return MappingPenjaminPiutang::query()
-            ->with('coa:id,kode,nama')
+            ->leftJoin('coa', 'coa.id', '=', 'mapping_penjamin_piutang.coa_id')
+            ->select([
+                'mapping_penjamin_piutang.*',
+                'coa.kode as coa_kode',
+                'coa.nama as coa_nama',
+            ])
             ->orderBy('nama_penjamin')
             ->orderBy('jenis_layanan')
-            ->orderBy('penjamin_id')
-            ->get();
+            ->orderBy('mapping_penjamin_piutang.penjamin_id');
     }
 
     public function getAvailablePenjaminOptions(): Collection

@@ -325,6 +325,7 @@ Route::middleware('auth')->group(function () {
 
         Route::middleware('module.access:pengaturan.mapping-penjamin,view')->group(function () {
             Route::get('/mapping-penjamin', [MappingPenjaminController::class, 'index'])->name('mapping-penjamin.index');
+            Route::get('/mapping-penjamin/load-data', [MappingPenjaminController::class, 'loadData'])->name('mapping-penjamin.load-data');
         });
         Route::middleware('module.access:pengaturan.mapping-penjamin,create')->group(function () {
             Route::get('/mapping-penjamin/create', [MappingPenjaminController::class, 'create'])->name('mapping-penjamin.create');

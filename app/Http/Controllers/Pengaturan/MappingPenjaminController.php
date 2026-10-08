@@ -8,9 +8,11 @@ use App\Http\Requests\Pengaturan\StoreMappingPenjaminRequest;
 use App\Models\MappingPenjaminPiutang;
 use App\Services\Pengaturan\MappingPenjaminPiutangService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use RuntimeException;
+use Yajra\DataTables\Facades\DataTables;
 
 class MappingPenjaminController extends Controller
 {
@@ -22,8 +24,24 @@ class MappingPenjaminController extends Controller
     {
         return view('pengaturan.mapping-penjamin.index', [
             'page' => 'app',
-            'mappings' => $this->mappingPenjaminService->getIndexData(),
         ]);
+    }
+
+    public function loadData(): JsonResponse
+    {
+        $query = $this->mappingPenjaminService->getIndexQuery();
+
+        return DataTables::eloquent($query)
+            ->addColumn('jenis_layanan_label', fn (MappingPenjaminPiutang $mapping) => match ($mapping->jenis_layanan) {
+                'rawat_jalan' => 'Rawat Jalan',
+                'rawat_inap' => 'Rawat Inap',
+                'igd' => 'IGD',
+                default => $mapping->jenis_layanan,
+            })
+            ->addColumn('kode_coa', fn (MappingPenjaminPiutang $mapping) => $mapping->coa_kode ?? '')
+            ->addColumn('nama_coa', fn (MappingPenjaminPiutang $mapping) => $mapping->coa_nama ?? '')
+            ->addColumn('aksi', fn (MappingPenjaminPiutang $mapping) => $mapping->id)
+            ->toJson();
     }
 
     public function create(): View

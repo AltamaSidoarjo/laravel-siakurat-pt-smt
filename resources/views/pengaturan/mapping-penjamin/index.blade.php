@@ -47,29 +47,7 @@
                                                 <th class="text-center">Aksi</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
-                                            @foreach ($mappings as $mapping)
-                                                <tr>
-                                                    <td>{{ $mapping->nama_penjamin }}</td>
-                                                    <td>{{ ['rawat_jalan' => 'Rawat Jalan', 'rawat_inap' => 'Rawat Inap', 'igd' => 'IGD'][$mapping->jenis_layanan] ?? $mapping->jenis_layanan }}</td>
-                                                    <td>{{ $mapping->coa?->kode }}</td>
-                                                    <td>{{ $mapping->coa?->nama }}</td>
-                                                    <td class="text-center">
-                                                        @if (auth()->user()?->hasModuleAccess('pengaturan.mapping-penjamin', 'delete'))
-                                                        <form method="post" action="{{ route('pengaturan.mapping-penjamin.destroy', $mapping) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus mapping penjamin ini?');">
-                                                            @csrf
-                                                            @method('DELETE')
-                                                            <button type="submit" class="btn btn-danger btn-sm">
-                                                                <i class="bi bi-trash3"></i> Hapus
-                                                            </button>
-                                                        </form>
-                                                        @else
-                                                            -
-                                                        @endif
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
+                                        <tbody></tbody>
                                     </table>
                                 </div>
                             </div>
@@ -86,11 +64,40 @@
         $(document).ready(function () {
             if (window.jQuery && window.jQuery.fn.DataTable) {
                 $('#datatable').DataTable({
+                    processing: true,
+                    serverSide: true,
                     autoWidth: false,
                     scrollX: true,
+                    scrollCollapse: true,
                     dom: 'Bfrtip',
                     buttons: ['csv', 'excel', 'pdf', 'print'],
-                    order: [[0, 'asc']]
+                    pageLength: 10,
+                    order: [[0, 'asc']],
+                    ajax: '{{ route('pengaturan.mapping-penjamin.load-data') }}',
+                    columns: [
+                        { data: 'nama_penjamin', name: 'nama_penjamin' },
+                        { data: 'jenis_layanan_label', name: 'jenis_layanan' },
+                        { data: 'kode_coa', name: 'coa.kode' },
+                        { data: 'nama_coa', name: 'coa.nama' },
+                        {
+                            data: 'aksi',
+                            orderable: false,
+                            searchable: false,
+                            className: 'text-center',
+                            render: function (id) {
+                                @if (auth()->user()?->hasModuleAccess('pengaturan.mapping-penjamin', 'delete'))
+                                const action = '{{ url('/pengaturan/mapping-penjamin') }}/' + id;
+                                return `<form method="post" action="${action}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus mapping penjamin ini?');">
+                                    @csrf
+                                    <input type="hidden" name="_method" value="DELETE">
+                                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash3"></i> Hapus</button>
+                                </form>`;
+                                @else
+                                return '-';
+                                @endif
+                            }
+                        }
+                    ]
                 });
             }
         });
