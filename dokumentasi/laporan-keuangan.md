@@ -139,6 +139,7 @@ flowchart TD
 
 - Modul ini **read-only**; tidak mengubah data buku besar/jurnal.
 - Input Select2 Pilih COA pada Buku Besar menggunakan AJAX dengan `minimumInputLength: 0` dan pagination, sehingga saat dropdown diklik tanpa mengetik akan langsung menampilkan daftar opsi COA dari server.
+- Pada Buku Besar (`getBukubesar`), kolom keterangan baris transaksi otomatis menggabungkan penjamin dengan format `[Kode Penjamin] Nama Penjamin - Keterangan Asli` (Opsi A) jika penjamin ditemukan dari sumbernya (`faktur_penjualan` untuk `Invoice Pendapatan`, `simrs_import_pendapatan` untuk `Jurnal Umum`, atau `pelanggan` untuk `Penerimaan Pendapatan`). Teks penjamin ini otomatis dapat dicari melalui input pencarian `#globalSearch` di halaman Buku Besar serta tercakup pada export Excel dan Print.
 - Laporan laba rugi mengintegrasikan anggaran **RBA** sebagai pembanding.
 - Klasifikasi neraca dan arus kas bergantung pada `tipe_coa` dan `arus_kas_aktivitas`/`arus_kas_kelompok`
   pada COA (lihat [Konvensi Buku Besar & COA](fondasi/konvensi-bukubesar-coa.md)).

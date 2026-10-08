@@ -143,7 +143,7 @@
                                             type="text"
                                             id="globalSearch"
                                             class="form-control"
-                                            placeholder="Cari Nomor / Sumber Transaksi / Keterangan..."
+                                            placeholder="Cari Nomor / Sumber Transaksi / Keterangan / Penjamin..."
                                         >
                                         <small class="text-muted">Pencarian hanya memfilter data yang sedang tampil (hasil filter tanggal &amp; COA).</small>
                                     </div>

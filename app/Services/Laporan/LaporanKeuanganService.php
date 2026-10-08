@@ -11,6 +11,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class LaporanKeuanganService
 {
@@ -664,6 +665,7 @@ class LaporanKeuanganService
             ->orderBy('id')
             ->get();
 
+        $penjaminMap = $this->resolveBukubesarPenjaminMap($transactions);
         $groupedTransactions = $transactions->groupBy('coa_id');
         $hasil = collect();
 
@@ -690,12 +692,16 @@ class LaporanKeuanganService
                 $kredit = $trx->tipe_mutasi === 'K' ? $nominal : 0;
                 $runningBalance += $trx->tipe_mutasi === 'D' ? $nominal : -$nominal;
 
+                $labelPenjamin = $penjaminMap[$trx->sumber_transaksi][$trx->nomer]
+                    ?? $penjaminMap[$trx->sumber_transaksi][$trx->sumber_id]
+                    ?? null;
+
                 $rows->push([
                     'urutan' => $index + 1,
                     'tanggal' => optional($trx->tanggal)->format('Y-m-d'),
                     'nomer' => $trx->nomer,
                     'sumber_transaksi' => $trx->sumber_transaksi,
-                    'keterangan' => $trx->keterangan,
+                    'keterangan' => $this->gabungKeteranganDenganPenjamin($trx->keterangan, $labelPenjamin),
                     'debit' => $debit,
                     'kredit' => $kredit,
                     'saldo_berjalan' => $runningBalance,
@@ -1247,6 +1253,120 @@ class LaporanKeuanganService
         return Coa::query()
             ->leaf()
             ->orderBy('kode');
+    }
+
+    private function resolveBukubesarPenjaminMap(Collection $transactions): array
+    {
+        $map = [
+            'Invoice Pendapatan' => [],
+            'Jurnal Umum' => [],
+            'Penerimaan Pendapatan' => [],
+        ];
+
+        $invoiceNomers = $transactions
+            ->where('sumber_transaksi', 'Invoice Pendapatan')
+            ->pluck('nomer')
+            ->filter(fn ($val) => ! empty($val))
+            ->unique()
+            ->values()
+            ->all();
+
+        if (! empty($invoiceNomers) && Schema::hasTable('faktur_penjualan')) {
+            $invoices = DB::table('faktur_penjualan')
+                ->whereIn('nomor_faktur', $invoiceNomers)
+                ->select(['id', 'nomor_faktur', 'kode_penjamin', 'nama_penjamin'])
+                ->get();
+
+            foreach ($invoices as $inv) {
+                $label = $this->formatLabelPenjamin($inv->kode_penjamin, $inv->nama_penjamin);
+                if ($label !== '') {
+                    $map['Invoice Pendapatan'][$inv->nomor_faktur] = $label;
+                    $map['Invoice Pendapatan'][$inv->id] = $label;
+                }
+            }
+        }
+
+        $jurnalNomers = $transactions
+            ->where('sumber_transaksi', 'Jurnal Umum')
+            ->pluck('nomer')
+            ->filter(fn ($val) => ! empty($val))
+            ->unique()
+            ->values()
+            ->all();
+
+        if (! empty($jurnalNomers) && Schema::hasTable('simrs_import_pendapatan')) {
+            $imports = DB::table('simrs_import_pendapatan')
+                ->whereIn('nomer_billing', $jurnalNomers)
+                ->select(['nomer_billing', 'kode_penjamin', 'penjamin'])
+                ->get();
+
+            foreach ($imports as $imp) {
+                $label = $this->formatLabelPenjamin($imp->kode_penjamin, $imp->penjamin);
+                if ($label !== '') {
+                    $map['Jurnal Umum'][$imp->nomer_billing] = $label;
+                }
+            }
+        }
+
+        $penerimaanIds = $transactions
+            ->where('sumber_transaksi', 'Penerimaan Pendapatan')
+            ->pluck('sumber_id')
+            ->filter(fn ($val) => ! empty($val))
+            ->unique()
+            ->values()
+            ->all();
+
+        if (! empty($penerimaanIds) && Schema::hasTable('penerimaan_penjualan') && Schema::hasTable('pelanggan')) {
+            $penerimaan = DB::table('penerimaan_penjualan')
+                ->join('pelanggan', 'pelanggan.id', '=', 'penerimaan_penjualan.pelanggan_id')
+                ->whereIn('penerimaan_penjualan.id', $penerimaanIds)
+                ->select(['penerimaan_penjualan.id', 'penerimaan_penjualan.nomer', 'pelanggan.kode_pelanggan', 'pelanggan.nama_pelanggan'])
+                ->get();
+
+            foreach ($penerimaan as $pen) {
+                $label = $this->formatLabelPenjamin($pen->kode_pelanggan, $pen->nama_pelanggan);
+                if ($label !== '') {
+                    $map['Penerimaan Pendapatan'][$pen->id] = $label;
+                    if (! empty($pen->nomer)) {
+                        $map['Penerimaan Pendapatan'][$pen->nomer] = $label;
+                    }
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    private function formatLabelPenjamin(?string $kode, ?string $nama): string
+    {
+        $kode = trim((string) $kode);
+        $nama = trim((string) $nama);
+
+        if ($kode !== '' && $nama !== '') {
+            return "[{$kode}] {$nama}";
+        }
+
+        if ($kode !== '') {
+            return "[{$kode}]";
+        }
+
+        return $nama;
+    }
+
+    private function gabungKeteranganDenganPenjamin(?string $keterangan, ?string $labelPenjamin): string
+    {
+        $keteranganBersih = trim((string) $keterangan);
+        $labelBersih = trim((string) $labelPenjamin);
+
+        if ($labelBersih === '') {
+            return $keteranganBersih;
+        }
+
+        if ($keteranganBersih === '' || $keteranganBersih === '-') {
+            return $labelBersih;
+        }
+
+        return "{$labelBersih} - {$keteranganBersih}";
     }
 
     /**
