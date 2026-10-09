@@ -114,6 +114,11 @@ Method yang tersedia dan nilai `sumber_transaksi` yang dihasilkan:
   bila ada selisih tarif, akun selisih tarif `K` (selisih>0) atau `D` (selisih<0) sebesar `abs(selisih)`.
 - **Pembayaran Pembelian**: Hutang `D = total_bayar`; Bank `K = total_bayar − potongan_admin`;
   bila ada potongan admin, akun potongan `K` sebesar `potongan_admin`.
+- **Invoice Pendapatan hasil bridging obat/BHP**: rincian jurnal SIMRS dipetakan ke COA dan dicatat
+  dengan `sumber_transaksi = 'Invoice Pendapatan'`, `sumber_id = faktur_penjualan.id`, dan nomor
+  faktur sebagai `nomer`. Akun lawan terpilih memakai `MappingLawanPendapatanSimrs`; rincian lain
+  memakai `MappingCoaSimrs`, sehingga baris HPP/persediaan tetap tercatat pada COA umumnya.
+  Penghapusan invoice oleh bridging menghapus mutasi berdasarkan ketiga identitas tersebut.
 
 ### Diagram Sinkronisasi
 

@@ -16,7 +16,7 @@ class ImportPendapatanObatRequest extends FormRequest
         return [
             'selectedNoTransaksi' => ['required', 'array', 'min:1'],
             'selectedNoTransaksi.*' => ['required', 'string', 'max:100'],
-            'jenisProses' => ['required', 'in:JurnalUmum'],
+            'jenisProses' => ['required', 'in:JurnalUmum,InvoicePendapatan'],
         ];
     }
 

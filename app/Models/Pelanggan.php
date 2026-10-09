@@ -17,6 +17,7 @@ class Pelanggan extends Model
 
     protected $casts = [
         'status_aktif' => 'boolean',
+        'jenis_pelanggan' => 'string',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
