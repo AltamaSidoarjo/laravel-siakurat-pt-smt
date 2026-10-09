@@ -7,6 +7,7 @@ use App\Models\MappingPenjaminPiutang;
 use App\Services\Bridging\BillingPendapatanApiService;
 use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use RuntimeException;
 
