@@ -158,9 +158,12 @@ Route::middleware('auth')->group(function () {
             Route::get('/pendapatan-obat/load-imported-data', [BridgingPendapatanObatController::class, 'loadImportedData'])->name('pendapatan-obat.load-imported-data');
             Route::get('/pendapatan-obat/tarik-tagihan', [BridgingPendapatanObatController::class, 'tarikTagihan'])->name('pendapatan-obat.tarik-tagihan');
             Route::get('/pendapatan-obat/load-tagihan-simrs', [BridgingPendapatanObatController::class, 'loadTagihanSimrs'])->name('pendapatan-obat.load-tagihan-simrs');
+            Route::get('/pendapatan-obat/tarik-piutang', [BridgingPendapatanObatController::class, 'tarikPiutang'])->name('pendapatan-obat.tarik-piutang');
+            Route::get('/pendapatan-obat/load-piutang-simrs', [BridgingPendapatanObatController::class, 'loadPiutangSimrs'])->name('pendapatan-obat.load-piutang-simrs');
         });
         Route::middleware('module.access:bridging.pendapatan-obat,update')->group(function () {
             Route::post('/pendapatan-obat/process-import', [BridgingPendapatanObatController::class, 'processImport'])->name('pendapatan-obat.process-import');
+            Route::post('/pendapatan-obat/process-import-piutang', [BridgingPendapatanObatController::class, 'processImportPiutang'])->name('pendapatan-obat.process-import-piutang');
         });
         Route::middleware('module.access:bridging.pendapatan-obat,delete')->group(function () {
             Route::post('/pendapatan-obat/destroy-bulk', [BridgingPendapatanObatController::class, 'destroyBulk'])->name('pendapatan-obat.destroy-bulk');

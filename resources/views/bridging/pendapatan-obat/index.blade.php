@@ -33,9 +33,9 @@
                                     <a href="{{ route('bridging.pendapatan-obat.tarik-tagihan') }}" class="btn btn-info text-white fw-bold">
                                         <i class="bi bi-download me-1"></i> Tarik Jual Obat & BHP
                                     </a>
-                                    <button type="button" class="btn btn-info text-white fw-bold" onclick="alert('Tarik Piutang Obat & BHP masih dalam pengembangan.')">
+                                    <a href="{{ route('bridging.pendapatan-obat.tarik-piutang') }}" class="btn btn-info text-white fw-bold">
                                         <i class="bi bi-download me-1"></i> Tarik Piutang Obat & BHP
-                                    </button>
+                                    </a>
                                 </div>
                             </div>
                         </div>

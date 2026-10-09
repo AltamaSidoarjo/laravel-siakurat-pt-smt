@@ -119,6 +119,13 @@ Method yang tersedia dan nilai `sumber_transaksi` yang dihasilkan:
   faktur sebagai `nomer`. Akun lawan terpilih memakai `MappingLawanPendapatanSimrs`; rincian lain
   memakai `MappingCoaSimrs`, sehingga baris HPP/persediaan tetap tercatat pada COA umumnya.
   Penghapusan invoice oleh bridging menghapus mutasi berdasarkan ketiga identitas tersebut.
+- **Invoice Piutang Obat & BHP hasil bridging**: jurnal `PIUTANG DI APOTEK` terbaru disalin per
+  baris. Rekening SIMRS `117000` menggunakan `MappingLawanPendapatanSimrs` sebagai akun piutang,
+  walaupun tipe COA lokalnya dapat berupa `Aktiva Lancar lainnya`; rekening jurnal lainnya memakai
+  `MappingCoaSimrs`. Mutasi menggunakan `sumber_transaksi = 'Invoice Piutang Obat'` dan
+  `sumber_id = faktur_penjualan.id`; nomor invoice dan mutasi memakai prefix `P-` pada nomor piutang
+  SIMRS untuk mencegah benturan nomor billing, dan penghapusan hanya membersihkan mutasi dengan
+  sumber dan invoice tersebut.
 
 ### Diagram Sinkronisasi
 
