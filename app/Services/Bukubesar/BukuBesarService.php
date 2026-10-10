@@ -39,6 +39,38 @@ class BukuBesarService
         }
     }
 
+    public function syncFromSaldoAwal(int $saldoAwalId, string $nomer, string $tanggal, ?string $keterangan, array $rincian): void
+    {
+        $this->deleteBySource('Saldo Awal', $saldoAwalId);
+
+        $payload = collect($rincian)
+            ->filter(fn ($row) => ! empty($row['coa_id']))
+            ->map(function (array $row) use ($saldoAwalId, $nomer, $tanggal, $keterangan) {
+                $debit = (float) ($row['debit'] ?? 0);
+                $kredit = (float) ($row['kredit'] ?? 0);
+
+                return [
+                    'coa_id' => (int) $row['coa_id'],
+                    'sumber_id' => $saldoAwalId,
+                    'tanggal' => $tanggal,
+                    ...self::resolvePeriode($tanggal),
+                    'nomer' => $nomer,
+                    'sumber_transaksi' => 'Saldo Awal',
+                    'nominal' => $debit > 0 ? $debit : $kredit,
+                    'tipe_mutasi' => $debit > 0 ? 'D' : 'K',
+                    'keterangan' => ! empty($row['catatan']) ? $row['catatan'] : ($keterangan ?: 'Saldo Awal Periode'),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            })
+            ->values()
+            ->all();
+
+        if ($payload !== []) {
+            BukuBesar::query()->insert($payload);
+        }
+    }
+
     public function deleteBySource(string $sourceTransaction, int $sourceId): void
     {
         BukuBesar::query()

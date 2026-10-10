@@ -6,6 +6,7 @@
 
     $canHome = $can('home');
     $canBukubesarJurnalUmum = $can('bukubesar.jurnal-umum');
+    $canBukubesarSaldoAwal = $can('bukubesar.saldo-awal');
     $canBukubesarCoa = $can('bukubesar.coa');
     $canKasbankPenerimaan = $can('kasbank.penerimaan');
     $canKasbankPembayaran = $can('kasbank.pembayaran');
@@ -84,7 +85,7 @@
         </li>
         @endif
 
-        @if ($canBukubesarJurnalUmum || $canBukubesarCoa)
+        @if ($canBukubesarJurnalUmum || $canBukubesarSaldoAwal || $canBukubesarCoa)
         <li class="sidebar-item">
             <a class="sidebar-link sidebar-toggle {{ str_starts_with($path, '/bukubesar') ? 'active' : '' }}"
                data-bs-toggle="collapse" href="#menu-bukubesar" role="button"
@@ -100,6 +101,14 @@
                         <a class="sidebar-sublink {{ str_starts_with($path, '/bukubesar/jurnal-umum') ? 'active' : '' }}"
                            href="{{ route('bukubesar.jurnal-umum.index') }}">
                             <i class="bi bi-circle-fill sidebar-bullet"></i> Jurnal Umum
+                        </a>
+                    </li>
+                    @endif
+                    @if ($canBukubesarSaldoAwal)
+                    <li>
+                        <a class="sidebar-sublink {{ str_starts_with($path, '/bukubesar/saldo-awal') ? 'active' : '' }}"
+                           href="{{ route('bukubesar.saldo-awal.index') }}">
+                            <i class="bi bi-circle-fill sidebar-bullet"></i> Saldo Awal
                         </a>
                     </li>
                     @endif

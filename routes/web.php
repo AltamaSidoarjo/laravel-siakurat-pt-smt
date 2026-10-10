@@ -6,6 +6,7 @@ use App\Http\Controllers\Bridging\BridgingPendapatanController;
 use App\Http\Controllers\Bridging\BridgingPendapatanObatController;
 use App\Http\Controllers\Bukubesar\CoaController;
 use App\Http\Controllers\Bukubesar\JurnalUmumController;
+use App\Http\Controllers\Bukubesar\SaldoAwalController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Kasbank\BukuBankController;
 use App\Http\Controllers\Kasbank\KasbankPembayaranController;
@@ -67,6 +68,23 @@ Route::middleware('auth')->group(function () {
         });
         Route::middleware('module.access:bukubesar.jurnal-umum,delete')->group(function () {
             Route::delete('/jurnal-umum/{jurnalUmum}', [JurnalUmumController::class, 'destroy'])->name('jurnal-umum.destroy');
+        });
+
+        Route::middleware('module.access:bukubesar.saldo-awal,view')->group(function () {
+            Route::get('/saldo-awal', [SaldoAwalController::class, 'index'])->name('saldo-awal.index');
+        });
+        Route::middleware('module.access:bukubesar.saldo-awal,create')->group(function () {
+            Route::get('/saldo-awal/create', [SaldoAwalController::class, 'create'])->name('saldo-awal.create');
+            Route::post('/saldo-awal', [SaldoAwalController::class, 'store'])->name('saldo-awal.store');
+        });
+        Route::middleware('module.access:bukubesar.saldo-awal,update')->group(function () {
+            Route::get('/saldo-awal/{saldoAwal}/edit', [SaldoAwalController::class, 'edit'])->name('saldo-awal.edit');
+            Route::put('/saldo-awal/{saldoAwal}', [SaldoAwalController::class, 'update'])->name('saldo-awal.update');
+            Route::post('/saldo-awal/{saldoAwal}/lock', [SaldoAwalController::class, 'lock'])->name('saldo-awal.lock');
+            Route::post('/saldo-awal/{saldoAwal}/unlock', [SaldoAwalController::class, 'unlock'])->name('saldo-awal.unlock');
+        });
+        Route::middleware('module.access:bukubesar.saldo-awal,delete')->group(function () {
+            Route::delete('/saldo-awal/{saldoAwal}', [SaldoAwalController::class, 'destroy'])->name('saldo-awal.destroy');
         });
 
         Route::middleware('module.access:bukubesar.coa,view')->group(function () {

@@ -9,6 +9,7 @@ class AccessModuleRegistry
         return [
             ['kode' => 'home', 'nama' => 'Home', 'group_nama' => 'Dashboard', 'urutan' => 10],
             ['kode' => 'bukubesar.jurnal-umum', 'nama' => 'Jurnal Umum', 'group_nama' => 'Bukubesar', 'urutan' => 20],
+            ['kode' => 'bukubesar.saldo-awal', 'nama' => 'Saldo Awal', 'group_nama' => 'Bukubesar', 'urutan' => 25],
             ['kode' => 'bukubesar.coa', 'nama' => 'COA', 'group_nama' => 'Bukubesar', 'urutan' => 30],
             ['kode' => 'kasbank.penerimaan', 'nama' => 'Kasbank Penerimaan', 'group_nama' => 'Kasbank', 'urutan' => 40],
             ['kode' => 'kasbank.pembayaran', 'nama' => 'Kasbank Pembayaran', 'group_nama' => 'Kasbank', 'urutan' => 50],
