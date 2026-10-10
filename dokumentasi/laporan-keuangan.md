@@ -86,7 +86,7 @@ integrasi anggaran **RBA** (`ambilRbaPerCoa`, `hitungAlokasiBulanPerTahun`) untu
 ### Neraca (Standard / Per Parent COA / Saldo / Detil / Rinci)
 
 - `neracaStandard()` (param `perDate`) → `getNeracaStandard()`: aktiva/pasiva/ekuitas + status balance.
-- `neracaPerParentCoa()` (param `perDate`, `coaId`) → `getNeracaPerParentCoa()`: drill-down.
+- `neracaPerParentCoa()` (param `perDate`, `coaId`) → `getNeracaPerParentCoa()`: drill-down hierarki subtree akun turunan dengan filter periode cut-off otomatis, tree toggle accordion, ringkasan saldo konsolidasi, serta ekspor Excel (.xlsx) dan Cetak/PDF.
 - `neracaSaldo()` (param `perDate`) → `getNeracaSaldo()`.
 - `neracaDetil()` (param `perDate`) → `getNeracaDetil()`.
 - `neracaRinci()` (param `startDate`, `endDate`, `tipeCoa[]`) → `getNeracaRinci()`, dengan opsi tipe

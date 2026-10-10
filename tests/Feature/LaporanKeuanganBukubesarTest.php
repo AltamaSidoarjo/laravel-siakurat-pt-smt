@@ -617,6 +617,58 @@ class LaporanKeuanganBukubesarTest extends TestCase
         $response->assertSee('BALANCE | Selisih 0,01', false);
     }
 
+    public function test_neraca_per_parent_coa_view_renders_filter_and_tree_table(): void
+    {
+        $parent = new Coa([
+            'id' => 2,
+            'kode' => '110.00',
+            'nama' => 'Kas & Bank',
+            'tipe_coa' => 'Kasbank',
+        ]);
+        $parent->id = 2;
+
+        $rows = collect([
+            [
+                'coa_id' => 2,
+                'parent_coa' => null,
+                'kode_coa' => '110.00',
+                'nama_coa' => 'Kas & Bank',
+                'tipe_coa' => 'AKTIVA',
+                'saldo' => 1500000.0,
+                'level' => 0,
+                'has_children' => true,
+            ],
+            [
+                'coa_id' => 3,
+                'parent_coa' => 2,
+                'kode_coa' => '110.01',
+                'nama_coa' => 'Kas Operasional',
+                'tipe_coa' => 'AKTIVA',
+                'saldo' => 1500000.0,
+                'level' => 1,
+                'has_children' => false,
+            ],
+        ]);
+
+        $response = $this->view('laporan.keuangan.neraca-per-parent-coa', [
+            'logoRsUrl' => '',
+            'namaRumahSakit' => 'RS Surya Medika',
+            'page' => 'app',
+            'perDate' => '2026-10-10',
+            'parentCoa' => $parent,
+            'rows' => $rows,
+        ]);
+
+        $response->assertSee('Neraca Per Parent COA');
+        $response->assertSee('name="perDate"', false);
+        $response->assertSee('name="coaId" value="2"', false);
+        $response->assertSee('110.00');
+        $response->assertSee('Kas &amp; Bank', false);
+        $response->assertSee('1.500.000');
+        $response->assertSee('exportTableToExcel()', false);
+        $response->assertSee('printReport()', false);
+    }
+
     public function test_neraca_detil_orders_accounts_by_code(): void
     {
         foreach (['Kasbank', 'Hutang', 'Pendapatan'] as $type) {
