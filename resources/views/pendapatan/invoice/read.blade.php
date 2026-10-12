@@ -97,6 +97,12 @@
                                     <a href="{{ route('pendapatan.invoice.index') }}" class="btn btn-light fw-bold">
                                         <i class="bi bi-x-circle-fill"></i> Kembali
                                     </a>
+                                    <a href="{{ route('pendapatan.invoice.print', $invoicePendapatan) }}" class="btn btn-outline-primary fw-bold" target="_blank">
+                                        <i class="bi bi-printer-fill"></i> Print
+                                    </a>
+                                    <button type="button" class="btn btn-success fw-bold" id="btn_export_excel">
+                                        <i class="bi bi-file-earmark-excel-fill"></i> Export Excel
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -106,3 +112,20 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const exportButton = document.getElementById('btn_export_excel');
+            if (!exportButton || !window.XLSX) {
+                return;
+            }
+
+            exportButton.addEventListener('click', function () {
+                const table = document.getElementById('table_data_detail');
+                const workbook = window.XLSX.utils.table_to_book(table, { sheet: 'Detail Invoice Pendapatan' });
+                window.XLSX.writeFile(workbook, 'DetailInvoicePendapatan_{{ $invoicePendapatan->nomor_faktur }}.xlsx');
+            });
+        });
+    </script>
+@endpush
