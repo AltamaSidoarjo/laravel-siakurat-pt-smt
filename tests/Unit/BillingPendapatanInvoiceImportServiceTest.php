@@ -490,7 +490,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $this->invoiceService->ensureMutable($invoice);
     }
 
-    public function test_imported_invoice_update_locks_simrs_identity_and_delete_clears_import_marker(): void
+    public function test_imported_invoice_update_persists_editable_fields_and_delete_clears_import_marker(): void
     {
         $this->createRequiredCoas();
         $receivable = Coa::query()->where('kode', '103000021')->firstOrFail();
@@ -538,7 +538,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
         $detail->save();
 
         $updated = $this->invoiceService->update($invoice, [
-            'nomor_faktur' => 'MALICIOUS-NUMBER',
+            'nomor_faktur' => 'INV-EDITED-01',
             'tanggal_faktur' => '2026-09-11',
             'pelanggan_id' => $otherCustomerId,
             'akun_piutang_id' => $receivable->id,
@@ -554,9 +554,9 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
             ]],
         ], 'Tester');
 
-        $this->assertSame('RJ-LOCKED', $updated->nomor_faktur);
-        $this->assertSame('Pasien API', $updated->nama_pasien);
-        $this->assertSame($customerId, $updated->pelanggan_id);
+        $this->assertSame('INV-EDITED-01', $updated->nomor_faktur);
+        $this->assertSame('Nama Diubah', $updated->nama_pasien);
+        $this->assertSame($otherCustomerId, $updated->pelanggan_id);
         $this->assertDatabaseHas('simrs_import_pendapatan', ['nomer_billing' => 'RJ-LOCKED', 'total_tagihan' => 200_000]);
         $this->assertDatabaseHas('faktur_penjualan_rinci', [
             'faktur_penjualan_id' => $invoice->id,

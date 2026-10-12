@@ -179,18 +179,18 @@ class InvoicePendapatanService
             $invoice->grandtotal = $grandtotal;
             $invoice->updated_by = $actor;
 
-            if (! $imported) {
-                $pelanggan = Pelanggan::query()->findOrFail((int) $data['pelanggan_id']);
-                $invoice->pelanggan_id = $pelanggan->id;
-                $invoice->nomor_faktur = $data['nomor_faktur'];
-                $invoice->nama_pasien = $data['nama_pasien'];
-                $invoice->nomer_rekam_medis = $data['nomer_rekam_medis'] ?? null;
-                $invoice->nama_dokter = $data['nama_dokter'] ?? null;
-                $invoice->nama_poli = $data['nama_poli'] ?? null;
+            $pelanggan = Pelanggan::query()->findOrFail((int) $data['pelanggan_id']);
+            $invoice->pelanggan_id = $pelanggan->id;
+            $invoice->nomor_faktur = $data['nomor_faktur'];
+            $invoice->nama_pasien = $data['nama_pasien'];
+            $invoice->nomer_rekam_medis = $data['nomer_rekam_medis'] ?? null;
+            $invoice->nama_dokter = $data['nama_dokter'] ?? null;
+            $invoice->nama_poli = $data['nama_poli'] ?? null;
+            if (! $imported || ! $invoice->tanggal_registrasi) {
                 $invoice->tanggal_registrasi = $data['tanggal_faktur'];
-                $invoice->kode_penjamin = $pelanggan->kode_pelanggan;
-                $invoice->nama_penjamin = $pelanggan->nama_pelanggan;
             }
+            $invoice->kode_penjamin = $pelanggan->kode_pelanggan;
+            $invoice->nama_penjamin = $pelanggan->nama_pelanggan;
 
             $invoice->save();
             $invoice->rincian()->delete();
@@ -199,7 +199,7 @@ class InvoicePendapatanService
 
             if ($imported) {
                 SimrsImportPendapatan::query()->where('import_ke', self::SOURCE)
-                    ->where('nomer_billing', $invoice->nomer_rawat ?: $invoice->nomor_faktur)
+                    ->where('nomer_billing', $invoice->nomer_rawat ?: $invoice->getOriginal('nomor_faktur'))
                     ->update(['total_tagihan' => $grandtotal]);
             }
 
