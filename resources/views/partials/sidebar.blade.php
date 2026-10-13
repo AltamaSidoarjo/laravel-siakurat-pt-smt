@@ -19,6 +19,7 @@
     $canPembelianPembayaran = $can('pembelian.pembayaran');
     $canLaporanKeuangan = $can('laporan.keuangan');
     $canLaporanPendapatan = $can('laporan.pendapatan');
+    $canLaporanPembelian = $can('laporan.pembelian');
     $canPengaturanMappingPendapatan = $can('pengaturan.mapping-pendapatan');
     $canPengaturanMappingPenjamin = $can('pengaturan.mapping-penjamin');
     $canPengaturanMappingGeneral = $can('pengaturan.mapping-general');
@@ -262,7 +263,7 @@
         </li>
         @endif
 
-        @if ($canLaporanKeuangan || $canLaporanPendapatan)
+        @if ($canLaporanKeuangan || $canLaporanPendapatan || $canLaporanPembelian)
         <li class="sidebar-item">
             <a class="sidebar-link sidebar-toggle {{ str_starts_with($path, '/laporan') ? 'active' : '' }}"
                data-bs-toggle="collapse" href="#menu-laporan" role="button"
@@ -286,6 +287,14 @@
                         <a class="sidebar-sublink {{ str_starts_with($path, '/laporan/pendapatan') ? 'active' : '' }}"
                            href="{{ route('laporan.pendapatan.index') }}">
                             <i class="bi bi-circle-fill sidebar-bullet"></i> Laporan Pendapatan
+                        </a>
+                    </li>
+                    @endif
+                    @if ($canLaporanPembelian)
+                    <li>
+                        <a class="sidebar-sublink {{ str_starts_with($path, '/laporan/pembelian') ? 'active' : '' }}"
+                           href="{{ route('laporan.pembelian.index') }}">
+                            <i class="bi bi-circle-fill sidebar-bullet"></i> Laporan Pembelian
                         </a>
                     </li>
                     @endif

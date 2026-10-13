@@ -11,6 +11,7 @@ use App\Http\Controllers\Kasbank\BukuBankController;
 use App\Http\Controllers\Kasbank\KasbankPembayaranController;
 use App\Http\Controllers\Kasbank\KasbankPenerimaanController;
 use App\Http\Controllers\Laporan\LaporanKeuanganController;
+use App\Http\Controllers\Laporan\LaporanPembelianController;
 use App\Http\Controllers\Laporan\LaporanPendapatanController;
 use App\Http\Controllers\Pembelian\InvoicePembelianController;
 use App\Http\Controllers\Pembelian\PembayaranPembelianController;
@@ -296,6 +297,18 @@ Route::middleware('auth')->group(function () {
             Route::get('/pendapatan/rangkuman-buku-pembantu-piutang/export-csv', [LaporanPendapatanController::class, 'exportRangkumanBukuPembantuPiutangCsv'])->name('pendapatan.rangkuman-buku-pembantu-piutang.export-csv');
             Route::get('/pendapatan/buku-pembantu-piutang-mutasi', [LaporanPendapatanController::class, 'bukuPembantuPiutangMutasi'])->name('pendapatan.buku-pembantu-piutang-mutasi');
             Route::get('/pendapatan/buku-pembantu-piutang-mutasi/export-csv', [LaporanPendapatanController::class, 'exportBukuPembantuPiutangMutasiCsv'])->name('pendapatan.buku-pembantu-piutang-mutasi.export-csv');
+        });
+
+        Route::middleware('module.access:laporan.pembelian,view')->group(function () {
+            Route::get('/pembelian', [LaporanPembelianController::class, 'index'])->name('pembelian.index');
+            Route::get('/pembelian/buku-pembantu-hutang', [LaporanPembelianController::class, 'bukuPembantuHutang'])->name('pembelian.buku-pembantu-hutang');
+            Route::get('/pembelian/buku-pembantu-hutang/search-supplier', [LaporanPembelianController::class, 'searchBukuPembantuHutangSupplier'])->name('pembelian.buku-pembantu-hutang.search-supplier');
+            Route::get('/pembelian/buku-pembantu-hutang/search-coa', [LaporanPembelianController::class, 'searchBukuPembantuHutangCoa'])->name('pembelian.buku-pembantu-hutang.search-coa');
+            Route::get('/pembelian/buku-pembantu-hutang/export-csv', [LaporanPembelianController::class, 'exportBukuPembantuHutangCsv'])->name('pembelian.buku-pembantu-hutang.export-csv');
+            Route::get('/pembelian/rangkuman-buku-pembantu-hutang', [LaporanPembelianController::class, 'rangkumanBukuPembantuHutang'])->name('pembelian.rangkuman-buku-pembantu-hutang');
+            Route::get('/pembelian/rangkuman-buku-pembantu-hutang/export-csv', [LaporanPembelianController::class, 'exportRangkumanBukuPembantuHutangCsv'])->name('pembelian.rangkuman-buku-pembantu-hutang.export-csv');
+            Route::get('/pembelian/buku-pembantu-hutang-mutasi', [LaporanPembelianController::class, 'bukuPembantuHutangMutasi'])->name('pembelian.buku-pembantu-hutang-mutasi');
+            Route::get('/pembelian/buku-pembantu-hutang-mutasi/export-csv', [LaporanPembelianController::class, 'exportBukuPembantuHutangMutasiCsv'])->name('pembelian.buku-pembantu-hutang-mutasi.export-csv');
         });
     });
 
