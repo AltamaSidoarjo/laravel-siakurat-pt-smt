@@ -133,6 +133,10 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
             'catatan' => 'Pelayanan',
             'coa_id' => $pendapatan->id,
         ]);
+        $invoiceKeterangan = (string) DB::table('faktur_penjualan')
+            ->where('id', $invoiceId)
+            ->value('keterangan');
+        $this->assertNotEmpty($invoiceKeterangan);
         $this->assertDatabaseHas('bukubesar', [
             'coa_id' => $bpjs->id,
             'sumber_id' => $invoiceId,
@@ -140,6 +144,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
             'tanggal' => '2026-08-15',
             'tipe_mutasi' => 'D',
             'nominal' => 200_000,
+            'keterangan' => $invoiceKeterangan,
         ]);
         $this->assertDatabaseHas('bukubesar', [
             'coa_id' => $pendapatan->id,
@@ -147,6 +152,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
             'sumber_transaksi' => 'Invoice Pendapatan',
             'tipe_mutasi' => 'K',
             'nominal' => 200_000,
+            'keterangan' => $invoiceKeterangan,
         ]);
         $this->assertSame(
             DB::table('bukubesar')->where('sumber_id', $invoiceId)->where('tipe_mutasi', 'D')->sum('nominal'),
@@ -577,7 +583,7 @@ class BillingPendapatanInvoiceImportServiceTest extends TestCase
     {
         $selected = $this->createCoa('103000024-A', 'Akun Mapping BPJS', 'Aset Lain', false);
         $this->createCoa('103000024-B', ' piutang pasien bpjs kesehatan ', 'Piutang Usaha');
-        $this->createCoa('440410001', 'Pendapatan Poli', 'Pendapatan');
+        $this->createCoa('440410001', 'Pendapatan Poli', 'Pendapatan', false);
         $this->createMapping('2', 'BPJS', $selected);
 
         $this->expectCandidates([$this->candidate()]);

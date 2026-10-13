@@ -94,7 +94,6 @@ class InvoicePendapatanService
     public function getReceivableCoaOptions(): Collection
     {
         return Coa::query()->selectableTransaction()
-            ->where('is_postable', true)
             ->whereRaw('LOWER(tipe_coa) LIKE ?', ['%piutang%'])
             ->get(['id', 'kode', 'nama', 'tipe_coa']);
     }
@@ -102,7 +101,6 @@ class InvoicePendapatanService
     public function getRevenueCoaOptions(): Collection
     {
         return Coa::query()->selectableTransaction()
-            ->where('is_postable', true)
             ->whereRaw('LOWER(tipe_coa) = ?', ['pendapatan'])
             ->get(['id', 'kode', 'nama', 'tipe_coa']);
     }
@@ -251,6 +249,8 @@ class InvoicePendapatanService
 
         $this->bukuBesarService->deleteBySource(self::SOURCE, (int) $invoice->id);
         $tanggal = $invoice->tanggal_faktur->format('Y-m-d');
+        $keteranganBukuBesar = filled($invoice->keterangan) ? (string) $invoice->keterangan : null;
+
         $payload = [[
             'coa_id' => (int) $invoice->akun_piutang_id,
             'sumber_id' => (int) $invoice->id,
@@ -260,7 +260,7 @@ class InvoicePendapatanService
             'sumber_transaksi' => self::SOURCE,
             'nominal' => (float) $invoice->grandtotal,
             'tipe_mutasi' => 'D',
-            'keterangan' => 'Akun piutang pendapatan',
+            'keterangan' => $keteranganBukuBesar ?? 'Akun piutang pendapatan',
             'created_at' => now(),
             'updated_at' => now(),
         ]];
@@ -276,7 +276,7 @@ class InvoicePendapatanService
                 'sumber_transaksi' => self::SOURCE,
                 'nominal' => abs($subtotal),
                 'tipe_mutasi' => $subtotal < 0 ? 'D' : 'K',
-                'keterangan' => $detail['catatan'] ?? null,
+                'keterangan' => $keteranganBukuBesar ?? ($detail['catatan'] ?? null),
                 'created_at' => now(),
                 'updated_at' => now(),
             ];

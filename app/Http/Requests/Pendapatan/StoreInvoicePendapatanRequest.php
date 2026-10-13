@@ -85,7 +85,6 @@ class StoreInvoicePendapatanRequest extends FormRequest
             : str_contains(strtolower((string) $coa->tipe_coa), $type);
 
         if ((int) $coa->status_aktif !== 1
-            || ! (bool) $coa->is_postable
             || (int) $coa->children_count > 0
             || ! $matchesType) {
             $validator->errors()->add($attribute, 'Akun yang dipilih tidak valid untuk invoice pendapatan.');

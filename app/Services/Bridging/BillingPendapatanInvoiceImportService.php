@@ -372,14 +372,13 @@ class BillingPendapatanInvoiceImportService
             $coa = $coaDitemukan->get($kode)->first();
 
             return (int) $coa->status_aktif !== 1
-                || ! (bool) $coa->is_postable
                 || (int) $coa->children_count > 0
                 || ! str_contains(Str::lower((string) $coa->tipe_coa), 'pendapatan');
         });
 
         if ($invalid->isNotEmpty()) {
             throw new RuntimeException(
-                'COA pendapatan tidak aktif, tidak postable, bukan akun leaf, atau bukan tipe pendapatan: '
+                'COA pendapatan tidak aktif, bukan akun leaf, atau bukan tipe pendapatan: '
                 .$invalid->implode(', ').'.',
             );
         }

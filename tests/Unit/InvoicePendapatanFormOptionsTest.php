@@ -78,21 +78,21 @@ class InvoicePendapatanFormOptionsTest extends TestCase
             'nama' => 'Piutang Usaha Lama',
             'tipe_coa' => 'Piutang Usaha',
             'status_aktif' => true,
-            'is_postable' => true,
+            'is_postable' => false,
         ]);
         $akunPendapatan = Coa::query()->create([
             'kode' => '4101',
             'nama' => 'Pendapatan Rawat Jalan',
             'tipe_coa' => 'Pendapatan',
             'status_aktif' => true,
-            'is_postable' => true,
+            'is_postable' => false,
         ]);
         Coa::query()->create([
             'kode' => '4199',
             'nama' => 'Pendapatan Lain',
             'tipe_coa' => 'Pendapatan Lain',
             'status_aktif' => true,
-            'is_postable' => true,
+            'is_postable' => false,
         ]);
         $pelaksanaAktif = Pelaksana::query()->create([
             'no_proyek' => '01_PROYEK',

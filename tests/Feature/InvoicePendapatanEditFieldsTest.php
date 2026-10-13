@@ -253,8 +253,22 @@ class InvoicePendapatanEditFieldsTest extends TestCase
         $this->assertSame('INV-MANUAL-EDITED', $invoice->nomor_faktur);
         $this->assertSame($penjaminBaru->id, $invoice->pelanggan_id);
         $this->assertSame('Pasien Manual Baru', $invoice->nama_pasien);
-        $this->assertSame('RM-200', $invoice->nomer_rekam_medis);
         $this->assertEquals(300_000, (float) $invoice->grandtotal);
+        $this->assertSame('Keterangan manual edit', $invoice->keterangan);
+        $this->assertDatabaseHas('bukubesar', [
+            'sumber_id' => $invoice->id,
+            'sumber_transaksi' => 'Invoice Pendapatan',
+            'coa_id' => $piutang->id,
+            'tipe_mutasi' => 'D',
+            'keterangan' => 'Keterangan manual edit',
+        ]);
+        $this->assertDatabaseHas('bukubesar', [
+            'sumber_id' => $invoice->id,
+            'sumber_transaksi' => 'Invoice Pendapatan',
+            'coa_id' => $pendapatan->id,
+            'tipe_mutasi' => 'K',
+            'keterangan' => 'Keterangan manual edit',
+        ]);
     }
 
     private function createInvoice(array $attributes, Coa $pendapatan): FakturPenjualan

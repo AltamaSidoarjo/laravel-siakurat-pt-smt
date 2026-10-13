@@ -476,6 +476,7 @@ class BridgingPendapatanService
             ->where('sumber_id', (int) $invoice->id)
             ->delete();
 
+        $keteranganBukuBesar = filled($invoice->keterangan) ? (string) $invoice->keterangan : null;
         $muatanBukuBesar = [];
 
         foreach ($resolvedRevenueRows as $barisPendapatan) {
@@ -488,7 +489,7 @@ class BridgingPendapatanService
                 'sumber_transaksi' => self::IMPORT_INVOICE_PENDAPATAN,
                 'nominal' => abs((float) $barisPendapatan['raw_total']),
                 'tipe_mutasi' => $barisPendapatan['raw_total'] < 0 ? 'D' : 'K',
-                'keterangan' => $barisPendapatan['catatan'],
+                'keterangan' => $keteranganBukuBesar ?? ($barisPendapatan['catatan'] ?? null),
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
@@ -504,7 +505,7 @@ class BridgingPendapatanService
                 'sumber_transaksi' => self::IMPORT_INVOICE_PENDAPATAN,
                 'nominal' => (float) $akunLawan['debit'],
                 'tipe_mutasi' => 'D',
-                'keterangan' => 'akun lawan pendapatan',
+                'keterangan' => $keteranganBukuBesar ?? 'akun lawan pendapatan',
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
