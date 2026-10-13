@@ -25,6 +25,7 @@ use App\Http\Controllers\Pengaturan\PenggunaController;
 use App\Http\Controllers\Pengaturan\PreferensiController;
 use App\Http\Controllers\Pengaturan\RoleAksesController;
 use App\Http\Controllers\Pengaturan\SettingRbaController;
+use App\Http\Controllers\Pengaturan\SupplierController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -215,12 +216,23 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::prefix('pembelian')->name('pembelian.')->group(function () {
+        Route::middleware('module.access:pembelian.invoice,create')->group(function () {
+            Route::get('/invoice/create', [InvoicePembelianController::class, 'create'])->name('invoice.create');
+            Route::post('/invoice', [InvoicePembelianController::class, 'store'])->name('invoice.store');
+        });
         Route::middleware('module.access:pembelian.invoice,view')->group(function () {
             Route::get('/invoice', [InvoicePembelianController::class, 'index'])->name('invoice.index');
             Route::get('/invoice/load-data', [InvoicePembelianController::class, 'loadData'])->name('invoice.load-data');
             Route::get('/invoice/export-csv', [InvoicePembelianController::class, 'exportCsv'])->name('invoice.export-csv');
             Route::get('/invoice/{fakturPembelian}/print', [InvoicePembelianController::class, 'print'])->name('invoice.print');
             Route::get('/invoice/{fakturPembelian}', [InvoicePembelianController::class, 'read'])->name('invoice.read');
+        });
+        Route::middleware('module.access:pembelian.invoice,update')->group(function () {
+            Route::get('/invoice/{fakturPembelian}/edit', [InvoicePembelianController::class, 'edit'])->name('invoice.edit');
+            Route::put('/invoice/{fakturPembelian}', [InvoicePembelianController::class, 'update'])->name('invoice.update');
+        });
+        Route::middleware('module.access:pembelian.invoice,delete')->group(function () {
+            Route::delete('/invoice/{fakturPembelian}', [InvoicePembelianController::class, 'destroy'])->name('invoice.destroy');
         });
 
         Route::middleware('module.access:pembelian.pembayaran,view')->group(function () {
@@ -301,6 +313,21 @@ Route::middleware('auth')->group(function () {
         });
         Route::middleware('module.access:pengaturan.master-pelaksana,delete')->group(function () {
             Route::delete('/pelaksana/{pelaksana}', [PelaksanaController::class, 'destroy'])->name('pelaksana.destroy');
+        });
+
+        Route::middleware('module.access:pengaturan.supplier,view')->group(function () {
+            Route::get('/supplier', [SupplierController::class, 'index'])->name('supplier.index');
+        });
+        Route::middleware('module.access:pengaturan.supplier,create')->group(function () {
+            Route::get('/supplier/create', [SupplierController::class, 'create'])->name('supplier.create');
+            Route::post('/supplier', [SupplierController::class, 'store'])->name('supplier.store');
+        });
+        Route::middleware('module.access:pengaturan.supplier,update')->group(function () {
+            Route::get('/supplier/{supplier}/edit', [SupplierController::class, 'edit'])->name('supplier.edit');
+            Route::put('/supplier/{supplier}', [SupplierController::class, 'update'])->name('supplier.update');
+        });
+        Route::middleware('module.access:pengaturan.supplier,delete')->group(function () {
+            Route::delete('/supplier/{supplier}', [SupplierController::class, 'destroy'])->name('supplier.destroy');
         });
 
         Route::middleware('module.access:pengaturan.mapping-pendapatan,view')->group(function () {

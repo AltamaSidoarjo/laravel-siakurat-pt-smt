@@ -16,6 +16,7 @@ class FakturPembelianRinci extends Model
 
     protected $fillable = [
         'faktur_pembelian_id',
+        'coa_id',
         'kuantitas',
         'diskon_rupiah',
         'subtotal',
@@ -29,6 +30,7 @@ class FakturPembelianRinci extends Model
 
     protected $casts = [
         'faktur_pembelian_id' => 'integer',
+        'coa_id' => 'integer',
         'kuantitas' => 'decimal:2',
         'diskon_rupiah' => 'decimal:2',
         'subtotal' => 'decimal:2',
@@ -41,5 +43,10 @@ class FakturPembelianRinci extends Model
     public function fakturPembelian()
     {
         return $this->belongsTo(FakturPembelian::class, 'faktur_pembelian_id');
+    }
+
+    public function coa()
+    {
+        return $this->belongsTo(Coa::class, 'coa_id');
     }
 }
