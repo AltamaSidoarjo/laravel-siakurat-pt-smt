@@ -383,6 +383,26 @@ class InvoicePembelianCrudTest extends TestCase
         $dupResponse->assertSessionHasErrors(['nomer_faktur']);
     }
 
+    public function test_index_page_does_not_contain_bangsal_and_kategori_faktur_columns(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->withoutMiddleware(EnsureModuleAccess::class)
+            ->get(route('pembelian.invoice.index'));
+
+        $response->assertOk()
+            ->assertSee('Nomer faktur')
+            ->assertSee('Tanggal faktur')
+            ->assertSee('Tgl jth tempo')
+            ->assertSee('Supplier')
+            ->assertSee('Grandtotal')
+            ->assertSee('Sudah terbayar')
+            ->assertSee('Status')
+            ->assertDontSee('<th>Kode bangsal</th>', false)
+            ->assertDontSee('<th>Kategori faktur</th>', false)
+            ->assertDontSee("'kode_bangsal'", false)
+            ->assertDontSee("'kategori_faktur'", false);
+    }
+
     private function createCoa(string $kode, string $nama, string $tipe): Coa
     {
         return Coa::query()->create([

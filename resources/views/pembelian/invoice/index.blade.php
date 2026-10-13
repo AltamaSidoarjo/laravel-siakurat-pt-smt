@@ -61,8 +61,6 @@
                                                 <th>Tanggal faktur</th>
                                                 <th>Tgl jth tempo</th>
                                                 <th>Supplier</th>
-                                                <th>Kode bangsal</th>
-                                                <th>Kategori faktur</th>
                                                 <th>Grandtotal</th>
                                                 <th>Sudah terbayar</th>
                                                 <th>Status</th>
@@ -124,14 +122,6 @@
                     {
                         data: 'nama_supplier',
                         name: 'supplier.nama_supplier'
-                    },
-                    {
-                        data: 'kode_bangsal',
-                        name: 'kode_bangsal'
-                    },
-                    {
-                        data: 'kategori_faktur',
-                        name: 'kategori_faktur'
                     },
                     {
                         data: 'grandtotal_display',
