@@ -196,7 +196,15 @@
                                                         <td class="text-nowrap">
                                                             {{ Carbon::parse($row['tanggal'])->translatedFormat('d M Y') }}
                                                         </td>
-                                                        <td>{{ $row['nomer'] }}</td>
+                                                        <td>
+                                                            @if (!empty($row['url']))
+                                                                <a href="{{ $row['url'] }}" target="_blank" rel="noopener noreferrer" class="text-decoration-underline text-primary fw-semibold" title="Buka transaksi di tab baru">
+                                                                    {{ $row['nomer'] }}
+                                                                </a>
+                                                            @else
+                                                                {{ $row['nomer'] }}
+                                                            @endif
+                                                        </td>
                                                         <td>{{ $row['sumber_transaksi'] }}</td>
                                                         <td>{{ $row['keterangan'] }}</td>
                                                         <td class="text-end">

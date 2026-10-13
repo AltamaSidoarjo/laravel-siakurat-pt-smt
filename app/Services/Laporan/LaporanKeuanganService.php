@@ -66,6 +66,7 @@ class LaporanKeuanganService
             ->select([
                 'bukubesar.id',
                 'bukubesar.nomer',
+                'bukubesar.sumber_id',
                 'bukubesar.tanggal',
                 'bukubesar.sumber_transaksi',
                 'bukubesar.keterangan',
@@ -78,6 +79,28 @@ class LaporanKeuanganService
             ->whereBetween('bukubesar.tanggal', [$startDate, $endDate])
             ->orderByDesc('bukubesar.tanggal')
             ->orderByDesc('bukubesar.id');
+    }
+
+    public function resolveTransactionUrl(?string $sumberTransaksi, ?int $sumberId): ?string
+    {
+        if (empty($sumberTransaksi) || empty($sumberId)) {
+            return null;
+        }
+
+        try {
+            return match ($sumberTransaksi) {
+                'Jurnal Umum' => route('bukubesar.jurnal-umum.edit', ['jurnalUmum' => $sumberId]),
+                'Invoice Pendapatan' => route('pendapatan.invoice.edit', ['fakturPenjualan' => $sumberId]),
+                'Kasbank Penerimaan' => route('kasbank.penerimaan.edit', ['kasbankPenerimaan' => $sumberId]),
+                'Kasbank Pembayaran' => route('kasbank.pembayaran.edit', ['kasbankPembayaran' => $sumberId]),
+                'Penerimaan Pendapatan' => route('pendapatan.penerimaan.edit', ['penerimaanPenjualan' => $sumberId]),
+                'Pembayaran Pembelian' => route('pembelian.pembayaran.edit', ['pembayaranPembelian' => $sumberId]),
+                'Invoice Pembelian' => route('pembelian.invoice.read', ['fakturPembelian' => $sumberId]),
+                default => null,
+            };
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function getJurnalTidakBalance(string $startDate, string $endDate): Collection
@@ -677,6 +700,8 @@ class LaporanKeuanganService
                     'tanggal' => $startDate,
                     'nomer' => '',
                     'sumber_transaksi' => 'SALDO AWAL',
+                    'sumber_id' => null,
+                    'url' => null,
                     'keterangan' => 'Saldo awal periode',
                     'debit' => 0,
                     'kredit' => 0,
@@ -690,11 +715,15 @@ class LaporanKeuanganService
                 $kredit = $trx->tipe_mutasi === 'K' ? $nominal : 0;
                 $runningBalance += $trx->tipe_mutasi === 'D' ? $nominal : -$nominal;
 
+                $sumberId = ! empty($trx->sumber_id) ? (int) $trx->sumber_id : null;
+
                 $rows->push([
                     'urutan' => $index + 1,
                     'tanggal' => optional($trx->tanggal)->format('Y-m-d'),
                     'nomer' => $trx->nomer,
                     'sumber_transaksi' => $trx->sumber_transaksi,
+                    'sumber_id' => $sumberId,
+                    'url' => $this->resolveTransactionUrl($trx->sumber_transaksi, $sumberId),
                     'keterangan' => $trx->keterangan,
                     'debit' => $debit,
                     'kredit' => $kredit,

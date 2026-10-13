@@ -50,9 +50,27 @@ class LaporanKeuanganController extends Controller
                     ? $row->tanggal->format('Y-m-d')
                     : (string) $row->tanggal;
             })
+            ->editColumn('nomer', function ($row) {
+                $nomer = (string) ($row->nomer ?? '');
+                if ($nomer === '') {
+                    return '-';
+                }
+
+                $url = $this->laporanKeuanganService->resolveTransactionUrl(
+                    $row->sumber_transaksi,
+                    ! empty($row->sumber_id) ? (int) $row->sumber_id : null
+                );
+
+                if (! empty($url)) {
+                    return '<a href="'.e($url).'" target="_blank" rel="noopener noreferrer" class="text-decoration-underline text-primary fw-semibold" title="Buka transaksi di tab baru">'.e($nomer).'</a>';
+                }
+
+                return e($nomer);
+            })
             ->addColumn('coa', fn ($row) => trim(($row->kode_coa ?? '-').' - '.($row->nama_coa ?? '-')))
             ->addColumn('debit', fn ($row) => $row->tipe_mutasi === 'D' ? number_format((float) $row->nominal, 0, ',', '.') : '-')
             ->addColumn('kredit', fn ($row) => $row->tipe_mutasi === 'K' ? number_format((float) $row->nominal, 0, ',', '.') : '-')
+            ->rawColumns(['nomer'])
             ->toJson();
     }
 

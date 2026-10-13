@@ -111,7 +111,7 @@
                 dataTable.rows({ search: 'applied' }).every(function () {
                     const row = this.data();
                     exportRows.push([
-                        row.nomer ?? '',
+                        row.nomer ? String(row.nomer).replace(/<[^>]*>/g, '').trim() : '',
                         row.tanggal ?? '',
                         row.coa ?? '',
                         row.sumber_transaksi ?? '',
