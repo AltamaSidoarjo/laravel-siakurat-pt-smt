@@ -27,6 +27,7 @@ use App\Http\Controllers\Pengaturan\PreferensiController;
 use App\Http\Controllers\Pengaturan\RoleAksesController;
 use App\Http\Controllers\Pengaturan\SettingRbaController;
 use App\Http\Controllers\Pengaturan\SupplierController;
+use App\Http\Controllers\Pengaturan\LayananInformasiController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -341,6 +342,21 @@ Route::middleware('auth')->group(function () {
         });
         Route::middleware('module.access:pengaturan.supplier,delete')->group(function () {
             Route::delete('/supplier/{supplier}', [SupplierController::class, 'destroy'])->name('supplier.destroy');
+        });
+
+        Route::middleware('module.access:pengaturan.layanan-informasi,view')->group(function () {
+            Route::get('/layanan-informasi', [LayananInformasiController::class, 'index'])->name('layanan-informasi.index');
+        });
+        Route::middleware('module.access:pengaturan.layanan-informasi,create')->group(function () {
+            Route::get('/layanan-informasi/create', [LayananInformasiController::class, 'create'])->name('layanan-informasi.create');
+            Route::post('/layanan-informasi', [LayananInformasiController::class, 'store'])->name('layanan-informasi.store');
+        });
+        Route::middleware('module.access:pengaturan.layanan-informasi,update')->group(function () {
+            Route::get('/layanan-informasi/{layananInformasi}/edit', [LayananInformasiController::class, 'edit'])->name('layanan-informasi.edit');
+            Route::put('/layanan-informasi/{layananInformasi}', [LayananInformasiController::class, 'update'])->name('layanan-informasi.update');
+        });
+        Route::middleware('module.access:pengaturan.layanan-informasi,delete')->group(function () {
+            Route::delete('/layanan-informasi/{layananInformasi}', [LayananInformasiController::class, 'destroy'])->name('layanan-informasi.destroy');
         });
 
         Route::middleware('module.access:pengaturan.mapping-pendapatan,view')->group(function () {

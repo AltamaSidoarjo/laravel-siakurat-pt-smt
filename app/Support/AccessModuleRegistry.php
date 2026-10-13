@@ -33,6 +33,7 @@ class AccessModuleRegistry
             ['kode' => 'pengaturan.konversi-file', 'nama' => 'Konversi File', 'group_nama' => 'Pengaturan', 'urutan' => 210],
             ['kode' => 'pengaturan.master-pelaksana', 'nama' => 'Master Pelaksana', 'group_nama' => 'Pengaturan', 'urutan' => 220],
             ['kode' => 'pengaturan.supplier', 'nama' => 'Master Supplier', 'group_nama' => 'Pengaturan', 'urutan' => 225],
+            ['kode' => 'pengaturan.layanan-informasi', 'nama' => 'Layanan Informasi', 'group_nama' => 'Pengaturan', 'urutan' => 228],
         ];
     }
 }
