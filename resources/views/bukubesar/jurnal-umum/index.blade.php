@@ -48,9 +48,12 @@
 
                         <div class="card border-light shadow-sm">
                             <div class="card-body">
-                                <div class="d-flex justify-content-end gap-3 align-items-center">
+                                <div class="d-flex justify-content-end gap-2 align-items-center">
+                                    <a href="{{ route('bukubesar.jurnal-umum-template.index') }}" class="btn btn-outline-success fw-semibold">
+                                        <i class="bi bi-file-earmark-text-fill me-1"></i> Template Jurnal
+                                    </a>
                                     <a href="{{ route('bukubesar.jurnal-umum.create') }}" class="btn btn-success fw-bold">
-                                        <i class="bi bi-plus-circle-fill"></i> Tambah
+                                        <i class="bi bi-plus-circle-fill me-1"></i> Tambah
                                     </a>
                                 </div>
                             </div>

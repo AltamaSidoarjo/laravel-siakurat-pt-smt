@@ -48,7 +48,10 @@
 
                         <div class="card border-light shadow-sm">
                             <div class="card-body">
-                                <div class="d-flex justify-content-end gap-3 align-items-center">
+                                <div class="d-flex justify-content-end gap-2 align-items-center">
+                                    <a href="{{ route('kasbank.pembayaran-template.index') }}" class="btn btn-outline-success">
+                                        <i class="bi bi-file-earmark-text"></i> Template Pembayaran
+                                    </a>
                                     <a href="{{ route('kasbank.pembayaran.create') }}" class="btn btn-success fw-bold">
                                         <i class="bi bi-plus-circle-fill"></i> Tambah
                                     </a>

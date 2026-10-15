@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Kasbank;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\StreamsCsvExport;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Kasbank\StoreKasbankPenerimaanRequest;
 use App\Http\Requests\Kasbank\UpdateKasbankPenerimaanRequest;
 use App\Models\KasbankPenerimaan;
 use App\Services\Kasbank\KasbankPenerimaanService;
+use App\Services\Kasbank\KasbankPenerimaanTemplateService;
 use App\Services\PreferensiPerusahaanService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -21,11 +22,12 @@ use Yajra\DataTables\Facades\DataTables;
 class KasbankPenerimaanController extends Controller
 {
     use StreamsCsvExport;
+
     public function __construct(
         private readonly KasbankPenerimaanService $kasbankPenerimaanService,
         private readonly PreferensiPerusahaanService $preferensiPerusahaanService,
-    ) {
-    }
+        private readonly KasbankPenerimaanTemplateService $templateService,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -57,14 +59,46 @@ class KasbankPenerimaanController extends Controller
     public function exportCsv(Request $request): StreamedResponse
     {
         $data = $request->validate(['startDate' => ['required', 'date_format:Y-m-d'], 'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate']]);
+
         return $this->streamCsvExport($request, $this->kasbankPenerimaanService->getIndexQuery($data['startDate'], $data['endDate']), 'kasbank-penerimaan', ['Nomor', 'Tanggal', 'Bank', 'Nominal', 'Keterangan'], fn (KasbankPenerimaan $item) => [(string) $item->nomer, optional($item->tanggal)->format('Y-m-d'), (string) ($item->coa?->nama ?? '-'), $this->csvNumber($item->total), (string) $item->keterangan]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
+        $selectedTemplate = null;
+        $initialKeterangan = old('keterangan');
+        $initialCoaId = old('coa_id');
+        $initialRincian = null;
+
+        if ($request->filled('template_id')) {
+            try {
+                $selectedTemplate = $this->templateService->getTemplateWithRincian($request->input('template_id'));
+                if ($initialKeterangan === null && ! empty($selectedTemplate->keterangan)) {
+                    $initialKeterangan = $selectedTemplate->keterangan;
+                }
+                if ($initialCoaId === null && ! empty($selectedTemplate->coa_id)) {
+                    $initialCoaId = $selectedTemplate->coa_id;
+                }
+                if (! old('rincian') && $selectedTemplate->rincian->isNotEmpty()) {
+                    $initialRincian = $selectedTemplate->rincian->map(fn ($item) => [
+                        'coa_id' => $item->coa_id,
+                        'nominal' => (int) $item->nominal,
+                        'catatan' => $item->catatan ?? '',
+                    ])->toArray();
+                }
+            } catch (\Throwable) {
+                // If template not found, continue without template
+            }
+        }
+
         return view('kasbank.penerimaan.create', [
             'page' => 'app',
             'coaOptions' => $this->kasbankPenerimaanService->getCoaOptions(),
+            'templateOptions' => $this->templateService->getTemplateOptions(),
+            'selectedTemplate' => $selectedTemplate,
+            'initialKeterangan' => $initialKeterangan ?? '',
+            'initialCoaId' => $initialCoaId,
+            'initialRincian' => $initialRincian,
         ]);
     }
 

@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Bukubesar;
 
-use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\StreamsCsvExport;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\Bukubesar\StoreJurnalUmumRequest;
 use App\Http\Requests\Bukubesar\UpdateJurnalUmumRequest;
 use App\Models\JurnalUmum;
 use App\Services\Bukubesar\JurnalUmumService;
+use App\Services\Bukubesar\JurnalUmumTemplateService;
 use App\Services\PreferensiPerusahaanService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -21,11 +22,12 @@ use Yajra\DataTables\Facades\DataTables;
 class JurnalUmumController extends Controller
 {
     use StreamsCsvExport;
+
     public function __construct(
         private readonly JurnalUmumService $jurnalUmumService,
         private readonly PreferensiPerusahaanService $preferensiPerusahaanService,
-    ) {
-    }
+        private readonly JurnalUmumTemplateService $templateService,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -57,6 +59,7 @@ class JurnalUmumController extends Controller
     public function exportCsv(Request $request): StreamedResponse
     {
         $data = $request->validate(['startDate' => ['required', 'date_format:Y-m-d'], 'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate']]);
+
         return $this->streamCsvExport($request, $this->jurnalUmumService->getIndexQuery($data['startDate'], $data['endDate']), 'jurnal-umum', ['Nomor', 'Tanggal', 'Nominal', 'Keterangan'], fn (JurnalUmum $item) => [(string) $item->nomer, optional($item->tanggal)->format('Y-m-d'), $this->csvNumber($item->debit), (string) $item->keterangan]);
     }
 
@@ -95,11 +98,38 @@ class JurnalUmumController extends Controller
             : null;
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
+        $selectedTemplate = null;
+        $initialKeterangan = old('keterangan');
+        $initialRincian = null;
+
+        if ($request->filled('template_id')) {
+            try {
+                $selectedTemplate = $this->templateService->getTemplateWithRincian($request->input('template_id'));
+                if ($initialKeterangan === null && ! empty($selectedTemplate->keterangan)) {
+                    $initialKeterangan = $selectedTemplate->keterangan;
+                }
+                if (! old('rincian') && $selectedTemplate->rincian->isNotEmpty()) {
+                    $initialRincian = $selectedTemplate->rincian->map(fn ($item) => [
+                        'coa_id' => $item->coa_id,
+                        'debit' => (int) $item->debit,
+                        'kredit' => (int) $item->kredit,
+                        'catatan' => $item->catatan ?? '',
+                    ])->toArray();
+                }
+            } catch (\Throwable) {
+                // If template not found, continue without template
+            }
+        }
+
         return view('bukubesar.jurnal-umum.create', [
             'page' => 'app',
             'coaOptions' => $this->jurnalUmumService->getCoaOptions(),
+            'templateOptions' => $this->templateService->getTemplateOptions(),
+            'selectedTemplate' => $selectedTemplate,
+            'initialKeterangan' => $initialKeterangan ?? '',
+            'initialRincian' => $initialRincian,
         ]);
     }
 

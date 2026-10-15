@@ -102,9 +102,15 @@
                 <ul class="sidebar-submenu list-unstyled">
                     @if ($canBukubesarJurnalUmum)
                     <li>
-                        <a class="sidebar-sublink {{ str_starts_with($path, '/bukubesar/jurnal-umum') ? 'active' : '' }}"
+                        <a class="sidebar-sublink {{ (str_starts_with($path, '/bukubesar/jurnal-umum') && ! str_starts_with($path, '/bukubesar/jurnal-umum-template')) ? 'active' : '' }}"
                            href="{{ route('bukubesar.jurnal-umum.index') }}">
                             <i class="bi bi-circle-fill sidebar-bullet"></i> Jurnal Umum
+                        </a>
+                    </li>
+                    <li>
+                        <a class="sidebar-sublink {{ str_starts_with($path, '/bukubesar/jurnal-umum-template') ? 'active' : '' }}"
+                           href="{{ route('bukubesar.jurnal-umum-template.index') }}">
+                            <i class="bi bi-circle-fill sidebar-bullet"></i> Template Jurnal
                         </a>
                     </li>
                     @endif
@@ -134,17 +140,29 @@
                 <ul class="sidebar-submenu list-unstyled">
                     @if ($canKasbankPenerimaan)
                     <li>
-                        <a class="sidebar-sublink {{ str_starts_with($path, '/kasbank/penerimaan') ? 'active' : '' }}"
+                        <a class="sidebar-sublink {{ (str_starts_with($path, '/kasbank/penerimaan') && ! str_starts_with($path, '/kasbank/penerimaan-template')) ? 'active' : '' }}"
                            href="{{ route('kasbank.penerimaan.index') }}">
                             <i class="bi bi-circle-fill sidebar-bullet"></i> Penerimaan
+                        </a>
+                    </li>
+                    <li>
+                        <a class="sidebar-sublink {{ str_starts_with($path, '/kasbank/penerimaan-template') ? 'active' : '' }}"
+                           href="{{ route('kasbank.penerimaan-template.index') }}">
+                            <i class="bi bi-circle-fill sidebar-bullet"></i> Template Penerimaan
                         </a>
                     </li>
                     @endif
                     @if ($canKasbankPembayaran)
                     <li>
-                        <a class="sidebar-sublink {{ str_starts_with($path, '/kasbank/pembayaran') ? 'active' : '' }}"
+                        <a class="sidebar-sublink {{ (str_starts_with($path, '/kasbank/pembayaran') && ! str_starts_with($path, '/kasbank/pembayaran-template')) ? 'active' : '' }}"
                            href="{{ route('kasbank.pembayaran.index') }}">
                             <i class="bi bi-circle-fill sidebar-bullet"></i> Pembayaran
+                        </a>
+                    </li>
+                    <li>
+                        <a class="sidebar-sublink {{ str_starts_with($path, '/kasbank/pembayaran-template') ? 'active' : '' }}"
+                           href="{{ route('kasbank.pembayaran-template.index') }}">
+                            <i class="bi bi-circle-fill sidebar-bullet"></i> Template Pembayaran
                         </a>
                     </li>
                     @endif

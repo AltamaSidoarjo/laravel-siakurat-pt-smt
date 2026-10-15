@@ -4,14 +4,46 @@
         'coa_id' => $item->coa_id,
         'nominal' => (int) $item->nominal,
         'catatan' => $item->catatan,
-    ])->toArray() : [[
+    ])->toArray() : ($initialRincian ?? [[
         'coa_id' => '',
         'nominal' => 0,
         'catatan' => '',
-    ]]);
+    ]]));
 @endphp
 
 <div class="d-flex flex-column gap-3">
+    @if (! $isEdit && isset($templateOptions) && $templateOptions->isNotEmpty())
+        <div class="card border-success border-opacity-50 shadow-sm bg-success-subtle bg-opacity-25">
+            <div class="card-body py-2 px-3">
+                <div class="row align-items-center g-2">
+                    <div class="col-12 col-md-auto">
+                        <span class="fw-bold text-dark">
+                            <i class="bi bi-file-earmark-text-fill text-success me-1"></i> Gunakan Template Penerimaan:
+                        </span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <select id="select_template_penerimaan" class="form-select form-select-sm">
+                            <option value="">-- Pilih Template --</option>
+                            @foreach ($templateOptions as $tpl)
+                                <option value="{{ $tpl->id }}" @selected(($selectedTemplate->id ?? null) === $tpl->id)>
+                                    {{ $tpl->nama }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-auto d-flex gap-2">
+                        <button type="button" id="btn_apply_template" class="btn btn-sm btn-success fw-bold">
+                            <i class="bi bi-box-arrow-in-down me-1"></i> Terapkan Template
+                        </button>
+                        <a href="{{ route('kasbank.penerimaan-template.index') }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Buka master template">
+                            <i class="bi bi-gear-fill me-1"></i> Kelola Template
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="card border-light shadow-sm">
         <div class="card-header fw-bold bg-success-subtle text-success">
             Header
@@ -34,7 +66,7 @@
                     <select name="coa_id" id="select_coa" class="form-select select2-coa" required>
                         <option value="">Pilih Akun</option>
                         @foreach ($coaOptions as $coa)
-                            <option value="{{ $coa->id }}" @selected((string) old('coa_id', $kasbankPenerimaan->coa_id ?? '') === (string) $coa->id)>
+                            <option value="{{ $coa->id }}" @selected((string) old('coa_id', $kasbankPenerimaan->coa_id ?? ($initialCoaId ?? '')) === (string) $coa->id)>
                                 {{ $coa->kode }} - {{ $coa->nama }}
                             </option>
                         @endforeach
@@ -56,7 +88,7 @@
                     Keterangan
                 </label>
                 <div class="col">
-                    <textarea name="keterangan" id="input_keterangan" class="form-control" rows="3">{{ old('keterangan', $kasbankPenerimaan->keterangan ?? '') }}</textarea>
+                    <textarea name="keterangan" id="input_keterangan" class="form-control" rows="3">{{ old('keterangan', $kasbankPenerimaan->keterangan ?? ($initialKeterangan ?? '')) }}</textarea>
                 </div>
             </div>
         </div>
