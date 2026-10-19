@@ -263,6 +263,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/keuangan/neraca-detil', [LaporanKeuanganController::class, 'neracaDetil'])->name('keuangan.neraca-detil');
             Route::get('/keuangan/neraca-rinci', [LaporanKeuanganController::class, 'neracaRinci'])->name('keuangan.neraca-rinci');
             Route::get('/keuangan/arus-kas', [LaporanKeuanganController::class, 'arusKas'])->name('keuangan.arus-kas');
+            Route::get('/keuangan/arus-kas-tidak-langsung', [LaporanKeuanganController::class, 'arusKasTidakLangsung'])->name('keuangan.arus-kas-tidak-langsung');
         });
 
         Route::middleware('module.access:laporan.pendapatan,view')->group(function () {
