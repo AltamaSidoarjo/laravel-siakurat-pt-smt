@@ -295,6 +295,7 @@ documentation updates as part of the change, not an afterthought.
 | `app/Http/Controllers/Pengaturan/PenggunaController.php`, `app/Services/Pengaturan/UserManagementService.php`, `app/Http/Requests/Pengaturan/*User*` | `dokumentasi/pengaturan-pengguna.md` |
 | `app/Http/Controllers/Pengaturan/RoleAksesController.php`, `app/Services/Pengaturan/RoleAccessManagementService.php`, `app/Http/Requests/Pengaturan/*RoleAccess*` | `dokumentasi/pengaturan-role-akses.md` |
 | `app/Http/Controllers/Pengaturan/KonversiFileController.php`, `app/Services/Pengaturan/FileConversionService.php`, `app/Http/Requests/Pengaturan/ConvertCsvToXlsxRequest.php` | `dokumentasi/pengaturan-konversi-file.md` |
+| `app/Http/Controllers/Pengaturan/LayananInformasiController.php`, `app/Services/Pengaturan/LayananInformasiService.php`, `app/Http/Requests/Pengaturan/*LayananInformasi*` | `dokumentasi/pengaturan-layanan-informasi.md` |
 | `app/Http/Middleware/EnsureModuleAccess.php`, `app/Services/Auth/ModuleAccessService.php`, `app/Support/AccessModuleRegistry.php`, `app/Models/Role.php`, `RolePermission.php`, `AccessModule.php` | `dokumentasi/fondasi/sistem-otorisasi.md` |
 | `config/database.php` (koneksi `simrs`), query `DB::connection('simrs')` di service Bridging | `dokumentasi/fondasi/integrasi-simrs.md` |
 | `app/Services/Bukubesar/BukuBesarService.php`, `app/Models/Coa.php`, `TipeCoa.php`, `BukuBesar.php`, `JurnalUmum.php`, `JurnalUmumRinci.php` | `dokumentasi/fondasi/konvensi-bukubesar-coa.md` |

@@ -18,6 +18,7 @@ use App\Http\Controllers\Pembelian\PembayaranPembelianController;
 use App\Http\Controllers\Pendapatan\InvoicePendapatanController;
 use App\Http\Controllers\Pendapatan\PenerimaanPendapatanController;
 use App\Http\Controllers\Pengaturan\KonversiFileController;
+use App\Http\Controllers\Pengaturan\LayananInformasiController;
 use App\Http\Controllers\Pengaturan\MappingGeneralController;
 use App\Http\Controllers\Pengaturan\MappingPendapatanController;
 use App\Http\Controllers\Pengaturan\PenggunaController;
@@ -377,6 +378,21 @@ Route::middleware('auth')->group(function () {
         });
         Route::middleware('module.access:pengaturan.konversi-file,create')->group(function () {
             Route::post('/konversi-file/csv-ke-xlsx', [KonversiFileController::class, 'convertCsvToXlsx'])->name('konversi-file.csv-ke-xlsx');
+        });
+
+        Route::middleware('module.access:pengaturan.layanan-informasi,view')->group(function () {
+            Route::get('/layanan-informasi', [LayananInformasiController::class, 'index'])->name('layanan-informasi.index');
+        });
+        Route::middleware('module.access:pengaturan.layanan-informasi,create')->group(function () {
+            Route::get('/layanan-informasi/create', [LayananInformasiController::class, 'create'])->name('layanan-informasi.create');
+            Route::post('/layanan-informasi', [LayananInformasiController::class, 'store'])->name('layanan-informasi.store');
+        });
+        Route::middleware('module.access:pengaturan.layanan-informasi,update')->group(function () {
+            Route::get('/layanan-informasi/{layananInformasi}/edit', [LayananInformasiController::class, 'edit'])->name('layanan-informasi.edit');
+            Route::put('/layanan-informasi/{layananInformasi}', [LayananInformasiController::class, 'update'])->name('layanan-informasi.update');
+        });
+        Route::middleware('module.access:pengaturan.layanan-informasi,delete')->group(function () {
+            Route::delete('/layanan-informasi/{layananInformasi}', [LayananInformasiController::class, 'destroy'])->name('layanan-informasi.destroy');
         });
     });
 });
