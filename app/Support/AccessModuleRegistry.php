@@ -30,6 +30,7 @@ class AccessModuleRegistry
             ['kode' => 'pengaturan.pengguna', 'nama' => 'Pengguna', 'group_nama' => 'Pengaturan', 'urutan' => 190],
             ['kode' => 'pengaturan.role-akses', 'nama' => 'Role Akses', 'group_nama' => 'Pengaturan', 'urutan' => 200],
             ['kode' => 'pengaturan.konversi-file', 'nama' => 'Konversi File', 'group_nama' => 'Pengaturan', 'urutan' => 210],
+            ['kode' => 'pengaturan.layanan-informasi', 'nama' => 'Layanan Informasi', 'group_nama' => 'Pengaturan', 'urutan' => 228],
         ];
     }
 }

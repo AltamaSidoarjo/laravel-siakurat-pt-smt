@@ -27,6 +27,7 @@
     $canPengaturanPengguna = $can('pengaturan.pengguna');
     $canPengaturanRoleAkses = $can('pengaturan.role-akses');
     $canPengaturanKonversiFile = $can('pengaturan.konversi-file');
+    $canPengaturanLayananInformasi = $can('pengaturan.layanan-informasi');
 
     $canSeePengaturan = $canPengaturanMappingPendapatan
         || $canPengaturanMappingGeneral
@@ -34,7 +35,8 @@
         || $canPengaturanPreferensi
         || $canPengaturanPengguna
         || $canPengaturanRoleAkses
-        || $canPengaturanKonversiFile;
+        || $canPengaturanKonversiFile
+        || $canPengaturanLayananInformasi;
 
     $isHome = request()->routeIs('home');
 @endphp
@@ -361,6 +363,14 @@
                         <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/konversi-file') ? 'active' : '' }}"
                            href="{{ route('pengaturan.konversi-file.index') }}">
                             <i class="bi bi-circle-fill sidebar-bullet"></i> Konversi File
+                        </a>
+                    </li>
+                    @endif
+                    @if ($canPengaturanLayananInformasi)
+                    <li>
+                        <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/layanan-informasi') ? 'active' : '' }}"
+                           href="{{ route('pengaturan.layanan-informasi.index') }}">
+                            <i class="bi bi-circle-fill sidebar-bullet"></i> Layanan Informasi
                         </a>
                     </li>
                     @endif

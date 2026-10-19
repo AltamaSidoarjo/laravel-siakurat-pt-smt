@@ -94,11 +94,18 @@
             'icon' => 'bi-cash-stack',
             'items' => [
                 [
-                    'label' => 'Arus Kas',
+                    'label' => 'Arus Kas (Metode Langsung)',
                     'route' => route('laporan.keuangan.arus-kas'),
                     'state' => 'active',
                     'icon' => 'bi-currency-exchange',
                     'description' => 'Laporan arus kas masuk dan keluar dari aktivitas operasi, investasi, dan pendanaan.'
+                ],
+                [
+                    'label' => 'Arus Kas (Metode Tidak Langsung)',
+                    'route' => route('laporan.keuangan.arus-kas-tidak-langsung'),
+                    'state' => 'active',
+                    'icon' => 'bi-calculator',
+                    'description' => 'Laporan arus kas berbasis rekonsiliasi laba bersih, penyesuaian non-kas, dan perubahan modal kerja.'
                 ],
             ],
         ],

@@ -954,6 +954,341 @@ class LaporanKeuanganService
         ];
     }
 
+    public function getArusKasTidakLangsung(string $startDate, string $endDate): array
+    {
+        $start = CarbonImmutable::parse($startDate)->startOfDay();
+        $end = CarbonImmutable::parse($endDate)->startOfDay();
+        $duration = $start->diffInDays($end) + 1;
+        $comparisonEnd = $start->subDay();
+        $comparisonStart = $comparisonEnd->subDays($duration - 1);
+
+        return [
+            'periode' => [
+                'berjalan' => ['start' => $start->toDateString(), 'end' => $end->toDateString()],
+                'pembanding' => ['start' => $comparisonStart->toDateString(), 'end' => $comparisonEnd->toDateString()],
+            ],
+            'berjalan' => $this->susunArusKasTidakLangsungPeriode($start->toDateString(), $end->toDateString()),
+            'pembanding' => $this->susunArusKasTidakLangsungPeriode($comparisonStart->toDateString(), $comparisonEnd->toDateString()),
+        ];
+    }
+
+    private function susunArusKasTidakLangsungPeriode(string $startDate, string $endDate): array
+    {
+        $openingCash = (float) BukuBesar::query()
+            ->join('coa', 'coa.id', '=', 'bukubesar.coa_id')
+            ->whereRaw('LOWER(coa.tipe_coa) = ?', ['kasbank'])
+            ->where('bukubesar.tanggal', '<', $startDate)
+            ->sum(DB::raw('CASE WHEN bukubesar.tipe_mutasi = "D" THEN bukubesar.nominal ELSE -bukubesar.nominal END'));
+
+        $closingCash = (float) BukuBesar::query()
+            ->join('coa', 'coa.id', '=', 'bukubesar.coa_id')
+            ->whereRaw('LOWER(coa.tipe_coa) = ?', ['kasbank'])
+            ->where('bukubesar.tanggal', '<=', $endDate)
+            ->sum(DB::raw('CASE WHEN bukubesar.tipe_mutasi = "D" THEN bukubesar.nominal ELSE -bukubesar.nominal END'));
+
+        $mutasiPerCoa = $this->ambilMutasiPerCoa($startDate, $endDate);
+
+        // 1. Laba Bersih Periode Berjalan
+        $labaBersih = (float) $this->queryCoaLabaRugiLeafAktif()
+            ->get(['id', 'tipe_coa'])
+            ->sum(function (Coa $coa) use ($mutasiPerCoa) {
+                $nominal = $this->hitungSaldoLabaRugi(
+                    tipeCoa: (string) $coa->tipe_coa,
+                    debit: (float) ($mutasiPerCoa[$coa->id]['debit'] ?? 0),
+                    kredit: (float) ($mutasiPerCoa[$coa->id]['kredit'] ?? 0),
+                );
+
+                return $this->isTipePendapatan((string) $coa->tipe_coa)
+                    ? $nominal
+                    : ($this->isTipeBiaya((string) $coa->tipe_coa) ? -$nominal : 0);
+            });
+
+        // 2. Penyesuaian Non-Kas (Beban Penyusutan & Amortisasi)
+        $expenseDepreciationCoas = Coa::query()
+            ->active()
+            ->leaf()
+            ->whereIn('tipe_coa', ['Beban', 'Beban lain', 'Beban Pokok Penjualan'])
+            ->where(function (Builder $nameQuery) {
+                $nameQuery->whereRaw('LOWER(nama) LIKE ?', ['%penyusutan%'])
+                    ->orWhereRaw('LOWER(nama) LIKE ?', ['%depresiasi%'])
+                    ->orWhereRaw('LOWER(nama) LIKE ?', ['%amortisasi%']);
+            })
+            ->get();
+
+        $depreciationItems = collect();
+        $bebanPenyusutan = 0.0;
+        foreach ($expenseDepreciationCoas as $coa) {
+            $debit = (float) ($mutasiPerCoa[$coa->id]['debit'] ?? 0);
+            $kredit = (float) ($mutasiPerCoa[$coa->id]['kredit'] ?? 0);
+            $val = $debit - $kredit;
+
+            if (abs($val) >= 0.005) {
+                $depreciationItems->push([
+                    'kode' => (string) $coa->kode,
+                    'nama' => (string) $coa->nama,
+                    'nilai' => $val,
+                ]);
+                $bebanPenyusutan += $val;
+            }
+        }
+
+        // Fallback: Jika tidak ada mutasi pada akun beban penyusutan, gunakan akun akumulasi penyusutan
+        if (abs($bebanPenyusutan) < 0.005) {
+            $contraDepreciationCoas = Coa::query()
+                ->active()
+                ->leaf()
+                ->whereRaw('LOWER(tipe_coa) = ?', ['akumulasi penyusutan'])
+                ->get();
+
+            foreach ($contraDepreciationCoas as $coa) {
+                $debit = (float) ($mutasiPerCoa[$coa->id]['debit'] ?? 0);
+                $kredit = (float) ($mutasiPerCoa[$coa->id]['kredit'] ?? 0);
+                $val = $kredit - $debit;
+
+                if (abs($val) >= 0.005) {
+                    $depreciationItems->push([
+                        'kode' => (string) $coa->kode,
+                        'nama' => (string) $coa->nama,
+                        'nilai' => $val,
+                    ]);
+                    $bebanPenyusutan += $val;
+                }
+            }
+        }
+
+        // 3. Perubahan Modal Kerja Operasi
+        $workingCapitalGroups = [
+            'piutang' => [
+                'nama' => 'Piutang Usaha & Pasien',
+                'tipe' => 'aset',
+                'tipe_coa' => ['Akun Piutang', 'Piutang Usaha'],
+            ],
+            'persediaan' => [
+                'nama' => 'Persediaan',
+                'tipe' => 'aset',
+                'tipe_coa' => ['Persediaan'],
+            ],
+            'aset_lancar_lainnya' => [
+                'nama' => 'Aset Lancar Lainnya',
+                'tipe' => 'aset',
+                'tipe_coa' => ['Aktiva Lancar lainnya', 'Aset Lancar lainnya'],
+            ],
+            'utang_usaha' => [
+                'nama' => 'Utang Usaha',
+                'tipe' => 'liabilitas',
+                'tipe_coa' => ['Akun Hutang', 'Utang Usaha'],
+            ],
+            'liabilitas_pendek_lainnya' => [
+                'nama' => 'Liabilitas Jangka Pendek Lainnya',
+                'tipe' => 'liabilitas',
+                'tipe_coa' => ['Hutang Lancar lainnya', 'Liabilitas Jangka Pendek'],
+            ],
+        ];
+
+        $modalKerjaItems = collect();
+        $totalModalKerja = 0.0;
+
+        foreach ($workingCapitalGroups as $key => $config) {
+            $coas = Coa::query()
+                ->active()
+                ->leaf()
+                ->whereIn('tipe_coa', $config['tipe_coa'])
+                ->orderBy('kode')
+                ->get();
+
+            $totalDebit = 0.0;
+            $totalKredit = 0.0;
+            $detailAkun = collect();
+
+            foreach ($coas as $coa) {
+                $debit = (float) ($mutasiPerCoa[$coa->id]['debit'] ?? 0);
+                $kredit = (float) ($mutasiPerCoa[$coa->id]['kredit'] ?? 0);
+                $dampak = $kredit - $debit;
+                $perubahanSaldo = $config['tipe'] === 'aset' ? ($debit - $kredit) : ($kredit - $debit);
+
+                $totalDebit += $debit;
+                $totalKredit += $kredit;
+
+                if (abs($debit) >= 0.005 || abs($kredit) >= 0.005) {
+                    $detailAkun->push([
+                        'kode' => (string) $coa->kode,
+                        'nama' => (string) $coa->nama,
+                        'debit' => $debit,
+                        'kredit' => $kredit,
+                        'perubahan' => $perubahanSaldo,
+                        'dampak_kas' => $dampak,
+                    ]);
+                }
+            }
+
+            $dampakKasGroup = $totalKredit - $totalDebit;
+            $perubahanGroup = $config['tipe'] === 'aset' ? ($totalDebit - $totalKredit) : ($totalKredit - $totalDebit);
+
+            $labelPrefix = '';
+            if ($config['tipe'] === 'aset') {
+                if ($perubahanGroup > 0.005) {
+                    $labelPrefix = '(Kenaikan) ';
+                } elseif ($perubahanGroup < -0.005) {
+                    $labelPrefix = 'Penurunan ';
+                } else {
+                    $labelPrefix = '(Kenaikan) / Penurunan ';
+                }
+            } else {
+                if ($perubahanGroup > 0.005) {
+                    $labelPrefix = 'Kenaikan ';
+                } elseif ($perubahanGroup < -0.005) {
+                    $labelPrefix = '(Penurunan) ';
+                } else {
+                    $labelPrefix = 'Kenaikan / (Penurunan) ';
+                }
+            }
+
+            $modalKerjaItems->put($key, [
+                'kunci' => $key,
+                'nama' => $config['nama'],
+                'label' => $labelPrefix . $config['nama'],
+                'tipe' => $config['tipe'],
+                'perubahan' => $perubahanGroup,
+                'dampak_kas' => $dampakKasGroup,
+                'detail_akun' => $detailAkun,
+            ]);
+
+            $totalModalKerja += $dampakKasGroup;
+        }
+
+        // Subtotal Kas Bersih dari Aktivitas Operasi
+        $kasOperasi = $labaBersih + $bebanPenyusutan + $totalModalKerja;
+
+        // 4. Aktivitas Investasi & Pendanaan (Optimized untuk performa tinggi & hemat memori)
+        $invFin = $this->susunArusKasInvestasiDanPendanaan($startDate, $endDate);
+        $investasi = $invFin['investasi'];
+        $pendanaan = $invFin['pendanaan'];
+
+        $kenaikanPenurunan = $kasOperasi + (float) $investasi['subtotal'] + (float) $pendanaan['subtotal'];
+        $kasAkhirRekonsiliasi = $openingCash + $kenaikanPenurunan;
+        $selisihRekonsiliasi = $closingCash - $kasAkhirRekonsiliasi;
+
+        return [
+            'laba_bersih' => $labaBersih,
+            'penyesuaian_non_kas' => [
+                'items' => $depreciationItems,
+                'subtotal' => $bebanPenyusutan,
+            ],
+            'modal_kerja' => [
+                'items' => $modalKerjaItems,
+                'subtotal' => $totalModalKerja,
+            ],
+            'kas_operasi' => $kasOperasi,
+            'investasi' => $investasi,
+            'pendanaan' => $pendanaan,
+            'kas_awal' => $openingCash,
+            'kenaikan_penurunan' => $kenaikanPenurunan,
+            'kas_akhir' => $kasAkhirRekonsiliasi,
+            'kas_akhir_riil' => $closingCash,
+            'selisih_rekonsiliasi' => $selisihRekonsiliasi,
+            'akun_belum_dipetakan' => collect(),
+            'belum_dipetakan' => 0.0,
+        ];
+    }
+
+    private function susunArusKasInvestasiDanPendanaan(string $startDate, string $endDate): array
+    {
+        $invFinCoaIds = Coa::query()
+            ->where(function (Builder $q) {
+                $q->whereIn('arus_kas_aktivitas', ['investasi', 'pendanaan'])
+                    ->orWhereIn('tipe_coa', ['Aset Tetap', 'Aktiva Lainnya', 'Hutang Jangka Panjang', 'Ekuitas']);
+            })
+            ->pluck('id');
+
+        if ($invFinCoaIds->isEmpty()) {
+            return [
+                'investasi' => ['kelompok' => collect(), 'subtotal' => 0.0],
+                'pendanaan' => ['kelompok' => collect(), 'subtotal' => 0.0],
+            ];
+        }
+
+        $invFinRows = BukuBesar::query()
+            ->join('coa', 'coa.id', '=', 'bukubesar.coa_id')
+            ->whereIn('bukubesar.coa_id', $invFinCoaIds)
+            ->whereBetween('bukubesar.tanggal', [$startDate, $endDate])
+            ->get([
+                'bukubesar.id', 'bukubesar.sumber_id', 'bukubesar.tanggal', 'bukubesar.nomer',
+                'bukubesar.sumber_transaksi', 'bukubesar.nominal', 'bukubesar.tipe_mutasi',
+                'coa.tipe_coa', 'coa.arus_kas_aktivitas', 'coa.arus_kas_kelompok',
+            ]);
+
+        if ($invFinRows->isEmpty()) {
+            return [
+                'investasi' => ['kelompok' => collect(), 'subtotal' => 0.0],
+                'pendanaan' => ['kelompok' => collect(), 'subtotal' => 0.0],
+            ];
+        }
+
+        $dates = $invFinRows->pluck('tanggal')->unique()->values()->all();
+        $kasCoaIds = Coa::query()->whereRaw('LOWER(tipe_coa) = ?', ['kasbank'])->pluck('id');
+
+        $cashRows = BukuBesar::query()
+            ->whereIn('coa_id', $kasCoaIds)
+            ->whereIn('tanggal', $dates)
+            ->get(['sumber_id', 'sumber_transaksi', 'nomer', 'tanggal']);
+
+        $validTrxKeys = $cashRows->map(function (object $r) {
+            return $r->sumber_id !== null
+                ? $r->sumber_transaksi.'|'.$r->sumber_id
+                : $r->sumber_transaksi.'|'.$r->nomer.'|'.substr((string) $r->tanggal, 0, 10);
+        })->flip();
+
+        $detail = collect();
+        foreach ($invFinRows as $cp) {
+            $key = $cp->sumber_id !== null
+                ? $cp->sumber_transaksi.'|'.$cp->sumber_id
+                : $cp->sumber_transaksi.'|'.$cp->nomer.'|'.substr((string) $cp->tanggal, 0, 10);
+
+            if (! $validTrxKeys->has($key)) {
+                continue;
+            }
+
+            $activity = (string) $cp->arus_kas_aktivitas;
+            if (! in_array($activity, ['investasi', 'pendanaan'], true)) {
+                if (in_array($cp->tipe_coa, ['Aset Tetap', 'Aktiva Lainnya'], true)) {
+                    $activity = 'investasi';
+                } elseif (in_array($cp->tipe_coa, ['Hutang Jangka Panjang', 'Ekuitas'], true)) {
+                    $activity = 'pendanaan';
+                } else {
+                    continue;
+                }
+            }
+
+            $amount = $cp->tipe_mutasi === 'D' ? -(float) $cp->nominal : (float) $cp->nominal;
+            $group = ! empty($cp->arus_kas_kelompok)
+                ? (string) $cp->arus_kas_kelompok
+                : ($activity === 'investasi' ? 'Perolehan dan pelepasan aset tetap' : 'Penerimaan dan pengeluaran pendanaan');
+
+            $detail->push([
+                'aktivitas' => $activity,
+                'kelompok' => $group,
+                'nilai' => $amount,
+            ]);
+        }
+
+        return [
+            'investasi' => [
+                'kelompok' => $detail->where('aktivitas', 'investasi')
+                    ->groupBy('kelompok')
+                    ->map(fn (Collection $items, string $grp) => ['kelompok' => $grp, 'nilai' => (float) $items->sum('nilai')])
+                    ->values(),
+                'subtotal' => (float) $detail->where('aktivitas', 'investasi')->sum('nilai'),
+            ],
+            'pendanaan' => [
+                'kelompok' => $detail->where('aktivitas', 'pendanaan')
+                    ->groupBy('kelompok')
+                    ->map(fn (Collection $items, string $grp) => ['kelompok' => $grp, 'nilai' => (float) $items->sum('nilai')])
+                    ->values(),
+                'subtotal' => (float) $detail->where('aktivitas', 'pendanaan')->sum('nilai'),
+            ],
+        ];
+    }
+
     public function getDaftarTipeCoaAktif(): Collection
     {
         return TipeCoa::query()

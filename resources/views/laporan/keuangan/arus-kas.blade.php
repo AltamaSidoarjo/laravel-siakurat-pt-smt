@@ -16,6 +16,21 @@
 
     <div class="card border-muhammadiyah">
         <div class="card-body d-flex flex-column gap-3">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <ul class="nav nav-pills">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{{ route('laporan.keuangan.arus-kas', ['startDate' => $startDate, 'endDate' => $endDate]) }}">
+                            <i class="bi bi-list-ul me-1"></i> Metode Langsung
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ route('laporan.keuangan.arus-kas-tidak-langsung', ['startDate' => $startDate, 'endDate' => $endDate]) }}">
+                            <i class="bi bi-calculator me-1"></i> Metode Tidak Langsung
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
             <div class="card border-light shadow-sm">
                 <div class="card-body">
                     <form method="get" action="">

@@ -54,6 +54,7 @@ bagian **Documentation Policy**.
 | Pengaturan — Pengguna | [pengaturan-pengguna.md](pengaturan-pengguna.md) | selesai |
 | Pengaturan — Role Akses | [pengaturan-role-akses.md](pengaturan-role-akses.md) | selesai |
 | Pengaturan — Konversi File | [pengaturan-konversi-file.md](pengaturan-konversi-file.md) | selesai |
+| Pengaturan — Layanan Informasi | [pengaturan-layanan-informasi.md](pengaturan-layanan-informasi.md) | selesai |
 
 ## Template
 

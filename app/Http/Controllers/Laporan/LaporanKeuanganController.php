@@ -310,6 +310,29 @@ class LaporanKeuanganController extends Controller
         ));
     }
 
+    public function arusKasTidakLangsung(Request $request): View
+    {
+        $request->validate([
+            'startDate' => ['nullable', 'date'],
+            'endDate' => ['nullable', 'date', 'after_or_equal:startDate'],
+        ]);
+
+        [$startDate, $endDate] = $this->resolveDateRange($request);
+        $data = $this->laporanKeuanganService->getArusKasTidakLangsung($startDate, $endDate);
+
+        return view('laporan.keuangan.arus-kas-tidak-langsung', array_merge(
+            $this->laporanKeuanganService->getIdentitasLaporan(),
+            [
+                'page' => 'app',
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'periode' => $data['periode'],
+                'berjalan' => $data['berjalan'],
+                'pembanding' => $data['pembanding'],
+            ],
+        ));
+    }
+
     private function resolveDateRange(Request $request): array
     {
         $startDate = $request->date('startDate')?->format('Y-m-d') ?? now()->startOfMonth()->format('Y-m-d');

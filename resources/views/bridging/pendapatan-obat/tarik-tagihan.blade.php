@@ -80,6 +80,10 @@
                                             <input class="form-check-input" type="radio" name="jenisProses" id="jenisJurnalUmum" value="JurnalUmum" checked>
                                             <label class="form-check-label" for="jenisJurnalUmum">Jurnal Umum</label>
                                         </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="jenisProses" id="jenisInvoicePendapatan" value="InvoicePendapatan">
+                                            <label class="form-check-label" for="jenisInvoicePendapatan">Invoice Pendapatan</label>
+                                        </div>
                                     </div>
 
                                     <button type="submit" class="btn btn-primary mt-3">
@@ -190,7 +194,11 @@
                     return;
                 }
 
-                if (!window.confirm(`Apakah Anda yakin ingin mengirim ${total} data ke proses Jurnal Umum?`)) {
+                const tujuan = document.querySelector('input[name="jenisProses"]:checked')?.value === 'InvoicePendapatan'
+                    ? 'Invoice Pendapatan'
+                    : 'Jurnal Umum';
+
+                if (!window.confirm(`Apakah Anda yakin ingin mengirim ${total} data ke proses ${tujuan}?`)) {
                     event.preventDefault();
                 }
             });

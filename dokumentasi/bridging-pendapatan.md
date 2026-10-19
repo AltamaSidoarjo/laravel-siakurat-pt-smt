@@ -460,3 +460,4 @@ Walaupun bukan proses inti import, halaman utama Bridging Pendapatan juga memili
 - Prioritas akun lawan serta informasi pembayaran Invoice Pendapatan mengikuti `tipe_coa` lokal (`Kasbank` atau mengandung `piutang`); kode/prefix COA tidak menjadi dasar klasifikasi.
 - Pada cabang `Jurnal Umum`, service akan menghentikan proses bila total debit dan kredit tidak balance.
 - Pada cabang `Invoice Pendapatan`, sinkronisasi buku besar dilakukan manual melalui `sinkronkanBukuBesarInvoicePendapatan()`, bukan melalui `syncFromJurnalUmum()`.
+- Pelanggan invoice dicari/dibuat berdasarkan kode penjamin dan diberi `jenis_pelanggan = 'Penjamin'`.

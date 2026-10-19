@@ -29,9 +29,55 @@
         <div class="col">
             <div class="card border-light shadow-sm dashboard-welcome-card">
                 <div class="card-body">
-                    <div class="alert dashboard-info-alert" role="alert">
-                        Layanan Informasi : Saat ini tidak ada informasi...
-                    </div>
+                    @if (empty($activeInformasiList) || $activeInformasiList->isEmpty())
+                        <div class="alert dashboard-info-alert d-flex align-items-center gap-3 mb-3 py-3 px-3 shadow-sm" role="alert">
+                            <i class="bi bi-info-circle flex-shrink-0 fs-4"></i>
+                            <div class="fs-5">
+                                <strong>Layanan Informasi :</strong> Saat ini tidak ada informasi...
+                            </div>
+                        </div>
+                    @else
+                        <div class="d-flex flex-column gap-2 mb-3">
+                            @foreach ($activeInformasiList as $info)
+                                <div class="alert alert-{{ $info->alert_type }} d-flex align-items-center justify-content-between gap-3 mb-0 shadow-sm py-3 px-3" role="alert">
+                                    <div class="d-flex align-items-center gap-3 overflow-hidden">
+                                        <i class="bi {{ $info->icon_class }} fs-4 flex-shrink-0"></i>
+                                        <div class="text-truncate fs-5">
+                                            <strong>Layanan Informasi: {{ $info->judul }}</strong>
+                                            <span class="ms-1 d-none d-md-inline opacity-75 fs-6">— {{ \Illuminate\Support\Str::limit(strip_tags($info->isi), 100) }}</span>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-dark btn-sm text-nowrap flex-shrink-0 fw-semibold px-3 py-1" data-bs-toggle="modal" data-bs-target="#modalInformasi{{ $info->id }}">
+                                        <i class="bi bi-eye me-1"></i> Detail
+                                    </button>
+                                </div>
+
+                                <!-- Modal Popup Layanan Informasi -->
+                                <div class="modal fade modal-layanan-informasi" id="modalInformasi{{ $info->id }}" tabindex="-1" aria-labelledby="modalLabel{{ $info->id }}" aria-hidden="true" @if($info->tampilkan_popup) data-auto-popup="true" @endif>
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content shadow">
+                                            <div class="modal-header bg-{{ $info->alert_type }} text-{{ $info->alert_type === 'warning' ? 'dark' : 'white' }}">
+                                                <h5 class="modal-title fs-6 fw-bold" id="modalLabel{{ $info->id }}">
+                                                    <i class="bi {{ $info->icon_class }} me-1"></i> {{ $info->judul }}
+                                                </h5>
+                                                <button type="button" class="btn-close {{ $info->alert_type === 'warning' ? '' : 'btn-close-white' }}" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="d-flex align-items-center justify-content-between text-muted small mb-3 pb-2 border-bottom">
+                                                    <span><i class="bi bi-tag me-1"></i> {{ $info->tipe_label }}</span>
+                                                    <span><i class="bi bi-calendar-event me-1"></i> {{ $info->created_at?->format('d/m/Y H:i') }}</span>
+                                                </div>
+                                                <div class="text-secondary" style="white-space: pre-line; line-height: 1.6;">{{ $info->isi }}</div>
+                                            </div>
+                                            <div class="modal-footer py-1">
+                                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
 
                     <div class="d-flex flex-column gap-2">
                         <div class="text-uppercase dashboard-eyebrow">Dashboard Monitoring</div>
@@ -113,6 +159,17 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Auto open popup modal jika tampilkan_popup aktif
+            const autoModals = document.querySelectorAll('.modal-layanan-informasi[data-auto-popup="true"]');
+            autoModals.forEach(function (modalEl) {
+                const storageKey = 'dismissed_info_' + modalEl.id;
+                if (!sessionStorage.getItem(storageKey) && window.bootstrap) {
+                    const modalObj = new bootstrap.Modal(modalEl);
+                    modalObj.show();
+                    sessionStorage.setItem(storageKey, '1');
+                }
+            });
+
             const inputDari = document.getElementById('dariTanggal');
             const inputSampai = document.getElementById('sampaiTanggal');
             const applyButton = document.getElementById('applyDashboardFilter');
@@ -476,8 +533,9 @@
 
         .dashboard-info-alert {
             background: rgba(5, 103, 117, 0.08);
-            border: 1px solid rgba(5, 103, 117, 0.12);
+            border: 1px solid rgba(5, 103, 117, 0.15);
             color: #0f4c5c;
+            font-size: 1.15rem;
         }
 
         .dashboard-eyebrow {

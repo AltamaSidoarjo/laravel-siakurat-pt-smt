@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Bridging;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Bridging\BulkDeletePendapatanObatRequest;
 use App\Http\Requests\Bridging\ImportPendapatanObatRequest;
+use App\Http\Requests\Bridging\ImportPiutangObatRequest;
 use App\Models\SimrsImportPendapatanJualObat;
 use App\Services\Bridging\BridgingPendapatanObatService;
 use Illuminate\Database\Eloquent\Builder;
@@ -72,6 +73,51 @@ class BridgingPendapatanObatController extends Controller
         return DataTables::collection(
             $this->bridgingPendapatanObatService->getKandidatTagihanSimrs($startDate, $endDate)
         )->toJson();
+    }
+
+    public function tarikPiutang(Request $request): View
+    {
+        [$startDate, $endDate] = $this->resolveDateRange($request);
+
+        return view('bridging.pendapatan-obat.tarik-piutang', [
+            'page' => 'app',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+        ]);
+    }
+
+    public function loadPiutangSimrs(Request $request): JsonResponse
+    {
+        [$startDate, $endDate] = $this->resolveDateRange($request);
+        $searchValue = trim($request->input('search.value', ''));
+        $rows = $this->bridgingPendapatanObatService->getKandidatPiutangSimrs($startDate, $endDate);
+
+        if ($searchValue !== '') {
+            $rows = $rows->filter(function (array $row) use ($searchValue) {
+                foreach (['nomer_transaksi', 'tanggal', 'nomer_rekam_medis', 'nama_pelanggan', 'jenis_jual', 'tanggal_jatuh_tempo', 'grandtotal', 'uangmuka', 'sisapiutang'] as $field) {
+                    if (str_contains(strtolower((string) $row[$field]), strtolower($searchValue))) {
+                        return true;
+                    }
+                }
+
+                return false;
+            })->values();
+        }
+
+        return DataTables::collection($rows)->toJson();
+    }
+
+    public function processImportPiutang(ImportPiutangObatRequest $request): RedirectResponse
+    {
+        $results = $this->bridgingPendapatanObatService->imporPiutangBanyak(
+            $request->validated('selectedNoTransaksi'),
+            auth()->user()?->name ?? auth()->user()?->email ?? 'system',
+        );
+
+        return redirect()
+            ->route('bridging.pendapatan-obat.index')
+            ->with('bridging_pendapatan_obat_results', $results)
+            ->with('bridging_pendapatan_obat_message', 'Proses import piutang selesai.');
     }
 
     public function processImport(ImportPendapatanObatRequest $request): RedirectResponse

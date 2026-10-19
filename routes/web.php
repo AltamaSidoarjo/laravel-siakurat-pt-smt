@@ -18,6 +18,7 @@ use App\Http\Controllers\Pembelian\PembayaranPembelianController;
 use App\Http\Controllers\Pendapatan\InvoicePendapatanController;
 use App\Http\Controllers\Pendapatan\PenerimaanPendapatanController;
 use App\Http\Controllers\Pengaturan\KonversiFileController;
+use App\Http\Controllers\Pengaturan\LayananInformasiController;
 use App\Http\Controllers\Pengaturan\MappingGeneralController;
 use App\Http\Controllers\Pengaturan\MappingPendapatanController;
 use App\Http\Controllers\Pengaturan\PenggunaController;
@@ -158,9 +159,12 @@ Route::middleware('auth')->group(function () {
             Route::get('/pendapatan-obat/load-imported-data', [BridgingPendapatanObatController::class, 'loadImportedData'])->name('pendapatan-obat.load-imported-data');
             Route::get('/pendapatan-obat/tarik-tagihan', [BridgingPendapatanObatController::class, 'tarikTagihan'])->name('pendapatan-obat.tarik-tagihan');
             Route::get('/pendapatan-obat/load-tagihan-simrs', [BridgingPendapatanObatController::class, 'loadTagihanSimrs'])->name('pendapatan-obat.load-tagihan-simrs');
+            Route::get('/pendapatan-obat/tarik-piutang', [BridgingPendapatanObatController::class, 'tarikPiutang'])->name('pendapatan-obat.tarik-piutang');
+            Route::get('/pendapatan-obat/load-piutang-simrs', [BridgingPendapatanObatController::class, 'loadPiutangSimrs'])->name('pendapatan-obat.load-piutang-simrs');
         });
         Route::middleware('module.access:bridging.pendapatan-obat,update')->group(function () {
             Route::post('/pendapatan-obat/process-import', [BridgingPendapatanObatController::class, 'processImport'])->name('pendapatan-obat.process-import');
+            Route::post('/pendapatan-obat/process-import-piutang', [BridgingPendapatanObatController::class, 'processImportPiutang'])->name('pendapatan-obat.process-import-piutang');
         });
         Route::middleware('module.access:bridging.pendapatan-obat,delete')->group(function () {
             Route::post('/pendapatan-obat/destroy-bulk', [BridgingPendapatanObatController::class, 'destroyBulk'])->name('pendapatan-obat.destroy-bulk');
@@ -260,6 +264,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/keuangan/neraca-detil', [LaporanKeuanganController::class, 'neracaDetil'])->name('keuangan.neraca-detil');
             Route::get('/keuangan/neraca-rinci', [LaporanKeuanganController::class, 'neracaRinci'])->name('keuangan.neraca-rinci');
             Route::get('/keuangan/arus-kas', [LaporanKeuanganController::class, 'arusKas'])->name('keuangan.arus-kas');
+            Route::get('/keuangan/arus-kas-tidak-langsung', [LaporanKeuanganController::class, 'arusKasTidakLangsung'])->name('keuangan.arus-kas-tidak-langsung');
         });
 
         Route::middleware('module.access:laporan.pendapatan,view')->group(function () {
@@ -375,6 +380,21 @@ Route::middleware('auth')->group(function () {
         });
         Route::middleware('module.access:pengaturan.konversi-file,create')->group(function () {
             Route::post('/konversi-file/csv-ke-xlsx', [KonversiFileController::class, 'convertCsvToXlsx'])->name('konversi-file.csv-ke-xlsx');
+        });
+
+        Route::middleware('module.access:pengaturan.layanan-informasi,view')->group(function () {
+            Route::get('/layanan-informasi', [LayananInformasiController::class, 'index'])->name('layanan-informasi.index');
+        });
+        Route::middleware('module.access:pengaturan.layanan-informasi,create')->group(function () {
+            Route::get('/layanan-informasi/create', [LayananInformasiController::class, 'create'])->name('layanan-informasi.create');
+            Route::post('/layanan-informasi', [LayananInformasiController::class, 'store'])->name('layanan-informasi.store');
+        });
+        Route::middleware('module.access:pengaturan.layanan-informasi,update')->group(function () {
+            Route::get('/layanan-informasi/{layananInformasi}/edit', [LayananInformasiController::class, 'edit'])->name('layanan-informasi.edit');
+            Route::put('/layanan-informasi/{layananInformasi}', [LayananInformasiController::class, 'update'])->name('layanan-informasi.update');
+        });
+        Route::middleware('module.access:pengaturan.layanan-informasi,delete')->group(function () {
+            Route::delete('/layanan-informasi/{layananInformasi}', [LayananInformasiController::class, 'destroy'])->name('layanan-informasi.destroy');
         });
     });
 });

@@ -600,6 +600,11 @@ class BridgingPendapatanService
             ->first();
 
         if ($pelangganTersedia !== null) {
+            if ($pelangganTersedia->jenis_pelanggan !== 'Penjamin') {
+                $pelangganTersedia->jenis_pelanggan = 'Penjamin';
+                $pelangganTersedia->save();
+            }
+
             return $pelangganTersedia;
         }
 
@@ -607,6 +612,7 @@ class BridgingPendapatanService
         $pelanggan->status_aktif = true;
         $pelanggan->kode_pelanggan = $kodePenjamin;
         $pelanggan->nama_pelanggan = $namaPenjamin;
+        $pelanggan->jenis_pelanggan = 'Penjamin';
         $pelanggan->save();
 
         return $pelanggan;

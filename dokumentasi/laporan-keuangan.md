@@ -10,7 +10,7 @@ Modul **Laporan Keuangan** menyajikan berbagai laporan akuntansi berbasis data B
 3. Laba rugi (detil, standard, per parent COA, komparasi bulanan),
 4. Neraca (standard, per parent COA, saldo, detil, rinci),
 5. Buku besar per COA,
-6. Arus kas.
+6. Arus kas (metode langsung dan metode tidak langsung).
 
 Implementasi utama:
 
@@ -43,6 +43,7 @@ Semua endpoint memakai izin `laporan.keuangan,view`.
 | `GET` | `/laporan/keuangan/neraca-detil` | `laporan.keuangan.neraca-detil` | `neracaDetil()` |
 | `GET` | `/laporan/keuangan/neraca-rinci` | `laporan.keuangan.neraca-rinci` | `neracaRinci()` |
 | `GET` | `/laporan/keuangan/arus-kas` | `laporan.keuangan.arus-kas` | `arusKas()` |
+| `GET` | `/laporan/keuangan/arus-kas-tidak-langsung` | `laporan.keuangan.arus-kas-tidak-langsung` | `arusKasTidakLangsung()` |
 
 ## Parameter Umum
 
@@ -86,7 +87,7 @@ integrasi anggaran **RBA** (`ambilRbaPerCoa`, `hitungAlokasiBulanPerTahun`) untu
 ### Neraca (Standard / Per Parent COA / Saldo / Detil / Rinci)
 
 - `neracaStandard()` (param `perDate`) → `getNeracaStandard()`: aktiva/pasiva/ekuitas + status balance.
-- `neracaPerParentCoa()` (param `perDate`, `coaId`) → `getNeracaPerParentCoa()`: drill-down.
+- `neracaPerParentCoa()` (param `perDate`, `coaId`) → `getNeracaPerParentCoa()`: drill-down hierarki subtree akun turunan dengan filter periode cut-off otomatis, tree toggle accordion, ringkasan saldo konsolidasi, serta ekspor Excel (.xlsx) dan Cetak/PDF.
 - `neracaSaldo()` (param `perDate`) → `getNeracaSaldo()`.
 - `neracaDetil()` (param `perDate`) → `getNeracaDetil()`.
 - `neracaRinci()` (param `startDate`, `endDate`, `tipeCoa[]`) → `getNeracaRinci()`, dengan opsi tipe
@@ -112,7 +113,7 @@ flowchart TD
     F --> G["response json { results, pagination: { more } }"]
 ```
 
-### Arus Kas
+### Arus Kas (Metode Langsung)
 
 ```mermaid
 flowchart TD
@@ -123,12 +124,41 @@ flowchart TD
     E --> F["Render view (berjalan, pembanding, detail)"]
 ```
 
+### Arus Kas (Metode Tidak Langsung)
+
+Laporan arus kas metode tidak langsung (*Indirect Method*) menyusun arus kas operasi dari rekonsiliasi Laba Bersih, penyesuaian non-kas, dan pergerakan modal kerja operasi:
+
+1. **Laba (Rugi) Bersih Periode Berjalan**: Diperoleh dari mutasi akun leaf laba rugi aktif (`Pendapatan`, `Pendapatan lain`, `Beban`, `Beban lain`, `Beban Pokok Penjualan`).
+2. **Penyesuaian Non-Kas**: Beban Penyusutan dan Amortisasi ditambahkan kembali (+) ke Laba Bersih.
+3. **Perubahan Modal Kerja Operasi**:
+   - $\Delta$ Piutang Usaha & Pasien (`Akun Piutang`, `Piutang Usaha`): Kenaikan mengurangi kas (-), penurunan menambah kas (+).
+   - $\Delta$ Persediaan (`Persediaan`): Kenaikan mengurangi kas (-), penurunan menambah kas (+).
+   - $\Delta$ Aset Lancar Lainnya (`Aktiva Lancar lainnya`, `Aset Lancar lainnya`): Kenaikan mengurangi kas (-).
+   - $\Delta$ Utang Usaha (`Akun Hutang`, `Utang Usaha`): Kenaikan menambah kas (+), penurunan mengurangi kas (-).
+   - $\Delta$ Liabilitas Jangka Pendek Lainnya (`Hutang Lancar lainnya`, `Liabilitas Jangka Pendek`): Kenaikan menambah kas (+).
+4. **Arus Kas Investasi & Pendanaan**: Konsisten merefleksikan mutasi kas riil investasi (aset tetap/lainnya) dan pendanaan (pinjaman jangka panjang/ekuitas).
+5. **Rekonsiliasi Kas**:
+   $\text{Kas Akhir} = \text{Kas Awal} + \text{Kas Operasi} + \text{Kas Investasi} + \text{Kas Pendanaan}$.
+
+```mermaid
+flowchart TD
+    A["GET arus-kas-tidak-langsung"] --> B["Validasi startDate/endDate"]
+    B --> C["getArusKasTidakLangsung(start,end)"]
+    C --> D["Hitung Laba Bersih Periode"]
+    D --> E["Hitung Penyesuaian Beban Non-Kas (Penyusutan/Amortisasi)"]
+    E --> F["Hitung Perubahan Modal Kerja (Delta Piutang, Persediaan, Utang)"]
+    F --> G["Kas Operasi = Laba Bersih + Non-Kas + Modal Kerja"]
+    G --> H["Ambil Arus Kas Investasi & Pendanaan Riil"]
+    H --> I["Rekonsiliasi Kas Awal + Kenaikan/Penurunan = Kas Akhir"]
+    I --> J["Render view (berjalan, pembanding, rincian modal kerja)"]
+```
+
 ## Fungsi yang Dipanggil
 
 - Controller: `index()`, `rincianTransaksiBukubesar()/loadRincianTransaksiBukubesar()`,
   `deteksiJurnalTidakBalance()/loadDeteksiJurnalTidakBalance()`, `labaRugiDetil()/labaRugiStandard()/labaRugiPerParentCoa()/labaRugiKomparasiBulanan()`,
   `neracaStandard()/neracaPerParentCoa()/neracaSaldo()/neracaDetil()/neracaRinci()`,
-  `bukubesar()/searchBukubesarCoa()`, `arusKas()`, `resolveDateRange()` (private).
+  `bukubesar()/searchBukubesarCoa()`, `arusKas()`, `arusKasTidakLangsung()`, `resolveDateRange()` (private).
 - Service: `getIdentitasLaporan()`, `getQueryRincianTransaksiBukubesar()`, `getJurnalTidakBalance()`,
   `getLabaRugiDetil()/getLabaRugiStandard()/getLabaRugiPerParentCoa()/getLabaRugiKomparasiBulanan()`,
   `getNeracaStandard()/getNeracaPerParentCoa()/getNeracaSaldo()/getNeracaDetil()/getNeracaRinci()`,
@@ -143,6 +173,7 @@ flowchart TD
 - Laporan laba rugi mengintegrasikan anggaran **RBA** sebagai pembanding.
 - Klasifikasi neraca dan arus kas bergantung pada `tipe_coa` dan `arus_kas_aktivitas`/`arus_kas_kelompok`
   pada COA (lihat [Konvensi Buku Besar & COA](fondasi/konvensi-bukubesar-coa.md)).
+- Laporan arus kas menyediakan dua sudut pandang: **Metode Langsung** (aliran kas riil berdasarkan akun lawan kas) dan **Metode Tidak Langsung** (rekonsiliasi dari laba bersih, beban non-kas, dan perubahan modal kerja sesuai standar PSAK).
 - Deteksi jurnal tidak balance membantu menemukan hasil bridging/jurnal yang tidak seimbang
   (lihat juga [Bridging Pendapatan](bridging-pendapatan.md)).
 - Neraca standard menyertakan indikator `isBalance` (aktiva = pasiva + ekuitas).

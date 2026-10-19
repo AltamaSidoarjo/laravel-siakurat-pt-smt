@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\HomeDashboardService;
+use App\Services\Pengaturan\LayananInformasiService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -11,6 +12,7 @@ class HomeController extends Controller
 {
     public function __construct(
         private readonly HomeDashboardService $homeDashboardService,
+        private readonly LayananInformasiService $layananInformasiService,
     ) {
     }
 
@@ -20,6 +22,7 @@ class HomeController extends Controller
             'page' => 'app',
             'defaultStartDate' => now()->startOfMonth()->format('Y-m-d'),
             'defaultEndDate' => now()->format('Y-m-d'),
+            'activeInformasiList' => $this->layananInformasiService->getActiveInformasi(),
         ]);
     }
 

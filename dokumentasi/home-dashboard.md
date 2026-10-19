@@ -33,7 +33,8 @@ Semua endpoint memakai izin `home,view`.
 
 - Endpoint data menerima `dariTanggal` dan `sampaiTanggal`; `resolveDateRange()` memberi default
   awal bulan s.d. hari ini bila kosong.
-- `index()` mengirim `defaultStartDate`/`defaultEndDate` ke view untuk inisialisasi filter.
+- `index()` mengirim `defaultStartDate`/`defaultEndDate` ke view untuk inisialisasi filter, serta
+  `activeInformasiList` dari `LayananInformasiService::getActiveInformasi()` untuk banner pengumuman.
 - Respons `/home/poli` tetap berbentuk `{ poli, total }` dan berisi maksimal 11 baris: 10 poli
   terbesar ditambah `Lainnya` bila jumlah kategori lebih dari 10.
 
@@ -41,28 +42,36 @@ Semua endpoint memakai izin `home,view`.
 
 ```mermaid
 flowchart TD
-    A["GET /home"] --> B["index() render view home (default tanggal)"]
-    B --> C["Front-end memuat tiap widget"]
-    C --> D["GET /home/kunjungan-harian -> getKunjunganHarian()"]
-    C --> E["GET /home/poli -> getDistribusiPoli() -> Top 10 + Lainnya"]
-    C --> F["GET /home/dokter -> getTopDokter()"]
-    C --> G["GET /home/pendapatan-harian -> getPendapatanHarian()"]
-    C --> H["GET /home/penjamin -> getKomposisiPenjamin()"]
-    D --> I["response()->json(...)"]
-    E --> I
-    F --> I
-    G --> I
-    H --> I
+    A["GET /home"] --> B["index() panggil LayananInformasiService::getActiveInformasi()"]
+    B --> C["Render view home (default tanggal & activeInformasiList)"]
+    C --> D{"Ada informasi aktif?"}
+    D -- Ya --> E["Render banner notifikasi + modal popup (auto popup 1x via sessionStorage)"]
+    D -- Tidak --> F["Render banner fallback: Saat ini tidak ada informasi..."]
+    C --> G["Front-end memuat tiap widget grafik"]
+    G --> H["GET /home/kunjungan-harian -> getKunjunganHarian()"]
+    G --> I["GET /home/poli -> getDistribusiPoli() -> Top 10 + Lainnya"]
+    G --> J["GET /home/dokter -> getTopDokter()"]
+    G --> K["GET /home/pendapatan-harian -> getPendapatanHarian()"]
+    G --> L["GET /home/penjamin -> getKomposisiPenjamin()"]
+    H --> M["response()->json(...)"]
+    I --> M
+    J --> M
+    K --> M
+    L --> M
 ```
 
 ### Algoritma
 
-1. `index()` merender halaman dashboard dengan rentang tanggal default.
-2. Tiap endpoint widget menentukan rentang tanggal via `resolveDateRange()` lalu memanggil method
+1. `index()` mengambil daftar pengumuman yang aktif dari `LayananInformasiService::getActiveInformasi()` dan
+   merender halaman dashboard dengan rentang tanggal default.
+2. Banner notifikasi ditampilkan sesuai level warna (`info`, `success`, `warning`, `danger`). Jika pengumuman
+   memiliki flag `tampilkan_popup`, front-end secara otomatis menampilkan modal pop-up (sekali per sesi tab
+   melalui `sessionStorage`).
+3. Tiap endpoint widget menentukan rentang tanggal via `resolveDateRange()` lalu memanggil method
    `HomeDashboardService` yang sesuai dan mengembalikan JSON.
-3. `getDistribusiPoli()` mengurutkan hasil dari total terbesar, mengambil 10 poli pertama, lalu
+4. `getDistribusiPoli()` mengurutkan hasil dari total terbesar, mengambil 10 poli pertama, lalu
    menjumlahkan kategori sisanya sebagai `Lainnya`.
-4. Front-end merender Distribusi Poli dan Top Dokter sebagai diagram batang horizontal dengan
+5. Front-end merender Distribusi Poli dan Top Dokter sebagai diagram batang horizontal dengan
    tinggi adaptif berdasarkan jumlah baris.
 
 ## Fungsi yang Dipanggil
@@ -70,11 +79,14 @@ flowchart TD
 - `HomeController::index()/kunjunganHarian()/distribusiPoli()/topDokter()/pendapatanHarian()/komposisiPenjamin()`
 - `HomeController::resolveDateRange()` (private)
 - `HomeDashboardService::getKunjunganHarian()/getDistribusiPoli()/getTopDokter()/getPendapatanHarian()/getKomposisiPenjamin()`
+- `LayananInformasiService::getActiveInformasi()`
 
 ## Catatan Penting Bisnis
 
-- Dashboard bersifat **read-only**; hanya menampilkan agregasi data.
+- Dashboard bersifat **read-only**; hanya menampilkan agregasi data dan banner informasi pengumuman.
 - Setiap widget memuat datanya secara asinkron melalui endpoint JSON masing-masing.
 - Rentang tanggal default adalah awal bulan berjalan s.d. hari ini.
 - Diagram ranking memakai satu warna aksen hijau; label panjang dibungkus ke beberapa baris dan
   nilai lengkap tetap tersedia melalui tooltip.
+- Pengumuman aktif otomatis disaring berdasarkan `status_aktif = true` dan rentang tanggal penayangan hari ini.
+- Popup modal hanya muncul otomatis sekali per sesi browser agar tidak mengganggu operasional pengguna.
