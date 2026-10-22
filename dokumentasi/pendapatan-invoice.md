@@ -6,7 +6,8 @@ Modul **Invoice Pendapatan** (faktur penjualan) digunakan untuk:
 
 1. menampilkan daftar invoice pendapatan per periode (DataTables) dengan status lunas/belum lunas,
 2. mengekspor daftar invoice ke CSV,
-3. melihat detail satu invoice (read-only).
+3. melihat detail satu invoice (read-only),
+4. mencetak invoice dan mengekspor rincian invoice ke Excel.
 
 Invoice pendapatan **dibuat oleh proses Bridging Pendapatan**, bukan diinput manual di modul ini
 (modul ini bersifat baca-saja: hanya `view`).
@@ -16,6 +17,7 @@ Implementasi utama:
 - `routes/web.php`
 - `app/Http/Controllers/Pendapatan/InvoicePendapatanController.php`
 - `app/Services/Pendapatan/InvoicePendapatanService.php`
+- `app/Services/PreferensiPerusahaanService.php`
 - `app/Models/FakturPenjualan.php`, `app/Models/FakturPenjualanRinci.php`
 
 ## Entry Point / API
@@ -25,6 +27,7 @@ Implementasi utama:
 | `GET` | `/pendapatan/invoice` | `pendapatan.invoice.index` | `index()` | view |
 | `GET` | `/pendapatan/invoice/load-data` | `pendapatan.invoice.load-data` | `loadData()` | view |
 | `GET` | `/pendapatan/invoice/export-csv` | `pendapatan.invoice.export-csv` | `exportCsv()` | view |
+| `GET` | `/pendapatan/invoice/{fakturPenjualan}/print` | `pendapatan.invoice.print` | `print()` | view |
 | `GET` | `/pendapatan/invoice/{fakturPenjualan}` | `pendapatan.invoice.read` | `read()` | view |
 
 ## Alur 1: Daftar & Ekspor
@@ -48,19 +51,23 @@ flowchart TD
 3. Ekspor CSV memuat kolom Nomor, Tanggal, Dokter, No. RM, Pasien, Poli, Penjamin, Nominal,
    Sudah bayar, Kurang bayar, Status.
 
-## Alur 2: Lihat Detail Invoice
+## Alur 2: Lihat Detail, Cetak, & Ekspor Excel
 
 ```mermaid
 flowchart TD
     A["GET /pendapatan/invoice/{id}"] --> B["read() (route model binding)"]
     B --> C["load('rincian')"]
     C --> D["Render view pendapatan.invoice.read"]
+    D --> E["Klik Export Excel -> SheetJS table_to_book() -> Simpan DetailInvoicePendapatan_{nomor}.xlsx"]
+    F["GET /pendapatan/invoice/{id}/print"] --> G["print() -> load('rincian') + identitas cetak"]
+    G --> H["Render view pendapatan.invoice.print"]
 ```
 
 ## Fungsi yang Dipanggil
 
-- `InvoicePendapatanController::index()/loadData()/exportCsv()/read()`
+- `InvoicePendapatanController::index()/loadData()/exportCsv()/read()/print()`
 - `InvoicePendapatanService::getIndexQuery()/findById()/increaseSudahTerbayar()/decreaseSudahTerbayar()`
+- `PreferensiPerusahaanService::getPrintIdentity()`
 - `FakturPenjualan::scopeBetweenDates()`, `FakturPenjualan::rincian()`
 - Trait `StreamsCsvExport::streamCsvExport()/csvNumber()`
 
