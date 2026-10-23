@@ -50,6 +50,7 @@ bagian **Documentation Policy**.
 | Pengaturan — Mapping Pendapatan | [pengaturan-mapping-pendapatan.md](pengaturan-mapping-pendapatan.md) | selesai |
 | Pengaturan — Mapping General | [pengaturan-mapping-general.md](pengaturan-mapping-general.md) | selesai |
 | Pengaturan — Setting RBA | [pengaturan-setting-rba.md](pengaturan-setting-rba.md) | selesai |
+| Pengaturan — Setting Akun Obat & BHP | [pengaturan-setting-obat.md](pengaturan-setting-obat.md) | selesai |
 | Pengaturan — Preferensi | [pengaturan-preferensi.md](pengaturan-preferensi.md) | selesai |
 | Pengaturan — Pengguna | [pengaturan-pengguna.md](pengaturan-pengguna.md) | selesai |
 | Pengaturan — Role Akses | [pengaturan-role-akses.md](pengaturan-role-akses.md) | selesai |

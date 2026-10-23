@@ -9,9 +9,9 @@ use App\Models\FakturPenjualanRinci;
 use App\Models\JurnalUmum;
 use App\Models\JurnalUmumRinci;
 use App\Models\LogHapusImportPendapatan;
-use App\Models\MappingCoaSimrs;
 use App\Models\MappingLawanPendapatanSimrs;
 use App\Models\Pelanggan;
+use App\Models\SettingBridgingObat;
 use App\Models\SimrsImportPendapatanJualObat;
 use App\Services\Bukubesar\BukuBesarService;
 use App\Services\LogAktifitasService;
@@ -62,16 +62,17 @@ class BridgingPendapatanObatService
                 p.ongkir AS ongkir,
                 p.ppn AS ppn,
                 p.kd_bangsal AS kode_gudang,
-                p.nama_bayar AS kode_rekening,
+                COALESCE(NULLIF(p.kd_rek, ''), ab.kd_rek, p.nama_bayar) AS kode_rekening,
                 p.nama_bayar AS nama_rekening,
                 SUM(dj.subtotal) + p.ongkir + p.ppn AS grandtotal
             FROM penjualan p
             JOIN detailjual dj ON dj.nota_jual = p.nota_jual
+            LEFT JOIN akun_bayar ab ON ab.nama_bayar = p.nama_bayar
             WHERE p.status = 'Sudah Dibayar'
               AND p.tgl_jual BETWEEN ? AND ?
             GROUP BY
                 p.nota_jual, p.tgl_jual, p.no_rkm_medis, p.nm_pasien, p.keterangan, p.jns_jual,
-                p.ongkir, p.ppn, p.kd_bangsal, p.nama_bayar
+                p.ongkir, p.ppn, p.kd_bangsal, p.kd_rek, p.nama_bayar, ab.kd_rek
             ORDER BY p.tgl_jual DESC, p.nota_jual DESC
             SQL,
             [$startDate, $endDate]
@@ -81,15 +82,15 @@ class BridgingPendapatanObatService
             ->map(fn (object $row) => [
                 'nomer_transaksi' => (string) $row->nomer_transaksi,
                 'tanggal' => (string) $row->tanggal,
-                'nomer_rekam_medis' => (string) $row->nomer_rekam_medis,
-                'nama_pelanggan' => (string) $row->nama_pelanggan,
+                'nomer_rekam_medis' => (string) ($row->nomer_rekam_medis ?? ''),
+                'nama_pelanggan' => (string) ($row->nama_pelanggan ?? ''),
                 'keterangan' => (string) ($row->keterangan ?? ''),
-                'jenis_jual' => (string) $row->jenis_jual,
-                'ongkir' => (float) $row->ongkir,
-                'ppn' => (float) $row->ppn,
-                'kode_gudang' => (string) $row->kode_gudang,
-                'kode_rekening' => (string) $row->kode_rekening,
-                'nama_rekening' => (string) $row->nama_rekening,
+                'jenis_jual' => (string) ($row->jenis_jual ?? ''),
+                'ongkir' => (float) ($row->ongkir ?? 0),
+                'ppn' => (float) ($row->ppn ?? 0),
+                'kode_gudang' => (string) ($row->kode_gudang ?? ''),
+                'kode_rekening' => (string) ($row->kode_rekening ?? ''),
+                'nama_rekening' => (string) ($row->nama_rekening ?? ''),
                 'grandtotal' => (float) $row->grandtotal,
             ]);
     }
@@ -124,7 +125,7 @@ class BridgingPendapatanObatService
                 SELECT nota_piutang, SUM(total) AS total_detail
                 FROM detailpiutang
                 GROUP BY nota_piutang
-            ) d ON BINARY d.nota_piutang = BINARY p.nota_piutang
+            ) d ON d.nota_piutang = p.nota_piutang
             WHERE p.sisapiutang > 0
               AND p.tgl_piutang BETWEEN ? AND ?
             ORDER BY p.tgl_piutang DESC, p.nota_piutang DESC
@@ -150,6 +151,23 @@ class BridgingPendapatanObatService
                 'uangmuka' => (float) ($row->uangmuka ?? 0),
                 'sisapiutang' => (float) ($row->sisapiutang ?? 0),
             ]);
+    }
+
+    public function getSettingBridgingObat(): SettingBridgingObat
+    {
+        $setting = SettingBridgingObat::query()->first();
+
+        if ($setting === null
+            || empty($setting->pendapatan_obat_coa_id)
+            || empty($setting->hpp_obat_coa_id)
+            || empty($setting->persediaan_obat_coa_id)
+            || empty($setting->piutang_obat_coa_id)
+            || empty($setting->kas_uang_muka_coa_id)
+        ) {
+            throw new RuntimeException('Pengaturan Akun Obat & BHP belum lengkap. Silakan konfigurasi seluruh akun di menu Pengaturan > Setting Akun Obat & BHP.');
+        }
+
+        return $setting;
     }
 
     public function imporPiutangBanyak(array $daftarNota, string $actor): array
@@ -277,9 +295,9 @@ class BridgingPendapatanObatService
                             'nomer' => $item->nomer_transaksi,
                             'dihapus_oleh' => $actor,
                             'created_at' => now(),
-                                'sumber_transaksi' => $item->import_ke === self::IMPORT_INVOICE_PIUTANG_OBAT
-                                    ? 'Piutang Obat & BHP'
-                                    : self::SUMBER_LOG,
+                            'sumber_transaksi' => $item->import_ke === self::IMPORT_INVOICE_PIUTANG_OBAT
+                                ? 'Piutang Obat & BHP'
+                                : self::SUMBER_LOG,
                         ]);
                     }
 
@@ -325,9 +343,11 @@ class BridgingPendapatanObatService
             throw new RuntimeException('Rincian piutang tidak ditemukan.');
         }
 
+        $setting = $this->getSettingBridgingObat();
+
         $totalRincian = (float) $rincian->sum('total');
-        $grandtotal = $totalRincian + $tagihan['ppn'] + $tagihan['ongkir'];
-        $totalHeader = $tagihan['uangmuka'] + $tagihan['sisapiutang'];
+        $grandtotal = round($totalRincian + $tagihan['ppn'] + $tagihan['ongkir'], 2);
+        $totalHeader = round($tagihan['uangmuka'] + $tagihan['sisapiutang'], 2);
         if (abs($grandtotal - $totalHeader) > 0.01) {
             throw new RuntimeException(sprintf(
                 'Total piutang tidak rekonsiliasi. Detail + PPN + ongkir %.2f, uang muka + sisa piutang %.2f.',
@@ -336,84 +356,21 @@ class BridgingPendapatanObatService
             ));
         }
 
-        $nomerJurnal = $this->ambilNomerJurnalPiutangTerakhir($nota);
-        if ($nomerJurnal === null) {
-            throw new RuntimeException('Jurnal PIUTANG DI APOTEK tidak ditemukan.');
-        }
-
-        $rincianJurnal = $this->ambilRincianJurnalSimrs($nomerJurnal);
-        if ($rincianJurnal->isEmpty()) {
-            throw new RuntimeException('Rincian jurnal PIUTANG DI APOTEK tidak ditemukan.');
-        }
-
-        $barisPiutang = $rincianJurnal->filter(fn (array $baris) => $baris['kd_rek'] === '117000' && $baris['debet'] > 0);
-        if (abs((float) $barisPiutang->sum('debet') - $tagihan['sisapiutang']) > 0.01) {
-            throw new RuntimeException(sprintf(
-                'Debit piutang pada jurnal SIMRS tidak cocok dengan sisa piutang. Target %.2f, jurnal %.2f.',
-                $tagihan['sisapiutang'],
-                (float) $barisPiutang->sum('debet'),
-            ));
-        }
-
-        $totalDebit = (float) $rincianJurnal->sum('debet');
-        $totalKredit = (float) $rincianJurnal->sum('kredit');
-        if (abs($totalDebit - $totalKredit) > 0.01) {
-            throw new RuntimeException(sprintf('Jurnal piutang tidak balance. Debit %.2f, kredit %.2f.', $totalDebit, $totalKredit));
-        }
-
-        DB::transaction(function () use ($tagihan, $rincian, $rincianJurnal, $nota, $grandtotal) {
-            $mappingLawan = MappingLawanPendapatanSimrs::query()->get();
-            $barisPiutang = $rincianJurnal->filter(fn (array $baris) => $baris['kd_rek'] === '117000');
-            if ($barisPiutang->isEmpty()) {
-                throw new RuntimeException('Jurnal SIMRS tidak memiliki akun piutang 117000.');
-            }
-
-            $mappingPiutang = $mappingLawan->firstWhere('kode_coa_simrs', '117000');
-            if ($mappingPiutang === null) {
-                throw new RuntimeException('Mapping akun piutang SIMRS belum disetting untuk kode 117000.');
-            }
-
-            $coaLookup = Coa::query()->get()->keyBy('id');
-            if ($coaLookup->get((int) $mappingPiutang->coa_id) === null) {
-                throw new RuntimeException('COA hasil mapping akun piutang 117000 tidak ditemukan.');
-            }
-
-            $mappingUmum = MappingCoaSimrs::query()->get();
-            foreach ($rincianJurnal as $baris) {
-                if ($baris['kd_rek'] === '117000') continue;
-
-                $mapping = $mappingUmum->firstWhere('kode_rekening', $baris['kd_rek']);
-                if ($mapping === null || $coaLookup->get((int) $mapping->coa_id) === null) {
-                    throw new RuntimeException('Mapping COA SIMRS belum tersedia atau COA tidak ditemukan untuk kode rekening '.$baris['kd_rek'].'.');
-                }
-            }
-
-            if (trim($tagihan['nomer_rekam_medis']) === '' || trim($tagihan['nama_pelanggan']) === '') {
-                throw new RuntimeException('Nomor RM atau nama pasien SIMRS kosong; invoice tidak dapat dibuat.');
-            }
-
-            $pelanggan = Pelanggan::query()
-                ->where('kode_pelanggan', $tagihan['nomer_rekam_medis'])
-                ->first();
-
-            if ($pelanggan === null) {
-                $pelanggan = new Pelanggan();
-                $pelanggan->status_aktif = true;
-                $pelanggan->kode_pelanggan = $tagihan['nomer_rekam_medis'];
-            }
-            $pelanggan->nama_pelanggan = $tagihan['nama_pelanggan'];
-            $pelanggan->jenis_pelanggan = 'Obat & BHP';
-            $pelanggan->save();
+        DB::transaction(function () use ($tagihan, $rincian, $setting, $nota, $grandtotal) {
+            $pelanggan = $this->cariAtauBuatPelanggan(
+                $tagihan['nomer_rekam_medis'],
+                $tagihan['nama_pelanggan'],
+            );
 
             $invoice = new FakturPenjualan();
             $invoice->pelanggan_id = (int) $pelanggan->id;
-            $invoice->akun_piutang_id = (int) $mappingPiutang->coa_id;
+            $invoice->akun_piutang_id = (int) $setting->piutang_obat_coa_id;
             $invoice->nomor_faktur = 'P-'.$nota;
             $invoice->tanggal_faktur = $tagihan['tanggal'];
             $invoice->tanggal_registrasi = $tagihan['tanggal'];
             $invoice->keterangan = 'Bridging Piutang Obat & BHP - '.$tagihan['keterangan'];
             $invoice->grandtotal = $grandtotal;
-            $invoice->sudah_terbayar = $tagihan['uangmuka'];
+            $invoice->sudah_terbayar = (float) $tagihan['uangmuka'];
             $invoice->status_proses = 0;
             $invoice->created_by = 'system';
             $invoice->updated_by = 'system';
@@ -434,26 +391,56 @@ class BridgingPendapatanObatService
             }
 
             $mutasi = [];
-            foreach ($rincianJurnal as $baris) {
-                $mapping = $baris['kd_rek'] === '117000'
-                    ? $mappingPiutang
-                    : $mappingUmum->firstWhere('kode_rekening', $baris['kd_rek']);
-                $debit = (float) $baris['debet'];
-                $kredit = (float) $baris['kredit'];
+
+            // 1. Debit Piutang Obat (sebesar sisapiutang)
+            if ($tagihan['sisapiutang'] > 0) {
                 $mutasi[] = [
-                    'coa_id' => (int) $mapping->coa_id,
+                    'coa_id' => (int) $setting->piutang_obat_coa_id,
                     'sumber_id' => (int) $invoice->id,
                     'tanggal' => $invoice->tanggal_faktur,
                     ...BukuBesarService::resolvePeriode($invoice->tanggal_faktur),
                     'nomer' => $invoice->nomor_faktur,
                     'sumber_transaksi' => self::IMPORT_INVOICE_PIUTANG_OBAT,
-                    'nominal' => $debit > 0 ? $debit : $kredit,
-                    'tipe_mutasi' => $debit > 0 ? 'D' : 'K',
+                    'nominal' => (float) $tagihan['sisapiutang'],
+                    'tipe_mutasi' => 'D',
                     'keterangan' => 'Piutang obat & BHP nomor: '.$nota,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ];
             }
+
+            // 2. Debit Kas / Uang Muka (jika uangmuka > 0)
+            if ($tagihan['uangmuka'] > 0) {
+                $mutasi[] = [
+                    'coa_id' => (int) $setting->kas_uang_muka_coa_id,
+                    'sumber_id' => (int) $invoice->id,
+                    'tanggal' => $invoice->tanggal_faktur,
+                    ...BukuBesarService::resolvePeriode($invoice->tanggal_faktur),
+                    'nomer' => $invoice->nomor_faktur,
+                    'sumber_transaksi' => self::IMPORT_INVOICE_PIUTANG_OBAT,
+                    'nominal' => (float) $tagihan['uangmuka'],
+                    'tipe_mutasi' => 'D',
+                    'keterangan' => 'Uang muka piutang obat & BHP nomor: '.$nota,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+
+            // 3. Kredit Persediaan Obat (sebesar grandtotal)
+            $mutasi[] = [
+                'coa_id' => (int) $setting->persediaan_obat_coa_id,
+                'sumber_id' => (int) $invoice->id,
+                'tanggal' => $invoice->tanggal_faktur,
+                ...BukuBesarService::resolvePeriode($invoice->tanggal_faktur),
+                'nomer' => $invoice->nomor_faktur,
+                'sumber_transaksi' => self::IMPORT_INVOICE_PIUTANG_OBAT,
+                'nominal' => $grandtotal,
+                'tipe_mutasi' => 'K',
+                'keterangan' => 'Piutang obat & BHP nomor: '.$nota,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+
             BukuBesar::query()->insert($mutasi);
 
             $this->simpanHasilImport($tagihan, self::IMPORT_INVOICE_PIUTANG_OBAT);
@@ -469,13 +456,18 @@ class BridgingPendapatanObatService
 
     private function imporSatu(string $nomerTransaksi, string $jenisProses, string $actor): array
     {
-        if (! in_array($jenisProses, [self::IMPORT_JURNAL_UMUM, 'InvoicePendapatan'], true)) {
+        if (! in_array($jenisProses, [self::IMPORT_JURNAL_UMUM, self::IMPORT_INVOICE_PENDAPATAN, 'InvoicePendapatan'], true)) {
             return [
                 'nomer_transaksi' => $nomerTransaksi,
                 'berhasil' => false,
                 'alasan_gagal' => 'Tujuan import tidak didukung.',
             ];
         }
+
+        // Normalisasi nama jenis proses jika dikirimkan sebagai 'InvoicePendapatan'
+        $jenisProsesNormal = $jenisProses === 'InvoicePendapatan'
+            ? self::IMPORT_INVOICE_PENDAPATAN
+            : $jenisProses;
 
         if (SimrsImportPendapatanJualObat::query()->where('nomer_transaksi', $nomerTransaksi)->exists()) {
             return [
@@ -503,27 +495,30 @@ class BridgingPendapatanObatService
             ];
         }
 
-        $nomerJurnalSimrs = $this->ambilNomerJurnalSimrsTerakhir($nomerTransaksi);
-        if ($nomerJurnalSimrs === null) {
-            return [
-                'nomer_transaksi' => $nomerTransaksi,
-                'berhasil' => false,
-                'alasan_gagal' => 'Jurnal SIMRS tidak ditemukan untuk transaksi ini.',
-            ];
-        }
+        $setting = $this->getSettingBridgingObat();
+        $mappingLawan = MappingLawanPendapatanSimrs::query()->get();
+        $coaLookup = Coa::query()->get()->keyBy('id');
+        $coaKasBank = $this->resolveAkunLawanCaraBayar($tagihan, $mappingLawan, $coaLookup);
 
-        $rincianJurnalSimrs = $this->ambilRincianJurnalSimrs($nomerJurnalSimrs);
-        if ($rincianJurnalSimrs->isEmpty()) {
-            return [
-                'nomer_transaksi' => $nomerTransaksi,
-                'berhasil' => false,
-                'alasan_gagal' => 'Rincian jurnal SIMRS tidak ditemukan.',
-            ];
-        }
+        $totalHpp = round((float) $rincianTagihan->sum(fn ($b) => (float) $b['harga_beli'] * (float) $b['kuantitas']), 2);
 
-        $result = DB::transaction(function () use ($tagihan, $rincianTagihan, $rincianJurnalSimrs, $actor, $jenisProses) {
-            if ($jenisProses === 'InvoicePendapatan') {
-                $this->simpanInvoicePendapatanObat($tagihan, $rincianTagihan, $rincianJurnalSimrs);
+        $result = DB::transaction(function () use (
+            $tagihan,
+            $rincianTagihan,
+            $setting,
+            $coaKasBank,
+            $totalHpp,
+            $actor,
+            $jenisProsesNormal
+        ) {
+            if ($jenisProsesNormal === self::IMPORT_INVOICE_PENDAPATAN) {
+                $this->simpanInvoicePendapatanObat(
+                    $tagihan,
+                    $rincianTagihan,
+                    $setting,
+                    $coaKasBank,
+                    $totalHpp
+                );
 
                 return [
                     'nomer_transaksi' => $tagihan['nomer_transaksi'],
@@ -533,62 +528,98 @@ class BridgingPendapatanObatService
                 ];
             }
 
-            $mappingGeneral = MappingCoaSimrs::query()->get();
-
             $this->simpanHasilImport($tagihan, self::IMPORT_JURNAL_UMUM);
+
+            $grandtotal = (float) $tagihan['grandtotal'];
+            $totalNilaiJurnal = round($grandtotal + $totalHpp, 2);
 
             $jurnal = new JurnalUmum();
             $jurnal->nomer = $tagihan['nomer_transaksi'];
             $jurnal->tanggal = $tagihan['tanggal'];
             $jurnal->keterangan = $this->buatKeteranganJurnal($tagihan, $rincianTagihan);
-            $jurnal->debit = (float) $tagihan['grandtotal'];
-            $jurnal->kredit = (float) $tagihan['grandtotal'];
+            $jurnal->debit = $totalNilaiJurnal;
+            $jurnal->kredit = $totalNilaiJurnal;
             $jurnal->save();
 
-            $totalDebit = 0.0;
-            $totalKredit = 0.0;
+            // 1. Debit Kas/Bank dari Cara Bayar
+            JurnalUmumRinci::query()->create([
+                'jurnal_umum_id' => (int) $jurnal->id,
+                'coa_id' => (int) $coaKasBank->id,
+                'debit' => $grandtotal,
+                'kredit' => 0,
+            ]);
 
-            // Detail jurnal lokal mengikuti jurnal SIMRS apa adanya, tetapi setiap kode rekening
-            // wajib lolos mapping general lebih dulu agar COA yang dipakai tetap konsisten.
-            foreach ($rincianJurnalSimrs as $rinci) {
-                $mapping = $mappingGeneral->firstWhere('kode_rekening', $rinci['kd_rek']);
-                if ($mapping === null) {
-                    throw new RuntimeException('Mapping COA SIMRS belum dilakukan untuk kode rekening: '.$rinci['kd_rek']);
-                }
+            BukuBesar::query()->create([
+                'coa_id' => (int) $coaKasBank->id,
+                'sumber_id' => (int) $jurnal->id,
+                'tanggal' => $tagihan['tanggal'],
+                ...BukuBesarService::resolvePeriode($tagihan['tanggal']),
+                'nomer' => $tagihan['nomer_transaksi'],
+                'sumber_transaksi' => self::SUMBER_TRANSAKSI_JURNAL,
+                'nominal' => $grandtotal,
+                'tipe_mutasi' => 'D',
+                'keterangan' => 'Penjualan obat & BHP nomor: '.$tagihan['nomer_transaksi'],
+            ]);
 
-                $debit = (float) $rinci['debet'];
-                $kredit = (float) $rinci['kredit'];
+            // 2. Kredit Pendapatan Obat & BHP
+            JurnalUmumRinci::query()->create([
+                'jurnal_umum_id' => (int) $jurnal->id,
+                'coa_id' => (int) $setting->pendapatan_obat_coa_id,
+                'debit' => 0,
+                'kredit' => $grandtotal,
+            ]);
 
+            BukuBesar::query()->create([
+                'coa_id' => (int) $setting->pendapatan_obat_coa_id,
+                'sumber_id' => (int) $jurnal->id,
+                'tanggal' => $tagihan['tanggal'],
+                ...BukuBesarService::resolvePeriode($tagihan['tanggal']),
+                'nomer' => $tagihan['nomer_transaksi'],
+                'sumber_transaksi' => self::SUMBER_TRANSAKSI_JURNAL,
+                'nominal' => $grandtotal,
+                'tipe_mutasi' => 'K',
+                'keterangan' => 'Penjualan obat & BHP nomor: '.$tagihan['nomer_transaksi'],
+            ]);
+
+            // 3. Debit HPP Obat & Kredit Persediaan Obat (jika HPP > 0)
+            if ($totalHpp > 0) {
                 JurnalUmumRinci::query()->create([
                     'jurnal_umum_id' => (int) $jurnal->id,
-                    'coa_id' => (int) $mapping->coa_id,
-                    'debit' => $debit > 0 ? $debit : 0,
-                    'kredit' => $kredit > 0 ? $kredit : 0,
+                    'coa_id' => (int) $setting->hpp_obat_coa_id,
+                    'debit' => $totalHpp,
+                    'kredit' => 0,
                 ]);
 
                 BukuBesar::query()->create([
-                    'coa_id' => (int) $mapping->coa_id,
+                    'coa_id' => (int) $setting->hpp_obat_coa_id,
                     'sumber_id' => (int) $jurnal->id,
                     'tanggal' => $tagihan['tanggal'],
                     ...BukuBesarService::resolvePeriode($tagihan['tanggal']),
                     'nomer' => $tagihan['nomer_transaksi'],
                     'sumber_transaksi' => self::SUMBER_TRANSAKSI_JURNAL,
-                    'nominal' => $debit > 0 ? $debit : $kredit,
-                    'tipe_mutasi' => $debit > 0 ? 'D' : 'K',
-                    'keterangan' => 'Penjualan obat & BHP nomor: '.$tagihan['nomer_transaksi'],
+                    'nominal' => $totalHpp,
+                    'tipe_mutasi' => 'D',
+                    'keterangan' => 'HPP penjualan obat & BHP nomor: '.$tagihan['nomer_transaksi'],
                 ]);
 
-                $totalDebit += $debit > 0 ? $debit : 0;
-                $totalKredit += $kredit > 0 ? $kredit : 0;
-            }
+                JurnalUmumRinci::query()->create([
+                    'jurnal_umum_id' => (int) $jurnal->id,
+                    'coa_id' => (int) $setting->persediaan_obat_coa_id,
+                    'debit' => 0,
+                    'kredit' => $totalHpp,
+                ]);
 
-            if (abs($totalDebit - $totalKredit) > 0.01) {
-                throw new RuntimeException(sprintf(
-                    'Jurnal tidak balance untuk transaksi %s. Debit %.2f, kredit %.2f.',
-                    $tagihan['nomer_transaksi'],
-                    $totalDebit,
-                    $totalKredit,
-                ));
+                BukuBesar::query()->create([
+                    'coa_id' => (int) $setting->persediaan_obat_coa_id,
+                    'sumber_id' => (int) $jurnal->id,
+                    'tanggal' => $tagihan['tanggal'],
+                    ...BukuBesarService::resolvePeriode($tagihan['tanggal']),
+                    'nomer' => $tagihan['nomer_transaksi'],
+                    'sumber_transaksi' => self::SUMBER_TRANSAKSI_JURNAL,
+                    'nominal' => $totalHpp,
+                    'tipe_mutasi' => 'K',
+                    'keterangan' => 'Pengurangan persediaan obat & BHP nomor: '.$tagihan['nomer_transaksi'],
+                ]);
             }
 
             return [
@@ -624,51 +655,28 @@ class BridgingPendapatanObatService
         ]);
     }
 
-    private function simpanInvoicePendapatanObat(array $tagihan, Collection $rincianTagihan, Collection $rincianJurnalSimrs): void
-    {
-        $pelanggan = Pelanggan::query()
-            ->where('kode_pelanggan', $tagihan['nomer_rekam_medis'])
-            ->first();
-
-        if (trim($tagihan['nomer_rekam_medis']) === '' || trim($tagihan['nama_pelanggan']) === '') {
-            throw new RuntimeException('Nomor RM atau nama pelanggan SIMRS kosong; invoice tidak dapat dibuat.');
-        }
-
-        if ($pelanggan === null) {
-            $pelanggan = new Pelanggan();
-            $pelanggan->status_aktif = true;
-            $pelanggan->kode_pelanggan = $tagihan['nomer_rekam_medis'];
-        }
-
-        $pelanggan->nama_pelanggan = $tagihan['nama_pelanggan'];
-        $pelanggan->jenis_pelanggan = 'Obat & BHP';
-        $pelanggan->save();
-
-        $mappingLawan = MappingLawanPendapatanSimrs::query()->get();
-        $coaLookup = Coa::query()->get()->keyBy('id');
-        $akunLawan = $this->pilihAkunLawanInvoicePendapatanObat(
-            $rincianJurnalSimrs,
-            $mappingLawan,
-            $coaLookup,
-            (float) $tagihan['grandtotal'],
+    private function simpanInvoicePendapatanObat(
+        array $tagihan,
+        Collection $rincianTagihan,
+        SettingBridgingObat $setting,
+        Coa $coaKasBank,
+        float $totalHpp,
+    ): void {
+        $pelanggan = $this->cariAtauBuatPelanggan(
+            $tagihan['nomer_rekam_medis'],
+            $tagihan['nama_pelanggan'],
         );
 
-        $kasBank = (float) $akunLawan
-            ->filter(fn (array $row) => strtolower((string) $row['coa']->tipe_coa) === 'kasbank')
-            ->sum('debit');
-        $piutangId = $akunLawan->count() === 1
-            && str_contains(strtolower((string) $akunLawan->first()['coa']->tipe_coa), 'piutang')
-                ? (int) $akunLawan->first()['coa']->id
-                : null;
+        $grandtotal = (float) $tagihan['grandtotal'];
 
         $invoice = new FakturPenjualan();
         $invoice->pelanggan_id = (int) $pelanggan->id;
-        $invoice->akun_piutang_id = $piutangId;
+        $invoice->akun_piutang_id = null;
         $invoice->nomor_faktur = $tagihan['nomer_transaksi'];
         $invoice->tanggal_faktur = $tagihan['tanggal'];
         $invoice->keterangan = 'Bridging Pendapatan Obat - '.$this->buatKeteranganJurnal($tagihan, $rincianTagihan);
-        $invoice->grandtotal = (float) $tagihan['grandtotal'];
-        $invoice->sudah_terbayar = $kasBank;
+        $invoice->grandtotal = $grandtotal;
+        $invoice->sudah_terbayar = $grandtotal;
         $invoice->status_proses = 0;
         $invoice->created_by = 'system';
         $invoice->updated_by = 'system';
@@ -688,152 +696,140 @@ class BridgingPendapatanObatService
         }
 
         $mutasi = [];
-        $kodeAkunLawanTerpilih = $akunLawan->pluck('kd_rek')->all();
-        $mappingCoaSimrs = MappingCoaSimrs::query()->get();
-        foreach ($rincianJurnalSimrs as $baris) {
-            $coaId = $this->resolveCoaIdBarisJurnalInvoice(
-                (string) $baris['kd_rek'],
-                $kodeAkunLawanTerpilih,
-                $mappingLawan,
-                $mappingCoaSimrs,
-                $coaLookup,
-            );
 
-            $debit = (float) $baris['debet'];
-            $kredit = (float) $baris['kredit'];
+        // 1. Debit Kas/Bank dari Cara Bayar
+        $mutasi[] = [
+            'coa_id' => (int) $coaKasBank->id,
+            'sumber_id' => (int) $invoice->id,
+            'tanggal' => $invoice->tanggal_faktur,
+            ...BukuBesarService::resolvePeriode($invoice->tanggal_faktur),
+            'nomer' => $invoice->nomor_faktur,
+            'sumber_transaksi' => self::IMPORT_INVOICE_PENDAPATAN,
+            'nominal' => $grandtotal,
+            'tipe_mutasi' => 'D',
+            'keterangan' => 'Penjualan obat & BHP nomor: '.$invoice->nomor_faktur,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        // 2. Kredit Pendapatan Obat & BHP
+        $mutasi[] = [
+            'coa_id' => (int) $setting->pendapatan_obat_coa_id,
+            'sumber_id' => (int) $invoice->id,
+            'tanggal' => $invoice->tanggal_faktur,
+            ...BukuBesarService::resolvePeriode($invoice->tanggal_faktur),
+            'nomer' => $invoice->nomor_faktur,
+            'sumber_transaksi' => self::IMPORT_INVOICE_PENDAPATAN,
+            'nominal' => $grandtotal,
+            'tipe_mutasi' => 'K',
+            'keterangan' => 'Penjualan obat & BHP nomor: '.$invoice->nomor_faktur,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        // 3. Debit HPP Obat & Kredit Persediaan Obat (jika HPP > 0)
+        if ($totalHpp > 0) {
             $mutasi[] = [
-                'coa_id' => $coaId,
+                'coa_id' => (int) $setting->hpp_obat_coa_id,
                 'sumber_id' => (int) $invoice->id,
                 'tanggal' => $invoice->tanggal_faktur,
                 ...BukuBesarService::resolvePeriode($invoice->tanggal_faktur),
                 'nomer' => $invoice->nomor_faktur,
                 'sumber_transaksi' => self::IMPORT_INVOICE_PENDAPATAN,
-                'nominal' => $debit > 0 ? $debit : $kredit,
-                'tipe_mutasi' => $debit > 0 ? 'D' : 'K',
-                'keterangan' => 'Penjualan obat & BHP nomor: '.$invoice->nomor_faktur,
+                'nominal' => $totalHpp,
+                'tipe_mutasi' => 'D',
+                'keterangan' => 'HPP penjualan obat & BHP nomor: '.$invoice->nomor_faktur,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+
+            $mutasi[] = [
+                'coa_id' => (int) $setting->persediaan_obat_coa_id,
+                'sumber_id' => (int) $invoice->id,
+                'tanggal' => $invoice->tanggal_faktur,
+                ...BukuBesarService::resolvePeriode($invoice->tanggal_faktur),
+                'nomer' => $invoice->nomor_faktur,
+                'sumber_transaksi' => self::IMPORT_INVOICE_PENDAPATAN,
+                'nominal' => $totalHpp,
+                'tipe_mutasi' => 'K',
+                'keterangan' => 'Pengurangan persediaan obat & BHP nomor: '.$invoice->nomor_faktur,
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
         }
 
-        if ($mutasi !== []) {
-            BukuBesar::query()->insert($mutasi);
-        }
+        BukuBesar::query()->insert($mutasi);
 
         $this->simpanHasilImport($tagihan, self::IMPORT_INVOICE_PENDAPATAN);
     }
 
-    private function pilihAkunLawanInvoicePendapatanObat(
-        Collection $rincianJurnalSimrs,
+    private function resolveAkunLawanCaraBayar(
+        array $tagihan,
         Collection $mappingLawan,
         Collection $coaLookup,
-        float $nominalTarget,
-    ): Collection {
-        $akunDebit = $rincianJurnalSimrs
-            ->filter(fn (array $baris) => (float) $baris['debet'] > 0)
-            ->groupBy('kd_rek')
-            ->map(function (Collection $baris, string $kode) use ($mappingLawan, $coaLookup) {
-                $mapping = $mappingLawan->firstWhere('kode_coa_simrs', $kode);
-                if ($mapping === null) {
-                    return null;
-                }
+    ): Coa {
+        $kdRek = trim((string) ($tagihan['kd_rek'] ?? ''));
+        $namaBayar = trim((string) ($tagihan['nama_bayar'] ?? ''));
 
-                $coa = $coaLookup->get((int) $mapping->coa_id);
-                if ($coa === null) {
-                    throw new RuntimeException('COA akun lawan pendapatan tidak ditemukan untuk kode SIMRS '.$kode.'.');
-                }
+        if ($kdRek === '' && $namaBayar !== '') {
+            $rowAkunBayar = collect(DB::connection('simrs')->select(
+                'SELECT kd_rek FROM akun_bayar WHERE nama_bayar = ? LIMIT 1',
+                [$namaBayar]
+            ))->first();
 
-                return [
-                    'kd_rek' => $kode,
-                    'coa' => $coa,
-                    'debit' => (float) $baris->sum('debet'),
-                ];
-            })
-            ->filter()
-            ->values();
-
-        if ($akunDebit->isEmpty()) {
-            throw new RuntimeException('Akun lawan pendapatan tidak ditemukan di jurnal SIMRS.');
+            if ($rowAkunBayar !== null && ! empty($rowAkunBayar->kd_rek)) {
+                $kdRek = trim((string) $rowAkunBayar->kd_rek);
+            }
         }
 
-        $akunKasAtauPiutang = $akunDebit
-            ->filter(function (array $akun) {
-                $tipeCoa = strtolower((string) $akun['coa']->tipe_coa);
-
-                return $tipeCoa === 'kasbank' || str_contains($tipeCoa, 'piutang');
-            })
-            ->values();
-
-        $kandidatAkunLawan = $akunKasAtauPiutang->isNotEmpty()
-            ? $akunKasAtauPiutang
-            : $akunDebit;
-
-        $akunExactMatch = $kandidatAkunLawan
-            ->filter(fn (array $akun) => abs((float) $akun['debit'] - $nominalTarget) < 0.01)
-            ->values();
-
-        if ($akunExactMatch->count() > 1) {
-            throw new RuntimeException(sprintf(
-                'Ditemukan lebih dari satu akun lawan pendapatan SIMRS dengan nominal %.2f.',
-                $nominalTarget,
-            ));
+        $mapping = null;
+        if ($kdRek !== '') {
+            $mapping = $mappingLawan->firstWhere('kode_coa_simrs', $kdRek);
+        }
+        if ($mapping === null && $namaBayar !== '') {
+            $mapping = $mappingLawan->firstWhere('nama_coa_simrs', $namaBayar);
         }
 
-        if ($akunExactMatch->count() === 1) {
-            return $akunExactMatch;
+        if ($mapping === null) {
+            $identitas = $kdRek !== '' ? "kode rekening '{$kdRek}'" : "cara bayar '{$namaBayar}'";
+            throw new RuntimeException("Mapping akun lawan pendapatan belum disetting untuk {$identitas}. Silakan konfigurasi di menu Pengaturan > Mapping Pendapatan.");
         }
 
-        if ($kandidatAkunLawan->count() === 1) {
-            $akun = $kandidatAkunLawan->first();
-            $akun['debit'] = $nominalTarget;
-
-            return collect([$akun]);
+        $coa = $coaLookup->get((int) $mapping->coa_id);
+        if ($coa === null) {
+            throw new RuntimeException("COA akun lawan pendapatan tidak ditemukan untuk mapping SIMRS {$mapping->kode_coa_simrs}.");
         }
 
-        if (abs((float) $kandidatAkunLawan->sum('debit') - $nominalTarget) <= 0.01) {
-            return $kandidatAkunLawan;
-        }
-
-        throw new RuntimeException(sprintf(
-            'Akun lawan pendapatan SIMRS tidak cocok dengan total tagihan. Target %.2f, jurnal SIMRS %.2f.',
-            $nominalTarget,
-            (float) $kandidatAkunLawan->sum('debit'),
-        ));
+        return $coa;
     }
 
-    private function resolveCoaIdBarisJurnalInvoice(
-        string $kodeRekening,
-        array $kodeAkunLawanTerpilih,
-        Collection $mappingLawan,
-        Collection $mappingCoaSimrs,
-        Collection $coaLookup,
-    ): int {
-        if (in_array($kodeRekening, $kodeAkunLawanTerpilih, true)) {
-            $mappingLawanTerpilih = $mappingLawan->firstWhere('kode_coa_simrs', $kodeRekening);
-            if ($mappingLawanTerpilih === null) {
-                throw new RuntimeException('Mapping akun lawan pendapatan belum disetting untuk kode COA SIMRS '.$kodeRekening.'.');
-            }
+    private function cariAtauBuatPelanggan(?string $noRkmMedis, ?string $nmPasien): Pelanggan
+    {
+        $noRm = trim((string) $noRkmMedis);
+        $nama = trim((string) $nmPasien);
 
-            $coaId = (int) $mappingLawanTerpilih->coa_id;
-            if ($coaLookup->get($coaId) === null) {
-                throw new RuntimeException('COA akun lawan pendapatan tidak ditemukan untuk kode SIMRS '.$kodeRekening.'.');
-            }
-
-            return $coaId;
+        if ($noRm === '') {
+            $noRm = 'UMUM';
+        }
+        if ($nama === '') {
+            $nama = 'PASIEN UMUM';
         }
 
-        $mappingUmum = $mappingCoaSimrs->firstWhere('kode_rekening', $kodeRekening);
+        $pelanggan = Pelanggan::query()
+            ->where('kode_pelanggan', $noRm)
+            ->first();
 
-        if ($mappingUmum === null) {
-            throw new RuntimeException('Mapping COA SIMRS belum dilakukan untuk kode rekening: '.$kodeRekening);
+        if ($pelanggan === null) {
+            $pelanggan = new Pelanggan();
+            $pelanggan->status_aktif = true;
+            $pelanggan->kode_pelanggan = $noRm;
         }
 
-        $coaId = (int) $mappingUmum->coa_id;
-        if ($coaLookup->get($coaId) === null) {
-            throw new RuntimeException('COA hasil mapping SIMRS tidak ditemukan untuk kode rekening: '.$kodeRekening);
-        }
+        $pelanggan->nama_pelanggan = $nama;
+        $pelanggan->jenis_pelanggan = 'Obat & BHP';
+        $pelanggan->save();
 
-        return $coaId;
+        return $pelanggan;
     }
 
     private function buatKeteranganJurnal(array $tagihan, Collection $rincianTagihan): string
@@ -869,15 +865,18 @@ class BridgingPendapatanObatService
                 p.ongkir AS ongkir,
                 p.ppn AS ppn,
                 p.kd_bangsal AS kode_gudang,
-                p.nama_bayar AS kode_rekening,
+                p.kd_rek AS kd_rek,
+                p.nama_bayar AS nama_bayar,
+                COALESCE(NULLIF(p.kd_rek, ''), ab.kd_rek, p.nama_bayar) AS kode_rekening,
                 p.nama_bayar AS nama_rekening,
                 SUM(dj.subtotal) + p.ongkir + p.ppn AS grandtotal
             FROM penjualan p
             JOIN detailjual dj ON dj.nota_jual = p.nota_jual
+            LEFT JOIN akun_bayar ab ON ab.nama_bayar = p.nama_bayar
             WHERE p.nota_jual = ?
             GROUP BY
                 p.nota_jual, p.tgl_jual, p.no_rkm_medis, p.nm_pasien, p.keterangan, p.jns_jual,
-                p.ongkir, p.ppn, p.kd_bangsal, p.nama_bayar
+                p.ongkir, p.ppn, p.kd_bangsal, p.kd_rek, p.nama_bayar, ab.kd_rek
             LIMIT 1
             SQL,
             [$nomerTransaksi]
@@ -890,15 +889,17 @@ class BridgingPendapatanObatService
         return [
             'nomer_transaksi' => (string) $row->nomer_transaksi,
             'tanggal' => (string) $row->tanggal,
-            'nomer_rekam_medis' => (string) $row->nomer_rekam_medis,
-            'nama_pelanggan' => (string) $row->nama_pelanggan,
+            'nomer_rekam_medis' => (string) ($row->nomer_rekam_medis ?? ''),
+            'nama_pelanggan' => (string) ($row->nama_pelanggan ?? ''),
             'keterangan' => (string) ($row->keterangan ?? ''),
-            'jenis_jual' => (string) $row->jenis_jual,
-            'ongkir' => (float) $row->ongkir,
-            'ppn' => (float) $row->ppn,
-            'kode_gudang' => (string) $row->kode_gudang,
-            'kode_rekening' => (string) $row->kode_rekening,
-            'nama_rekening' => (string) $row->nama_rekening,
+            'jenis_jual' => (string) ($row->jenis_jual ?? ''),
+            'ongkir' => (float) ($row->ongkir ?? 0),
+            'ppn' => (float) ($row->ppn ?? 0),
+            'kode_gudang' => (string) ($row->kode_gudang ?? ''),
+            'kd_rek' => (string) ($row->kd_rek ?? ''),
+            'nama_bayar' => (string) ($row->nama_bayar ?? ''),
+            'kode_rekening' => (string) ($row->kode_rekening ?? ''),
+            'nama_rekening' => (string) ($row->nama_rekening ?? ''),
             'grandtotal' => (float) $row->grandtotal,
         ];
     }
@@ -923,8 +924,8 @@ class BridgingPendapatanObatService
                 p.sisapiutang AS sisapiutang,
                 COALESCE(SUM(dp.total), 0) + COALESCE(p.ongkir, 0) + COALESCE(p.ppn, 0) AS grandtotal
             FROM piutang p
-            LEFT JOIN detailpiutang dp ON BINARY dp.nota_piutang = BINARY p.nota_piutang
-            WHERE BINARY p.nota_piutang = BINARY ?
+            LEFT JOIN detailpiutang dp ON dp.nota_piutang = p.nota_piutang
+            WHERE p.nota_piutang = ?
             GROUP BY
                 p.nota_piutang, p.tgl_piutang, p.no_rkm_medis, p.nm_pasien, p.catatan,
                 p.jns_jual, p.ongkir, p.ppn, p.kd_bangsal, p.status, p.tgltempo, p.uangmuka, p.sisapiutang
@@ -984,23 +985,6 @@ class BridgingPendapatanObatService
         ]);
     }
 
-    private function ambilNomerJurnalPiutangTerakhir(string $nota): ?string
-    {
-        $row = collect(DB::connection('simrs')->select(
-            <<<'SQL'
-            SELECT no_jurnal
-            FROM jurnal
-            WHERE no_bukti = ?
-              AND keterangan LIKE 'PIUTANG DI APOTEK%'
-            ORDER BY no_jurnal DESC
-            LIMIT 1
-            SQL,
-            [$nota]
-        ))->first();
-
-        return $row !== null ? (string) $row->no_jurnal : null;
-    }
-
     private function ambilRincianTagihanPerNomerTransaksi(string $nomerTransaksi): Collection
     {
         return collect(DB::connection('simrs')->select(
@@ -1009,6 +993,7 @@ class BridgingPendapatanObatService
                 p.nota_jual AS nomer_transaksi,
                 dj.kode_brng AS kode_barang,
                 db.nama_brng AS nama_barang,
+                dj.h_beli AS harga_beli,
                 dj.h_jual AS harga_jual,
                 dj.jumlah AS kuantitas,
                 dj.subtotal AS subtotal,
@@ -1024,48 +1009,11 @@ class BridgingPendapatanObatService
             'nomer_transaksi' => (string) $row->nomer_transaksi,
             'kode_barang' => (string) $row->kode_barang,
             'nama_barang' => (string) $row->nama_barang,
-            'harga_jual' => (float) $row->harga_jual,
-            'kuantitas' => (float) $row->kuantitas,
-            'subtotal' => (float) $row->subtotal,
-            'total' => (float) $row->total,
-        ]);
-    }
-
-    private function ambilNomerJurnalSimrsTerakhir(string $nomerTransaksi): ?string
-    {
-        $row = collect(DB::connection('simrs')->select(
-            <<<'SQL'
-            SELECT j.no_jurnal
-            FROM jurnal j
-            WHERE j.no_bukti = ?
-            ORDER BY j.no_jurnal DESC
-            LIMIT 1
-            SQL,
-            [$nomerTransaksi]
-        ))->first();
-
-        return $row !== null ? (string) $row->no_jurnal : null;
-    }
-
-    private function ambilRincianJurnalSimrs(string $nomerJurnal): Collection
-    {
-        return collect(DB::connection('simrs')->select(
-            <<<'SQL'
-            SELECT
-                dj.no_jurnal,
-                dj.kd_rek,
-                dj.debet,
-                dj.kredit
-            FROM detailjurnal dj
-            WHERE dj.no_jurnal = ?
-            ORDER BY dj.kd_rek ASC
-            SQL,
-            [$nomerJurnal]
-        ))->map(fn (object $row) => [
-            'no_jurnal' => (string) $row->no_jurnal,
-            'kd_rek' => (string) $row->kd_rek,
-            'debet' => (float) ($row->debet ?? 0),
-            'kredit' => (float) ($row->kredit ?? 0),
+            'harga_beli' => (float) ($row->harga_beli ?? 0),
+            'harga_jual' => (float) ($row->harga_jual ?? 0),
+            'kuantitas' => (float) ($row->kuantitas ?? 0),
+            'subtotal' => (float) ($row->subtotal ?? 0),
+            'total' => (float) ($row->total ?? 0),
         ]);
     }
 

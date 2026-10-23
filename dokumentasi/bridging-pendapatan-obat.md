@@ -4,22 +4,25 @@
 
 Modul **Bridging Pendapatan Obat** digunakan untuk:
 
-1. menarik kandidat tagihan penjualan obat & BHP dari SIMRS,
-2. mengimpor transaksi terpilih menjadi **Jurnal Umum** atau **Invoice Pendapatan**,
-3. menghapus data hasil import secara massal.
-4. menarik piutang obat/BHP SIMRS sebagai Invoice Pendapatan.
+1. menarik kandidat tagihan penjualan obat & BHP dari SIMRS (`penjualan` dan `detailjual`),
+2. mengimpor transaksi penjualan obat terpilih menjadi **Jurnal Umum** atau **Invoice Pendapatan**,
+3. menarik piutang obat & BHP dari SIMRS (`piutang` dan `detailpiutang`) menjadi **Invoice Pendapatan**,
+4. menghapus data hasil import secara massal beserta jurnal, faktur penjualan, dan mutasi Buku Besarnya.
+
+> [!NOTE]
+> Mulai versi ini, modul Bridging Pendapatan Obat **tidak lagi membaca tabel jurnal SIMRS** (`jurnal` dan `detailjurnal`). Akun lawan kas/bank diambil langsung dari Cara Bayar billing apotek via `MappingLawanPendapatanSimrs`, sedangkan akun Pendapatan, HPP, Persediaan, Piutang, dan Kas Uang Muka diambil dari konfigurasi terpusat di modul **Setting Akun Obat & BHP** (`setting_bridging_obats`).
 
 Implementasi utama:
 
 - `routes/web.php`
 - `app/Http/Controllers/Bridging/BridgingPendapatanObatController.php`
 - `app/Http/Requests/Bridging/ImportPendapatanObatRequest.php`
+- `app/Http/Requests/Bridging/ImportPiutangObatRequest.php`
 - `app/Http/Requests/Bridging/BulkDeletePendapatanObatRequest.php`
 - `app/Services/Bridging/BridgingPendapatanObatService.php`
 - `app/Models/Pelanggan.php`, `app/Models/FakturPenjualan.php`, `app/Models/FakturPenjualanRinci.php`
-- `app/Models/SimrsImportPendapatanJualObat.php`, `app/Models/MappingCoaSimrs.php`,
-  `app/Models/JurnalUmum.php`, `app/Models/JurnalUmumRinci.php`, `app/Models/BukuBesar.php`,
-  `app/Models/LogHapusImportPendapatan.php`
+- `app/Models/SimrsImportPendapatanJualObat.php`, `app/Models/SettingBridgingObat.php`, `app/Models/MappingLawanPendapatanSimrs.php`
+- `app/Models/JurnalUmum.php`, `app/Models/JurnalUmumRinci.php`, `app/Models/BukuBesar.php`, `app/Models/LogHapusImportPendapatan.php`
 
 ## Entry Point / API
 
@@ -38,13 +41,17 @@ Implementasi utama:
 ## Validasi Request
 
 `ImportPendapatanObatRequest`:
-
 - `selectedNoTransaksi` wajib array minimal 1,
 - `selectedNoTransaksi.*` wajib string maks 100,
 - `jenisProses` hanya boleh `JurnalUmum` atau `InvoicePendapatan`.
 
-`BulkDeletePendapatanObatRequest`: `selectedNoTransaksi` wajib array minimal 1 (item string).
-`ImportPiutangObatRequest`: `selectedNoTransaksi` wajib array minimal 1 (item string maks 100).
+`ImportPiutangObatRequest`:
+- `selectedNoTransaksi` wajib array minimal 1 (item string maks 100).
+
+`BulkDeletePendapatanObatRequest`:
+- `selectedNoTransaksi` wajib array minimal 1 (item string).
+
+---
 
 ## Alur 1: Tarik Kandidat Tagihan dari SIMRS
 
@@ -57,7 +64,7 @@ flowchart TD
     C --> D["loadTagihanSimrs()"]
     D --> E["BridgingPendapatanObatService::getKandidatTagihanSimrs()"]
     E --> F["Ambil nomer_transaksi yang sudah diimpor (simrs_import_pendapatan_jual_obat)"]
-    F --> G["Query SIMRS: penjualan JOIN detailjual (status 'Sudah Dibayar', per periode)"]
+    F --> G["Query SIMRS: penjualan JOIN detailjual LEFT JOIN akun_bayar (status 'Sudah Dibayar', per periode)"]
     G --> H["Kecualikan yang sudah diimpor, map hasil"]
     H --> I["DataTables::collection()->toJson()"]
 ```
@@ -65,11 +72,13 @@ flowchart TD
 ### Algoritma
 
 1. `getKandidatTagihanSimrs()` mengambil daftar `nomer_transaksi` yang sudah diimpor pada periode itu.
-2. Query ke koneksi `simrs` mengambil header penjualan (`penjualan`) + agregasi subtotal dari
-   `detailjual`, hanya status `Sudah Dibayar`, `grandtotal = SUM(subtotal) + ongkir + ppn`.
-3. Baris yang sudah pernah diimpor dikecualikan (`reject`), sisanya dipetakan ke array kandidat.
+2. Query ke koneksi `simrs` mengambil header penjualan (`penjualan`) + agregasi subtotal dari `detailjual`, hanya status `Sudah Dibayar`.
+3. Kode rekening cara bayar di-resolve otomatis: `COALESCE(NULLIF(p.kd_rek, ''), ab.kd_rek, p.nama_bayar)` dengan `nama_rekening = p.nama_bayar`.
+4. Baris yang sudah pernah diimpor dikecualikan (`reject`), sisanya dipetakan ke array kandidat.
 
-## Alur 2: Import ke Jurnal Umum atau Invoice Pendapatan
+---
+
+## Alur 2: Import Tagihan Obat ke Jurnal Umum atau Invoice Pendapatan
 
 ### Flowchart
 
@@ -79,61 +88,91 @@ flowchart TD
     B --> C["processImport() -> imporBanyak()"]
     C --> D{"Loop tiap nomer_transaksi unik"}
     D --> E["imporSatu()"]
-    E --> F{"Tujuan import?"}
-    F -- JurnalUmum --> G["Jalur Jurnal Umum"]
-    F -- InvoicePendapatan --> G2["Jalur Invoice Pendapatan"]
-    G --> H{"Sudah pernah diimpor?"}
-    H -- Ya --> I["Gagal: sudah diimport"]
-    H -- Tidak --> J["ambilTagihanPerNomerTransaksi()"]
-    J --> K["ambilRincianTagihanPerNomerTransaksi()"]
-    K --> L["ambilNomerJurnalSimrsTerakhir() + ambilRincianJurnalSimrs()"]
-    L --> M["DB::transaction"]
-    M --> N["simpanHasilImport() ke simrs_import_pendapatan_jual_obat"]
-    N --> O["Buat JurnalUmum (debit=kredit=grandtotal)"]
-    O --> P["Loop rincian jurnal SIMRS: wajib lolos MappingCoaSimrs by kd_rek"]
-    P --> Q["Buat JurnalUmumRinci + BukuBesar (D/K sesuai debet/kredit SIMRS)"]
-    Q --> R{"Total debit = kredit? (toleransi 0.01)"}
-    R -- Tidak --> S["throw RuntimeException tidak balance"]
-    R -- Ya --> T["Return berhasil + LogAktifitasService::log(create)"]
-    G2 --> U["Cari/buat pelanggan jenis Obat & BHP"]
-    U --> V["Validasi mapping akun lawan dan total debit"]
-    V --> W["Buat FakturPenjualan + rincian"]
-    W --> X["Buat mutasi BukuBesar sumber Invoice Pendapatan"]
-    X --> Y["Simpan import_ke = Invoice Pendapatan"]
+    E --> F{"Sudah pernah diimpor?"}
+    F -- Ya --> F1["Gagal: sudah pernah diimport"]
+    F -- Tidak --> G["ambilTagihanPerNomerTransaksi() & ambilRincianTagihanPerNomerTransaksi()"]
+    G --> H["getSettingBridgingObat(): Validasi 5 Akun Setting Obat"]
+    H --> I["resolveAkunLawanCaraBayar(): Ambil COA Kas/Bank via MappingLawanPendapatanSimrs"]
+    I --> J["Hitung Total HPP = SUM(jumlah * h_beli)"]
+    J --> K{"Tujuan Import?"}
+    K -- JurnalUmum --> L["DB::transaction: Buat JurnalUmum + JurnalUmumRinci 4 Baris + BukuBesar 4 Baris seimbang"]
+    K -- InvoicePendapatan --> M["DB::transaction: Buat FakturPenjualan + Rinci + BukuBesar 4 Baris seimbang"]
+    L --> N["simpanHasilImport(import_ke = JurnalUmum)"]
+    M --> O["simpanHasilImport(import_ke = Invoice Pendapatan)"]
+    N --> P["LogAktifitasService::log(create)"]
+    O --> P
 ```
 
 ### Algoritma
 
-1. `imporBanyak()` melakukan loop tiap `nomer_transaksi` unik, memanggil `imporSatu()`, menangkap
-   error per transaksi ke dalam hasil.
-2. `imporSatu()` menerima `JurnalUmum` atau `InvoicePendapatan` dan menolak transaksi yang sudah diimpor.
-3. Service mengambil header tagihan, rincian tagihan, nomor jurnal SIMRS terakhir (dari `jurnal` by
-   `no_bukti`), dan rincian jurnal SIMRS (dari `detailjurnal`).
-4. Dalam transaksi: simpan log import, buat `JurnalUmum` dengan `debit = kredit = grandtotal`.
-5. Untuk tiap baris jurnal SIMRS, kode rekening (`kd_rek`) **wajib** punya `MappingCoaSimrs`; bila
-   tidak ada, `RuntimeException` dilempar.
-6. Buat `JurnalUmumRinci` dan mutasi `BukuBesar` (`sumber_transaksi = 'Jurnal Umum'`) dengan arah
-   `D`/`K` mengikuti nilai debet/kredit SIMRS.
-7. Bila total debit ≠ kredit (toleransi `0.01`), transaksi digagalkan.
-8. Aktivitas dicatat via `LogAktifitasService::log('Bridging Pendapatan Obat', 'create')`.
+1. `imporBanyak()` melakukan perulangan untuk setiap `nomer_transaksi` unik dan memanggil `imporSatu()`.
+2. Validasi awal: menolak tipe proses yang tidak didukung serta transaksi yang sudah pernah diimpor.
+3. Mengambil data header `penjualan` dan item `detailjual` dari database SIMRS.
+4. Memvalidasi `getSettingBridgingObat()`: jika salah satu dari 5 akun konfigurasi belum disetting, lempar `RuntimeException`.
+5. Menentukan akun Kas/Bank via `resolveAkunLawanCaraBayar()`: mencari mapping dari `penjualan.kd_rek`, fallback ke lookup `akun_bayar.kd_rek`, dan dicocokkan ke `MappingLawanPendapatanSimrs`. Jika belum dimapping, lempar `RuntimeException`.
+6. Menghitung HPP secara presisi: `SUM(detailjual.jumlah * detailjual.h_beli)`.
+7. **Jalur Jurnal Umum**:
+   - Buat header `JurnalUmum` dengan total nilai jurnal = `grandtotal + total_hpp`.
+   - Baris 1: Debit Kas/Bank dari Cara Bayar (`grandtotal`).
+   - Baris 2: Kredit Pendapatan Obat & BHP (`grandtotal`).
+   - Baris 3 (jika HPP > 0): Debit HPP Obat & BHP (`total_hpp`).
+   - Baris 4 (jika HPP > 0): Kredit Persediaan Obat & BHP (`total_hpp`).
+   - Catat rincian `JurnalUmumRinci` dan mutasi `BukuBesar` (`sumber_transaksi = 'Jurnal Umum'`).
+8. **Jalur Invoice Pendapatan**:
+   - Cari atau buat `Pelanggan` bertipe `Obat & BHP` menggunakan nomor RM dan nama pasien.
+   - Buat `FakturPenjualan` dengan `akun_piutang_id = null` dan `sudah_terbayar = grandtotal` (penjualan tunai lunas kasir).
+   - Buat `FakturPenjualanRinci` untuk tiap barang obat.
+   - Buat mutasi `BukuBesar` (`sumber_transaksi = 'Invoice Pendapatan'`): Debit Kas/Bank (`grandtotal`), Kredit Pendapatan Obat (`grandtotal`), Debit HPP Obat (`total_hpp`), Kredit Persediaan Obat (`total_hpp`).
+9. Simpan rekam jejak ke `SimrsImportPendapatanJualObat`.
+10. Catat aktivitas ke audit log via `LogAktifitasService::log('Bridging Pendapatan Obat', 'create')`.
 
-9. Pada tujuan `InvoicePendapatan`, pelanggan dicari/dibuat dengan kode dari nomor RM
-   (`penjualan.no_rkm_medis`), nama pasien dari SIMRS, dan `jenis_pelanggan = 'Obat & BHP'`.
-   `nama_bayar` tetap disimpan sebagai informasi rekening, bukan sebagai kode pelanggan.
-10. Rincian debit dikelompokkan berdasarkan kode rekening dan dipetakan melalui
-    `MappingLawanPendapatanSimrs`. Akun bertipe `Kasbank` atau piutang diprioritaskan; bila tersedia,
-    pemilihan akun mengikuti nominal grandtotal seperti Bridging Billing. Akun lawan terpilih harus
-    cocok dengan grandtotal (toleransi `0.01`).
-11. `sudah_terbayar` diisi dari total akun lawan dengan COA bertipe `Kasbank`; `akun_piutang_id`
-    diisi hanya jika terdapat satu akun lawan dan COA-nya bertipe piutang.
-12. Header invoice memakai nomor transaksi, tanggal penjualan (untuk `tanggal_faktur` dan
-    `tanggal_registrasi`), nama pelanggan SIMRS, serta nomor RM dari `penjualan.no_rkm_medis`
-    untuk `nomer_rekam_medis`. Rincian invoice diambil dari `detailjual`.
-    Mutasi Buku Besar mengikuti seluruh rincian jurnal SIMRS:
-    kode akun lawan terpilih memakai mapping akun lawan, sedangkan kode lain memakai
-    `MappingCoaSimrs`; sumber mutasi adalah `Invoice Pendapatan`.
+---
 
-## Alur 3: Hapus Massal
+## Alur 3: Tarik Piutang Obat & BHP ke Invoice Pendapatan
+
+### Flowchart
+
+```mermaid
+flowchart TD
+    A["GET /tarik-piutang"] --> B["tarikPiutang() render view"]
+    B --> C["DataTable GET /load-piutang-simrs"]
+    C --> D["Query SIMRS: piutang LEFT JOIN detailpiutang (sisapiutang > 0, per periode)"]
+    D --> E["Kecualikan yang sudah diimpor, map hasil kandidat"]
+    E --> F["User pilih transaksi -> POST /process-import-piutang"]
+    F --> G["imporPiutangBanyak() -> imporSatuPiutang()"]
+    G --> H["getSettingBridgingObat(): Ambil akun Piutang, Kas Uang Muka, dan Persediaan"]
+    H --> I["Validasi rekonsiliasi: grandtotal == uangmuka + sisapiutang"]
+    I --> J["DB::transaction: Buat FakturPenjualan (akun_piutang_id = piutang_obat_coa_id)"]
+    J --> K["Buat FakturPenjualanRinci dari detailpiutang"]
+    K --> L["Buat mutasi BukuBesar seimbang: Piutang D, Uang Muka D (jika ada), Persediaan K"]
+    L --> M["simpanHasilImport(import_ke = Invoice Piutang Obat)"]
+    M --> N["LogAktifitasService::log(create, 'Piutang Obat & BHP')"]
+```
+
+### Algoritma
+
+1. `getKandidatPiutangSimrs()` membaca data `piutang` SIMRS dengan `sisapiutang > 0` dan mengecualikan nomor nota yang sudah tercatat di `simrs_import_pendapatan_jual_obat`.
+2. `imporPiutangBanyak()` memproses setiap nota secara atomik via `imporSatuPiutang()`.
+3. Validasi setting obat via `getSettingBridgingObat()`: akun Piutang, Persediaan, dan Kas Uang Muka wajib terkonfigurasi.
+4. Validasi rekonsiliasi: `grandtotal` (detail + ppn + ongkir) harus tepat sama dengan `uangmuka + sisapiutang` (toleransi Rp0,01).
+5. Cari/buat master `Pelanggan` bertipe `Obat & BHP` menggunakan nomor RM dan nama pasien SIMRS.
+6. Buat `FakturPenjualan` lokal:
+   - Nomor faktur: `P-` + nomor nota piutang SIMRS (mencegah tabrakan nomor faktur).
+   - `akun_piutang_id = setting->piutang_obat_coa_id`.
+   - `grandtotal = $grandtotal`.
+   - `sudah_terbayar = $tagihan['uangmuka']`.
+7. Buat `FakturPenjualanRinci` mencatat rincian barang, satuan, batch, dan aturan pakai.
+8. Buat mutasi `BukuBesar` (`sumber_transaksi = 'Invoice Piutang Obat'`):
+   - Debit: `setting->piutang_obat_coa_id` sebesar `sisapiutang`.
+   - Debit (jika `uangmuka > 0`): `setting->kas_uang_muka_coa_id` sebesar `uangmuka`.
+   - Kredit: `setting->persediaan_obat_coa_id` sebesar `grandtotal`.
+   - Total Debit dan Kredit dijamin tepat seimbang.
+9. Simpan catatan import ke `simrs_import_pendapatan_jual_obat` dengan `import_ke = 'Invoice Piutang Obat'`.
+10. Catat aktivitas via `LogAktifitasService::log('Bridging Pendapatan Obat', 'create')`.
+
+---
+
+## Alur 4: Hapus Massal
 
 ### Flowchart
 
@@ -147,93 +186,49 @@ flowchart TD
     F --> G{"Ada data import?"}
     G -- Tidak --> H["throw: data tidak ditemukan"]
     G -- Ya --> I{"import_ke"}
-    I -- JurnalUmum --> J["Cari dan hapus JurnalUmum + rincian + BukuBesar"]
-    I -- Invoice Pendapatan --> K["Cari invoice dengan nomor dan penanda Bridging Pendapatan Obat"]
-    K --> L["Hapus invoice + rincian + BukuBesar jika ditemukan"]
-    J --> M["Buat LogHapusImportPendapatan dengan sumber sesuai jenis import"]
+    I -- JurnalUmum --> J["Cari & hapus JurnalUmum + JurnalUmumRinci + BukuBesar ('Jurnal Umum')"]
+    I -- Invoice Pendapatan --> K["Cari & hapus FakturPenjualan + FakturPenjualanRinci + BukuBesar ('Invoice Pendapatan')"]
+    I -- Invoice Piutang Obat --> L["Cari & hapus FakturPenjualan (nomor P-xxx) + Rinci + BukuBesar ('Invoice Piutang Obat')"]
+    J --> M["Catat LogHapusImportPendapatan"]
+    K --> M
     L --> M
-    M --> N["Hapus SimrsImportPendapatanJualObat"]
+    M --> N["Hapus baris SimrsImportPendapatanJualObat"]
     N --> O["LogAktifitasService::log(delete)"]
-```
-
-## Alur 4: Tarik Piutang Obat & BHP ke Invoice Pendapatan
-
-### Flowchart
-
-```mermaid
-flowchart TD
-    A["GET /tarik-piutang"] --> B["tarikPiutang() render halaman"]
-    B --> C["DataTable GET /load-piutang-simrs"]
-    C --> D["Query SIMRS piutang + agregasi detailpiutang"]
-    D --> E["Filter saldo > 0, tanggal, dan nomor yang belum diimpor"]
-    E --> F["POST /process-import-piutang"]
-    F --> G["imporPiutangBanyak(): proses satu per satu"]
-    G --> H["Validasi rincian, rekonsiliasi, jurnal APOTEK terbaru, dan mapping"]
-    H --> I["DB::transaction: pelanggan + invoice + rincian + Buku Besar + log import"]
 ```
 
 ### Algoritma
 
-1. `getKandidatPiutangSimrs()` membaca `piutang` beserta agregasi `detailpiutang.total`, membatasi
-   `sisapiutang > 0` dan tanggal piutang dalam rentang, lalu mengecualikan nota dengan log berpenanda
-   `Invoice Piutang Obat`.
-2. `imporPiutangBanyak()` menangani tiap nota secara terpisah. `imporSatuPiutang()` menolak transaksi
-   tanpa rincian dan menghitung `grandtotal = SUM(detailpiutang.total) + ppn + ongkir`.
-3. Grandtotal harus sama dengan `uangmuka + sisapiutang` dengan toleransi Rp0,01. Jurnal diambil dari
-   `jurnal` dengan keterangan berawalan `PIUTANG DI APOTEK`, memilih `no_jurnal` terbesar; debit
-   rekening `117000` harus sama dengan sisa piutang dan jurnal harus balance.
-4. Dalam transaksi database lokal, mapping akun piutang `117000` wajib tersedia pada
-   `MappingLawanPendapatanSimrs`, sedangkan semua rekening jurnal lain wajib tersedia pada
-   `MappingCoaSimrs`. COA tujuan juga harus ada.
-5. Pelanggan dicari/dibuat dengan kode `no_rkm_medis`, nama pasien SIMRS, dan jenis `Obat & BHP`.
-   Pembuatan pelanggan menggunakan assignment atribut eksplisit agar tidak bergantung pada
-   konfigurasi mass assignment model `Pelanggan`.
-   Nomor invoice lokal memakai prefix `P-` sebelum nomor piutang SIMRS untuk mencegah benturan
-   dengan nomor rawat/billing. Kunci import tetap memakai nomor piutang SIMRS tanpa prefix.
-   Header invoice memakai `tgl_piutang` sebagai tanggal faktur/registrasi, `grandtotal` sesuai
-   perhitungan, `uangmuka` sebagai `sudah_terbayar`, dan akun mapping `117000` sebagai akun piutang.
-6. Rincian invoice dibuat dari `detailpiutang`, termasuk kode barang, satuan, batch, dan aturan pakai
-   dalam catatan. Buku Besar menyalin baris jurnal APOTEK, dengan `117000` memakai mapping akun
-   lawan dan rekening lainnya memakai mapping COA umum. Sumber mutasi dan penanda import adalah
-   `Invoice Piutang Obat`.
-7. Kegagalan validasi/mapping me-rollback invoice, rincian, pelanggan baru, log import, dan mutasi
-   untuk nota tersebut; nota lain dalam batch tetap diproses.
+1. Untuk setiap nomor transaksi yang dipilih, seluruh operasi penghapusan dibungkus dalam `DB::transaction`.
+2. Jika transaksi berasal dari:
+   - `JurnalUmum`: menghapus `JurnalUmumRinci`, mutasi `BukuBesar` sumber `'Jurnal Umum'`, dan header `JurnalUmum`.
+   - `Invoice Pendapatan`: menghapus `FakturPenjualanRinci`, mutasi `BukuBesar` sumber `'Invoice Pendapatan'`, dan header `FakturPenjualan`.
+   - `Invoice Piutang Obat`: mencari nomor faktur berawalan `P-`, menghapus `FakturPenjualanRinci`, mutasi `BukuBesar` sumber `'Invoice Piutang Obat'`, dan header `FakturPenjualan`.
+3. Mencatat log penghapusan pada `LogHapusImportPendapatan`.
+4. Menghapus rekam jejak import dari `SimrsImportPendapatanJualObat`.
+5. Mencatat log aktivitas ke `LogAktifitasService::log('Bridging Pendapatan Obat', 'delete')`.
+
+---
 
 ## Fungsi yang Dipanggil
 
 - `BridgingPendapatanObatController::index()/loadImportedData()/tarikTagihan()/loadTagihanSimrs()/processImport()/destroyBulk()`
 - `BridgingPendapatanObatController::tarikPiutang()/loadPiutangSimrs()/processImportPiutang()`
-- `BridgingPendapatanObatController::resolveDateRange()/applyDataTableSearch()` (private)
 - `BridgingPendapatanObatService::getQueryDataImport()/getKandidatTagihanSimrs()/imporBanyak()/hapusBanyak()`
 - `BridgingPendapatanObatService::getKandidatPiutangSimrs()/imporPiutangBanyak()/imporSatuPiutang()`
+- `BridgingPendapatanObatService::getSettingBridgingObat()` (public)
 - `BridgingPendapatanObatService::imporSatu()/simpanHasilImport()/buatKeteranganJurnal()` (private)
-- `BridgingPendapatanObatService::simpanInvoicePendapatanObat()` (private)
-- `BridgingPendapatanObatService::ambilTagihanPerNomerTransaksi()/ambilRincianTagihanPerNomerTransaksi()` (private)
-- `BridgingPendapatanObatService::ambilNomerJurnalSimrsTerakhir()/ambilRincianJurnalSimrs()/formatNominal()` (private)
+- `BridgingPendapatanObatService::simpanInvoicePendapatanObat()/resolveAkunLawanCaraBayar()` (private)
+- `BridgingPendapatanObatService::cariAtauBuatPelanggan()/ambilTagihanPerNomerTransaksi()/ambilRincianTagihanPerNomerTransaksi()` (private)
+- `BridgingPendapatanObatService::ambilPiutangPerNota()/ambilRincianPiutang()/formatNominal()` (private)
 - `BukuBesarService::resolvePeriode()` (static)
 - `LogAktifitasService::log()`
-- `MappingCoaSimrs::query()`, `SimrsImportPendapatanJualObat::scopeBetweenDates()`
-- `ImportPiutangObatRequest`
+
+---
 
 ## Catatan Penting Bisnis
 
-- Tujuan import adalah **Jurnal Umum** (`JurnalUmum`) atau **Invoice Pendapatan** (`InvoicePendapatan`).
-- Transaksi yang sudah diimpor tidak dapat diimpor ulang (dicek pada `simrs_import_pendapatan_jual_obat`).
-- Jurnal lokal **mengikuti jurnal SIMRS** apa adanya, tetapi setiap `kd_rek` wajib punya
-  `MappingCoaSimrs` agar COA konsisten; jika belum dipetakan, import gagal.
-- Import digagalkan bila total debit ≠ kredit (toleransi `0.01`).
-- Hapus massal menghapus jurnal/invoice, rincian, dan mutasi yang sesuai jenis import, mencatat
-  `LogHapusImportPendapatan` dengan sumber `Jual Obat` atau `Piutang Obat & BHP`, lalu menghapus
-  baris import terkait.
-- Untuk invoice, penghapusan memakai `import_ke` serta penanda invoice `Bridging Pendapatan Obat`
-  agar hanya invoice hasil modul ini beserta rincian dan mutasi Buku Besarnya yang terhapus.
-- Import piutang memakai penanda berbeda (`Invoice Piutang Obat`) dari invoice hasil jual obat.
-  Hapus massal menghapus hanya invoice berpenanda `Bridging Piutang Obat & BHP`, rinciannya, dan
-  mutasi dengan sumber tersebut.
-- Piutang SIMRS dengan rincian kosong, rekonsiliasi total yang berbeda, jurnal APOTEK tidak balance,
-  debit piutang `117000` yang tidak sama dengan saldo, atau mapping/COA yang tidak tersedia ditolak
-  per transaksi. Nilai `117000` diperlakukan sebagai akun piutang berdasarkan mapping, tanpa
-  mengandalkan nama tipe COA lokal.
-- Migration klasifikasi pelanggan mengisi `Penjamin` atau `Obat & BHP` bila invoice lama dapat
-  ditautkan dengan jelas ke data import; data yang tidak terlacak dibiarkan `NULL`.
-- Lihat [Integrasi SIMRS](fondasi/integrasi-simrs.md) dan [Konvensi Buku Besar & COA](fondasi/konvensi-bukubesar-coa.md).
+- **Kemandirian Pencatatan Akuntansi**: Modul tidak lagi bergantung pada tabel `jurnal` dan `detailjurnal` SIMRS. Ini menghindari kegagalan import akibat keterlambatan atau ketidakkonsistenan jurnal otomatis di sisi SIMRS.
+- **Cara Bayar Dinamis**: Akun kas/bank diambil langsung dari `penjualan.kd_rek` atau `penjualan.nama_bayar` kasir apotek yang dipetakan pada `MappingLawanPendapatanSimrs`.
+- **HPP & Persediaan Otomatis**: Setiap penjualan obat yang memiliki harga beli (`h_beli`) langsung menghitung HPP dan mengurangi persediaan obat secara otomatis baik pada pembentukan Jurnal Umum maupun Invoice Pendapatan.
+- **Setting Akun Terpusat**: Pengaturan 5 akun COA obat dikelola di menu Pengaturan > **Setting Akun Obat & BHP** (`SettingBridgingObat`).
+- Lihat [Dokumentasi Modul Setting Akun Obat & BHP](pengaturan-setting-obat.md) dan [Integrasi SIMRS](fondasi/integrasi-simrs.md).

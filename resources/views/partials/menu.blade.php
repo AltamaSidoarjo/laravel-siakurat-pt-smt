@@ -22,6 +22,7 @@
     $canPengaturanMappingPendapatan = $can('pengaturan.mapping-pendapatan');
     $canPengaturanMappingGeneral = $can('pengaturan.mapping-general');
     $canPengaturanSettingRba = $can('pengaturan.setting-rba');
+    $canPengaturanSettingObat = $can('pengaturan.setting-obat');
     $canPengaturanPreferensi = $can('pengaturan.preferensi');
     $canPengaturanPengguna = $can('pengaturan.pengguna');
     $canPengaturanRoleAkses = $can('pengaturan.role-akses');
@@ -45,6 +46,7 @@
     $canSeePengaturan = $canPengaturanMappingPendapatan
         || $canPengaturanMappingGeneral
         || $canPengaturanSettingRba
+        || $canPengaturanSettingObat
         || $canPengaturanPreferensi
         || $canPengaturanPengguna
         || $canPengaturanRoleAkses
@@ -316,7 +318,18 @@
                     </a>
                 </li>
             @endif
-            @if ($canPengaturanSettingRba && ($canPengaturanPreferensi || $canPengaturanPengguna || $canPengaturanRoleAkses || $canPengaturanKonversiFile))
+            @if ($canPengaturanSettingRba && ($canPengaturanSettingObat || $canPengaturanPreferensi || $canPengaturanPengguna || $canPengaturanRoleAkses || $canPengaturanKonversiFile))
+                <li><hr class="dropdown-divider"></li>
+            @endif
+            @if ($canPengaturanSettingObat)
+                <li>
+                    <a class="dropdown-item {{ str_starts_with($path, '/pengaturan/setting-obat') ? 'active fw-bold bg-success-subtle text-success' : 'fw-semibold' }}"
+                        href="{{ route('pengaturan.setting-obat.index') }}">
+                        Setting Akun Obat & BHP
+                    </a>
+                </li>
+            @endif
+            @if ($canPengaturanSettingObat && ($canPengaturanPreferensi || $canPengaturanPengguna || $canPengaturanRoleAkses || $canPengaturanKonversiFile))
                 <li><hr class="dropdown-divider"></li>
             @endif
             @if ($canPengaturanPreferensi)

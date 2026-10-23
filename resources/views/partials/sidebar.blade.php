@@ -23,6 +23,7 @@
     $canPengaturanMappingPendapatan = $can('pengaturan.mapping-pendapatan');
     $canPengaturanMappingGeneral = $can('pengaturan.mapping-general');
     $canPengaturanSettingRba = $can('pengaturan.setting-rba');
+    $canPengaturanSettingObat = $can('pengaturan.setting-obat');
     $canPengaturanPreferensi = $can('pengaturan.preferensi');
     $canPengaturanPengguna = $can('pengaturan.pengguna');
     $canPengaturanRoleAkses = $can('pengaturan.role-akses');
@@ -32,6 +33,7 @@
     $canSeePengaturan = $canPengaturanMappingPendapatan
         || $canPengaturanMappingGeneral
         || $canPengaturanSettingRba
+        || $canPengaturanSettingObat
         || $canPengaturanPreferensi
         || $canPengaturanPengguna
         || $canPengaturanRoleAkses
@@ -331,6 +333,14 @@
                         <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/setting-rba') ? 'active' : '' }}"
                            href="{{ route('pengaturan.setting-rba.index') }}">
                             <i class="bi bi-circle-fill sidebar-bullet"></i> Setting RBA
+                        </a>
+                    </li>
+                    @endif
+                    @if ($canPengaturanSettingObat)
+                    <li>
+                        <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/setting-obat') ? 'active' : '' }}"
+                           href="{{ route('pengaturan.setting-obat.index') }}">
+                            <i class="bi bi-circle-fill sidebar-bullet"></i> Setting Akun Obat & BHP
                         </a>
                     </li>
                     @endif

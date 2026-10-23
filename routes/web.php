@@ -24,6 +24,7 @@ use App\Http\Controllers\Pengaturan\MappingPendapatanController;
 use App\Http\Controllers\Pengaturan\PenggunaController;
 use App\Http\Controllers\Pengaturan\PreferensiController;
 use App\Http\Controllers\Pengaturan\RoleAksesController;
+use App\Http\Controllers\Pengaturan\SettingBridgingObatController;
 use App\Http\Controllers\Pengaturan\SettingRbaController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -326,6 +327,13 @@ Route::middleware('auth')->group(function () {
         });
         Route::middleware('module.access:pengaturan.mapping-general,delete')->group(function () {
             Route::delete('/mapping-general/{mappingCoaSimrs}', [MappingGeneralController::class, 'destroy'])->name('mapping-general.destroy');
+        });
+
+        Route::middleware('module.access:pengaturan.setting-obat,view')->group(function () {
+            Route::get('/setting-obat', [SettingBridgingObatController::class, 'index'])->name('setting-obat.index');
+        });
+        Route::middleware('module.access:pengaturan.setting-obat,update')->group(function () {
+            Route::post('/setting-obat', [SettingBridgingObatController::class, 'update'])->name('setting-obat.update');
         });
 
         Route::middleware('module.access:pengaturan.setting-rba,view')->group(function () {
