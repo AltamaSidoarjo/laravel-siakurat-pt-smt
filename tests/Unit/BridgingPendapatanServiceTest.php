@@ -58,102 +58,219 @@ class BridgingPendapatanServiceTest extends TestCase
         $this->assertFalse($method->invoke($service, $mapping, 'J000789', 'Administrasi Rawat Jalan', 'Rawat Inap'));
     }
 
-    public function test_pilih_akun_lawan_pendapatan_simrs_memprioritaskan_exact_match(): void
+    public function test_tentukan_akun_lawan_berhasil_dari_nota_kasir_murni(): void
     {
-        $service = new BridgingPendapatanService(
-            $this->getMockBuilder(BukuBesarService::class)->disableOriginalConstructor()->getMock(),
-            $this->getMockBuilder(LogAktifitasService::class)->disableOriginalConstructor()->getMock(),
-        );
+        $service = new class(
+            $this->createMock(BukuBesarService::class),
+            $this->createMock(LogAktifitasService::class)
+        ) extends BridgingPendapatanService {
+            public array $mockNota = [];
 
-        $method = new ReflectionMethod(BridgingPendapatanService::class, 'pilihAkunLawanPendapatanSimrs');
+            protected function ambilRincianNotaKasir(string $statusLanjut, string $noRawat): Collection
+            {
+                return collect($this->mockNota);
+            }
+        };
+
+        $service->mockNota = [
+            ['nama_bayar' => 'Bayar Cash', 'kd_rek' => '111010', 'debet' => 300_000.0],
+        ];
+
+        $method = new ReflectionMethod(BridgingPendapatanService::class, 'tentukanAkunLawanPendapatan');
         $method->setAccessible(true);
 
-        $result = $method->invoke(
-            $service,
-            new Collection([
-                ['kd_rek' => '111.01', 'debet' => 3055600.0],
-                ['kd_rek' => '111.02', 'debet' => 529804.0],
-            ]),
-            3055600.0,
-        );
+        $billing = [
+            'no_rawat' => '2026/09/16/000001',
+            'status_lanjut' => 'Ralan',
+            'kode_penjamin' => 'A09',
+            'penjamin' => 'UMUM',
+        ];
 
-        $this->assertInstanceOf(Collection::class, $result);
+        $details = new Collection([
+            ['status_billing' => 'Ralan Dokter', 'total_biaya' => 300_000.0],
+        ]);
+
+        $mappingLawan = new Collection([
+            new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '111010', 'coa_id' => 5]),
+        ]);
+
+        $coaLookup = new Collection([
+            5 => new Coa(['id' => 5, 'kode' => '111.01', 'tipe_coa' => 'Kasbank']),
+        ]);
+
+        $result = $method->invoke($service, $billing, $details, $mappingLawan, $coaLookup);
+
         $this->assertCount(1, $result);
-        $this->assertSame('111.01', $result->first()['kd_rek']);
-        $this->assertSame(3055600.0, $result->first()['debet']);
+        $this->assertSame(5, $result[0]['coa_id']);
+        $this->assertSame(300_000.0, $result[0]['debit']);
     }
 
-    public function test_prioritaskan_akun_lawan_berdasarkan_tipe_coa_bukan_awalan_kode(): void
+    public function test_tentukan_akun_lawan_berhasil_dari_piutang_penjamin_murni(): void
     {
-        $service = new BridgingPendapatanService(
-            $this->getMockBuilder(BukuBesarService::class)->disableOriginalConstructor()->getMock(),
-            $this->getMockBuilder(LogAktifitasService::class)->disableOriginalConstructor()->getMock(),
-        );
+        $service = new class(
+            $this->createMock(BukuBesarService::class),
+            $this->createMock(LogAktifitasService::class)
+        ) extends BridgingPendapatanService {
+            protected function ambilRincianNotaKasir(string $statusLanjut, string $noRawat): Collection
+            {
+                return collect();
+            }
 
-        $method = new ReflectionMethod(BridgingPendapatanService::class, 'prioritaskanAkunLawanKasAtauPiutang');
+            protected function ambilRekeningPiutangPenjamin(string $statusLanjut, string $kodePenjamin, string $namaPenjamin): string
+            {
+                return '117003';
+            }
+        };
+
+        $method = new ReflectionMethod(BridgingPendapatanService::class, 'tentukanAkunLawanPendapatan');
         $method->setAccessible(true);
 
+        $billing = [
+            'no_rawat' => '2026/09/16/000002',
+            'status_lanjut' => 'Ralan',
+            'kode_penjamin' => 'BPJ',
+            'penjamin' => 'BPJS Kesehatan',
+        ];
+
+        $details = new Collection([
+            ['status_billing' => 'Ralan Dokter', 'total_biaya' => 500_000.0],
+        ]);
+
         $mappingLawan = new Collection([
-            new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '111001', 'coa_id' => 2]),
-            new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '112003', 'coa_id' => 7]),
-            new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '115001', 'coa_id' => 44]),
-            new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '450001', 'coa_id' => 1221]),
-            new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '999001', 'coa_id' => 55]),
+            new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '117003', 'coa_id' => 21]),
         ]);
 
         $coaLookup = new Collection([
-            2 => new Coa(['id' => 2, 'kode' => 'KAS-01', 'tipe_coa' => 'Kasbank']),
-            7 => new Coa(['id' => 7, 'kode' => 'BANK-03', 'tipe_coa' => 'Kasbank']),
-            44 => new Coa(['id' => 44, 'kode' => '113.01', 'tipe_coa' => 'Persediaan']),
-            1221 => new Coa(['id' => 1221, 'kode' => '405.04', 'tipe_coa' => 'Pendapatan']),
-            55 => new Coa(['id' => 55, 'kode' => '111.99', 'tipe_coa' => 'Aktiva Lancar lainnya']),
+            21 => new Coa(['id' => 21, 'kode' => '117.03', 'tipe_coa' => 'Piutang Usaha']),
         ]);
 
-        $result = $method->invoke(
-            $service,
-            new Collection([
-                ['kd_rek' => '111001', 'debet' => 56000.0],
-                ['kd_rek' => '112003', 'debet' => 3000000.0],
-                ['kd_rek' => '115001', 'debet' => 264702.0],
-                ['kd_rek' => '450001', 'debet' => 264702.0],
-                ['kd_rek' => '999001', 'debet' => 100000.0],
-            ]),
-            $mappingLawan,
-            $coaLookup,
-        );
+        $result = $method->invoke($service, $billing, $details, $mappingLawan, $coaLookup);
 
-        $this->assertInstanceOf(Collection::class, $result);
+        $this->assertCount(1, $result);
+        $this->assertSame(21, $result[0]['coa_id']);
+        $this->assertSame(500_000.0, $result[0]['debit']);
+    }
+
+    public function test_tentukan_akun_lawan_berhasil_split_nota_kasir_dan_piutang(): void
+    {
+        $service = new class(
+            $this->createMock(BukuBesarService::class),
+            $this->createMock(LogAktifitasService::class)
+        ) extends BridgingPendapatanService {
+            protected function ambilRincianNotaKasir(string $statusLanjut, string $noRawat): Collection
+            {
+                return collect([
+                    ['nama_bayar' => 'Bayar Cash', 'kd_rek' => '111010', 'debet' => 200_000.0],
+                ]);
+            }
+
+            protected function ambilRekeningPiutangPenjamin(string $statusLanjut, string $kodePenjamin, string $namaPenjamin): string
+            {
+                return '117009';
+            }
+        };
+
+        $method = new ReflectionMethod(BridgingPendapatanService::class, 'tentukanAkunLawanPendapatan');
+        $method->setAccessible(true);
+
+        $billing = [
+            'no_rawat' => '2026/09/16/000003',
+            'status_lanjut' => 'Ranap',
+            'kode_penjamin' => 'RSU',
+            'penjamin' => 'Karyawan',
+        ];
+
+        $details = new Collection([
+            ['status_billing' => 'Ranap Dokter', 'total_biaya' => 700_000.0],
+        ]);
+
+        $mappingLawan = new Collection([
+            new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '111010', 'coa_id' => 5]),
+            new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '117009', 'coa_id' => 41]),
+        ]);
+
+        $coaLookup = new Collection([
+            5 => new Coa(['id' => 5, 'kode' => '111.01', 'tipe_coa' => 'Kasbank']),
+            41 => new Coa(['id' => 41, 'kode' => '117.09', 'tipe_coa' => 'Piutang']),
+        ]);
+
+        $result = $method->invoke($service, $billing, $details, $mappingLawan, $coaLookup);
+
         $this->assertCount(2, $result);
-        $this->assertSame(['111001', '112003'], $result->pluck('kd_rek')->all());
+        $this->assertSame(5, $result[0]['coa_id']);
+        $this->assertSame(200_000.0, $result[0]['debit']);
+        $this->assertSame(41, $result[1]['coa_id']);
+        $this->assertSame(500_000.0, $result[1]['debit']);
     }
 
-    public function test_prioritaskan_akun_lawan_gagal_jika_ada_akun_yang_belum_dimapping(): void
+    public function test_tentukan_akun_lawan_gagal_jika_total_cara_bayar_tidak_cocok_dengan_billing(): void
     {
-        $service = $this->createService();
-        $method = new ReflectionMethod(BridgingPendapatanService::class, 'prioritaskanAkunLawanKasAtauPiutang');
+        $service = new class(
+            $this->createMock(BukuBesarService::class),
+            $this->createMock(LogAktifitasService::class)
+        ) extends BridgingPendapatanService {
+            protected function ambilRincianNotaKasir(string $statusLanjut, string $noRawat): Collection
+            {
+                return collect([
+                    ['nama_bayar' => 'Bayar Cash', 'kd_rek' => '111010', 'debet' => 350_000.0],
+                ]);
+            }
+        };
+
+        $method = new ReflectionMethod(BridgingPendapatanService::class, 'tentukanAkunLawanPendapatan');
         $method->setAccessible(true);
 
-        $mappingLawan = new Collection([
-            new MappingLawanPendapatanSimrs(['kode_coa_simrs' => '111001', 'coa_id' => 2]),
+        $billing = [
+            'no_rawat' => '2026/09/16/000004',
+            'status_lanjut' => 'Ralan',
+            'kode_penjamin' => 'A09',
+            'penjamin' => 'UMUM',
+        ];
+
+        // Billing target 300_000, tapi bayar nota 350_000 (tidak cocok)
+        $details = new Collection([
+            ['status_billing' => 'Ralan Dokter', 'total_biaya' => 300_000.0],
         ]);
 
-        $coaLookup = new Collection([
-            2 => new Coa(['id' => 2, 'kode' => 'KAS-01', 'tipe_coa' => 'Kasbank']),
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Akun lawan pendapatan SIMRS tidak cocok dengan total billing');
+
+        $method->invoke($service, $billing, $details, collect(), collect());
+    }
+
+    public function test_tentukan_akun_lawan_gagal_jika_mapping_coa_belum_disetting(): void
+    {
+        $service = new class(
+            $this->createMock(BukuBesarService::class),
+            $this->createMock(LogAktifitasService::class)
+        ) extends BridgingPendapatanService {
+            protected function ambilRincianNotaKasir(string $statusLanjut, string $noRawat): Collection
+            {
+                return collect([
+                    ['nama_bayar' => 'Bayar Baru', 'kd_rek' => '999999', 'debet' => 100_000.0],
+                ]);
+            }
+        };
+
+        $method = new ReflectionMethod(BridgingPendapatanService::class, 'tentukanAkunLawanPendapatan');
+        $method->setAccessible(true);
+
+        $billing = [
+            'no_rawat' => '2026/09/16/000005',
+            'status_lanjut' => 'Ralan',
+            'kode_penjamin' => 'A09',
+            'penjamin' => 'UMUM',
+        ];
+
+        $details = new Collection([
+            ['status_billing' => 'Ralan Dokter', 'total_biaya' => 100_000.0],
         ]);
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Mapping akun lawan pendapatan belum disetting untuk kode COA SIMRS');
-        $this->expectExceptionMessage('113009');
+        $this->expectExceptionMessage('999999');
 
-        $method->invoke(
-            $service,
-            new Collection([
-                ['kd_rek' => '111001', 'debet' => 139000.0],
-                ['kd_rek' => '113009', 'debet' => 50000.0],
-            ]),
-            $mappingLawan,
-            $coaLookup,
-        );
+        $method->invoke($service, $billing, $details, collect(), collect());
     }
 
     public function test_informasi_invoice_menghitung_pembayaran_dari_tipe_kasbank_bukan_kode_coa(): void

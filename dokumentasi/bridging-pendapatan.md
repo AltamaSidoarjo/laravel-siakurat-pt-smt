@@ -173,18 +173,20 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["tentukanAkunLawanPendapatan()"] --> B["Query jurnal SIMRS terakhir terkait PEMBAYARAN atau PIUTANG"]
-    B --> C{"Ada akun lawan?"}
-    C -- Tidak --> D["Throw RuntimeException"]
-    C -- Ya --> E["Buang nominal Retur Obat dan Potongan"]
-    E --> F["Group by kd_rek dan jumlahkan debet"]
-    F --> G["Prioritaskan mapping dengan tipe_coa KasBank atau mengandung piutang"]
-    G --> H["Hitung nominal target dari rincian billing"]
-    H --> I["pilihAkunLawanPendapatanSimrs()"]
-    I --> J{"Nominal jurnal SIMRS cocok?"}
-    J -- Tidak --> K["Throw RuntimeException"]
-    J -- Ya --> L["Map kode COA SIMRS ke MappingLawanPendapatanSimrs"]
-    L --> M["Return daftar coa_id akun lawan"]
+    A["tentukanAkunLawanPendapatan()"] --> B["Hitung nominalTarget netto dari rincian billing"]
+    B --> C["ambilRincianNotaKasir(status_lanjut, no_rawat)"]
+    C --> D["Query detail_nota_jalan / detail_nota_inap JOIN akun_bayar"]
+    D --> E["Kumpulkan kd_rek dan debet pembayaran kasir"]
+    E --> F{"Total bayar kasir < nominalTarget?"}
+    F -- Ya --> G["ambilRekeningPiutangPenjamin(status_lanjut, kd_pj, penjamin)"]
+    G --> H["Query akun_piutang SIMRS"]
+    H --> I["Alokasikan sisaTagihan ke kd_rek piutang penjamin"]
+    F -- Tidak --> J["Gabungkan baris per kd_rek"]
+    I --> J
+    J --> K{"Total debit akun lawan == nominalTarget?"}
+    K -- Tidak --> L["Throw RuntimeException (nominal tidak cocok)"]
+    K -- Ya --> M["Map kode COA SIMRS ke MappingLawanPendapatanSimrs"]
+    M --> N["Return daftar coa_id akun lawan"]
 ```
 
 ### Algoritma Langkah demi Langkah
@@ -223,10 +225,10 @@ flowchart TD
 22. Jika status `Kamar`, service bisa memakai `lastKamarCoaId` untuk baris lanjutan, atau mencari `MappingPendapatanKamar` untuk baris utama.
 23. Setelah COA ditemukan, service membentuk baris pendapatan berisi `coa_id`, `debit`, `kredit`, `raw_total`, `quantity`, dan `catatan` dengan bantuan `buatCatatanPendapatan()`.
 24. Setelah seluruh rincian terpetakan, service menentukan akun lawan dengan `tentukanAkunLawanPendapatan()`.
-25. Fungsi ini mengambil detail jurnal SIMRS terakhir yang berkaitan dengan `PEMBAYARAN` atau `PIUTANG`, membuang nominal `Retur Obat` dan `Potongan`, lalu mengelompokkan akun berdasarkan `kd_rek`.
-26. `prioritaskanAkunLawanKasAtauPiutang()` memetakan `kd_rek` SIMRS ke COA lokal dan, bila tersedia, hanya mempertahankan akun dengan `tipe_coa = KasBank` atau `tipe_coa` yang mengandung teks `piutang` (pencocokan tanpa membedakan huruf besar/kecil). Prefix kode COA tidak digunakan untuk klasifikasi ini. Jika tidak ada akun dengan tipe tersebut, seluruh kandidat akun tetap dipakai.
-27. Kombinasi akun final dipilih melalui `pilihAkunLawanPendapatanSimrs()`.
-28. Jika mapping akun lawan SIMRS ke COA lokal belum ada, service melempar `RuntimeException`.
+25. Fungsi ini menghitung `nominalTarget` netto dari rincian billing, lalu membaca transaksi pembayaran kasir melalui `ambilRincianNotaKasir()` (`detail_nota_jalan` untuk Ralan, `detail_nota_inap` untuk Ranap) yang di-join ke tabel `akun_bayar` SIMRS untuk mendapatkan `kd_rek` dan nominal debit.
+26. Jika total pembayaran nota kasir belum menutup seluruh `nominalTarget` (misalnya pasien BPJS/asuransi tanpa nota kasir atau ada uang muka kasir + sisa piutang), service memanggil `ambilRekeningPiutangPenjamin()` untuk mengambil `kd_rek` dari tabel `akun_piutang` SIMRS berdasarkan penjamin pasien (`kd_pj`) dan status layanan (Ralan/Ranap), lalu mengalokasikan sisa tagihan ke rekening piutang tersebut.
+27. Jika penjamin belum didaftarkan di tabel `akun_piutang` SIMRS, proses import langsung melempar `RuntimeException`.
+28. Service memvalidasi secara ketat (*strict*) bahwa total debit akun lawan sama persis dengan `nominalTarget`. Setelah lolos, masing-masing `kd_rek` SIMRS dipetakan ke COA SIAKURAT melalui `MappingLawanPendapatanSimrs`. Jika mapping akun lawan belum ada, service melempar `RuntimeException`.
 29. Setelah semua validasi lolos, service menyimpan log import ke `simrs_import_pendapatan` melalui `simpanLogImport()`.
 30. Jika `jenisProses = InvoicePendapatan`, service memanggil `simpanInvoicePendapatan()`.
 31. Di dalam `simpanInvoicePendapatan()`, service:
@@ -283,8 +285,8 @@ flowchart TD
 
 #### Subfungsi Akun Lawan dan Buku Besar
 
-- `BridgingPendapatanService::prioritaskanAkunLawanKasAtauPiutang()`
-- `BridgingPendapatanService::pilihAkunLawanPendapatanSimrs()`
+- `BridgingPendapatanService::ambilRincianNotaKasir()`
+- `BridgingPendapatanService::ambilRekeningPiutangPenjamin()`
 - `BridgingPendapatanService::normalisasiBarisNominal()`
 - `BridgingPendapatanService::cariAtauBuatPelanggan()`
 - `BridgingPendapatanService::buatNarasi()`
@@ -455,7 +457,7 @@ Walaupun bukan proses inti import, halaman utama Bridging Pendapatan juga memili
 - Import tidak boleh berjalan dua kali untuk `no_rawat` yang sama karena dicek terlebih dahulu di `simrs_import_pendapatan`.
 - Mapping pendapatan harus lengkap sebelum jurnal atau invoice dibuat, karena validasi mapping dijalankan lebih dulu untuk seluruh rincian billing.
 - Status `Kamar` memiliki perlakuan khusus karena dapat menggunakan `lastKamarCoaId` untuk baris lanjutan.
-- Nominal `Retur Obat` dan `Potongan` dikeluarkan dari pencarian akun lawan agar tidak menyebabkan mismatch dengan jurnal SIMRS.
+- Akun lawan pendapatan diambil langsung dari transaksi kasir SIMRS (`detail_nota_jalan`/`detail_nota_inap` via `akun_bayar`) serta piutang penjamin (`akun_piutang` per `kd_pj`), bukan dari tabel jurnal SIMRS. Nominal netto tagihan (setelah memperhitungkan `Retur Obat` dan `Potongan`) divalidasi secara ketat terhadap total akun lawan.
 - Tindakan rawat inap dan laboratorium yang berasal dari episode gabungan tetap dapat dipetakan melalui fallback relasi `ranap_gabung`.
 - Prioritas akun lawan serta informasi pembayaran Invoice Pendapatan mengikuti `tipe_coa` lokal (`Kasbank` atau mengandung `piutang`); kode/prefix COA tidak menjadi dasar klasifikasi.
 - Pada cabang `Jurnal Umum`, service akan menghentikan proses bila total debit dan kredit tidak balance.

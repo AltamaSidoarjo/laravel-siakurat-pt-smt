@@ -722,51 +722,47 @@ class BridgingPendapatanService
         Collection $mappingLawan,
         Collection $coaLookup,
     ): array {
-        $hasilAkunLawan = collect(DB::connection('simrs')->select(
-            <<<'SQL'
-            SELECT d.kd_rek, COALESCE(d.debet, 0) AS debet
-            FROM (
-                SELECT j.no_jurnal
-                FROM jurnal j
-                WHERE j.no_bukti = ?
-                AND (
-                    j.keterangan LIKE 'PEMBAYARAN%'
-                    OR j.keterangan LIKE 'PIUTANG%'
-                )
-                ORDER BY j.no_jurnal DESC
-                LIMIT 1
-            ) last_jurnal
-            JOIN detailjurnal d ON d.no_jurnal = last_jurnal.no_jurnal
-            WHERE COALESCE(d.debet, 0) > 0
-            ORDER BY d.kd_rek
-            SQL,
-            [$billing['no_rawat']]
-        ))->map(fn (object $row) => [
-            'kd_rek' => (string) $row->kd_rek,
-            'debet' => (float) $row->debet,
-        ]);
+        $nominalTarget = array_sum(array_map(fn (array $baris) => (float) $baris['kredit'], $this->normalisasiBarisNominal($details)))
+            - array_sum(array_map(fn (array $baris) => (float) $baris['debit'], $this->normalisasiBarisNominal($details)));
 
-        if ($hasilAkunLawan->isEmpty()) {
-            throw new RuntimeException('Akun lawan pendapatan tidak ditemukan di jurnal SIMRS.');
+        $daftarAkunLawan = collect();
+
+        // 1. Ambil pembayaran dari nota kasir SIMRS (detail_nota_jalan / detail_nota_inap)
+        $notaKasir = $this->ambilRincianNotaKasir($billing['status_lanjut'], $billing['no_rawat']);
+        foreach ($notaKasir as $itemNota) {
+            $daftarAkunLawan->push([
+                'kd_rek' => $itemNota['kd_rek'],
+                'debet' => (float) $itemNota['debet'],
+            ]);
         }
 
-        // Nominal potongan/retur obat sudah diposting sebagai lawan debit di sisi pendapatan,
-        // jadi nominal yang sama perlu dikeluarkan dari jurnal SIMRS sebelum akun lawan dipilih.
-        $daftarNominalYangDiabaikan = $details
-            ->filter(fn (array $item) => in_array($item['status_billing'], ['Retur Obat', 'Potongan'], true))
-            ->map(fn (array $item) => abs((float) $item['total_biaya']))
-            ->filter(fn (float $value) => $value > 0)
-            ->values()
-            ->all();
+        $totalBayarNota = (float) $daftarAkunLawan->sum('debet');
+        $sisaTagihan = round($nominalTarget - $totalBayarNota, 2);
 
-        foreach ($daftarNominalYangDiabaikan as $nominal) {
-            $index = $hasilAkunLawan->search(fn (array $item) => abs($item['debet'] - $nominal) < 0.01);
-            if ($index !== false) {
-                $hasilAkunLawan->forget($index);
-            }
+        // 2. Jika masih ada sisa tagihan (atau pasien asuransi/BPJS murni tanpa nota kasir),
+        // alokasikan sisa tagihan ke akun piutang penjamin (akun_piutang SIMRS).
+        if ($sisaTagihan > 0.01) {
+            $kdRekPiutang = $this->ambilRekeningPiutangPenjamin(
+                $billing['status_lanjut'],
+                $billing['kode_penjamin'],
+                $billing['penjamin'],
+            );
+
+            $daftarAkunLawan->push([
+                'kd_rek' => $kdRekPiutang,
+                'debet' => $sisaTagihan,
+            ]);
         }
 
-        $akunLawanTergabung = $hasilAkunLawan
+        if ($daftarAkunLawan->isEmpty()) {
+            throw new RuntimeException(sprintf(
+                'Cara bayar atau piutang tidak ditemukan di SIMRS untuk no rawat %s.',
+                $billing['no_rawat'],
+            ));
+        }
+
+        // 3. Gabungkan rekening yang sama (misal ada beberapa baris dengan cara bayar akun yang sama)
+        $akunLawanTergabung = $daftarAkunLawan
             ->groupBy('kd_rek')
             ->map(fn (Collection $baris, string $kode) => [
                 'kd_rek' => $kode,
@@ -774,28 +770,17 @@ class BridgingPendapatanService
             ])
             ->values();
 
-        $akunLawanTergabung = $this->prioritaskanAkunLawanKasAtauPiutang(
-            $akunLawanTergabung,
-            $mappingLawan,
-            $coaLookup,
-        );
-
-        $nominalTarget = array_sum(array_map(fn (array $baris) => (float) $baris['kredit'], $this->normalisasiBarisNominal($details)))
-            - array_sum(array_map(fn (array $baris) => (float) $baris['debit'], $this->normalisasiBarisNominal($details)));
-
-        $akunLawanTergabung = $this->pilihAkunLawanPendapatanSimrs(
-            $akunLawanTergabung,
-            $nominalTarget,
-        );
-
-        if (abs($akunLawanTergabung->sum('debet') - $nominalTarget) > 0.01) {
+        // 4. Validasi strict: total debit akun lawan harus persis sama dengan target billing
+        $totalDebet = (float) $akunLawanTergabung->sum('debet');
+        if (abs($totalDebet - $nominalTarget) > 0.01) {
             throw new RuntimeException(sprintf(
-                'Akun lawan pendapatan SIMRS tidak cocok dengan total billing. Target %.2f, jurnal SIMRS %.2f.',
+                'Akun lawan pendapatan SIMRS tidak cocok dengan total billing. Target %.2f, total cara bayar %.2f.',
                 $nominalTarget,
-                (float) $akunLawanTergabung->sum('debet'),
+                $totalDebet,
             ));
         }
 
+        // 5. Map kode rekening SIMRS ke COA SIAKURAT
         return $akunLawanTergabung->map(function (array $item) use ($mappingLawan) {
             $mappingAkunLawan = $mappingLawan->firstWhere('kode_coa_simrs', $item['kd_rek']);
 
@@ -813,33 +798,87 @@ class BridgingPendapatanService
         })->all();
     }
 
-    private function prioritaskanAkunLawanKasAtauPiutang(
-        Collection $akunLawanTergabung,
-        Collection $mappingLawan,
-        Collection $coaLookup,
-    ): Collection {
-        $akunKasAtauPiutang = $akunLawanTergabung
-            ->filter(function (array $item) use ($mappingLawan, $coaLookup) {
-                $mappingAkunLawan = $mappingLawan->firstWhere('kode_coa_simrs', $item['kd_rek']);
-                if ($mappingAkunLawan === null) {
-                    throw new RuntimeException(
-                        'Mapping akun lawan pendapatan belum disetting untuk kode COA SIMRS '
-                        .$this->formatTeksTebal($item['kd_rek']).'.'
-                    );
-                }
+    protected function ambilRincianNotaKasir(string $statusLanjut, string $noRawat): Collection
+    {
+        $tabelNota = $statusLanjut === 'Ranap' ? 'detail_nota_inap' : 'detail_nota_jalan';
 
-                $coa = $coaLookup->get((int) $mappingAkunLawan->coa_id);
-                if ($coa === null) {
-                    return false;
-                }
+        return collect(DB::connection('simrs')->select(
+            <<<SQL
+            SELECT d.nama_bayar, COALESCE(d.besar_bayar, 0) AS besar_bayar, ab.kd_rek
+            FROM {$tabelNota} d
+            LEFT JOIN akun_bayar ab ON ab.nama_bayar = d.nama_bayar
+            WHERE d.no_rawat = ?
+              AND COALESCE(d.besar_bayar, 0) > 0
+            SQL,
+            [$noRawat]
+        ))->map(function (object $row) {
+            $namaBayar = (string) $row->nama_bayar;
+            $kdRek = $row->kd_rek !== null ? (string) $row->kd_rek : null;
 
-                return $this->isCoaKasbank($coa) || $this->isCoaPiutang($coa);
-            })
-            ->values();
+            if ($kdRek === null || $kdRek === '') {
+                throw new RuntimeException(sprintf(
+                    'Akun bayar belum disetting di tabel akun_bayar SIMRS untuk cara bayar %s.',
+                    $this->formatTeksTebal($namaBayar),
+                ));
+            }
 
-        return $akunKasAtauPiutang->isNotEmpty()
-            ? $akunKasAtauPiutang
-            : $akunLawanTergabung;
+            return [
+                'nama_bayar' => $namaBayar,
+                'kd_rek' => $kdRek,
+                'debet' => (float) $row->besar_bayar,
+            ];
+        });
+    }
+
+    protected function ambilRekeningPiutangPenjamin(string $statusLanjut, string $kodePenjamin, string $namaPenjamin): string
+    {
+        $barisPiutang = collect(DB::connection('simrs')->select(
+            <<<'SQL'
+            SELECT ap.kd_rek, ap.nama_bayar
+            FROM akun_piutang ap
+            WHERE ap.kd_pj = ?
+            SQL,
+            [$kodePenjamin]
+        ));
+
+        if ($barisPiutang->isEmpty()) {
+            throw new RuntimeException(sprintf(
+                'Penjamin %s (kode: %s) belum disetting di tabel akun_piutang SIMRS.',
+                $this->formatTeksTebal($namaPenjamin),
+                $kodePenjamin,
+            ));
+        }
+
+        if ($barisPiutang->count() === 1) {
+            $kdRek = (string) $barisPiutang->first()->kd_rek;
+            if ($kdRek === '') {
+                throw new RuntimeException(sprintf(
+                    'Rekening piutang SIMRS kosong untuk penjamin %s (kode: %s).',
+                    $this->formatTeksTebal($namaPenjamin),
+                    $kodePenjamin,
+                ));
+            }
+
+            return $kdRek;
+        }
+
+        $kataKunci = $statusLanjut === 'Ranap' ? 'inap' : 'jalan';
+        $barisSesuaiStatus = $barisPiutang->first(
+            fn (object $row) => str_contains(Str::lower((string) $row->nama_bayar), $kataKunci)
+        );
+
+        $terpilih = $barisSesuaiStatus ?? $barisPiutang->first();
+        $kdRek = (string) $terpilih->kd_rek;
+
+        if ($kdRek === '') {
+            throw new RuntimeException(sprintf(
+                'Rekening piutang SIMRS kosong untuk penjamin %s (kode: %s).',
+                $this->formatTeksTebal($namaPenjamin),
+                $kodePenjamin,
+            ));
+        }
+
+        return $kdRek;
     }
 
     private function resolveInformasiAkunLawanInvoice(Collection $daftarAkunLawan): array
@@ -870,33 +909,6 @@ class BridgingPendapatanService
     private function isCoaPiutang(?Coa $coa): bool
     {
         return $coa !== null && str_contains(Str::lower((string) $coa->tipe_coa), 'piutang');
-    }
-
-    private function pilihAkunLawanPendapatanSimrs(Collection $akunLawanTergabung, float $nominalTarget): Collection
-    {
-        $akunExactMatch = $akunLawanTergabung
-            ->filter(fn (array $item) => abs((float) $item['debet'] - $nominalTarget) < 0.01)
-            ->values();
-
-        if ($akunExactMatch->count() === 1) {
-            return collect([$akunExactMatch->first()]);
-        }
-
-        if ($akunExactMatch->count() > 1) {
-            throw new RuntimeException(sprintf(
-                'Ditemukan lebih dari satu akun lawan pendapatan SIMRS dengan nominal %.2f.',
-                $nominalTarget,
-            ));
-        }
-
-        if (abs($akunLawanTergabung->sum('debet') - $nominalTarget) > 0.01 && $akunLawanTergabung->count() === 1) {
-            return collect([[
-                'kd_rek' => $akunLawanTergabung->first()['kd_rek'],
-                'debet' => $nominalTarget,
-            ]]);
-        }
-
-        return $akunLawanTergabung;
     }
 
     private function normalisasiBarisNominal(Collection $details): array
