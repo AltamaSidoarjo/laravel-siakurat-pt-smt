@@ -23,6 +23,7 @@
     $canPengaturanMappingGeneral = $can('pengaturan.mapping-general');
     $canPengaturanSettingRba = $can('pengaturan.setting-rba');
     $canPengaturanSettingObat = $can('pengaturan.setting-obat');
+    $canPengaturanSettingPembelian = $can('pengaturan.setting-pembelian');
     $canPengaturanPreferensi = $can('pengaturan.preferensi');
     $canPengaturanPengguna = $can('pengaturan.pengguna');
     $canPengaturanRoleAkses = $can('pengaturan.role-akses');
@@ -47,6 +48,7 @@
         || $canPengaturanMappingGeneral
         || $canPengaturanSettingRba
         || $canPengaturanSettingObat
+        || $canPengaturanSettingPembelian
         || $canPengaturanPreferensi
         || $canPengaturanPengguna
         || $canPengaturanRoleAkses
@@ -329,7 +331,15 @@
                     </a>
                 </li>
             @endif
-            @if ($canPengaturanSettingObat && ($canPengaturanPreferensi || $canPengaturanPengguna || $canPengaturanRoleAkses || $canPengaturanKonversiFile))
+            @if ($canPengaturanSettingPembelian)
+                <li>
+                    <a class="dropdown-item {{ str_starts_with($path, '/pengaturan/setting-pembelian') ? 'active fw-bold bg-success-subtle text-success' : 'fw-semibold' }}"
+                        href="{{ route('pengaturan.setting-pembelian.index') }}">
+                        Setting Akun Pembelian
+                    </a>
+                </li>
+            @endif
+            @if (($canPengaturanSettingObat || $canPengaturanSettingPembelian) && ($canPengaturanPreferensi || $canPengaturanPengguna || $canPengaturanRoleAkses || $canPengaturanKonversiFile))
                 <li><hr class="dropdown-divider"></li>
             @endif
             @if ($canPengaturanPreferensi)

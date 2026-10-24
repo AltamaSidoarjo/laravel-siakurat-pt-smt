@@ -17,7 +17,7 @@ Implementasi utama:
 - `app/Http/Requests/Bridging/BulkDeleteBridgingPembelianRequest.php`
 - `app/Services/Bridging/BridgingPembelianService.php`
 - `app/Models/FakturPembelian.php`, `app/Models/FakturPembelianRinci.php`, `app/Models/Supplier.php`,
-  `app/Models/MappingCoaSimrs.php`, `app/Models/BukuBesar.php`
+  `app/Models/SettingBridgingPembelian.php`, `app/Models/BukuBesar.php`
 
 ## Entry Point / API
 
@@ -63,7 +63,7 @@ flowchart TD
 
 ## Alur 2: Import ke Invoice Pembelian
 
-Kedua jenis (obat / non medis) berujung pada method bersama `imporTagihan()`.
+Kedua jenis (obat / non medis) berujung pada method bersama `imporTagihan()`. Pencatatan mutasi Buku Besar menggunakan konfigurasi terpusat dari **Setting Akun Pembelian** (`SettingBridgingPembelian`) tanpa membaca tabel jurnal SIMRS.
 
 ```mermaid
 flowchart TD
@@ -76,14 +76,18 @@ flowchart TD
     G --> H["imporTagihan()"]
     H --> I{"Rincian kosong / kode_suplier kosong / faktur sudah ada?"}
     I -- Ya --> J["Return gagal dengan alasan"]
-    I -- Tidak --> K["ambilNomerJurnalSimrsTerakhir() + ambilRincianJurnalSimrs()"]
+    I -- Tidak --> K["Validasi SettingBridgingPembelian lengkap"]
     K --> L["DB::transaction"]
     L --> M["cariAtauBuatSupplier() (berdasarkan kategori)"]
     M --> N["Buat FakturPembelian (tanggal via tentukanTanggalPengakuan)"]
     N --> O["Buat FakturPembelianRinci per baris"]
-    O --> P["Loop rincian jurnal SIMRS: wajib lolos MappingCoaSimrs by kd_rek"]
-    P --> Q["Buat BukuBesar (sumber 'Invoice Pembelian', D/K ikut SIMRS)"]
-    Q --> R["Return berhasil + LogAktifitasService::log(create)"]
+    O --> P["Debit: Persediaan Obat/Non Medis (DPP = tagihan - ppn)"]
+    P --> Q{"Nilai PPN > 0?"}
+    Q -- Ya --> R["Debit: PPN Masukan (sebesar nilai PPN)"]
+    Q -- Tidak --> S["Lanjut"]
+    R --> S
+    S --> T["Kredit: Hutang Pembelian Obat/Non Medis (sebesar tagihan)"]
+    T --> U["Return berhasil + LogAktifitasService::log(create)"]
 ```
 
 ### Algoritma
@@ -92,13 +96,15 @@ flowchart TD
 2. `imporSatuPembelian*()` menolak jenis proses selain `InvoicePembelian`, mengambil header tagihan,
    lalu memanggil `imporTagihan()` dengan kategori supplier/faktur yang sesuai.
 3. `imporTagihan()` menolak bila rincian kosong, `kode_suplier` kosong, atau `nomer_faktur` sudah ada.
-4. Mengambil nomor jurnal SIMRS terakhir (dari `jurnal` by `no_bukti`) dan rincian jurnal (`detailjurnal`).
+4. Memvalidasi `SettingBridgingPembelian` via `getSettingBridgingPembelian()`. Jika akun belum lengkap, import ditolak.
 5. Dalam transaksi: cari/buat supplier via `cariAtauBuatSupplier()` (mengisi `kategori_supplier`
    bila belum ada), buat `FakturPembelian`, tentukan `tanggal_faktur` via `tentukanTanggalPengakuan()`.
 6. Buat `FakturPembelianRinci` per baris rincian tagihan.
-7. Untuk tiap baris jurnal SIMRS, `kd_rek` **wajib** punya `MappingCoaSimrs`; jika tidak, `RuntimeException`.
-8. Buat mutasi `BukuBesar` (`sumber_transaksi = 'Invoice Pembelian'`) mengikuti debet/kredit SIMRS.
-9. Aktivitas dicatat via `LogAktifitasService::log('Bridging Pembelian', 'create')`.
+7. Buat mutasi `BukuBesar` (`sumber_transaksi = 'Invoice Pembelian'`):
+   - Debit Akun Persediaan (Obat atau Non Medis) sebesar DPP (`tagihan - ppn`).
+   - Debit Akun PPN Masukan jika nilai `ppn > 0`.
+   - Kredit Akun Hutang Usaha (Obat atau Non Medis) sebesar total `tagihan`.
+8. Aktivitas dicatat via `LogAktifitasService::log('Bridging Pembelian', 'create')`.
 
 ### Tanggal Pengakuan
 
@@ -137,19 +143,20 @@ flowchart TD
 - `BridgingPembelianService::getQueryHasilImport()/getKandidatPembelianObat()/getKandidatPembelianObatQuery()/getKandidatPembelianNonMedis()`
 - `BridgingPembelianService::imporBanyakPembelianObat()/imporBanyakPembelianNonMedis()/hapusBanyak()`
 - `BridgingPembelianService::imporSatuPembelianObat()/imporSatuPembelianNonMedis()/imporTagihan()` (private)
+- `BridgingPembelianService::getSettingBridgingPembelian()`
 - `BridgingPembelianService::cariAtauBuatSupplier()/tentukanTanggalPengakuan()/buatKeteranganFaktur()` (private)
-- `BridgingPembelianService::ambilTagihan*()/ambilRincianTagihan*()/ambilNomerJurnalSimrsTerakhir()/ambilRincianJurnalSimrs()` (private)
+- `BridgingPembelianService::ambilTagihan*()/ambilRincianTagihan*()` (private)
 - `BukuBesarService::resolvePeriode()` (static), `LogAktifitasService::log()`
-- `FakturPembelian::scopeBetweenDates()`, `MappingCoaSimrs::query()`
+- `FakturPembelian::scopeBetweenDates()`, `SettingBridgingPembelian::query()`
 
 ## Catatan Penting Bisnis
 
 - Saat ini hanya import ke **Invoice Pembelian** yang didukung.
 - Faktur dengan `nomer_faktur` yang sudah ada tidak diimpor ulang; kandidat yang sudah dipakai
   dikecualikan dari daftar tarik.
-- Mutasi buku besar **mengikuti jurnal SIMRS** apa adanya; setiap `kd_rek` wajib punya `MappingCoaSimrs`.
+- Mutasi buku besar **menggunakan akun terpusat dari Setting Akun Pembelian** (`SettingBridgingPembelian`), tidak lagi membaca tabel `jurnal` atau `detailjurnal` SIMRS.
 - Supplier dibuat otomatis bila belum ada (berdasarkan `kode_supplier` + `nama_supplier`), dengan
   kategori `Obat & BHP` atau `Barang Non Medis`.
 - Hapus massal **ditolak** bila faktur sudah memiliki pembayaran (`pembayaranPembelianRincis`).
-- Lihat [Integrasi SIMRS](fondasi/integrasi-simrs.md), [Pembelian — Invoice](pembelian-invoice.md),
+- Lihat [Integrasi SIMRS](fondasi/integrasi-simrs.md), [Setting Akun Pembelian](pengaturan-setting-pembelian.md), [Pembelian — Invoice](pembelian-invoice.md),
   dan [Pembelian — Pembayaran](pembelian-pembayaran.md).

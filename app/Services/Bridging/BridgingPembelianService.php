@@ -5,7 +5,7 @@ namespace App\Services\Bridging;
 use App\Models\BukuBesar;
 use App\Models\FakturPembelian;
 use App\Models\FakturPembelianRinci;
-use App\Models\MappingCoaSimrs;
+use App\Models\SettingBridgingPembelian;
 use App\Models\Supplier;
 use App\Services\Bukubesar\BukuBesarService;
 use App\Services\LogAktifitasService;
@@ -27,6 +27,25 @@ class BridgingPembelianService
     public function __construct(
         private readonly LogAktifitasService $logService,
     ) {
+    }
+
+    public function getSettingBridgingPembelian(): SettingBridgingPembelian
+    {
+        $setting = SettingBridgingPembelian::query()->first();
+
+        if ($setting === null
+            || empty($setting->persediaan_obat_coa_id)
+            || empty($setting->ppn_masukan_coa_id)
+            || empty($setting->hutang_obat_coa_id)
+            || empty($setting->persediaan_non_medis_coa_id)
+            || empty($setting->hutang_non_medis_coa_id)
+        ) {
+            throw new RuntimeException(
+                'Pengaturan akun bridging pembelian belum lengkap. Silakan lengkapi pengaturan akun terlebih dahulu di menu Setting Akun Pembelian.'
+            );
+        }
+
+        return $setting;
     }
 
     public function getQueryHasilImport(string $startDate, string $endDate): Builder
@@ -354,23 +373,7 @@ class BridgingPembelianService
             ];
         }
 
-        $nomerJurnal = $this->ambilNomerJurnalSimrsTerakhir($tagihan['no_faktur']);
-        if ($nomerJurnal === null) {
-            return [
-                'nomer_transaksi' => $tagihan['no_faktur'],
-                'berhasil' => false,
-                'alasan_gagal' => 'Data jurnal SIMRS tidak ditemukan untuk nomor bukti ini.',
-            ];
-        }
-
-        $rincianJurnal = $this->ambilRincianJurnalSimrs($nomerJurnal);
-        if ($rincianJurnal->isEmpty()) {
-            return [
-                'nomer_transaksi' => $tagihan['no_faktur'],
-                'berhasil' => false,
-                'alasan_gagal' => 'Rincian jurnal SIMRS tidak ditemukan.',
-            ];
-        }
+        $setting = $this->getSettingBridgingPembelian();
 
         $result = DB::transaction(function () use (
             $tagihan,
@@ -379,7 +382,7 @@ class BridgingPembelianService
             $kategoriFaktur,
             $metodeTanggalPengakuan,
             $actor,
-            $rincianJurnal
+            $setting
         ) {
             $supplier = $this->cariAtauBuatSupplier(
                 kodeSupplier: $tagihan['kode_suplier'],
@@ -420,28 +423,59 @@ class BridgingPembelianService
                 ]);
             }
 
-            $mappingGeneral = MappingCoaSimrs::query()->get();
+            $periode = BukuBesarService::resolvePeriode($faktur->tanggal_faktur);
 
-            // Mutasi buku besar mengikuti jurnal SIMRS apa adanya supaya invoice pembelian
-            // tetap konsisten dengan pembukuan yang sudah terbentuk di sistem sumber.
-            foreach ($rincianJurnal as $rinciJurnal) {
-                $mapping = $mappingGeneral->firstWhere('kode_rekening', $rinciJurnal['kd_rek']);
-                if ($mapping === null) {
-                    throw new RuntimeException('Mapping COA tidak ditemukan untuk kode rekening: '.$rinciJurnal['kd_rek']);
-                }
+            $isObat = $kategoriFaktur === self::KATEGORI_OBAT_BHP;
+            $persediaanCoaId = $isObat
+                ? (int) $setting->persediaan_obat_coa_id
+                : (int) $setting->persediaan_non_medis_coa_id;
+            $hutangCoaId = $isObat
+                ? (int) $setting->hutang_obat_coa_id
+                : (int) $setting->hutang_non_medis_coa_id;
 
-                $debit = (float) $rinciJurnal['debet'];
-                $kredit = (float) $rinciJurnal['kredit'];
+            $dpp = round((float) $tagihan['tagihan'] - (float) $tagihan['ppn'], 2);
 
+            // 1. Mutasi Debit: Persediaan (sebesar DPP)
+            if ($dpp > 0) {
                 BukuBesar::query()->create([
-                    'coa_id' => (int) $mapping->coa_id,
+                    'coa_id' => $persediaanCoaId,
                     'sumber_id' => (int) $faktur->id,
                     'tanggal' => $faktur->tanggal_faktur,
-                    ...BukuBesarService::resolvePeriode($faktur->tanggal_faktur),
+                    ...$periode,
                     'nomer' => $faktur->nomer_faktur,
                     'sumber_transaksi' => self::SUMBER_TRANSAKSI,
-                    'nominal' => $debit > 0 ? $debit : $kredit,
-                    'tipe_mutasi' => $debit > 0 ? 'D' : 'K',
+                    'nominal' => $dpp,
+                    'tipe_mutasi' => 'D',
+                    'keterangan' => 'Bridging pembelian nomor: '.$faktur->nomer_faktur,
+                ]);
+            }
+
+            // 2. Mutasi Debit: PPN Masukan (jika ada nilai PPN)
+            if ((float) $tagihan['ppn'] > 0) {
+                BukuBesar::query()->create([
+                    'coa_id' => (int) $setting->ppn_masukan_coa_id,
+                    'sumber_id' => (int) $faktur->id,
+                    'tanggal' => $faktur->tanggal_faktur,
+                    ...$periode,
+                    'nomer' => $faktur->nomer_faktur,
+                    'sumber_transaksi' => self::SUMBER_TRANSAKSI,
+                    'nominal' => (float) $tagihan['ppn'],
+                    'tipe_mutasi' => 'D',
+                    'keterangan' => 'Bridging pembelian PPN nomor: '.$faktur->nomer_faktur,
+                ]);
+            }
+
+            // 3. Mutasi Kredit: Hutang Usaha Pembelian (sebesar tagihan faktur)
+            if ((float) $tagihan['tagihan'] > 0) {
+                BukuBesar::query()->create([
+                    'coa_id' => $hutangCoaId,
+                    'sumber_id' => (int) $faktur->id,
+                    'tanggal' => $faktur->tanggal_faktur,
+                    ...$periode,
+                    'nomer' => $faktur->nomer_faktur,
+                    'sumber_transaksi' => self::SUMBER_TRANSAKSI,
+                    'nominal' => (float) $tagihan['tagihan'],
+                    'tipe_mutasi' => 'K',
                     'keterangan' => 'Bridging pembelian nomor: '.$faktur->nomer_faktur,
                 ]);
             }
@@ -587,40 +621,6 @@ class BridgingPembelianService
             'subtotal' => (float) $row->subtotal,
             'kode_sat' => (string) $row->kode_sat,
             'total' => (float) $row->total,
-        ]);
-    }
-
-    private function ambilNomerJurnalSimrsTerakhir(string $nomerBukti): ?string
-    {
-        $row = collect(DB::connection('simrs')->select(
-            <<<'SQL'
-            SELECT no_jurnal
-            FROM jurnal
-            WHERE no_bukti = ?
-            ORDER BY no_jurnal DESC
-            LIMIT 1
-            SQL,
-            [$nomerBukti]
-        ))->first();
-
-        return $row !== null ? (string) $row->no_jurnal : null;
-    }
-
-    private function ambilRincianJurnalSimrs(string $nomerJurnal): Collection
-    {
-        return collect(DB::connection('simrs')->select(
-            <<<'SQL'
-            SELECT no_jurnal, kd_rek, debet, kredit
-            FROM detailjurnal
-            WHERE no_jurnal = ?
-            ORDER BY kd_rek ASC
-            SQL,
-            [$nomerJurnal]
-        ))->map(fn (object $row) => [
-            'no_jurnal' => (string) $row->no_jurnal,
-            'kd_rek' => (string) $row->kd_rek,
-            'debet' => (float) ($row->debet ?? 0),
-            'kredit' => (float) ($row->kredit ?? 0),
         ]);
     }
 

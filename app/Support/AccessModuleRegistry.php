@@ -26,6 +26,7 @@ class AccessModuleRegistry
             ['kode' => 'pengaturan.mapping-pendapatan', 'nama' => 'Mapping Pendapatan', 'group_nama' => 'Pengaturan', 'urutan' => 150],
             ['kode' => 'pengaturan.mapping-general', 'nama' => 'Mapping General', 'group_nama' => 'Pengaturan', 'urutan' => 160],
             ['kode' => 'pengaturan.setting-obat', 'nama' => 'Setting Akun Obat', 'group_nama' => 'Pengaturan', 'urutan' => 165],
+            ['kode' => 'pengaturan.setting-pembelian', 'nama' => 'Setting Akun Pembelian', 'group_nama' => 'Pengaturan', 'urutan' => 168],
             ['kode' => 'pengaturan.setting-rba', 'nama' => 'Setting RBA', 'group_nama' => 'Pengaturan', 'urutan' => 170],
             ['kode' => 'pengaturan.preferensi', 'nama' => 'Preferensi', 'group_nama' => 'Pengaturan', 'urutan' => 180],
             ['kode' => 'pengaturan.pengguna', 'nama' => 'Pengguna', 'group_nama' => 'Pengaturan', 'urutan' => 190],

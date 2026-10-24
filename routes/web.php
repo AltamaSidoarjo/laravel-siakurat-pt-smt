@@ -25,6 +25,7 @@ use App\Http\Controllers\Pengaturan\PenggunaController;
 use App\Http\Controllers\Pengaturan\PreferensiController;
 use App\Http\Controllers\Pengaturan\RoleAksesController;
 use App\Http\Controllers\Pengaturan\SettingBridgingObatController;
+use App\Http\Controllers\Pengaturan\SettingBridgingPembelianController;
 use App\Http\Controllers\Pengaturan\SettingRbaController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -334,6 +335,13 @@ Route::middleware('auth')->group(function () {
         });
         Route::middleware('module.access:pengaturan.setting-obat,update')->group(function () {
             Route::post('/setting-obat', [SettingBridgingObatController::class, 'update'])->name('setting-obat.update');
+        });
+
+        Route::middleware('module.access:pengaturan.setting-pembelian,view')->group(function () {
+            Route::get('/setting-pembelian', [SettingBridgingPembelianController::class, 'index'])->name('setting-pembelian.index');
+        });
+        Route::middleware('module.access:pengaturan.setting-pembelian,update')->group(function () {
+            Route::post('/setting-pembelian', [SettingBridgingPembelianController::class, 'update'])->name('setting-pembelian.update');
         });
 
         Route::middleware('module.access:pengaturan.setting-rba,view')->group(function () {

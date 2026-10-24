@@ -24,6 +24,7 @@
     $canPengaturanMappingGeneral = $can('pengaturan.mapping-general');
     $canPengaturanSettingRba = $can('pengaturan.setting-rba');
     $canPengaturanSettingObat = $can('pengaturan.setting-obat');
+    $canPengaturanSettingPembelian = $can('pengaturan.setting-pembelian');
     $canPengaturanPreferensi = $can('pengaturan.preferensi');
     $canPengaturanPengguna = $can('pengaturan.pengguna');
     $canPengaturanRoleAkses = $can('pengaturan.role-akses');
@@ -34,6 +35,7 @@
         || $canPengaturanMappingGeneral
         || $canPengaturanSettingRba
         || $canPengaturanSettingObat
+        || $canPengaturanSettingPembelian
         || $canPengaturanPreferensi
         || $canPengaturanPengguna
         || $canPengaturanRoleAkses
@@ -341,6 +343,14 @@
                         <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/setting-obat') ? 'active' : '' }}"
                            href="{{ route('pengaturan.setting-obat.index') }}">
                             <i class="bi bi-circle-fill sidebar-bullet"></i> Setting Akun Obat & BHP
+                        </a>
+                    </li>
+                    @endif
+                    @if ($canPengaturanSettingPembelian)
+                    <li>
+                        <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/setting-pembelian') ? 'active' : '' }}"
+                           href="{{ route('pengaturan.setting-pembelian.index') }}">
+                            <i class="bi bi-circle-fill sidebar-bullet"></i> Setting Akun Pembelian
                         </a>
                     </li>
                     @endif

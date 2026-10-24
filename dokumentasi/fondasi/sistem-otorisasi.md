@@ -105,6 +105,7 @@ sama dengan `kode` yang dipakai pada middleware `module.access` di `routes/web.p
 | `pengaturan.mapping-general` | Mapping General | Pengaturan |
 | `pengaturan.setting-rba` | Setting RBA | Pengaturan |
 | `pengaturan.setting-obat` | Setting Akun Obat & BHP | Pengaturan |
+| `pengaturan.setting-pembelian` | Setting Akun Pembelian | Pengaturan |
 | `pengaturan.preferensi` | Preferensi | Pengaturan |
 | `pengaturan.pengguna` | Pengguna | Pengaturan |
 | `pengaturan.role-akses` | Role Akses | Pengaturan |
@@ -134,6 +135,7 @@ sama dengan `kode` yang dipakai pada middleware `module.access` di `routes/web.p
 | `pengaturan.mapping-general` | ✔ | ✔ | | ✔ |
 | `pengaturan.setting-rba` | ✔ | ✔ | | ✔ |
 | `pengaturan.setting-obat` | ✔ | | ✔ | |
+| `pengaturan.setting-pembelian` | ✔ | | ✔ | |
 | `pengaturan.preferensi` | ✔ | | ✔ | |
 | `pengaturan.pengguna` | ✔ | ✔ | ✔ | ✔ |
 | `pengaturan.role-akses` | ✔ | ✔ | ✔ | |

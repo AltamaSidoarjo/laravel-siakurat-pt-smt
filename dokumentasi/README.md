@@ -26,7 +26,7 @@ bagian **Documentation Policy**.
 | [Integrasi SIMRS](fondasi/integrasi-simrs.md) | Koneksi DB `simrs`, pola query lintas-koneksi |
 | [Konvensi Buku Besar & COA](fondasi/konvensi-bukubesar-coa.md) | COA, TipeCoa, Buku Besar, Jurnal Umum, aturan debit-kredit & sinkronisasi |
 | [Glosarium](fondasi/glosarium.md) | Istilah domain: billing, no_rawat, penjamin, ranap/ralan, dll |
-| [Perubahan Bridging](perubahan-bridging.md) | Ringkasan arsitektur bridging pendapatan & obat mandiri tanpa jurnal SIMRS |
+| [Perubahan Bridging](perubahan-bridging.md) | Ringkasan arsitektur bridging pendapatan, obat & pembelian mandiri tanpa jurnal SIMRS |
 
 ## Modul Aplikasi
 
@@ -52,6 +52,7 @@ bagian **Documentation Policy**.
 | Pengaturan — Mapping General | [pengaturan-mapping-general.md](pengaturan-mapping-general.md) | selesai |
 | Pengaturan — Setting RBA | [pengaturan-setting-rba.md](pengaturan-setting-rba.md) | selesai |
 | Pengaturan — Setting Akun Obat & BHP | [pengaturan-setting-obat.md](pengaturan-setting-obat.md) | selesai |
+| Pengaturan — Setting Akun Pembelian | [pengaturan-setting-pembelian.md](pengaturan-setting-pembelian.md) | selesai |
 | Pengaturan — Preferensi | [pengaturan-preferensi.md](pengaturan-preferensi.md) | selesai |
 | Pengaturan — Pengguna | [pengaturan-pengguna.md](pengaturan-pengguna.md) | selesai |
 | Pengaturan — Role Akses | [pengaturan-role-akses.md](pengaturan-role-akses.md) | selesai |

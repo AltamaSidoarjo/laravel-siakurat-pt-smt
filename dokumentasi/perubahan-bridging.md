@@ -1,6 +1,6 @@
-# Ringkasan Perubahan Arsitektur Bridging Pendapatan & Pendapatan Obat
+# Ringkasan Perubahan Arsitektur Bridging Pendapatan, Pendapatan Obat & Pembelian
 
-Dokumen ini merangkum perubahan menyeluruh yang telah diimplementasikan pada modul **Bridging Pendapatan** dan **Bridging Pendapatan Obat**, yaitu peralihan dari pembacaan tabel jurnal SIMRS ke penentuan akun lawan langsung dari **Cara Bayar billing kasir SIMRS** serta konfigurasi akun terpusat.
+Dokumen ini merangkum perubahan menyeluruh yang telah diimplementasikan pada modul **Bridging Pendapatan**, **Bridging Pendapatan Obat**, dan **Bridging Pembelian**, yaitu peralihan dari pembacaan tabel jurnal SIMRS ke penentuan akun lawan langsung dari **Cara Bayar billing kasir SIMRS** serta konfigurasi akun terpusat.
 
 ---
 
@@ -69,26 +69,62 @@ Seluruh COA aktif (`status_aktif = 1`) ditampilkan secara lengkap pada dropdown 
 
 ---
 
+### C. Bridging Pembelian (Obat & BHP serta Barang Non Medis)
+
+#### 1. Penghapusan Ketergantungan Tabel Jurnal SIMRS
+- Modul tidak lagi membaca tabel `jurnal` dan `detailjurnal` SIMRS maupun tabel `mapping_coa_simrs`.
+- Tidak ada lagi kegagalan impor akibat jurnal SIMRS belum terbentuk (*"Data jurnal SIMRS tidak ditemukan untuk nomor bukti ini"*).
+
+#### 2. Modul Baru: Setting Akun Pembelian (`/pengaturan/setting-pembelian`)
+Dibuat menu dan modul baru di Pengaturan untuk mengelola 5 COA tetap:
+1. **Akun Persediaan Obat & BHP** (Debit DPP faktur obat).
+2. **Akun PPN Masukan (Bersama)** (Debit nilai PPN jika $> 0$).
+3. **Akun Hutang Pembelian Obat & BHP** (Kredit total tagihan faktur obat).
+4. **Akun Persediaan / Beban Non Medis** (Debit DPP faktur non medis).
+5. **Akun Hutang Pembelian Non Medis** (Kredit total tagihan faktur non medis).
+
+Validasi strict diterapkan: proses impor tagihan ditolak dengan instruksi jelas bila pengaturan akun belum dikonfigurasi.
+
+#### 3. Logika Jurnal & Mutasi Buku Besar Terstruktur
+- **DPP Eksak**: Dihitung dari $\text{DPP} = \text{tagihan} - \text{ppn}$.
+- **PPN Kondisional**: Jika $\text{ppn} > 0$, dibuat mutasi Debit PPN Masukan. Jika $\text{ppn} = 0$, baris PPN dilewati.
+- **Keseimbangan Jurnal**: Total Debit $(\text{DPP} + \text{ppn} = \text{tagihan})$ selalu seimbang dengan Total Kredit (tagihan) pada mutasi Buku Besar sumber `Invoice Pembelian`.
+
+---
+
 ## 3. Komponen Teknis yang Dibuat & Dimodifikasi
 
 | Layer / File | Keterangan Perubahan |
 | --- | --- |
 | `database/migrations/2026_10_24_060000_create_setting_bridging_obats_table.php` | Tabel `setting_bridging_obats` untuk menyimpan konfigurasi 5 COA obat |
 | `database/migrations/2026_10_24_060100_add_setting_obat_access_module.php` | Registrasi modul hak akses `pengaturan.setting-obat` |
-| `app/Support/AccessModuleRegistry.php` | Penambahan module code `pengaturan.setting-obat` ke registry |
-| `app/Models/SettingBridgingObat.php` | Model Eloquent dengan relasi ke 5 COA |
+| `database/migrations/2026_10_24_070000_create_setting_bridging_pembelians_table.php` | Tabel `setting_bridging_pembelians` untuk konfigurasi 5 COA pembelian |
+| `database/migrations/2026_10_24_070100_add_setting_pembelian_access_module.php` | Registrasi modul hak akses `pengaturan.setting-pembelian` |
+| `app/Support/AccessModuleRegistry.php` | Registrasi modul `pengaturan.setting-obat` dan `pengaturan.setting-pembelian` |
+| `app/Models/SettingBridgingObat.php` | Model Eloquent dengan relasi ke 5 COA obat |
+| `app/Models/SettingBridgingPembelian.php` | Model Eloquent dengan relasi ke 5 COA pembelian |
 | `app/Http/Requests/Pengaturan/UpdateSettingBridgingObatRequest.php` | Validasi input form setting akun obat |
+| `app/Http/Requests/Pengaturan/UpdateSettingBridgingPembelianRequest.php` | Validasi input form setting akun pembelian |
 | `app/Services/Pengaturan/SettingBridgingObatService.php` | Service logika get, active COA options, dan save setting obat |
+| `app/Services/Pengaturan/SettingBridgingPembelianService.php` | Service logika get, active COA options, dan save setting pembelian |
 | `app/Http/Controllers/Pengaturan/SettingBridgingObatController.php` | Controller index dan update setting akun obat |
-| `routes/web.php` | Definisi route GET dan POST `/pengaturan/setting-obat` |
-| `resources/views/pengaturan/setting-obat/index.blade.php` | Halaman UI blade formulir setting 5 akun dengan Select2 |
-| `resources/views/partials/sidebar.blade.php` & `menu.blade.php` | Penambahan navigasi menu Setting Akun Obat & BHP |
+| `app/Http/Controllers/Pengaturan/SettingBridgingPembelianController.php` | Controller index dan update setting akun pembelian |
+| `routes/web.php` | Definisi route GET dan POST `/pengaturan/setting-obat` & `/pengaturan/setting-pembelian` |
+| `resources/views/pengaturan/setting-obat/index.blade.php` | Halaman UI formulir setting 5 akun obat dengan Select2 |
+| `resources/views/pengaturan/setting-pembelian/index.blade.php` | Halaman UI formulir setting 5 akun pembelian dengan Select2 |
+| `resources/views/partials/sidebar.blade.php` & `menu.blade.php` | Penambahan navigasi menu Setting Akun Obat & BHP serta Setting Akun Pembelian |
 | `app/Services/Bridging/BridgingPendapatanService.php` | Logika akun lawan dari cara bayar kasir + piutang penjamin |
 | `app/Services/Bridging/BridgingPendapatanObatService.php` | Refaktor total tarik obat & piutang obat berbasis cara bayar & setting obat |
-| `tests/Feature/SettingBridgingObatTest.php` | Feature test otorisasi, render halaman, dan update setting |
+| `app/Services/Bridging/BridgingPembelianService.php` | Refaktor tarik pembelian obat & non medis berbasis setting akun terpusat |
+| `tests/Feature/SettingBridgingObatTest.php` | Feature test otorisasi, render halaman, dan update setting obat |
+| `tests/Feature/SettingBridgingPembelianTest.php` | Feature test otorisasi, render halaman, dan update setting pembelian |
 | `tests/Unit/BridgingPendapatanObatServiceTest.php` | Unit test komprehensif alur bridging obat & piutang obat |
+| `tests/Unit/BridgingPembelianServiceTest.php` | Unit test komprehensif alur bridging pembelian obat & non medis |
+| `tests/Feature/BridgingPembelianDataTableTest.php` & `BridgingPembelianTagihanObatDataTableTest.php` | Feature test DataTable bridging pembelian |
 | `dokumentasi/pengaturan-setting-obat.md` | Dokumentasi modul baru Setting Akun Obat & BHP |
+| `dokumentasi/pengaturan-setting-pembelian.md` | Dokumentasi modul baru Setting Akun Pembelian |
 | `dokumentasi/bridging-pendapatan-obat.md` | Pembaruan flowchart, algoritma, dan catatan bisnis bridging obat |
+| `dokumentasi/bridging-pembelian.md` | Pembaruan flowchart, algoritma, dan catatan bisnis bridging pembelian |
 | `dokumentasi/fondasi/sistem-otorisasi.md` | Penambahan modul hak akses dan aksi modul baru |
 | `dokumentasi/README.md` | Index daftar dokumentasi sistem |
 | `AGENTS.md` | Sinkronisasi aturan dan mapping Code $\rightarrow$ Documentation |
@@ -98,8 +134,12 @@ Seluruh COA aktif (`status_aktif = 1`) ditampilkan secara lengkap pada dropdown 
 ## 4. Hasil Verifikasi & Pengujian
 
 - **Automated Tests**:
-  - `tests/Feature/SettingBridgingObatTest.php` $\rightarrow$ 4 tests passed.
+  - `tests/Feature/SettingBridgingObatTest.php` $\rightarrow$ 5 tests passed.
   - `tests/Unit/BridgingPendapatanObatServiceTest.php` $\rightarrow$ 8 tests passed.
   - `tests/Feature/BridgingPendapatanObatDataTableTest.php` $\rightarrow$ 4 tests passed.
-  - Total 16 tests lulus 100% tanpa regresi.
-- **Git Branch**: Seluruh commit telah di-push ke remote branch `khanza-pku-mojoagung`.
+  - `tests/Feature/SettingBridgingPembelianTest.php` $\rightarrow$ 5 tests passed.
+  - `tests/Unit/BridgingPembelianServiceTest.php` $\rightarrow$ 7 tests passed.
+  - `tests/Feature/BridgingPembelianDataTableTest.php` $\rightarrow$ 4 tests passed.
+  - `tests/Feature/BridgingPembelianTagihanObatDataTableTest.php` $\rightarrow$ 4 tests passed.
+  - Seluruh rangkaian test bridging pendapatan, obat, dan pembelian (37 tests) lulus 100% tanpa regresi.
+- **Git Branch**: Branch aktif `khanza-pku-mojoagung`.
