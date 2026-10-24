@@ -92,11 +92,12 @@ flowchart TD
     A["User buka halaman Jurnal Umum"] --> B["GET /bukubesar/jurnal-umum"]
     B --> C["JurnalUmumController::index()"]
     C --> D["resolveDateRange()"]
-    D --> E["Render view bukubesar.jurnal-umum.index"]
+    C --> E1["JurnalUmumService::getSummary(start, end)"]
+    D & E1 --> E["Render view bukubesar.jurnal-umum.index\n(Quick Metrics + Unified Surface)"]
     E --> F["DataTable GET /load-data"]
     F --> G["JurnalUmumController::loadData()"]
     G --> H["JurnalUmumService::getIndexQuery(start, end)"]
-    H --> I["DataTables::eloquent()->toJson()"]
+    H --> I["DataTables::eloquent()\n+ edit_url, print_url, destroy_url, can_update, can_delete -> toJson()"]
     E --> J["User klik Export CSV"]
     J --> K["GET /export-csv"]
     K --> L["streamCsvExport() via trait StreamsCsvExport"]
@@ -104,11 +105,16 @@ flowchart TD
 
 ### Algoritma
 
-1. `index()` menentukan rentang tanggal via `resolveDateRange()` (default: awal bulan s.d. hari ini).
-2. View daftar dirender dengan `startDate`/`endDate`.
-3. DataTable memanggil `loadData()` yang mengambil query dari `getIndexQuery()` (urut `tanggal` & `id` desc).
-4. Kolom `tanggal` dan `debit` diformat; `nomer_link` menuju halaman edit.
-5. Ekspor CSV memvalidasi rentang tanggal lalu men-stream kolom Nomor, Tanggal, Nominal, Keterangan.
+1. `index()` menentukan rentang tanggal via `resolveDateRange()` (default: awal bulan s.d. hari ini) dan memanggil `JurnalUmumService::getSummary()` untuk menghitung metrik ringkasan (`total_count` dan `total_nominal`).
+2. View daftar dirender dalam struktur **Unified Card Surface** modern dengan:
+   - **Quick Metric Cards** di atas tabel (Total Transaksi, Total Perputaran Nominal, Periode Terpilih).
+   - **Filter Toolbar** dengan Quick Date Presets (Hari Ini, Bulan Ini, Bulan Lalu).
+   - **Modern DataTables** dengan custom search input, freeze sticky column (kolom Nomor freeze di kiri, kolom Aksi freeze di kanan via pure CSS sticky).
+3. DataTable memanggil endpoint `loadData()` yang mengambil base query dari `getIndexQuery(start, end)`.
+4. Sorting dinamis diproses via custom closure `order()` pada DataTables untuk mendukung sorting kolom Nomor, Tanggal, Nominal (numerik), dan Keterangan; default fallback jika tanpa parameter urutan adalah `tanggal DESC, id DESC`.
+5. Kolom `tanggal` diformat sebagai `d-m-Y` (hari-bulan-tahun) pada tampilan layar; filter pencarian tanggal mendukung format `d-m-Y` maupun `Y-m-d`. Kolom `debit` diformat pemisah ribuan.
+6. Kolom `edit_url`, `print_url`, `destroy_url`, `can_update`, dan `can_delete` disertakan untuk merender badge nomor jurnal serta kolom Aksi (Cetak, Edit, Hapus via modal konfirmasi).
+7. Ekspor CSV memvalidasi rentang tanggal lalu men-stream kolom Nomor, Tanggal (format ISO `Y-m-d`), Nominal, Keterangan secara terurut `tanggal DESC, id DESC`.
 
 ## Alur 2: Buat / Ubah Jurnal + Sinkronisasi Buku Besar
 
