@@ -25,10 +25,9 @@ class SettingBridgingObatService
     public function getCoaOptions(): Collection
     {
         return Coa::query()
-            ->where('status_aktif', 1)
-            ->where('is_postable', true)
+            ->active()
             ->orderBy('kode')
-            ->get();
+            ->get(['id', 'kode', 'nama']);
     }
 
     public function save(array $data): SettingBridgingObat
