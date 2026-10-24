@@ -26,6 +26,7 @@ bagian **Documentation Policy**.
 | [Integrasi SIMRS](fondasi/integrasi-simrs.md) | Koneksi DB `simrs`, pola query lintas-koneksi |
 | [Konvensi Buku Besar & COA](fondasi/konvensi-bukubesar-coa.md) | COA, TipeCoa, Buku Besar, Jurnal Umum, aturan debit-kredit & sinkronisasi |
 | [Glosarium](fondasi/glosarium.md) | Istilah domain: billing, no_rawat, penjamin, ranap/ralan, dll |
+| [Perubahan Bridging](perubahan-bridging.md) | Ringkasan arsitektur bridging pendapatan & obat mandiri tanpa jurnal SIMRS |
 
 ## Modul Aplikasi
 
