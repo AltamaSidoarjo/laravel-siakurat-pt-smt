@@ -1115,5 +1115,77 @@ class LaporanKeuanganBukubesarTest extends TestCase
         Schema::dropIfExists('faktur_penjualan');
         Schema::dropIfExists('simrs_import_pendapatan');
     }
+
+    public function test_bukubesar_handles_large_transaction_chunks_for_penjamin_mapping(): void
+    {
+        Schema::dropIfExists('faktur_penjualan');
+
+        Schema::create('faktur_penjualan', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('nomor_faktur');
+            $table->string('kode_penjamin')->nullable();
+            $table->string('nama_penjamin')->nullable();
+            $table->timestamps();
+        });
+
+        $leaf = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Pendapatan',
+            'kode' => '409.99',
+            'nama' => 'Pendapatan Uji Skala Besar',
+            'is_postable' => true,
+        ]);
+
+        $now = now()->toDateTimeString();
+        $totalInvoices = 1200; // Lebih besar dari chunk size (500)
+        $fakturs = [];
+        $bukubesars = [];
+
+        for ($i = 1; $i <= $totalInvoices; $i++) {
+            $noFaktur = 'INV-CHUNK-' . $i;
+            $fakturs[] = [
+                'nomor_faktur' => $noFaktur,
+                'kode_penjamin' => 'PENJ-' . ($i % 5),
+                'nama_penjamin' => 'Asuransi ' . ($i % 5),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+
+            $bukubesars[] = [
+                'coa_id' => $leaf->id,
+                'tanggal' => '2026-10-01',
+                'nomer' => $noFaktur,
+                'sumber_transaksi' => 'Invoice Pendapatan',
+                'nominal' => 10000,
+                'tipe_mutasi' => 'K',
+                'keterangan' => 'Tindakan ' . $i,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        foreach (array_chunk($fakturs, 500) as $chunk) {
+            \Illuminate\Support\Facades\DB::table('faktur_penjualan')->insert($chunk);
+        }
+
+        foreach (array_chunk($bukubesars, 500) as $chunk) {
+            BukuBesar::query()->insert($chunk);
+        }
+
+        $service = app(LaporanKeuanganService::class);
+        $result = $service->getBukubesar('2026-10-01', '2026-10-05', [$leaf->id]);
+
+        $rows = collect($result['data'])->firstWhere('coa_id', $leaf->id)['rows'] ?? collect();
+        $this->assertCount($totalInvoices, $rows);
+
+        $firstRow = $rows->firstWhere('nomer', 'INV-CHUNK-1');
+        $this->assertSame('[PENJ-1] Asuransi 1 - Tindakan 1', $firstRow['keterangan']);
+
+        $lastRow = $rows->firstWhere('nomer', 'INV-CHUNK-1200');
+        $this->assertSame('[PENJ-0] Asuransi 0 - Tindakan 1200', $lastRow['keterangan']);
+
+        Schema::dropIfExists('faktur_penjualan');
+    }
 }
 

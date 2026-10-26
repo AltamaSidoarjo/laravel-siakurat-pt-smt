@@ -1272,16 +1272,18 @@ class LaporanKeuanganService
             ->all();
 
         if (! empty($invoiceNomers) && Schema::hasTable('faktur_penjualan')) {
-            $invoices = DB::table('faktur_penjualan')
-                ->whereIn('nomor_faktur', $invoiceNomers)
-                ->select(['id', 'nomor_faktur', 'kode_penjamin', 'nama_penjamin'])
-                ->get();
+            foreach (array_chunk($invoiceNomers, 500) as $chunkNomers) {
+                $invoices = DB::table('faktur_penjualan')
+                    ->whereIn('nomor_faktur', $chunkNomers)
+                    ->select(['id', 'nomor_faktur', 'kode_penjamin', 'nama_penjamin'])
+                    ->get();
 
-            foreach ($invoices as $inv) {
-                $label = $this->formatLabelPenjamin($inv->kode_penjamin, $inv->nama_penjamin);
-                if ($label !== '') {
-                    $map['Invoice Pendapatan'][$inv->nomor_faktur] = $label;
-                    $map['Invoice Pendapatan'][$inv->id] = $label;
+                foreach ($invoices as $inv) {
+                    $label = $this->formatLabelPenjamin($inv->kode_penjamin, $inv->nama_penjamin);
+                    if ($label !== '') {
+                        $map['Invoice Pendapatan'][$inv->nomor_faktur] = $label;
+                        $map['Invoice Pendapatan'][$inv->id] = $label;
+                    }
                 }
             }
         }
@@ -1295,15 +1297,17 @@ class LaporanKeuanganService
             ->all();
 
         if (! empty($jurnalNomers) && Schema::hasTable('simrs_import_pendapatan')) {
-            $imports = DB::table('simrs_import_pendapatan')
-                ->whereIn('nomer_billing', $jurnalNomers)
-                ->select(['nomer_billing', 'kode_penjamin', 'penjamin'])
-                ->get();
+            foreach (array_chunk($jurnalNomers, 500) as $chunkNomers) {
+                $imports = DB::table('simrs_import_pendapatan')
+                    ->whereIn('nomer_billing', $chunkNomers)
+                    ->select(['nomer_billing', 'kode_penjamin', 'penjamin'])
+                    ->get();
 
-            foreach ($imports as $imp) {
-                $label = $this->formatLabelPenjamin($imp->kode_penjamin, $imp->penjamin);
-                if ($label !== '') {
-                    $map['Jurnal Umum'][$imp->nomer_billing] = $label;
+                foreach ($imports as $imp) {
+                    $label = $this->formatLabelPenjamin($imp->kode_penjamin, $imp->penjamin);
+                    if ($label !== '') {
+                        $map['Jurnal Umum'][$imp->nomer_billing] = $label;
+                    }
                 }
             }
         }
@@ -1317,18 +1321,20 @@ class LaporanKeuanganService
             ->all();
 
         if (! empty($penerimaanIds) && Schema::hasTable('penerimaan_penjualan') && Schema::hasTable('pelanggan')) {
-            $penerimaan = DB::table('penerimaan_penjualan')
-                ->join('pelanggan', 'pelanggan.id', '=', 'penerimaan_penjualan.pelanggan_id')
-                ->whereIn('penerimaan_penjualan.id', $penerimaanIds)
-                ->select(['penerimaan_penjualan.id', 'penerimaan_penjualan.nomer', 'pelanggan.kode_pelanggan', 'pelanggan.nama_pelanggan'])
-                ->get();
+            foreach (array_chunk($penerimaanIds, 500) as $chunkIds) {
+                $penerimaan = DB::table('penerimaan_penjualan')
+                    ->join('pelanggan', 'pelanggan.id', '=', 'penerimaan_penjualan.pelanggan_id')
+                    ->whereIn('penerimaan_penjualan.id', $chunkIds)
+                    ->select(['penerimaan_penjualan.id', 'penerimaan_penjualan.nomer', 'pelanggan.kode_pelanggan', 'pelanggan.nama_pelanggan'])
+                    ->get();
 
-            foreach ($penerimaan as $pen) {
-                $label = $this->formatLabelPenjamin($pen->kode_pelanggan, $pen->nama_pelanggan);
-                if ($label !== '') {
-                    $map['Penerimaan Pendapatan'][$pen->id] = $label;
-                    if (! empty($pen->nomer)) {
-                        $map['Penerimaan Pendapatan'][$pen->nomer] = $label;
+                foreach ($penerimaan as $pen) {
+                    $label = $this->formatLabelPenjamin($pen->kode_pelanggan, $pen->nama_pelanggan);
+                    if ($label !== '') {
+                        $map['Penerimaan Pendapatan'][$pen->id] = $label;
+                        if (! empty($pen->nomer)) {
+                            $map['Penerimaan Pendapatan'][$pen->nomer] = $label;
+                        }
                     }
                 }
             }
