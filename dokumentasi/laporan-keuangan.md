@@ -133,7 +133,7 @@ flowchart TD
   `getLabaRugiDetil()/getLabaRugiStandard()/getLabaRugiPerParentCoa()/getLabaRugiKomparasiBulanan()`,
   `getNeracaStandard()/getNeracaPerParentCoa()/getNeracaSaldo()/getNeracaDetil()/getNeracaRinci()`,
   `getBukubesar()/getBukubesarSelectedCoaOptions()/searchBukubesarCoaOptions()/countBukubesarCoaOptions()`,
-  `getArusKas()`, `getDaftarTipeCoaAktif()` (plus banyak helper privat untuk agregasi & klasifikasi).
+  `getArusKas()`, `getArusKasTidakLangsung()`, `getDaftarTipeCoaAktif()` (plus banyak helper privat untuk agregasi & klasifikasi).
 
 ## Catatan Penting Bisnis
 
