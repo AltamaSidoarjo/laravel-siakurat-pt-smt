@@ -26,9 +26,23 @@ class JurnalUmumService
     public function getIndexQuery(string $startDate, string $endDate): Builder
     {
         return JurnalUmum::query()
+            ->betweenDates($startDate, $endDate);
+    }
+
+    /**
+     * @return array{total_count: int, total_nominal: float}
+     */
+    public function getSummary(string $startDate, string $endDate): array
+    {
+        $aggregate = JurnalUmum::query()
             ->betweenDates($startDate, $endDate)
-            ->orderByDesc('tanggal')
-            ->orderByDesc('id');
+            ->selectRaw('COUNT(*) as total_count, COALESCE(SUM(debit), 0) as total_nominal')
+            ->first();
+
+        return [
+            'total_count' => (int) ($aggregate?->total_count ?? 0),
+            'total_nominal' => (float) ($aggregate?->total_nominal ?? 0),
+        ];
     }
 
     public function create(array $data): JurnalUmum

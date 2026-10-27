@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Bukubesar;
 
 use App\Http\Controllers\Concerns\StreamsCsvExport;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Bukubesar\ImportJurnalUmumRequest;
 use App\Http\Requests\Bukubesar\StoreJurnalUmumRequest;
 use App\Http\Requests\Bukubesar\UpdateJurnalUmumRequest;
 use App\Models\JurnalUmum;
+use App\Services\Bukubesar\JurnalUmumImportException;
+use App\Services\Bukubesar\JurnalUmumImportService;
 use App\Services\Bukubesar\JurnalUmumService;
 use App\Services\Bukubesar\JurnalUmumTemplateService;
 use App\Services\PreferensiPerusahaanService;
@@ -16,7 +19,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 use Yajra\DataTables\Facades\DataTables;
 
 class JurnalUmumController extends Controller
@@ -25,6 +30,7 @@ class JurnalUmumController extends Controller
 
     public function __construct(
         private readonly JurnalUmumService $jurnalUmumService,
+        private readonly JurnalUmumImportService $jurnalUmumImportService,
         private readonly PreferensiPerusahaanService $preferensiPerusahaanService,
         private readonly JurnalUmumTemplateService $templateService,
     ) {}
@@ -37,30 +43,89 @@ class JurnalUmumController extends Controller
             'page' => 'app',
             'startDate' => $startDate,
             'endDate' => $endDate,
+            'summary' => $this->jurnalUmumService->getSummary($startDate, $endDate),
         ]);
     }
 
     public function loadData(Request $request): JsonResponse
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
+        $user = $request->user();
+        $canUpdate = $user?->hasModuleAccess('bukubesar.jurnal-umum', 'update') ?? false;
+        $canDelete = $user?->hasModuleAccess('bukubesar.jurnal-umum', 'delete') ?? false;
 
         $query = $this->jurnalUmumService->getIndexQuery($startDate, $endDate);
 
         return DataTables::eloquent($query)
-            ->editColumn('tanggal', fn (JurnalUmum $jurnalUmum) => optional($jurnalUmum->tanggal)->format('Y-m-d'))
+            ->editColumn('tanggal', fn (JurnalUmum $jurnalUmum) => optional($jurnalUmum->tanggal)->format('d-m-Y'))
             ->editColumn('debit', fn (JurnalUmum $jurnalUmum) => number_format((float) $jurnalUmum->debit, 0, ',', '.'))
             ->filterColumn('tanggal', function ($query, $keyword) {
-                $query->whereDate('tanggal', $keyword);
+                if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $keyword)) {
+                    $parts = explode('-', $keyword);
+                    $query->whereDate('tanggal', "{$parts[2]}-{$parts[1]}-{$parts[0]}");
+                } elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $keyword)) {
+                    $query->whereDate('tanggal', $keyword);
+                } else {
+                    $query->where('tanggal', 'like', "%{$keyword}%");
+                }
+            })
+            ->order(function ($query) use ($request) {
+                $orders = $request->input('order', []);
+                if (empty($orders)) {
+                    $query->orderByDesc('tanggal')->orderByDesc('id');
+
+                    return;
+                }
+
+                $columns = $request->input('columns', []);
+                foreach ($orders as $order) {
+                    $colIdx = $order['column'] ?? null;
+                    $dir = strtolower($order['dir'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
+                    $colName = $columns[$colIdx]['name'] ?? $columns[$colIdx]['data'] ?? null;
+
+                    if ($colName === 'nomer') {
+                        $query->orderBy('nomer', $dir);
+                    } elseif ($colName === 'tanggal') {
+                        $query->orderBy('tanggal', $dir)->orderBy('id', $dir);
+                    } elseif ($colName === 'debit') {
+                        $query->orderBy('debit', $dir);
+                    } elseif ($colName === 'keterangan') {
+                        $query->orderBy('keterangan', $dir);
+                    }
+                }
             })
             ->addColumn('nomer_link', fn (JurnalUmum $jurnalUmum) => route('bukubesar.jurnal-umum.edit', $jurnalUmum))
+            ->addColumn('edit_url', fn (JurnalUmum $jurnalUmum) => route('bukubesar.jurnal-umum.edit', $jurnalUmum))
+            ->addColumn('print_url', fn (JurnalUmum $jurnalUmum) => route('bukubesar.jurnal-umum.print', $jurnalUmum))
+            ->addColumn('destroy_url', fn (JurnalUmum $jurnalUmum) => route('bukubesar.jurnal-umum.destroy', $jurnalUmum))
+            ->addColumn('can_update', fn () => $canUpdate)
+            ->addColumn('can_delete', fn () => $canDelete)
             ->toJson();
     }
 
     public function exportCsv(Request $request): StreamedResponse
     {
-        $data = $request->validate(['startDate' => ['required', 'date_format:Y-m-d'], 'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate']]);
+        $data = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+        ]);
 
-        return $this->streamCsvExport($request, $this->jurnalUmumService->getIndexQuery($data['startDate'], $data['endDate']), 'jurnal-umum', ['Nomor', 'Tanggal', 'Nominal', 'Keterangan'], fn (JurnalUmum $item) => [(string) $item->nomer, optional($item->tanggal)->format('Y-m-d'), $this->csvNumber($item->debit), (string) $item->keterangan]);
+        $query = $this->jurnalUmumService->getIndexQuery($data['startDate'], $data['endDate'])
+            ->orderByDesc('tanggal')
+            ->orderByDesc('id');
+
+        return $this->streamCsvExport(
+            $request,
+            $query,
+            'jurnal-umum',
+            ['Nomor', 'Tanggal', 'Nominal', 'Keterangan'],
+            fn (JurnalUmum $item) => [
+                (string) $item->nomer,
+                optional($item->tanggal)->format('Y-m-d'),
+                $this->csvNumber($item->debit),
+                (string) $item->keterangan,
+            ]
+        );
     }
 
     private function resolveDateRange(Request $request): array
@@ -85,7 +150,7 @@ class JurnalUmumController extends Controller
 
         try {
             $date = Carbon::createFromFormat('Y-m-d', trim($value));
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
 
@@ -118,7 +183,7 @@ class JurnalUmumController extends Controller
                         'catatan' => $item->catatan ?? '',
                     ])->toArray();
                 }
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 // If template not found, continue without template
             }
         }
@@ -144,6 +209,47 @@ class JurnalUmumController extends Controller
         return redirect()
             ->route('bukubesar.jurnal-umum.index')
             ->with('success', 'Data berhasil dibuat. Nomer: '.$jurnalUmum->nomer);
+    }
+
+    public function importForm(): View
+    {
+        return view('bukubesar.jurnal-umum.import', [
+            'page' => 'app',
+            'phpUploadMaxFileSize' => ini_get('upload_max_filesize') ?: 'tidak diketahui',
+            'phpPostMaxSize' => ini_get('post_max_size') ?: 'tidak diketahui',
+        ]);
+    }
+
+    public function importTemplate(): BinaryFileResponse
+    {
+        $template = $this->jurnalUmumImportService->buildTemplate();
+
+        return response()
+            ->download(
+                $template['output_path'],
+                $template['download_name'],
+                ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+            )
+            ->deleteFileAfterSend(true);
+    }
+
+    public function import(ImportJurnalUmumRequest $request): RedirectResponse
+    {
+        try {
+            $result = DB::transaction(
+                fn () => $this->jurnalUmumImportService->importFromXlsx($request->file('file'))
+            );
+        } catch (JurnalUmumImportException $exception) {
+            return back()->withErrors(['file' => $exception->errors()]);
+        } catch (Throwable $throwable) {
+            report($throwable);
+
+            return back()->withErrors(['file' => 'File gagal diproses. Pastikan file sesuai template.']);
+        }
+
+        return redirect()
+            ->route('bukubesar.jurnal-umum.index')
+            ->with('success', sprintf('Import berhasil. %d jurnal dibuat (%s).', $result['created'], implode(', ', $result['nomer'])));
     }
 
     public function edit(JurnalUmum $jurnalUmum): View

@@ -420,3 +420,368 @@ body.sidebar-open #sidebar-backdrop {
 .collapse {
     visibility: visible;
 }
+
+/* ─── Modern DataTable & Metric Cards System ─────────────────── */
+
+.metric-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    padding: 1.15rem 1.25rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.metric-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+}
+
+.metric-icon-wrap {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.625rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.metric-icon-green {
+    background-color: #ecfdf5;
+    color: #059669;
+}
+
+.metric-icon-blue {
+    background-color: #eff6ff;
+    color: #2563eb;
+}
+
+.metric-icon-amber {
+    background-color: #fffbeb;
+    color: #d97706;
+}
+
+.metric-title {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.metric-value {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.25;
+}
+
+.metric-desc {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-top: 0.25rem;
+}
+
+/* Card Container */
+.dt-surface {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+.dt-surface-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    background-color: #ffffff;
+}
+
+.dt-surface-body {
+    padding: 0;
+}
+
+.dt-surface-footer {
+    padding: 0.875rem 1.25rem;
+    border-top: 1px solid #f1f5f9;
+    background-color: #fafbfc;
+}
+
+/* Toolbar & Filters */
+.dt-filter-section {
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 1rem 1.5rem;
+}
+
+.btn-quick-preset {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 9999px;
+    border: 1px solid #cbd5e1;
+    background-color: #ffffff;
+    color: #475569;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-quick-preset:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
+
+/* Table Clean & Airy */
+.table-modern {
+    width: 100% !important;
+    margin-bottom: 0 !important;
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border: none !important;
+}
+
+.table-modern thead th {
+    background-color: #f8fafc !important;
+    color: #475569 !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    padding: 0.875rem 1.25rem !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    vertical-align: middle !important;
+    white-space: nowrap !important;
+}
+
+.table-modern tbody td {
+    padding: 0.95rem 1.25rem !important;
+    font-size: 0.875rem !important;
+    color: #1e293b !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    vertical-align: middle !important;
+    background-color: transparent !important;
+}
+
+.table-modern tbody tr {
+    transition: background-color 0.15s ease !important;
+}
+
+.table-modern tbody tr:hover {
+    background-color: #f8fafc !important;
+}
+
+.table-modern tbody tr:last-child td {
+    border-bottom: none !important;
+}
+
+/* Frozen / Sticky Columns for Modern Tables */
+.table-modern th.col-freeze-left,
+.table-modern td.col-freeze-left {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 2 !important;
+    background-color: #ffffff !important;
+    box-shadow: 3px 0 6px -2px rgba(15, 23, 42, 0.08) !important;
+}
+
+.table-modern thead th.col-freeze-left {
+    background-color: #f8fafc !important;
+    z-index: 4 !important;
+}
+
+.table-modern tbody tr:hover td.col-freeze-left {
+    background-color: #f8fafc !important;
+}
+
+.table-modern th.col-freeze-right,
+.table-modern td.col-freeze-right {
+    position: sticky !important;
+    right: 0 !important;
+    z-index: 2 !important;
+    background-color: #ffffff !important;
+    box-shadow: -3px 0 6px -2px rgba(15, 23, 42, 0.08) !important;
+}
+
+.table-modern thead th.col-freeze-right {
+    background-color: #f8fafc !important;
+    z-index: 4 !important;
+}
+
+.table-modern tbody tr:hover td.col-freeze-right {
+    background-color: #f8fafc !important;
+}
+
+/* Code / Journal Badge */
+.journal-code-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-weight: 600;
+    font-size: 0.8125rem;
+    color: #065f46;
+    background-color: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    padding: 0.2rem 0.55rem;
+    border-radius: 0.375rem;
+    text-decoration: none;
+    transition: all 0.15s ease;
+}
+
+.journal-code-badge:hover {
+    background-color: #059669;
+    color: #ffffff;
+    border-color: #059669;
+}
+
+/* Action Buttons */
+.action-btn-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.btn-table-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.375rem;
+    border: 1px solid transparent;
+    font-size: 0.875rem;
+    transition: all 0.15s ease;
+    background: transparent;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.btn-table-action-print {
+    color: #0284c7;
+    background-color: #f0f9ff;
+    border-color: #bae6fd;
+}
+
+.btn-table-action-print:hover {
+    color: #ffffff;
+    background-color: #0284c7;
+    border-color: #0284c7;
+}
+
+.btn-table-action-edit {
+    color: #d97706;
+    background-color: #fffbeb;
+    border-color: #fde68a;
+}
+
+.btn-table-action-edit:hover {
+    color: #ffffff;
+    background-color: #d97706;
+    border-color: #d97706;
+}
+
+.btn-table-action-delete {
+    color: #e11d48;
+    background-color: #fff1f2;
+    border-color: #fecdd3;
+}
+
+.btn-table-action-delete:hover {
+    color: #ffffff;
+    background-color: #e11d48;
+    border-color: #e11d48;
+}
+
+/* DataTables Controls Modernization */
+.dt-toolbar-custom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.dt-search-input-wrap {
+    position: relative;
+    min-width: 260px;
+}
+
+.dt-search-input-wrap i {
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+.dt-search-input-wrap input {
+    padding-left: 2.35rem !important;
+    border-radius: 0.5rem !important;
+    border-color: #cbd5e1 !important;
+    font-size: 0.875rem !important;
+}
+
+.dt-search-input-wrap input:focus {
+    border-color: #027e3f !important;
+    box-shadow: 0 0 0 0.2rem rgba(2, 126, 63, 0.15) !important;
+}
+
+/* Pagination Overrides */
+.dataTables_wrapper .pagination {
+    margin-bottom: 0 !important;
+    gap: 0.25rem;
+}
+
+.dataTables_wrapper .page-item .page-link {
+    border-radius: 0.375rem !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #475569 !important;
+    font-size: 0.8125rem !important;
+    padding: 0.35rem 0.75rem !important;
+    font-weight: 500;
+}
+
+.dataTables_wrapper .page-item.active .page-link {
+    background-color: #027e3f !important;
+    border-color: #027e3f !important;
+    color: #ffffff !important;
+}
+
+.dataTables_wrapper .page-item.disabled .page-link {
+    color: #cbd5e1 !important;
+    background-color: #f8fafc !important;
+}
+
+.dataTables_wrapper .dataTables_info {
+    font-size: 0.8125rem !important;
+    color: #64748b !important;
+    padding-top: 0.4rem !important;
+}
+
+.dataTables_wrapper .dataTables_length label {
+    font-size: 0.8125rem !important;
+    color: #64748b !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0 !important;
+}
+
+.dataTables_wrapper .dataTables_length select {
+    border-radius: 0.375rem !important;
+    border-color: #cbd5e1 !important;
+    padding: 0.25rem 1.75rem 0.25rem 0.5rem !important;
+    font-size: 0.8125rem !important;
+}
