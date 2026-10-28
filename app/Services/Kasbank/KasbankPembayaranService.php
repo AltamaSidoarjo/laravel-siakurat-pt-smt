@@ -33,6 +33,22 @@ class KasbankPembayaranService
             ->orderByDesc('id');
     }
 
+    /**
+     * @return array{total_count: int, total_nominal: float}
+     */
+    public function getSummary(string $startDate, string $endDate): array
+    {
+        $aggregate = KasbankPembayaran::query()
+            ->betweenDates($startDate, $endDate)
+            ->selectRaw('COUNT(*) as total_count, COALESCE(SUM(total), 0) as total_nominal')
+            ->first();
+
+        return [
+            'total_count' => (int) ($aggregate?->total_count ?? 0),
+            'total_nominal' => (float) ($aggregate?->total_nominal ?? 0),
+        ];
+    }
+
     public function create(array $data): KasbankPembayaran
     {
         $kasbankPembayaran = KasbankPembayaran::query()->create([

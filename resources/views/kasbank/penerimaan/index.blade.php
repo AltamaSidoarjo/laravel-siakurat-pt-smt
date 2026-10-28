@@ -3,85 +3,201 @@
 @section('title', 'Kasbank Penerimaan')
 
 @section('content')
-    <div class="row mb-3">
-        <div class="col">
-            <div class="d-flex align-items-center gap-3 fs-3">
-                <a href="{{ route('home') }}" class="text-dark">
+    @php
+        $user = auth()->user();
+        $canCreate = $user?->hasModuleAccess('kasbank.penerimaan', 'create') ?? false;
+        $totalCount = $summary['total_count'] ?? 0;
+        $totalNominal = $summary['total_nominal'] ?? 0;
+    @endphp
+
+    {{-- Page Header --}}
+    <div class="row align-items-center mb-4">
+        <div class="col-md-7">
+            <div class="d-flex align-items-center gap-3">
+                <a href="{{ route('home') }}" class="btn btn-header-back btn-sm rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 36px; height: 36px;" title="Kembali ke Dashboard">
                     <i class="bi bi-arrow-left"></i>
                 </a>
-                <span class="fw-bold">Kasbank Penerimaan</span>
+                <div>
+                    <h4 class="fw-bold mb-0 text-dark">Kasbank Penerimaan</h4>
+                    <p class="text-muted small mb-0">Kelola dan pantau seluruh transaksi penerimaan kas dan bank</p>
+                </div>
             </div>
+        </div>
+        <div class="col-md-5 d-flex justify-content-md-end gap-2 mt-3 mt-md-0">
+            <a href="{{ route('kasbank.penerimaan-template.index') }}" class="btn btn-header-outline-success d-inline-flex align-items-center gap-2 shadow-sm">
+                <i class="bi bi-file-earmark-text-fill"></i>
+                <span>Template Penerimaan</span>
+            </a>
+            @if ($canCreate)
+                <a href="{{ route('kasbank.penerimaan.create') }}" class="btn btn-success d-inline-flex align-items-center gap-2 shadow-sm">
+                    <i class="bi bi-plus-circle-fill"></i>
+                    <span>Tambah Penerimaan</span>
+                </a>
+            @endif
         </div>
     </div>
 
-    <div class="row">
-        <div class="col">
-            <div class="card border-muhammadiyah mb-2">
-                <div class="card-body">
-                    @include('partials.flash-message')
-                    @include('partials.validation-errors')
+    @include('partials.flash-message')
+    @include('partials.validation-errors')
 
-                    <div class="d-flex flex-column gap-3">
-                        <div class="card border-light shadow-sm">
-                            <div class="card-body">
-                                <form method="get" action="">
-                                    <div class="row g-3">
-                                        <div class="col-md-4">
-                                            <label class="form-label">Dari tanggal</label>
-                                            <input type="date" name="startDate" class="form-control" value="{{ $startDate }}">
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label">Sampai tanggal</label>
-                                            <input type="date" name="endDate" class="form-control" value="{{ $endDate }}">
-                                        </div>
-                                        <div class="col-md-4 d-flex align-items-end justify-content-end gap-2 flex-wrap">
-                                            <a href="{{ route('kasbank.penerimaan.index') }}" class="btn btn-light">Reset</a>
-                                            <button type="submit" class="btn btn-primary">
-                                                <i class="bi bi-funnel me-1"></i>Filter
-                                            </button>
-                                            <button type="button" class="btn btn-outline-success text-nowrap" data-bs-toggle="modal" data-bs-target="#exportCsvModal"><i class="bi bi-filetype-csv me-1"></i>Export CSV</button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-
-                        <div class="card border-light shadow-sm">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-end gap-2 align-items-center">
-                                    <a href="{{ route('kasbank.penerimaan-template.index') }}" class="btn btn-outline-success fw-semibold">
-                                        <i class="bi bi-file-earmark-text-fill me-1"></i> Template Penerimaan
-                                    </a>
-                                    <a href="{{ route('kasbank.penerimaan.create') }}" class="btn btn-success fw-bold">
-                                        <i class="bi bi-plus-circle-fill me-1"></i> Tambah
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card border-light shadow-sm">
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-striped table-bordered table-hover" id="datatable">
-                                        <thead>
-                                            <tr>
-                                                <th>Nomor</th>
-                                                <th>Tanggal</th>
-                                                <th>Bank</th>
-                                                <th>Nominal</th>
-                                                <th>Keterangan</th>
-                                            </tr>
-                                        </thead>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
+    {{-- Quick Metric Cards --}}
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-4">
+            <div class="metric-card d-flex align-items-center gap-3">
+                <div class="metric-icon-wrap metric-icon-green">
+                    <i class="bi bi-arrow-down-left-circle"></i>
+                </div>
+                <div>
+                    <div class="metric-title">Total Penerimaan</div>
+                    <div class="metric-value">{{ number_format($totalCount, 0, ',', '.') }}</div>
+                    <div class="metric-desc">Transaksi dalam rentang filter</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-4">
+            <div class="metric-card d-flex align-items-center gap-3">
+                <div class="metric-icon-wrap metric-icon-blue">
+                    <i class="bi bi-wallet2"></i>
+                </div>
+                <div>
+                    <div class="metric-title">Total Nominal Diterima</div>
+                    <div class="metric-value">Rp {{ number_format($totalNominal, 0, ',', '.') }}</div>
+                    <div class="metric-desc">Total nominal penerimaan kas/bank</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-12 col-lg-4">
+            <div class="metric-card d-flex align-items-center gap-3">
+                <div class="metric-icon-wrap metric-icon-amber">
+                    <i class="bi bi-calendar3"></i>
+                </div>
+                <div>
+                    <div class="metric-title">Periode Terpilih</div>
+                    <div class="metric-value fs-6 fw-bold">
+                        {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} — {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
                     </div>
+                    <div class="metric-desc">Status rentang data aktif</div>
                 </div>
             </div>
         </div>
     </div>
-    @include('partials.export-csv-modal', ['exportRoute' => route('kasbank.penerimaan.export-csv'), 'exportTitle' => 'Kasbank Penerimaan', 'startDate' => $startDate, 'endDate' => $endDate])
+
+    {{-- Unified Card Surface --}}
+    <div class="dt-surface mb-4">
+        {{-- Filter Toolbar --}}
+        <div class="dt-filter-section">
+            <form id="filterForm" method="get" action="{{ route('kasbank.penerimaan.index') }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-sm-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Dari Tanggal</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-calendar-event"></i></span>
+                            <input type="date" name="startDate" id="startDateInput" class="form-control border-start-0 ps-0" value="{{ $startDate }}" required>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-md-3">
+                        <label class="form-label small fw-semibold text-muted mb-1">Sampai Tanggal</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-calendar-event"></i></span>
+                            <input type="date" name="endDate" id="endDateInput" class="form-control border-start-0 ps-0" value="{{ $endDate }}" required>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6 d-flex flex-wrap align-items-center justify-content-md-end gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+                            <i class="bi bi-funnel"></i> Terapkan
+                        </button>
+                        <a href="{{ route('kasbank.penerimaan.index') }}" class="btn btn-light btn-sm border" title="Reset filter ke default">
+                            <i class="bi bi-arrow-counterclockwise"></i> Reset
+                        </a>
+                        <button type="button" class="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#exportCsvModal">
+                            <i class="bi bi-filetype-csv"></i> Export CSV
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Quick Presets --}}
+                <div class="d-flex align-items-center gap-2 mt-2 pt-2 border-top border-light flex-wrap">
+                    <span class="small text-muted fw-semibold me-1"><i class="bi bi-clock-history me-1"></i>Preset Cepat:</span>
+                    <button type="button" class="btn-quick-preset" id="presetToday">Hari Ini</button>
+                    <button type="button" class="btn-quick-preset" id="presetThisMonth">Bulan Ini</button>
+                    <button type="button" class="btn-quick-preset" id="presetLastMonth">Bulan Lalu</button>
+                </div>
+            </form>
+        </div>
+
+        {{-- Table Toolbar (Custom Search & Table Title) --}}
+        <div class="dt-toolbar-custom">
+            <div class="d-flex align-items-center gap-2 text-muted small">
+                <i class="bi bi-table text-success"></i>
+                <span class="fw-semibold text-dark">Daftar Transaksi Kasbank Penerimaan</span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="dt-search-input-wrap">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="customSearchInput" class="form-control form-control-sm" placeholder="Cari nomor, keterangan, bank..." autocomplete="off">
+                </div>
+            </div>
+        </div>
+
+        {{-- Table Surface Body --}}
+        <div class="dt-surface-body">
+            <div class="table-responsive">
+                <table class="table table-modern" id="datatable" style="min-width: 1000px;">
+                    <thead>
+                        <tr>
+                            <th class="col-freeze-left" style="width: 180px; min-width: 180px;">Nomor</th>
+                            <th style="width: 130px; min-width: 130px;">Tanggal</th>
+                            <th style="min-width: 220px;">Bank / Akun Kas</th>
+                            <th style="width: 170px; min-width: 170px;" class="text-end">Nominal</th>
+                            <th style="min-width: 260px;">Keterangan</th>
+                            <th class="col-freeze-right text-center" style="width: 130px; min-width: 130px;">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {{-- Modal Konfirmasi Hapus --}}
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <div class="d-flex align-items-center gap-2 text-danger">
+                        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+                        <h5 class="modal-title fw-bold">Konfirmasi Hapus</h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <p class="mb-1 text-muted">Apakah Anda yakin ingin menghapus transaksi penerimaan kas/bank ini?</p>
+                    <div class="p-2 bg-light rounded border text-dark fw-bold font-monospace my-2" id="deleteTargetNomer">-</div>
+                    <small class="text-danger d-block">
+                        <i class="bi bi-info-circle me-1"></i>Tindakan ini akan menghapus data penerimaan beserta sinkronisasi mutasi buku besar terkait.
+                    </small>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                    <form id="deleteForm" method="post" action="">
+                        @csrf
+                        @method('delete')
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash me-1"></i> Ya, Hapus Penerimaan
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Export CSV Modal --}}
+    @include('partials.export-csv-modal', [
+        'exportRoute' => route('kasbank.penerimaan.export-csv'),
+        'exportTitle' => 'Kasbank Penerimaan',
+        'startDate' => $startDate,
+        'endDate' => $endDate,
+    ])
 @endsection
 
 @push('scripts')
@@ -91,16 +207,66 @@
                 return;
             }
 
-            window.jQuery('#datatable').DataTable({
+            var $ = window.jQuery;
+
+            // Helper format YYYY-MM-DD local time
+            function formatLocalDate(date) {
+                var year = date.getFullYear();
+                var month = String(date.getMonth() + 1).padStart(2, '0');
+                var day = String(date.getDate()).padStart(2, '0');
+                return year + '-' + month + '-' + day;
+            }
+
+            // Quick Date Presets
+            $('#presetToday').on('click', function () {
+                var today = formatLocalDate(new Date());
+                $('#startDateInput').val(today);
+                $('#endDateInput').val(today);
+                $('#filterForm').submit();
+            });
+
+            $('#presetThisMonth').on('click', function () {
+                var now = new Date();
+                var firstDay = formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1));
+                var today = formatLocalDate(now);
+                $('#startDateInput').val(firstDay);
+                $('#endDateInput').val(today);
+                $('#filterForm').submit();
+            });
+
+            $('#presetLastMonth').on('click', function () {
+                var now = new Date();
+                var firstDay = formatLocalDate(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+                var lastDay = formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 0));
+                $('#startDateInput').val(firstDay);
+                $('#endDateInput').val(lastDay);
+                $('#filterForm').submit();
+            });
+
+            // Initialize DataTable
+            var dataTable = $('#datatable').DataTable({
                 processing: true,
                 serverSide: true,
                 autoWidth: false,
-                scrollX: true,
-                scrollCollapse: true,
-                dom: 'frltip',
+                scrollX: false,
+                dom: "<'d-none'f>t<'dt-surface-footer d-flex flex-wrap align-items-center justify-content-between gap-3'lip>",
+                language: {
+                    processing: '<div class="spinner-border spinner-border-sm text-success me-2" role="status"></div> Memuat data...',
+                    zeroRecords: '<div class="text-muted py-4"><i class="bi bi-inbox fs-2 d-block mb-2"></i>Tidak ada transaksi penerimaan yang ditemukan pada periode ini.</div>',
+                    info: 'Menampilkan _START_ sampai _END_ dari _TOTAL_ transaksi',
+                    infoEmpty: 'Menampilkan 0 sampai 0 dari 0 transaksi',
+                    infoFiltered: '(disaring dari _MAX_ total data)',
+                    lengthMenu: 'Tampilkan _MENU_ data',
+                    paginate: {
+                        first: '<i class="bi bi-chevron-double-left"></i>',
+                        previous: '<i class="bi bi-chevron-left"></i>',
+                        next: '<i class="bi bi-chevron-right"></i>',
+                        last: '<i class="bi bi-chevron-double-right"></i>'
+                    }
+                },
                 lengthMenu: [
-                    [10, 50, 1000, -1],
-                    [10, 50, 1000, 'All']
+                    [10, 25, 50, 100, -1],
+                    [10, 25, 50, 100, 'Semua']
                 ],
                 pageLength: 10,
                 order: [[1, 'desc']],
@@ -116,30 +282,110 @@
                     {
                         data: 'nomer',
                         name: 'nomer',
-                        className: 'text-start',
+                        className: 'text-start align-middle col-freeze-left',
                         render: function (data, type, row) {
-                            return `<a href="${row.nomer_link}">${data}</a>`;
+                            if (!data) return '-';
+                            var targetUrl = row.can_update ? (row.edit_url || row.nomer_link) : '#';
+                            var title = row.can_update ? 'Klik untuk edit penerimaan' : 'Nomor Transaksi';
+                            return '<a href="' + targetUrl + '" class="journal-code-badge" title="' + title + '">' +
+                                   '<i class="bi bi-receipt"></i><span>' + data + '</span></a>';
                         }
                     },
                     {
                         data: 'tanggal',
                         name: 'tanggal',
-                        className: 'text-start'
+                        className: 'text-start align-middle',
+                        render: function (data) {
+                            if (!data) return '-';
+                            return '<span class="text-secondary small fw-medium"><i class="bi bi-calendar2-check me-1 text-muted"></i>' + data + '</span>';
+                        }
                     },
                     {
                         data: 'coa_display',
-                        name: 'coa_id'
+                        name: 'coa_id',
+                        className: 'text-start align-middle',
+                        render: function (data) {
+                            if (!data || data === '-') return '<span class="text-muted fst-italic small">-</span>';
+                            return '<span class="d-inline-flex align-items-center text-dark small fw-medium"><i class="bi bi-bank text-success me-2"></i>' + data + '</span>';
+                        }
                     },
                     {
                         data: 'total',
                         name: 'total',
-                        className: 'text-end'
+                        className: 'text-end align-middle',
+                        render: function (data) {
+                            if (!data) return '<span class="text-muted">Rp 0</span>';
+                            return '<span class="fw-bold text-dark font-monospace">Rp ' + data + '</span>';
+                        }
                     },
                     {
                         data: 'keterangan',
-                        name: 'keterangan'
+                        name: 'keterangan',
+                        className: 'align-middle',
+                        render: function (data) {
+                            if (!data) return '<span class="text-muted fst-italic small">- Tidak ada keterangan -</span>';
+                            return '<span class="text-secondary small">' + data + '</span>';
+                        }
+                    },
+                    {
+                        data: 'id',
+                        name: 'action',
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center align-middle col-freeze-right',
+                        render: function (data, type, row) {
+                            var actions = '<div class="action-btn-group">';
+
+                            if (row.print_url) {
+                                actions += '<a href="' + row.print_url + '" target="_blank" class="btn-table-action btn-table-action-print" data-bs-toggle="tooltip" data-bs-title="Cetak Penerimaan">' +
+                                           '<i class="bi bi-printer"></i></a>';
+                            }
+
+                            if (row.can_update && (row.edit_url || row.nomer_link)) {
+                                var editUrl = row.edit_url || row.nomer_link;
+                                actions += '<a href="' + editUrl + '" class="btn-table-action btn-table-action-edit" data-bs-toggle="tooltip" data-bs-title="Edit Penerimaan">' +
+                                           '<i class="bi bi-pencil-square"></i></a>';
+                            }
+
+                            if (row.can_delete && row.destroy_url) {
+                                actions += '<button type="button" class="btn-table-action btn-table-action-delete btn-delete-row" data-bs-toggle="tooltip" data-bs-title="Hapus Penerimaan" data-nomer="' + (row.nomer || '-') + '" data-destroy-url="' + row.destroy_url + '">' +
+                                           '<i class="bi bi-trash"></i></button>';
+                            }
+
+                            actions += '</div>';
+                            return actions;
+                         }
                     }
-                ]
+                ],
+                drawCallback: function () {
+                    var tooltipTriggerList = [].slice.call(document.querySelectorAll('#datatable [data-bs-toggle="tooltip"]'));
+                    tooltipTriggerList.map(function (tooltipTriggerEl) {
+                        return new bootstrap.Tooltip(tooltipTriggerEl, { container: 'body' });
+                    });
+                }
+            });
+
+            // Connect Custom Search Input with Debounce
+            var searchDebounceTimer;
+            $('#customSearchInput').on('keyup input', function () {
+                var term = this.value;
+                clearTimeout(searchDebounceTimer);
+                searchDebounceTimer = setTimeout(function () {
+                    dataTable.search(term).draw();
+                }, 300);
+            });
+
+            // Handle Row Delete Click
+            $(document).on('click', '.btn-delete-row', function () {
+                var nomer = $(this).data('nomer');
+                var destroyUrl = $(this).data('destroy-url');
+
+                $('#deleteTargetNomer').text(nomer);
+                $('#deleteForm').attr('action', destroyUrl);
+
+                var modalEl = document.getElementById('confirmDeleteModal');
+                var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                modal.show();
             });
         });
     </script>
