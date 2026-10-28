@@ -14,7 +14,7 @@
     <div class="row align-items-center mb-4">
         <div class="col-md-7">
             <div class="d-flex align-items-center gap-3">
-                <a href="{{ route('home') }}" class="btn btn-outline-secondary btn-sm rounded-circle d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;" title="Kembali ke Dashboard">
+                <a href="{{ route('home') }}" class="btn btn-header-back btn-sm rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 36px; height: 36px;" title="Kembali ke Dashboard">
                     <i class="bi bi-arrow-left"></i>
                 </a>
                 <div>
@@ -24,12 +24,12 @@
             </div>
         </div>
         <div class="col-md-5 d-flex justify-content-md-end gap-2 mt-3 mt-md-0">
-            <a href="{{ route('bukubesar.jurnal-umum-template.index') }}" class="btn btn-outline-success d-inline-flex align-items-center gap-2 shadow-sm">
+            <a href="{{ route('bukubesar.jurnal-umum-template.index') }}" class="btn btn-header-outline-success d-inline-flex align-items-center gap-2 shadow-sm">
                 <i class="bi bi-file-earmark-text-fill"></i>
                 <span>Template Jurnal</span>
             </a>
             @if ($canCreate)
-                <a href="{{ route('bukubesar.jurnal-umum.import.form') }}" class="btn btn-outline-success d-inline-flex align-items-center gap-2 shadow-sm">
+                <a href="{{ route('bukubesar.jurnal-umum.import.form') }}" class="btn btn-header-outline-success d-inline-flex align-items-center gap-2 shadow-sm">
                     <i class="bi bi-upload"></i>
                     <span>Import</span>
                 </a>

@@ -785,3 +785,34 @@ body.sidebar-open #sidebar-backdrop {
     padding: 0.25rem 1.75rem 0.25rem 0.5rem !important;
     font-size: 0.8125rem !important;
 }
+
+/* ─── Header Action Buttons (High contrast on patterned background) ─── */
+.btn-header-outline-success {
+    background-color: #ffffff !important;
+    color: #027e3f !important;
+    border: 1px solid #027e3f !important;
+    font-weight: 500;
+    transition: all 0.15s ease-in-out;
+}
+
+.btn-header-outline-success:hover,
+.btn-header-outline-success:focus {
+    background-color: #027e3f !important;
+    color: #ffffff !important;
+    border-color: #027e3f !important;
+    box-shadow: 0 4px 6px -1px rgba(2, 126, 63, 0.25);
+}
+
+.btn-header-back {
+    background-color: #ffffff !important;
+    color: #475569 !important;
+    border: 1px solid #cbd5e1 !important;
+    transition: all 0.15s ease-in-out;
+}
+
+.btn-header-back:hover,
+.btn-header-back:focus {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    border-color: #94a3b8 !important;
+}
