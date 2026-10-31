@@ -30,7 +30,7 @@ class BridgingPendapatanDataTableTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('grandTotal', 6000.0);
+            ->assertJsonPath('grandTotal', 6000);
     }
 
     public function test_grand_total_changes_when_global_search_filters_rows(): void
@@ -47,7 +47,7 @@ class BridgingPendapatanDataTableTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('grandTotal', 2000.0);
+            ->assertJsonPath('grandTotal', 2000);
     }
 
     public function test_grand_total_is_zero_when_global_search_finds_no_rows(): void
@@ -64,7 +64,7 @@ class BridgingPendapatanDataTableTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('grandTotal', 0.0);
+            ->assertJsonPath('grandTotal', 0);
     }
 
     public function test_grand_total_uses_intersection_of_form_filters_and_global_search(): void
@@ -83,7 +83,7 @@ class BridgingPendapatanDataTableTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('grandTotal', 3000.0);
+            ->assertJsonPath('grandTotal', 3000);
     }
 
     private function makeUser(): User

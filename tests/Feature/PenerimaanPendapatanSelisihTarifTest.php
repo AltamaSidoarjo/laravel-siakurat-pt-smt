@@ -19,6 +19,7 @@ class PenerimaanPendapatanSelisihTarifTest extends TestCase
         Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('preferensi_perusahaan');
         Schema::dropIfExists('bukubesar');
+        Schema::dropIfExists('log_aktifitas');
         Schema::dropIfExists('penerimaan_penjualan_rinci');
         Schema::dropIfExists('penerimaan_penjualan');
         Schema::dropIfExists('faktur_penjualan');
@@ -106,6 +107,15 @@ class PenerimaanPendapatanSelisihTarifTest extends TestCase
             $table->string('ttd_direktur')->nullable();
             $table->timestamps();
         });
+
+        Schema::create('log_aktifitas', function (Blueprint $table) {
+            $table->id();
+            $table->string('nama_user')->nullable();
+            $table->string('modul')->nullable();
+            $table->string('tipe')->nullable();
+            $table->json('payload')->nullable();
+            $table->timestamps();
+        });
     }
 
     protected function tearDown(): void
@@ -113,6 +123,7 @@ class PenerimaanPendapatanSelisihTarifTest extends TestCase
         Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('preferensi_perusahaan');
         Schema::dropIfExists('bukubesar');
+        Schema::dropIfExists('log_aktifitas');
         Schema::dropIfExists('penerimaan_penjualan_rinci');
         Schema::dropIfExists('penerimaan_penjualan');
         Schema::dropIfExists('faktur_penjualan');

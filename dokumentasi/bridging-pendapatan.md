@@ -318,17 +318,19 @@ flowchart TD
     L --> M["Hapus JurnalUmum"]
     J -- Tidak --> N["Lanjut"]
     M --> N
-    N --> O["Cari FakturPenjualan by nomor_faktur"]
+    N --> O["Cari FakturPenjualan by nomor_faktur with penerimaanPenjualanRincis"]
     O --> P{"Invoice ditemukan?"}
-    P -- Ya --> Q["Hapus BukuBesar sumber Invoice Pendapatan"]
-    Q --> R["Hapus FakturPenjualanRinci"]
-    R --> S["Hapus FakturPenjualan"]
-    P -- Tidak --> T["Lanjut"]
-    S --> T
-    T --> U["Simpan LogHapusImportPendapatan"]
-    U --> V["Hapus SimrsImportPendapatan"]
-    V --> W["LogAktifitasService::log()"]
-    W --> X["Return hasil per no_rawat"]
+    P -- Ya --> Q{"Sudah ada penerimaan pendapatan?"}
+    Q -- Ya --> R["throw: sudah ada penerimaan pendapatan"]
+    Q -- Tidak --> S["Hapus BukuBesar sumber Invoice Pendapatan"]
+    S --> T["Hapus FakturPenjualanRinci"]
+    T --> U["Hapus FakturPenjualan"]
+    P -- Tidak --> V["Lanjut"]
+    U --> V
+    V --> W["Simpan LogHapusImportPendapatan"]
+    W --> X["Hapus SimrsImportPendapatan"]
+    X --> Y["LogAktifitasService::log()"]
+    Y --> Z["Return hasil per no_rawat"]
 ```
 
 ### Algoritma
@@ -345,9 +347,10 @@ flowchart TD
    - hapus buku besar melalui `BukuBesarService::deleteBySource('Jurnal Umum', $jurnal->id)`,
    - hapus `rincian()` jurnal,
    - hapus jurnal utama.
-10. Service mencari `FakturPenjualan` berdasarkan `nomor_faktur = no_rawat`.
+10. Service mencari `FakturPenjualan` (eager load `penerimaanPenjualanRincis`) berdasarkan `nomor_faktur = no_rawat`.
 11. Jika invoice ditemukan:
-   - hapus data `BukuBesar` dengan `sumber_transaksi = 'Invoice Pendapatan'`,
+   - **Validasi proteksi penerimaan**: Jika `penerimaanPenjualanRincis->isNotEmpty()` (sudah ada pencatatan pelunasan di modul Penerimaan Pendapatan SIAKURAT), sistem melempar `RuntimeException` dan membatalkan proses hapus agar tidak meninggalkan jurnal gantung / error foreign key database.
+   - Jika belum ada penerimaan (termasuk tagihan yang pembayarannya murni dari kasir SIMRS), hapus data `BukuBesar` dengan `sumber_transaksi = 'Invoice Pendapatan'`,
    - hapus `rincian()` invoice,
    - hapus invoice utama.
 12. Untuk setiap baris import yang ditemukan, service membuat `LogHapusImportPendapatan`.

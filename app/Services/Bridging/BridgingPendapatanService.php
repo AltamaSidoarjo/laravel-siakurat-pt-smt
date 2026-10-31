@@ -179,10 +179,15 @@ class BridgingPendapatanService
                     }
 
                     $invoice = FakturPenjualan::query()
+                        ->with('penerimaanPenjualanRincis')
                         ->where('nomor_faktur', $noRawat)
                         ->first();
 
                     if ($invoice !== null) {
+                        if ($invoice->penerimaanPenjualanRincis->isNotEmpty()) {
+                            throw new RuntimeException('Sudah ada penerimaan pendapatan untuk faktur penjualan nomor: '.$noRawat);
+                        }
+
                         BukuBesar::query()
                             ->where('sumber_transaksi', self::IMPORT_INVOICE_PENDAPATAN)
                             ->where('sumber_id', (int) $invoice->id)
