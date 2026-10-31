@@ -287,6 +287,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/pembayaran/api/invoice-by-supplier', [PembayaranPembelianController::class, 'apiGetInvBySupplier'])->name('pembayaran.api.invoice-by-supplier');
         });
         Route::middleware('module.access:pembelian.pembayaran,create')->group(function () {
+            Route::get('/pembayaran/import', [PembayaranPembelianController::class, 'importForm'])->name('pembayaran.import.form');
+            Route::get('/pembayaran/import/template', [PembayaranPembelianController::class, 'importTemplate'])->name('pembayaran.import.template');
+            Route::post('/pembayaran/import', [PembayaranPembelianController::class, 'import'])->name('pembayaran.import.store');
             Route::get('/pembayaran/create', [PembayaranPembelianController::class, 'create'])->name('pembayaran.create');
             Route::post('/pembayaran', [PembayaranPembelianController::class, 'store'])->name('pembayaran.store');
         });
