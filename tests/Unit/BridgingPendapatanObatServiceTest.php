@@ -12,13 +12,13 @@ class BridgingPendapatanObatServiceTest extends TestCase
     {
         $service = new BridgingPendapatanObatService($this->createMock(LogAktifitasService::class));
 
-        $result = $service->imporBanyak(['PJ-TEST-001'], 'InvoicePendapatan', 'tester');
+        $result = $service->imporBanyak(['PJ-TEST-001'], 'UnsupportedType', 'tester');
 
         $this->assertSame([
             [
                 'nomer_transaksi' => 'PJ-TEST-001',
                 'berhasil' => false,
-                'alasan_gagal' => 'Saat ini hanya import ke Jurnal Umum yang didukung.',
+                'alasan_gagal' => 'Tujuan import tidak didukung.',
             ],
         ], $result);
     }

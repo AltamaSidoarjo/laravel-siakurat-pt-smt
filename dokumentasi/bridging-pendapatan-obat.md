@@ -148,13 +148,27 @@ flowchart TD
     G -- Tidak --> H["throw: data tidak ditemukan"]
     G -- Ya --> I{"import_ke"}
     I -- JurnalUmum --> J["Cari dan hapus JurnalUmum + rincian + BukuBesar"]
-    I -- Invoice Pendapatan --> K["Cari invoice dengan nomor dan penanda Bridging Pendapatan Obat"]
-    K --> L["Hapus invoice + rincian + BukuBesar jika ditemukan"]
-    J --> M["Buat LogHapusImportPendapatan dengan sumber sesuai jenis import"]
-    L --> M
-    M --> N["Hapus SimrsImportPendapatanJualObat"]
-    N --> O["LogAktifitasService::log(delete)"]
+    I -- Invoice Pendapatan / Piutang --> K["Cari invoice (eager load penerimaanPenjualanRincis)"]
+    K --> L{"Sudah ada penerimaan pendapatan?"}
+    L -- Ya --> M["throw: sudah ada penerimaan pendapatan"]
+    L -- Tidak --> N["Hapus invoice + rincian + BukuBesar"]
+    J --> O["Buat LogHapusImportPendapatan dengan sumber sesuai jenis import"]
+    N --> O
+    O --> P["Hapus SimrsImportPendapatanJualObat"]
+    P --> Q["LogAktifitasService::log(delete)"]
 ```
+
+### Algoritma
+
+1. User memilih satu atau lebih data import pada halaman Bridging Pendapatan Obat lalu submit hapus massal.
+2. `BulkDeletePendapatanObatRequest` memvalidasi `selectedNoTransaksi` (array minimal 1).
+3. `BridgingPendapatanObatService::hapusBanyak()` memproses tiap nomor transaksi dalam `DB::transaction(...)`.
+4. Jika `import_ke = JurnalUmum`: cari `JurnalUmum`, hapus rincian, mutasi `BukuBesar`, dan header jurnal.
+5. Jika `import_ke = Invoice Pendapatan` atau `Invoice Piutang Obat`:
+   - Cari `FakturPenjualan` dengan eager load `penerimaanPenjualanRincis`.
+   - **Validasi proteksi penerimaan**: Jika `penerimaanPenjualanRincis->isNotEmpty()` (faktur sudah memiliki pelunasan di modul Penerimaan Pendapatan SIAKURAT), proses langsung melempar `RuntimeException` dan dibatalkan.
+   - Jika belum ada penerimaan, hapus `FakturPenjualanRinci`, mutasi `BukuBesar`, dan `FakturPenjualan`.
+6. Simpan riwayat ke `LogHapusImportPendapatan`, hapus data dari `SimrsImportPendapatanJualObat`, dan catat ke `LogAktifitasService`.
 
 ## Alur 4: Tarik Piutang Obat & BHP ke Invoice Pendapatan
 

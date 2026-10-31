@@ -127,6 +127,8 @@ class HomeDashboardServiceTest extends TestCase
                 $table->increments('id');
                 $table->string('nomer_billing');
                 $table->date('tanggal_reg');
+                $table->string('user_importer')->nullable();
+                $table->dateTime('import_time')->nullable();
                 $table->string('dokter')->nullable();
                 $table->string('poli')->nullable();
                 $table->decimal('total_tagihan', 15, 2)->default(0);

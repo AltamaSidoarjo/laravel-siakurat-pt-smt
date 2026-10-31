@@ -209,11 +209,16 @@ class BridgingPendapatanObatService
                         if ($item->import_ke === self::IMPORT_INVOICE_PIUTANG_OBAT) {
                             $nomorFakturPiutang = 'P-'.$nomerTransaksi;
                             $invoice = FakturPenjualan::query()
+                                ->with('penerimaanPenjualanRincis')
                                 ->where('nomor_faktur', $nomorFakturPiutang)
                                 ->where('keterangan', 'like', '%Bridging Piutang Obat & BHP%')
                                 ->first();
 
                             if ($invoice !== null) {
+                                if ($invoice->penerimaanPenjualanRincis->isNotEmpty()) {
+                                    throw new RuntimeException('Sudah ada penerimaan pendapatan untuk faktur penjualan nomor: '.$nomorFakturPiutang);
+                                }
+
                                 FakturPenjualanRinci::query()
                                     ->where('faktur_penjualan_id', (int) $invoice->id)
                                     ->delete();
@@ -232,11 +237,16 @@ class BridgingPendapatanObatService
 
                         if ($item->import_ke === self::IMPORT_INVOICE_PENDAPATAN) {
                             $invoice = FakturPenjualan::query()
+                                ->with('penerimaanPenjualanRincis')
                                 ->where('nomor_faktur', $nomerTransaksi)
                                 ->where('keterangan', 'like', '%Bridging Pendapatan Obat%')
                                 ->first();
 
                             if ($invoice !== null) {
+                                if ($invoice->penerimaanPenjualanRincis->isNotEmpty()) {
+                                    throw new RuntimeException('Sudah ada penerimaan pendapatan untuk faktur penjualan nomor: '.$nomerTransaksi);
+                                }
+
                                 FakturPenjualanRinci::query()
                                     ->where('faktur_penjualan_id', (int) $invoice->id)
                                     ->delete();
