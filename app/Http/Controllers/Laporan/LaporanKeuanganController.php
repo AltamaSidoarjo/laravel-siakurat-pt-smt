@@ -13,8 +13,7 @@ class LaporanKeuanganController extends Controller
 {
     public function __construct(
         private readonly LaporanKeuanganService $laporanKeuanganService,
-    ) {
-    }
+    ) {}
 
     public function index(): View
     {
@@ -220,13 +219,20 @@ class LaporanKeuanganController extends Controller
     public function searchBukubesarCoa(Request $request): JsonResponse
     {
         $keyword = $request->string('q')->toString();
-        $items = $this->laporanKeuanganService->searchBukubesarCoaOptions($keyword);
+        $page = max(1, $request->integer('page', 1));
+        $limit = 30;
+
+        $items = $this->laporanKeuanganService->searchBukubesarCoaOptions($keyword, $limit, $page);
+        $total = $this->laporanKeuanganService->countBukubesarCoaOptions($keyword);
 
         return response()->json([
             'results' => $items->map(fn (array $coa) => [
                 'id' => $coa['id'],
                 'text' => '['.$coa['kode'].'] '.$coa['nama'],
             ])->values(),
+            'pagination' => [
+                'more' => ($page * $limit) < $total,
+            ],
         ]);
     }
 
