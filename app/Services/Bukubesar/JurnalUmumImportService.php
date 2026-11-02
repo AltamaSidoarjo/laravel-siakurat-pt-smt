@@ -6,6 +6,7 @@ use App\Models\Coa;
 use App\Models\JurnalUmum;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
@@ -88,11 +89,15 @@ class JurnalUmumImportService
             throw new JurnalUmumImportException($errors);
         }
 
-        $createdNomer = [];
-        foreach ($groups as $payload) {
-            $jurnal = $this->jurnalUmumService->create($payload);
-            $createdNomer[] = $jurnal->nomer;
-        }
+        $createdNomer = DB::transaction(function () use ($groups) {
+            $created = [];
+            foreach ($groups as $payload) {
+                $jurnal = $this->jurnalUmumService->create($payload);
+                $created[] = $jurnal->nomer;
+            }
+
+            return $created;
+        });
 
         return [
             'created' => count($createdNomer),

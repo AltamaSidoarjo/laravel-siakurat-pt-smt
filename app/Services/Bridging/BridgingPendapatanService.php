@@ -104,10 +104,11 @@ class BridgingPendapatanService
                         ->first();
 
                     if ($invoice !== null) {
-                        BukuBesar::query()
-                            ->where('sumber_transaksi', self::IMPORT_INVOICE_PENDAPATAN)
-                            ->where('sumber_id', (int) $invoice->id)
-                            ->delete();
+                        if ((float) $invoice->sudah_terbayar > 0 || $invoice->penerimaanPenjualanRincis()->exists()) {
+                            throw new RuntimeException("Faktur {$noRawat} tidak dapat dihapus karena sudah memiliki transaksi penerimaan/pembayaran.");
+                        }
+
+                        $this->bukuBesarService->deleteBySource(self::IMPORT_INVOICE_PENDAPATAN, (int) $invoice->id);
                         $invoice->rincian()->delete();
                         $invoice->delete();
                     }

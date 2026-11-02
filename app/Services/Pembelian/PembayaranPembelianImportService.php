@@ -115,11 +115,15 @@ class PembayaranPembelianImportService
             throw new PembayaranPembelianImportException($errors);
         }
 
-        $createdNomer = [];
-        foreach ($groups as $payload) {
-            $pembayaran = $this->pembayaranPembelianService->create($payload, $actor);
-            $createdNomer[] = $pembayaran->nomer_pembayaran;
-        }
+        $createdNomer = DB::transaction(function () use ($groups, $actor) {
+            $created = [];
+            foreach ($groups as $payload) {
+                $pembayaran = $this->pembayaranPembelianService->create($payload, $actor);
+                $created[] = $pembayaran->nomer_pembayaran;
+            }
+
+            return $created;
+        });
 
         return [
             'created' => count($createdNomer),
