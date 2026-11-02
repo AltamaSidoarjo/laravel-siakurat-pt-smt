@@ -56,6 +56,8 @@ Implementasi utama:
 Validasi tambahan (`after`):
 
 - minimal satu faktur harus dicentang (`check`),
+- setiap faktur terpilih wajib berelasi dengan `pelanggan_id` yang dipilih (pencegahan manipulasi ID faktur lintas pelanggan),
+- nominal bayar pada tiap faktur tidak boleh melebihi sisa tagihan (`grandtotal - sudah_terbayar`); pada skenario edit/update, sisa tagihan memperhitungkan alokasi nominal bayar lama pada penerimaan ini agar tidak tertolak palsu,
 - `jumlah_pembayaran` harus sama dengan (total nominal rincian tercentang + `selisih_tarif`),
 - bila `selisih_tarif` ≠ 0, `akun_selisih_tarif_id` wajib diisi.
 
@@ -107,15 +109,16 @@ flowchart TD
 
 ### Algoritma
 
-1. Controller membungkus operasi dalam `DB::transaction` dan meneruskan `actor` (nama/email user).
-2. Pada update: `decreaseSudahTerbayar()` untuk rincian lama lalu hapus rincian lama sebelum menulis baru.
-3. Service menyimpan/memperbarui header, lalu menyimpan hanya rincian yang **tercentang**
+1. `PenerimaanPendapatanService` membungkus mutasi dalam `DB::transaction` secara atomik (all-or-nothing).
+2. Service menjalankan validasi domain (`validateInvoices`) untuk memverifikasi kepemilikan faktur dan saldo tagihan.
+3. Pada update: `decreaseSudahTerbayar()` untuk rincian lama lalu hapus rincian lama sebelum menulis baru.
+4. Service menyimpan/memperbarui header, lalu menyimpan hanya rincian yang **tercentang**
    (`extractSelectedRincian`).
-4. `increaseSudahTerbayar()` menaikkan `sudah_terbayar` pada faktur terkait.
-5. `syncFromPenerimaanPendapatan()` menulis buku besar: Bank `D = jumlah_pembayaran`,
+5. `increaseSudahTerbayar()` menaikkan `sudah_terbayar` pada faktur terkait.
+6. `syncFromPenerimaanPendapatan()` menulis buku besar: Bank `D = jumlah_pembayaran`,
    Piutang `K = jumlah_pembayaran − selisih_tarif`, dan akun selisih tarif `K/D` bila ada.
-6. Aktivitas dicatat via `LogAktifitasService::log()`.
-7. `submit_action = save-print` mengarahkan ke halaman cetak.
+7. Aktivitas dicatat via `LogAktifitasService::log()`.
+8. `submit_action = save-print` mengarahkan ke halaman cetak.
 
 ## Alur 4: Hapus
 

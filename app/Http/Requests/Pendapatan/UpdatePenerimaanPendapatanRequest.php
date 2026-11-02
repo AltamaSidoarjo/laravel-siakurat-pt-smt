@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Pendapatan;
 
+use App\Models\FakturPenjualan;
 use App\Models\PenerimaanPenjualan;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -43,12 +44,59 @@ class UpdatePenerimaanPendapatanRequest extends FormRequest
     {
         return [
             function ($validator): void {
-                $checkedRows = collect($this->input('rincian', []))
+                $rawRincian = $this->input('rincian', []);
+                $checkedRows = collect($rawRincian)
                     ->filter(fn ($row) => filter_var($row['check'] ?? false, FILTER_VALIDATE_BOOLEAN));
 
                 if ($checkedRows->isEmpty()) {
                     $validator->errors()->add('rincian', 'Minimal satu faktur harus dicentang.');
                     return;
+                }
+
+                $pelangganId = (int) $this->input('pelanggan_id');
+                $invoiceIds = $checkedRows->pluck('faktur_penjualan_id')->filter()->unique()->all();
+                $invoices = FakturPenjualan::query()->whereIn('id', $invoiceIds)->get()->keyBy('id');
+
+                /** @var PenerimaanPenjualan|int|string $penerimaanPenjualan */
+                $penerimaanPenjualan = $this->route('penerimaanPenjualan');
+                $currentModel = $penerimaanPenjualan instanceof PenerimaanPenjualan
+                    ? $penerimaanPenjualan
+                    : PenerimaanPenjualan::query()->find($penerimaanPenjualan);
+
+                $oldPaymentsByInvoice = $currentModel
+                    ? $currentModel->rincian()->pluck('nominal_bayar', 'faktur_penjualan_id')->map(fn ($val) => (float) $val)->all()
+                    : [];
+
+                foreach ($rawRincian as $index => $row) {
+                    if (! filter_var($row['check'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                        continue;
+                    }
+
+                    $invoiceId = (int) ($row['faktur_penjualan_id'] ?? 0);
+                    /** @var FakturPenjualan|null $faktur */
+                    $faktur = $invoices->get($invoiceId);
+
+                    if (! $faktur) {
+                        continue;
+                    }
+
+                    if ((int) $faktur->pelanggan_id !== $pelangganId) {
+                        $validator->errors()->add(
+                            "rincian.{$index}.faktur_penjualan_id",
+                            "Faktur [{$faktur->nomor_faktur}] bukan milik pelanggan yang dipilih."
+                        );
+                    }
+
+                    $oldPaid = (float) ($oldPaymentsByInvoice[$invoiceId] ?? 0);
+                    $sisaTagihan = max(0, ((float) $faktur->grandtotal - (float) $faktur->sudah_terbayar) + $oldPaid);
+                    $nominalBayar = (float) ($row['nominal_bayar'] ?? 0);
+
+                    if ($nominalBayar - $sisaTagihan > 0.0001) {
+                        $validator->errors()->add(
+                            "rincian.{$index}.nominal_bayar",
+                            "Nominal bayar faktur [{$faktur->nomor_faktur}] melebihi sisa tagihan (Rp " . number_format($sisaTagihan, 2, ',', '.') . ")."
+                        );
+                    }
                 }
 
                 $totalRincian = (float) $checkedRows->sum(fn ($row) => (float) ($row['nominal_bayar'] ?? 0));

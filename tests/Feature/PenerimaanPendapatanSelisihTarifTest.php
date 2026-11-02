@@ -352,6 +352,61 @@ class PenerimaanPendapatanSelisihTarifTest extends TestCase
             ->assertSessionHasErrors(['akun_selisih_tarif_id']);
     }
 
+    public function test_it_rejects_invoice_belonging_to_another_pelanggan(): void
+    {
+        [$pelangganA, $akunBankId, $akunPiutangId] = $this->seedMasterData();
+        $pelangganB = \DB::table('pelanggan')->insertGetId([
+            'status_aktif' => true,
+            'kode_pelanggan' => 'PLG-002',
+            'nama_pelanggan' => 'Pelanggan B',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $invoiceB = $this->createInvoice($pelangganB, 1_000_000);
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->from(route('pendapatan.penerimaan.create'))
+            ->post(route('pendapatan.penerimaan.store'), $this->buildPayload(
+                pelangganId: $pelangganA,
+                akunBankId: $akunBankId,
+                akunPiutangId: $akunPiutangId,
+                invoiceId: $invoiceB,
+                jumlahPembayaran: 1_000_000,
+                nominalBayar: 1_000_000,
+            ));
+
+        $response
+            ->assertRedirect(route('pendapatan.penerimaan.create'))
+            ->assertSessionHasErrors(['rincian.0.faktur_penjualan_id']);
+    }
+
+    public function test_it_rejects_nominal_bayar_exceeding_invoice_remaining_balance(): void
+    {
+        [$pelangganId, $akunBankId, $akunPiutangId] = $this->seedMasterData();
+        $invoiceId = $this->createInvoice($pelangganId, 1_000_000);
+
+        // Pre-pay 800,000 so remaining is 200,000
+        \DB::table('faktur_penjualan')->where('id', $invoiceId)->update(['sudah_terbayar' => 800_000]);
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->from(route('pendapatan.penerimaan.create'))
+            ->post(route('pendapatan.penerimaan.store'), $this->buildPayload(
+                pelangganId: $pelangganId,
+                akunBankId: $akunBankId,
+                akunPiutangId: $akunPiutangId,
+                invoiceId: $invoiceId,
+                jumlahPembayaran: 300_000,
+                nominalBayar: 300_000,
+            ));
+
+        $response
+            ->assertRedirect(route('pendapatan.penerimaan.create'))
+            ->assertSessionHasErrors(['rincian.0.nominal_bayar']);
+    }
+
     // --- helpers ---
 
     private function seedMasterData(bool $withSelisih = false): array

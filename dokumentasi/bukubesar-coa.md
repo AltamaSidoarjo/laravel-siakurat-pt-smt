@@ -102,24 +102,32 @@ flowchart TD
 ```mermaid
 flowchart TD
     A["DELETE /bukubesar/coa/{id}"] --> B["CoaController::destroy()"]
-    B --> C{"CoaService::hasChildren(id)?"}
-    C -- Ya --> D["Redirect edit dengan error: tidak dapat dihapus"]
-    C -- Tidak --> E["DB::transaction -> CoaService::delete()"]
-    E --> F["LogAktifitasService::log('COA', delete)"]
-    F --> G["coa->delete()"]
-    G --> H["Redirect index sukses"]
+    B --> C["CoaService::canDelete(coa)"]
+    C --> D{"Boleh Dihapus?"}
+    D -- Tidak (Punya Anak / Riwayat Transaksi / Terdaftar Mapping) --> E["Redirect edit dengan pesan error spesifik"]
+    D -- Ya --> F["CoaService::delete(coa)"]
+    F --> G["DB::transaction"]
+    G --> H["LogAktifitasService::log('COA', delete)"]
+    H --> I["coa->delete()"]
+    I --> J["Redirect index sukses"]
 ```
 
 ### Algoritma
 
-1. Controller mengecek `hasChildren()`; jika punya anak, hapus ditolak dengan pesan error.
-2. Jika tidak, service mencatat log delete lalu menghapus akun.
+1. Controller memanggil `CoaService::canDelete($coa)`:
+   - Menolak jika akun memiliki akun turunan (`hasChildren()`).
+   - Menolak jika akun memiliki riwayat transaksi keuangan / buku besar (`hasTransactions()`, mencakup `bukubesar`, `jurnal_umum_rinci`, `kasbank_penerimaan`, `kasbank_pembayaran`, faktur & tanda terima).
+   - Menolak jika akun masih digunakan pada konfigurasi pemetaan akun sistem (`isReferencedInConfigurations()`, mencakup `mapping_pendapatan_*`, `mapping_coa_simrs`, `setting_rba`).
+2. Jika tidak diizinkan, pengguna diredirect kembali ke halaman edit dengan pesan error spesifik; tombol hapus pada form edit juga otomatis dinonaktifkan (`disabled`).
+3. Jika diizinkan, `CoaService::delete()` membungkus pencatatan log aktivitas dan operasi delete dalam `DB::transaction`.
+4. Jika dipanggil di luar controller tanpa izin, `delete()` melemparkan `\DomainException`.
 
 ## Fungsi yang Dipanggil
 
 - `CoaController::index()/create()/store()/edit()/update()/destroy()`
 - `CoaService::getTreeRows()/getParentOptions()/getSelectableTransactionOptions()/getTipeOptions()`
 - `CoaService::hasChildren()/cannotBeSelectedAsParent()/getDescendantIds()/wouldCreateHierarchyCycle()`
+- `CoaService::hasTransactions()/isReferencedInConfigurations()/canDelete()`
 - `CoaService::create()/update()/delete()`
 - `LogAktifitasService::log()`
 - `Coa` scope: `active()/leaf()/activeLeaf()/selectableTransaction()`
@@ -128,6 +136,7 @@ flowchart TD
 ## Catatan Penting Bisnis
 
 - Struktur COA bersifat **hirarkis**; akun induk tidak bisa dihapus selama punya turunan.
+- Akun yang **memiliki riwayat transaksi keuangan / buku besar** atau **terdaftar pada mapping konfigurasi** tidak dapat dihapus demi integritas data keuangan historis.
 - Akun daun yang **sudah punya transaksi buku besar** tidak boleh dijadikan parent.
 - Perubahan parent tidak boleh membentuk **siklus** hirarki.
 - Akun bertipe `Kasbank` tidak menyimpan klasifikasi arus kas (dikosongkan otomatis).

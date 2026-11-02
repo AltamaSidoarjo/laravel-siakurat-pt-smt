@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 class PembayaranPembelianService
 {
@@ -82,148 +83,157 @@ class PembayaranPembelianService
 
     public function create(array $data, string $actor = 'system'): PembayaranPembelian
     {
-        $selectedRincian = $this->extractSelectedRincian($data['rincian']);
+        return DB::transaction(function () use ($data, $actor) {
+            $selectedRincian = $this->extractSelectedRincian($data['rincian']);
+            $this->validateInvoices((int) $data['supplier_id'], $selectedRincian);
 
-        $pembayaranPembelian = PembayaranPembelian::query()->create([
-            'supplier_id' => $data['supplier_id'],
-            'akun_bank_id' => $data['akun_bank_id'],
-            'akun_hutang_id' => $data['akun_hutang_id'],
-            'akun_potongan_admin_id' => $data['akun_potongan_admin_id'] ?? null,
-            'nomer_pembayaran' => $data['nomer_pembayaran'],
-            'tanggal' => $data['tanggal'],
-            'total_bayar' => $data['total_bayar'],
-            'potongan_admin' => $data['potongan_admin'] ?? 0,
-            'keterangan' => $data['keterangan'] ?? null,
-            'created_by' => $actor,
-            'updated_by' => $actor,
-        ]);
+            $pembayaranPembelian = PembayaranPembelian::query()->create([
+                'supplier_id' => $data['supplier_id'],
+                'akun_bank_id' => $data['akun_bank_id'],
+                'akun_hutang_id' => $data['akun_hutang_id'],
+                'akun_potongan_admin_id' => $data['akun_potongan_admin_id'] ?? null,
+                'nomer_pembayaran' => $data['nomer_pembayaran'],
+                'tanggal' => $data['tanggal'],
+                'total_bayar' => $data['total_bayar'],
+                'potongan_admin' => $data['potongan_admin'] ?? 0,
+                'keterangan' => $data['keterangan'] ?? null,
+                'created_by' => $actor,
+                'updated_by' => $actor,
+            ]);
 
-        $pembayaranPembelian->rincian()->createMany($selectedRincian->map(fn ($row) => [
-            'faktur_pembelian_id' => $row['faktur_pembelian_id'],
-            'nominal_bayar' => $row['nominal_bayar'],
-        ])->all());
+            $pembayaranPembelian->rincian()->createMany($selectedRincian->map(fn ($row) => [
+                'faktur_pembelian_id' => $row['faktur_pembelian_id'],
+                'nominal_bayar' => $row['nominal_bayar'],
+            ])->all());
 
-        $this->invoicePembelianService->increaseSudahTerbayar($selectedRincian);
-        $this->bukuBesarService->syncFromPembayaranPembelian(
-            (int) $pembayaranPembelian->id,
-            (int) $pembayaranPembelian->akun_bank_id,
-            (int) $pembayaranPembelian->akun_hutang_id,
-            $pembayaranPembelian->akun_potongan_admin_id ? (int) $pembayaranPembelian->akun_potongan_admin_id : null,
-            $pembayaranPembelian->nomer_pembayaran,
-            $pembayaranPembelian->tanggal->format('Y-m-d'),
-            $pembayaranPembelian->keterangan,
-            (float) $pembayaranPembelian->total_bayar,
-            (float) $pembayaranPembelian->potongan_admin,
-        );
+            $this->invoicePembelianService->increaseSudahTerbayar($selectedRincian);
+            $this->bukuBesarService->syncFromPembayaranPembelian(
+                (int) $pembayaranPembelian->id,
+                (int) $pembayaranPembelian->akun_bank_id,
+                (int) $pembayaranPembelian->akun_hutang_id,
+                $pembayaranPembelian->akun_potongan_admin_id ? (int) $pembayaranPembelian->akun_potongan_admin_id : null,
+                $pembayaranPembelian->nomer_pembayaran,
+                $pembayaranPembelian->tanggal->format('Y-m-d'),
+                $pembayaranPembelian->keterangan,
+                (float) $pembayaranPembelian->total_bayar,
+                (float) $pembayaranPembelian->potongan_admin,
+            );
 
-        $this->logService->log('Pembayaran Pembelian', 'create', null, [
-            'nomer_pembayaran' => $pembayaranPembelian->nomer_pembayaran,
-            'tanggal' => $pembayaranPembelian->tanggal->format('Y-m-d'),
-            'supplier_id' => $pembayaranPembelian->supplier_id,
-            'total_bayar' => $pembayaranPembelian->total_bayar,
-            'potongan_admin' => $pembayaranPembelian->potongan_admin,
-            'keterangan' => $pembayaranPembelian->keterangan,
-        ]);
+            $this->logService->log('Pembayaran Pembelian', 'create', null, [
+                'nomer_pembayaran' => $pembayaranPembelian->nomer_pembayaran,
+                'tanggal' => $pembayaranPembelian->tanggal->format('Y-m-d'),
+                'supplier_id' => $pembayaranPembelian->supplier_id,
+                'total_bayar' => $pembayaranPembelian->total_bayar,
+                'potongan_admin' => $pembayaranPembelian->potongan_admin,
+                'keterangan' => $pembayaranPembelian->keterangan,
+            ]);
 
-        return $pembayaranPembelian->load([
-            'supplier',
-            'akunBank',
-            'akunHutang',
-            'akunPotonganAdmin',
-            'rincian.fakturPembelian',
-        ]);
+            return $pembayaranPembelian->load([
+                'supplier',
+                'akunBank',
+                'akunHutang',
+                'akunPotonganAdmin',
+                'rincian.fakturPembelian',
+            ]);
+        });
     }
 
     public function update(PembayaranPembelian $pembayaranPembelian, array $data, string $actor = 'system'): PembayaranPembelian
     {
-        $oldData = [
-            'nomer_pembayaran' => $pembayaranPembelian->nomer_pembayaran,
-            'tanggal' => $pembayaranPembelian->tanggal->format('Y-m-d'),
-            'total_bayar' => $pembayaranPembelian->total_bayar,
-            'potongan_admin' => $pembayaranPembelian->potongan_admin,
-            'keterangan' => $pembayaranPembelian->keterangan,
-        ];
+        return DB::transaction(function () use ($pembayaranPembelian, $data, $actor) {
+            $selectedRincian = $this->extractSelectedRincian($data['rincian']);
+            $this->validateInvoices((int) $data['supplier_id'], $selectedRincian, $pembayaranPembelian);
 
-        $oldRincian = $pembayaranPembelian->rincian()
-            ->get(['faktur_pembelian_id', 'nominal_bayar'])
-            ->map(fn ($item) => [
-                'faktur_pembelian_id' => (int) $item->faktur_pembelian_id,
-                'nominal_bayar' => (float) $item->nominal_bayar,
+            $oldData = [
+                'nomer_pembayaran' => $pembayaranPembelian->nomer_pembayaran,
+                'tanggal' => $pembayaranPembelian->tanggal->format('Y-m-d'),
+                'total_bayar' => $pembayaranPembelian->total_bayar,
+                'potongan_admin' => $pembayaranPembelian->potongan_admin,
+                'keterangan' => $pembayaranPembelian->keterangan,
+            ];
+
+            $oldRincian = $pembayaranPembelian->rincian()
+                ->get(['faktur_pembelian_id', 'nominal_bayar'])
+                ->map(fn ($item) => [
+                    'faktur_pembelian_id' => (int) $item->faktur_pembelian_id,
+                    'nominal_bayar' => (float) $item->nominal_bayar,
+                ]);
+
+            $this->invoicePembelianService->decreaseSudahTerbayar($oldRincian);
+
+            $pembayaranPembelian->update([
+                'akun_bank_id' => $data['akun_bank_id'],
+                'akun_hutang_id' => $data['akun_hutang_id'],
+                'akun_potongan_admin_id' => $data['akun_potongan_admin_id'] ?? null,
+                'nomer_pembayaran' => $data['nomer_pembayaran'],
+                'tanggal' => $data['tanggal'],
+                'total_bayar' => $data['total_bayar'],
+                'potongan_admin' => $data['potongan_admin'] ?? 0,
+                'keterangan' => $data['keterangan'] ?? null,
+                'updated_by' => $actor,
             ]);
 
-        $this->invoicePembelianService->decreaseSudahTerbayar($oldRincian);
+            $pembayaranPembelian->rincian()->delete();
+            $pembayaranPembelian->rincian()->createMany($selectedRincian->map(fn ($row) => [
+                'faktur_pembelian_id' => $row['faktur_pembelian_id'],
+                'nominal_bayar' => $row['nominal_bayar'],
+            ])->all());
 
-        $pembayaranPembelian->update([
-            'akun_bank_id' => $data['akun_bank_id'],
-            'akun_hutang_id' => $data['akun_hutang_id'],
-            'akun_potongan_admin_id' => $data['akun_potongan_admin_id'] ?? null,
-            'nomer_pembayaran' => $data['nomer_pembayaran'],
-            'tanggal' => $data['tanggal'],
-            'total_bayar' => $data['total_bayar'],
-            'potongan_admin' => $data['potongan_admin'] ?? 0,
-            'keterangan' => $data['keterangan'] ?? null,
-            'updated_by' => $actor,
-        ]);
+            $this->invoicePembelianService->increaseSudahTerbayar($selectedRincian);
+            $this->bukuBesarService->syncFromPembayaranPembelian(
+                (int) $pembayaranPembelian->id,
+                (int) $pembayaranPembelian->akun_bank_id,
+                (int) $pembayaranPembelian->akun_hutang_id,
+                $pembayaranPembelian->akun_potongan_admin_id ? (int) $pembayaranPembelian->akun_potongan_admin_id : null,
+                $pembayaranPembelian->nomer_pembayaran,
+                $pembayaranPembelian->tanggal->format('Y-m-d'),
+                $pembayaranPembelian->keterangan,
+                (float) $pembayaranPembelian->total_bayar,
+                (float) $pembayaranPembelian->potongan_admin,
+            );
 
-        $pembayaranPembelian->rincian()->delete();
-        $selectedRincian = $this->extractSelectedRincian($data['rincian']);
-        $pembayaranPembelian->rincian()->createMany($selectedRincian->map(fn ($row) => [
-            'faktur_pembelian_id' => $row['faktur_pembelian_id'],
-            'nominal_bayar' => $row['nominal_bayar'],
-        ])->all());
+            $this->logService->log('Pembayaran Pembelian', 'update', $oldData, [
+                'nomer_pembayaran' => $pembayaranPembelian->nomer_pembayaran,
+                'tanggal' => $pembayaranPembelian->tanggal->format('Y-m-d'),
+                'total_bayar' => $pembayaranPembelian->total_bayar,
+                'potongan_admin' => $pembayaranPembelian->potongan_admin,
+                'keterangan' => $pembayaranPembelian->keterangan,
+            ]);
 
-        $this->invoicePembelianService->increaseSudahTerbayar($selectedRincian);
-        $this->bukuBesarService->syncFromPembayaranPembelian(
-            (int) $pembayaranPembelian->id,
-            (int) $pembayaranPembelian->akun_bank_id,
-            (int) $pembayaranPembelian->akun_hutang_id,
-            $pembayaranPembelian->akun_potongan_admin_id ? (int) $pembayaranPembelian->akun_potongan_admin_id : null,
-            $pembayaranPembelian->nomer_pembayaran,
-            $pembayaranPembelian->tanggal->format('Y-m-d'),
-            $pembayaranPembelian->keterangan,
-            (float) $pembayaranPembelian->total_bayar,
-            (float) $pembayaranPembelian->potongan_admin,
-        );
-
-        $this->logService->log('Pembayaran Pembelian', 'update', $oldData, [
-            'nomer_pembayaran' => $pembayaranPembelian->nomer_pembayaran,
-            'tanggal' => $pembayaranPembelian->tanggal->format('Y-m-d'),
-            'total_bayar' => $pembayaranPembelian->total_bayar,
-            'potongan_admin' => $pembayaranPembelian->potongan_admin,
-            'keterangan' => $pembayaranPembelian->keterangan,
-        ]);
-
-        return $pembayaranPembelian->load([
-            'supplier',
-            'akunBank',
-            'akunHutang',
-            'akunPotonganAdmin',
-            'rincian.fakturPembelian',
-        ]);
+            return $pembayaranPembelian->load([
+                'supplier',
+                'akunBank',
+                'akunHutang',
+                'akunPotonganAdmin',
+                'rincian.fakturPembelian',
+            ]);
+        });
     }
 
     public function delete(PembayaranPembelian $pembayaranPembelian): void
     {
-        $this->logService->log('Pembayaran Pembelian', 'delete', [
-            'nomer_pembayaran' => $pembayaranPembelian->nomer_pembayaran,
-            'tanggal' => $pembayaranPembelian->tanggal->format('Y-m-d'),
-            'supplier_id' => $pembayaranPembelian->supplier_id,
-            'total_bayar' => $pembayaranPembelian->total_bayar,
-            'potongan_admin' => $pembayaranPembelian->potongan_admin,
-            'keterangan' => $pembayaranPembelian->keterangan,
-        ]);
-
-        $rincian = $pembayaranPembelian->rincian()
-            ->get(['faktur_pembelian_id', 'nominal_bayar'])
-            ->map(fn ($item) => [
-                'faktur_pembelian_id' => (int) $item->faktur_pembelian_id,
-                'nominal_bayar' => (float) $item->nominal_bayar,
+        DB::transaction(function () use ($pembayaranPembelian) {
+            $this->logService->log('Pembayaran Pembelian', 'delete', [
+                'nomer_pembayaran' => $pembayaranPembelian->nomer_pembayaran,
+                'tanggal' => $pembayaranPembelian->tanggal->format('Y-m-d'),
+                'supplier_id' => $pembayaranPembelian->supplier_id,
+                'total_bayar' => $pembayaranPembelian->total_bayar,
+                'potongan_admin' => $pembayaranPembelian->potongan_admin,
+                'keterangan' => $pembayaranPembelian->keterangan,
             ]);
 
-        $this->bukuBesarService->deleteBySource('Pembayaran Pembelian', (int) $pembayaranPembelian->id);
-        $this->invoicePembelianService->decreaseSudahTerbayar($rincian);
-        $pembayaranPembelian->rincian()->delete();
-        $pembayaranPembelian->delete();
+            $rincian = $pembayaranPembelian->rincian()
+                ->get(['faktur_pembelian_id', 'nominal_bayar'])
+                ->map(fn ($item) => [
+                    'faktur_pembelian_id' => (int) $item->faktur_pembelian_id,
+                    'nominal_bayar' => (float) $item->nominal_bayar,
+                ]);
+
+            $this->bukuBesarService->deleteBySource('Pembayaran Pembelian', (int) $pembayaranPembelian->id);
+            $this->invoicePembelianService->decreaseSudahTerbayar($rincian);
+            $pembayaranPembelian->rincian()->delete();
+            $pembayaranPembelian->delete();
+        });
     }
 
     private function extractSelectedRincian(array $rincian): SupportCollection
@@ -244,5 +254,41 @@ class PembayaranPembelianService
         }
 
         return 'FLOOR(COALESCE(grandtotal, 0)) > FLOOR(COALESCE(sudah_terbayar, 0))';
+    }
+
+    private function validateInvoices(int $supplierId, SupportCollection $selectedRincian, ?PembayaranPembelian $current = null): void
+    {
+        if ($selectedRincian->isEmpty()) {
+            throw new InvalidArgumentException('Minimal satu faktur harus dicentang.');
+        }
+
+        $invoiceIds = $selectedRincian->pluck('faktur_pembelian_id')->filter()->unique()->all();
+        $invoices = FakturPembelian::query()->whereIn('id', $invoiceIds)->get()->keyBy('id');
+
+        $oldPayments = $current
+            ? $current->rincian()->pluck('nominal_bayar', 'faktur_pembelian_id')->map(fn ($v) => (float) $v)->all()
+            : [];
+
+        foreach ($selectedRincian as $row) {
+            $invoiceId = (int) $row['faktur_pembelian_id'];
+            /** @var FakturPembelian|null $faktur */
+            $faktur = $invoices->get($invoiceId);
+
+            if (! $faktur) {
+                throw new InvalidArgumentException("Faktur dengan ID {$invoiceId} tidak ditemukan.");
+            }
+
+            if ((int) $faktur->supplier_id !== $supplierId) {
+                throw new InvalidArgumentException("Faktur [{$faktur->nomer_faktur}] bukan milik supplier yang dipilih.");
+            }
+
+            $oldPaid = (float) ($oldPayments[$invoiceId] ?? 0);
+            $sisaTagihan = max(0, ((float) $faktur->grandtotal - (float) $faktur->sudah_terbayar) + $oldPaid);
+            $nominalBayar = (float) $row['nominal_bayar'];
+
+            if ($nominalBayar - $sisaTagihan > 0.0001) {
+                throw new InvalidArgumentException("Nominal bayar faktur [{$faktur->nomer_faktur}] melebihi sisa tagihan.");
+            }
+        }
     }
 }

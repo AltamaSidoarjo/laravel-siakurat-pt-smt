@@ -5,8 +5,10 @@ namespace App\Services\Bukubesar;
 use App\Models\Coa;
 use App\Models\TipeCoa;
 use App\Services\LogAktifitasService;
+use DomainException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class CoaService
 {
@@ -203,11 +205,117 @@ class CoaService
         return $coa->refresh();
     }
 
+    public function hasTransactions(int $coaId): bool
+    {
+        if (Schema::hasTable('bukubesar') && DB::table('bukubesar')->where('coa_id', $coaId)->exists()) {
+            return true;
+        }
+
+        if (Schema::hasTable('jurnal_umum_rinci') && DB::table('jurnal_umum_rinci')->where('coa_id', $coaId)->exists()) {
+            return true;
+        }
+
+        if (Schema::hasTable('kasbank_penerimaan') && DB::table('kasbank_penerimaan')->where('coa_id', $coaId)->exists()) {
+            return true;
+        }
+
+        if (Schema::hasTable('kasbank_penerimaan_rinci') && DB::table('kasbank_penerimaan_rinci')->where('coa_id', $coaId)->exists()) {
+            return true;
+        }
+
+        if (Schema::hasTable('kasbank_pembayaran') && DB::table('kasbank_pembayaran')->where('coa_id', $coaId)->exists()) {
+            return true;
+        }
+
+        if (Schema::hasTable('kasbank_pembayaran_rinci') && DB::table('kasbank_pembayaran_rinci')->where('coa_id', $coaId)->exists()) {
+            return true;
+        }
+
+        if (Schema::hasTable('faktur_penjualan') && DB::table('faktur_penjualan')->where('akun_piutang_id', $coaId)->exists()) {
+            return true;
+        }
+
+        if (Schema::hasTable('penerimaan_penjualan') && DB::table('penerimaan_penjualan')
+            ->where(function ($query) use ($coaId) {
+                $query->where('akun_bank_id', $coaId)
+                    ->orWhere('akun_piutang_id', $coaId)
+                    ->orWhere('akun_selisih_tarif_id', $coaId);
+            })->exists()) {
+            return true;
+        }
+
+        if (Schema::hasTable('pembayaran_pembelian') && DB::table('pembayaran_pembelian')
+            ->where(function ($query) use ($coaId) {
+                $query->where('akun_bank_id', $coaId)
+                    ->orWhere('akun_hutang_id', $coaId)
+                    ->orWhere('akun_potongan_admin_id', $coaId);
+            })->exists()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function isReferencedInConfigurations(int $coaId): bool
+    {
+        $mappingTables = [
+            'mapping_pendapatan_tindakan' => 'coa_id',
+            'mapping_pendapatan_kamar' => 'coa_id',
+            'mapping_pendapatan_umum' => 'coa_id',
+            'mapping_lawan_pendapatan_simrs' => 'coa_id',
+            'mapping_coa_simrs' => 'coa_id',
+            'setting_rba' => 'coa_id',
+        ];
+
+        foreach ($mappingTables as $table => $column) {
+            if (Schema::hasTable($table) && DB::table($table)->where($column, $coaId)->exists()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function canDelete(Coa $coa): array
+    {
+        if ($this->hasChildren((int) $coa->id)) {
+            return [
+                'allowed' => false,
+                'message' => "Akun parent [{$coa->kode}] tidak dapat dihapus karena memiliki akun turunan (sub-akun).",
+            ];
+        }
+
+        if ($this->hasTransactions((int) $coa->id)) {
+            return [
+                'allowed' => false,
+                'message' => "Akun [{$coa->kode}] tidak dapat dihapus karena memiliki riwayat transaksi keuangan / buku besar.",
+            ];
+        }
+
+        if ($this->isReferencedInConfigurations((int) $coa->id)) {
+            return [
+                'allowed' => false,
+                'message' => "Akun [{$coa->kode}] tidak dapat dihapus karena masih digunakan dalam konfigurasi pemetaan akun sistem.",
+            ];
+        }
+
+        return [
+            'allowed' => true,
+            'message' => null,
+        ];
+    }
+
     public function delete(Coa $coa): void
     {
-        $this->logService->log('COA', 'delete', $coa->only($this->loggableFields()));
+        $check = $this->canDelete($coa);
+        if (! $check['allowed']) {
+            throw new DomainException($check['message']);
+        }
 
-        $coa->delete();
+        DB::transaction(function () use ($coa) {
+            $this->logService->log('COA', 'delete', $coa->only($this->loggableFields()));
+            $coa->delete();
+        });
     }
 
     private function loggableFields(): array

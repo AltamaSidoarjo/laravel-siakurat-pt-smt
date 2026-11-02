@@ -8,6 +8,7 @@ use App\Services\Bukubesar\BukuBesarService;
 use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 class KasbankPenerimaanService
 {
@@ -35,97 +36,103 @@ class KasbankPenerimaanService
 
     public function create(array $data): KasbankPenerimaan
     {
-        $kasbankPenerimaan = KasbankPenerimaan::query()->create([
-            'coa_id' => $data['coa_id'],
-            'nomer' => $data['nomer'],
-            'tanggal' => $data['tanggal'],
-            'keterangan' => $data['keterangan'] ?? null,
-            'total' => $data['total'],
-        ]);
+        return DB::transaction(function () use ($data) {
+            $kasbankPenerimaan = KasbankPenerimaan::query()->create([
+                'coa_id' => $data['coa_id'],
+                'nomer' => $data['nomer'],
+                'tanggal' => $data['tanggal'],
+                'keterangan' => $data['keterangan'] ?? null,
+                'total' => $data['total'],
+            ]);
 
-        $rincianPayload = $this->mapRincianPayload($data['rincian']);
-        $kasbankPenerimaan->rincian()->createMany($rincianPayload);
+            $rincianPayload = $this->mapRincianPayload($data['rincian']);
+            $kasbankPenerimaan->rincian()->createMany($rincianPayload);
 
-        $this->bukuBesarService->syncFromKasbankPenerimaan(
-            (int) $kasbankPenerimaan->id,
-            (int) $kasbankPenerimaan->coa_id,
-            $kasbankPenerimaan->nomer,
-            $kasbankPenerimaan->tanggal->format('Y-m-d'),
-            $kasbankPenerimaan->keterangan,
-            (float) $kasbankPenerimaan->total,
-            $rincianPayload,
-        );
+            $this->bukuBesarService->syncFromKasbankPenerimaan(
+                (int) $kasbankPenerimaan->id,
+                (int) $kasbankPenerimaan->coa_id,
+                $kasbankPenerimaan->nomer,
+                $kasbankPenerimaan->tanggal->format('Y-m-d'),
+                $kasbankPenerimaan->keterangan,
+                (float) $kasbankPenerimaan->total,
+                $rincianPayload,
+            );
 
-        $this->logService->log('Kasbank Penerimaan', 'create', null, [
-            'nomer' => $kasbankPenerimaan->nomer,
-            'tanggal' => $kasbankPenerimaan->tanggal->format('Y-m-d'),
-            'coa_id' => $kasbankPenerimaan->coa_id,
-            'keterangan' => $kasbankPenerimaan->keterangan,
-            'total' => $kasbankPenerimaan->total,
-            'rincian' => $rincianPayload,
-        ]);
+            $this->logService->log('Kasbank Penerimaan', 'create', null, [
+                'nomer' => $kasbankPenerimaan->nomer,
+                'tanggal' => $kasbankPenerimaan->tanggal->format('Y-m-d'),
+                'coa_id' => $kasbankPenerimaan->coa_id,
+                'keterangan' => $kasbankPenerimaan->keterangan,
+                'total' => $kasbankPenerimaan->total,
+                'rincian' => $rincianPayload,
+            ]);
 
-        return $kasbankPenerimaan->load(['coa', 'rincian.coa']);
+            return $kasbankPenerimaan->load(['coa', 'rincian.coa']);
+        });
     }
 
     public function update(KasbankPenerimaan $kasbankPenerimaan, array $data): KasbankPenerimaan
     {
-        $oldData = [
-            'nomer' => $kasbankPenerimaan->nomer,
-            'tanggal' => $kasbankPenerimaan->tanggal->format('Y-m-d'),
-            'coa_id' => $kasbankPenerimaan->coa_id,
-            'keterangan' => $kasbankPenerimaan->keterangan,
-            'total' => $kasbankPenerimaan->total,
-            'rincian' => $kasbankPenerimaan->rincian->map->only(['coa_id', 'nominal', 'catatan'])->all(),
-        ];
+        return DB::transaction(function () use ($kasbankPenerimaan, $data) {
+            $oldData = [
+                'nomer' => $kasbankPenerimaan->nomer,
+                'tanggal' => $kasbankPenerimaan->tanggal->format('Y-m-d'),
+                'coa_id' => $kasbankPenerimaan->coa_id,
+                'keterangan' => $kasbankPenerimaan->keterangan,
+                'total' => $kasbankPenerimaan->total,
+                'rincian' => $kasbankPenerimaan->rincian->map->only(['coa_id', 'nominal', 'catatan'])->all(),
+            ];
 
-        $kasbankPenerimaan->update([
-            'coa_id' => $data['coa_id'],
-            'nomer' => $data['nomer'],
-            'tanggal' => $data['tanggal'],
-            'keterangan' => $data['keterangan'] ?? null,
-            'total' => $data['total'],
-        ]);
+            $kasbankPenerimaan->update([
+                'coa_id' => $data['coa_id'],
+                'nomer' => $data['nomer'],
+                'tanggal' => $data['tanggal'],
+                'keterangan' => $data['keterangan'] ?? null,
+                'total' => $data['total'],
+            ]);
 
-        $kasbankPenerimaan->rincian()->delete();
-        $rincianPayload = $this->mapRincianPayload($data['rincian']);
-        $kasbankPenerimaan->rincian()->createMany($rincianPayload);
+            $kasbankPenerimaan->rincian()->delete();
+            $rincianPayload = $this->mapRincianPayload($data['rincian']);
+            $kasbankPenerimaan->rincian()->createMany($rincianPayload);
 
-        $this->bukuBesarService->syncFromKasbankPenerimaan(
-            (int) $kasbankPenerimaan->id,
-            (int) $kasbankPenerimaan->coa_id,
-            $kasbankPenerimaan->nomer,
-            $kasbankPenerimaan->tanggal->format('Y-m-d'),
-            $kasbankPenerimaan->keterangan,
-            (float) $kasbankPenerimaan->total,
-            $rincianPayload,
-        );
+            $this->bukuBesarService->syncFromKasbankPenerimaan(
+                (int) $kasbankPenerimaan->id,
+                (int) $kasbankPenerimaan->coa_id,
+                $kasbankPenerimaan->nomer,
+                $kasbankPenerimaan->tanggal->format('Y-m-d'),
+                $kasbankPenerimaan->keterangan,
+                (float) $kasbankPenerimaan->total,
+                $rincianPayload,
+            );
 
-        $this->logService->log('Kasbank Penerimaan', 'update', $oldData, [
-            'nomer' => $kasbankPenerimaan->nomer,
-            'tanggal' => $kasbankPenerimaan->tanggal->format('Y-m-d'),
-            'coa_id' => $kasbankPenerimaan->coa_id,
-            'keterangan' => $kasbankPenerimaan->keterangan,
-            'total' => $kasbankPenerimaan->total,
-            'rincian' => $rincianPayload,
-        ]);
+            $this->logService->log('Kasbank Penerimaan', 'update', $oldData, [
+                'nomer' => $kasbankPenerimaan->nomer,
+                'tanggal' => $kasbankPenerimaan->tanggal->format('Y-m-d'),
+                'coa_id' => $kasbankPenerimaan->coa_id,
+                'keterangan' => $kasbankPenerimaan->keterangan,
+                'total' => $kasbankPenerimaan->total,
+                'rincian' => $rincianPayload,
+            ]);
 
-        return $kasbankPenerimaan->load(['coa', 'rincian.coa']);
+            return $kasbankPenerimaan->load(['coa', 'rincian.coa']);
+        });
     }
 
     public function delete(KasbankPenerimaan $kasbankPenerimaan): void
     {
-        $this->logService->log('Kasbank Penerimaan', 'delete', [
-            'nomer' => $kasbankPenerimaan->nomer,
-            'tanggal' => $kasbankPenerimaan->tanggal->format('Y-m-d'),
-            'coa_id' => $kasbankPenerimaan->coa_id,
-            'keterangan' => $kasbankPenerimaan->keterangan,
-            'total' => $kasbankPenerimaan->total,
-        ]);
+        DB::transaction(function () use ($kasbankPenerimaan) {
+            $this->logService->log('Kasbank Penerimaan', 'delete', [
+                'nomer' => $kasbankPenerimaan->nomer,
+                'tanggal' => $kasbankPenerimaan->tanggal->format('Y-m-d'),
+                'coa_id' => $kasbankPenerimaan->coa_id,
+                'keterangan' => $kasbankPenerimaan->keterangan,
+                'total' => $kasbankPenerimaan->total,
+            ]);
 
-        $this->bukuBesarService->deleteBySource('Kasbank Penerimaan', (int) $kasbankPenerimaan->id);
-        $kasbankPenerimaan->rincian()->delete();
-        $kasbankPenerimaan->delete();
+            $this->bukuBesarService->deleteBySource('Kasbank Penerimaan', (int) $kasbankPenerimaan->id);
+            $kasbankPenerimaan->rincian()->delete();
+            $kasbankPenerimaan->delete();
+        });
     }
 
     public function mapRincianPayload(array $rincian): array
