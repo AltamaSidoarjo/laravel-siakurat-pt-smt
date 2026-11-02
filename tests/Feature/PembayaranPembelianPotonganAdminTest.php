@@ -342,6 +342,61 @@ class PembayaranPembelianPotonganAdminTest extends TestCase
             ->assertSessionHasErrors(['akun_potongan_admin_id', 'potongan_admin']);
     }
 
+    public function test_validation_rejects_invoice_belonging_to_another_supplier(): void
+    {
+        [$supplierA, $akunBankId, $akunHutangId] = $this->seedMasterData();
+        $supplierB = \DB::table('supplier')->insertGetId([
+            'status_aktif' => true,
+            'kode_supplier' => 'SPL-002',
+            'nama_supplier' => 'Supplier B',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $invoiceB = $this->createInvoice($supplierB, 2_000_000);
+
+        $response = $this
+            ->withoutMiddleware(EnsureModuleAccess::class)
+            ->actingAs($this->makeUser())
+            ->from(route('pembelian.pembayaran.create'))
+            ->post(route('pembelian.pembayaran.store'), $this->buildPayload(
+                supplierId: $supplierA,
+                akunBankId: $akunBankId,
+                akunHutangId: $akunHutangId,
+                invoiceId: $invoiceB,
+                totalBayar: 2_000_000,
+            ));
+
+        $response
+            ->assertRedirect(route('pembelian.pembayaran.create'))
+            ->assertSessionHasErrors(['rincian.0.faktur_pembelian_id']);
+    }
+
+    public function test_validation_rejects_nominal_bayar_exceeding_invoice_remaining_balance(): void
+    {
+        [$supplierId, $akunBankId, $akunHutangId] = $this->seedMasterData();
+        $invoiceId = $this->createInvoice($supplierId, 2_000_000);
+
+        // Pre-pay 1,500,000 so remaining is 500,000
+        \DB::table('faktur_pembelian')->where('id', $invoiceId)->update(['sudah_terbayar' => 1_500_000]);
+
+        $response = $this
+            ->withoutMiddleware(EnsureModuleAccess::class)
+            ->actingAs($this->makeUser())
+            ->from(route('pembelian.pembayaran.create'))
+            ->post(route('pembelian.pembayaran.store'), $this->buildPayload(
+                supplierId: $supplierId,
+                akunBankId: $akunBankId,
+                akunHutangId: $akunHutangId,
+                invoiceId: $invoiceId,
+                totalBayar: 600_000,
+            ));
+
+        $response
+            ->assertRedirect(route('pembelian.pembayaran.create'))
+            ->assertSessionHasErrors(['rincian.0.nominal_bayar']);
+    }
+
     public function test_print_page_shows_potongan_admin_and_nominal_bank(): void
     {
         [$supplierId, $akunBankId, $akunHutangId, $akunPotonganId] = $this->seedMasterData(withPotongan: true);

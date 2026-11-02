@@ -107,7 +107,7 @@ flowchart TD
 ### Algoritma
 
 1. Request tervalidasi (termasuk kecocokan total = jumlah rincian).
-2. Controller membungkus dalam `DB::transaction`.
+2. `KasbankPenerimaanService` membungkus seluruh mutasi dalam `DB::transaction` atomik.
 3. Service menyimpan/memperbarui header lalu menulis ulang rincian.
 4. `syncFromKasbankPenerimaan()` mengisi buku besar: **akun kas Debit** sebesar total, tiap
    **rincian Kredit** sebesar nominalnya (idempoten: hapus dulu lalu isi ulang).

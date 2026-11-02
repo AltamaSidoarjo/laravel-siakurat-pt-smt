@@ -52,6 +52,7 @@ class CoaController extends Controller
             'page' => 'app',
             'coa' => $coa,
             'hasChild' => $this->coaService->hasChildren((int) $coa->id),
+            'canDelete' => $this->coaService->canDelete($coa),
             'parentOptions' => $this->coaService->getParentOptions((int) $coa->id),
             'tipeOptions' => $this->coaService->getTipeOptions(),
         ]);
@@ -72,15 +73,14 @@ class CoaController extends Controller
 
     public function destroy(Coa $coa): RedirectResponse
     {
-        if ($this->coaService->hasChildren((int) $coa->id)) {
+        $check = $this->coaService->canDelete($coa);
+        if (! $check['allowed']) {
             return redirect()
                 ->route('bukubesar.coa.edit', $coa)
-                ->with('error', 'Akun parent tidak dapat dihapus karena memiliki akun turunan.');
+                ->with('error', $check['message']);
         }
 
-        DB::transaction(function () use ($coa) {
-            $this->coaService->delete($coa);
-        });
+        $this->coaService->delete($coa);
 
         return redirect()
             ->route('bukubesar.coa.index')

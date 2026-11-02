@@ -56,6 +56,8 @@ Implementasi utama:
 Validasi tambahan (`after`):
 
 - minimal satu faktur dicentang (`check`),
+- setiap faktur terpilih wajib berelasi dengan `supplier_id` yang dipilih (mencegah manipulasi faktur antar-supplier),
+- nominal bayar pada tiap faktur tidak boleh melebihi sisa tagihan (`grandtotal - sudah_terbayar`); pada skenario edit/update, sisa tagihan memperhitungkan alokasi nominal bayar lama pada pembayaran ini,
 - `total_bayar` harus sama dengan total nominal rincian tercentang,
 - bila `potongan_admin > 0`, `akun_potongan_admin_id` wajib,
 - `potongan_admin` tidak boleh lebih besar dari `total_bayar`.
@@ -109,14 +111,15 @@ flowchart TD
 
 ### Algoritma
 
-1. Controller membungkus operasi dalam `DB::transaction` dan meneruskan `actor`.
-2. Pada update: `decreaseSudahTerbayar()` rincian lama lalu hapus rincian lama.
-3. Service menyimpan/memperbarui header, lalu menyimpan hanya rincian **tercentang**.
-4. `increaseSudahTerbayar()` menaikkan `sudah_terbayar` pada faktur terkait.
-5. `syncFromPembayaranPembelian()` menulis buku besar: Hutang `D = total_bayar`,
+1. `PembayaranPembelianService` membungkus mutasi dalam `DB::transaction` secara atomik (all-or-nothing).
+2. Service menjalankan validasi domain (`validateInvoices`) untuk memverifikasi kepemilikan faktur terhadap supplier dan saldo tagihan.
+3. Pada update: `decreaseSudahTerbayar()` rincian lama lalu hapus rincian lama.
+4. Service menyimpan/memperbarui header, lalu menyimpan hanya rincian **tercentang**.
+5. `increaseSudahTerbayar()` menaikkan `sudah_terbayar` pada faktur terkait.
+6. `syncFromPembayaranPembelian()` menulis buku besar: Hutang `D = total_bayar`,
    Bank `K = total_bayar − potongan_admin`, dan akun potongan admin `K` bila ada.
-6. Aktivitas dicatat via `LogAktifitasService::log()`.
-7. `submit_action = save-print` mengarahkan ke halaman cetak.
+7. Aktivitas dicatat via `LogAktifitasService::log()`.
+8. `submit_action = save-print` mengarahkan ke halaman cetak.
 
 ## Alur 4: Hapus
 

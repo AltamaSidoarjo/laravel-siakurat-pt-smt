@@ -112,8 +112,8 @@
         <div class="card-body">
             <div class="d-flex gap-3">
                 @if ($isEdit)
-                    @if ($hasChild)
-                        <button type="button" class="btn btn-light text-danger fw-bold me-auto" disabled>
+                    @if (! ($canDelete['allowed'] ?? (! $hasChild)))
+                        <button type="button" class="btn btn-light text-secondary fw-bold me-auto" disabled title="{{ $canDelete['message'] ?? 'Akun tidak dapat dihapus.' }}">
                             <i class="bi bi-trash-fill"></i> Hapus
                         </button>
                     @else

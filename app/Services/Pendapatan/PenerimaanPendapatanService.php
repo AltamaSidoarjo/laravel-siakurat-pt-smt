@@ -11,6 +11,8 @@ use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as SupportCollection;
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 class PenerimaanPendapatanService
 {
@@ -82,148 +84,157 @@ class PenerimaanPendapatanService
 
     public function create(array $data, string $actor = 'system'): PenerimaanPenjualan
     {
-        $selectedRincian = $this->extractSelectedRincian($data['rincian']);
+        return DB::transaction(function () use ($data, $actor) {
+            $selectedRincian = $this->extractSelectedRincian($data['rincian']);
+            $this->validateInvoices((int) $data['pelanggan_id'], $selectedRincian);
 
-        $penerimaanPenjualan = PenerimaanPenjualan::query()->create([
-            'pelanggan_id' => $data['pelanggan_id'],
-            'akun_bank_id' => $data['akun_bank_id'],
-            'akun_piutang_id' => $data['akun_piutang_id'],
-            'akun_selisih_tarif_id' => $data['akun_selisih_tarif_id'] ?? null,
-            'nomer' => $data['nomer'],
-            'tanggal' => $data['tanggal'],
-            'jumlah_pembayaran' => $data['jumlah_pembayaran'],
-            'selisih_tarif' => $data['selisih_tarif'] ?? 0,
-            'keterangan' => $data['keterangan'] ?? null,
-            'created_by' => $actor,
-            'updated_by' => $actor,
-        ]);
+            $penerimaanPenjualan = PenerimaanPenjualan::query()->create([
+                'pelanggan_id' => $data['pelanggan_id'],
+                'akun_bank_id' => $data['akun_bank_id'],
+                'akun_piutang_id' => $data['akun_piutang_id'],
+                'akun_selisih_tarif_id' => $data['akun_selisih_tarif_id'] ?? null,
+                'nomer' => $data['nomer'],
+                'tanggal' => $data['tanggal'],
+                'jumlah_pembayaran' => $data['jumlah_pembayaran'],
+                'selisih_tarif' => $data['selisih_tarif'] ?? 0,
+                'keterangan' => $data['keterangan'] ?? null,
+                'created_by' => $actor,
+                'updated_by' => $actor,
+            ]);
 
-        $penerimaanPenjualan->rincian()->createMany($selectedRincian->map(fn ($row) => [
-            'faktur_penjualan_id' => $row['faktur_penjualan_id'],
-            'nominal_bayar' => $row['nominal_bayar'],
-        ])->all());
+            $penerimaanPenjualan->rincian()->createMany($selectedRincian->map(fn ($row) => [
+                'faktur_penjualan_id' => $row['faktur_penjualan_id'],
+                'nominal_bayar' => $row['nominal_bayar'],
+            ])->all());
 
-        $this->invoicePendapatanService->increaseSudahTerbayar($selectedRincian);
-        $this->bukuBesarService->syncFromPenerimaanPendapatan(
-            penerimaanPenjualanId: (int) $penerimaanPenjualan->id,
-            akunBankId: (int) $penerimaanPenjualan->akun_bank_id,
-            akunPiutangId: (int) $penerimaanPenjualan->akun_piutang_id,
-            akunSelisihTarifId: $penerimaanPenjualan->akun_selisih_tarif_id ? (int) $penerimaanPenjualan->akun_selisih_tarif_id : null,
-            nomer: $penerimaanPenjualan->nomer,
-            tanggal: $penerimaanPenjualan->tanggal->format('Y-m-d'),
-            keterangan: $penerimaanPenjualan->keterangan,
-            jumlahPembayaran: (float) $penerimaanPenjualan->jumlah_pembayaran,
-            selisihTarif: (float) $penerimaanPenjualan->selisih_tarif,
-        );
+            $this->invoicePendapatanService->increaseSudahTerbayar($selectedRincian);
+            $this->bukuBesarService->syncFromPenerimaanPendapatan(
+                penerimaanPenjualanId: (int) $penerimaanPenjualan->id,
+                akunBankId: (int) $penerimaanPenjualan->akun_bank_id,
+                akunPiutangId: (int) $penerimaanPenjualan->akun_piutang_id,
+                akunSelisihTarifId: $penerimaanPenjualan->akun_selisih_tarif_id ? (int) $penerimaanPenjualan->akun_selisih_tarif_id : null,
+                nomer: $penerimaanPenjualan->nomer,
+                tanggal: $penerimaanPenjualan->tanggal->format('Y-m-d'),
+                keterangan: $penerimaanPenjualan->keterangan,
+                jumlahPembayaran: (float) $penerimaanPenjualan->jumlah_pembayaran,
+                selisihTarif: (float) $penerimaanPenjualan->selisih_tarif,
+            );
 
-        $this->logService->log('Penerimaan Pendapatan', 'create', null, [
-            'nomer' => $penerimaanPenjualan->nomer,
-            'tanggal' => $penerimaanPenjualan->tanggal->format('Y-m-d'),
-            'pelanggan_id' => $penerimaanPenjualan->pelanggan_id,
-            'jumlah_pembayaran' => $penerimaanPenjualan->jumlah_pembayaran,
-            'selisih_tarif' => $penerimaanPenjualan->selisih_tarif,
-            'keterangan' => $penerimaanPenjualan->keterangan,
-        ]);
+            $this->logService->log('Penerimaan Pendapatan', 'create', null, [
+                'nomer' => $penerimaanPenjualan->nomer,
+                'tanggal' => $penerimaanPenjualan->tanggal->format('Y-m-d'),
+                'pelanggan_id' => $penerimaanPenjualan->pelanggan_id,
+                'jumlah_pembayaran' => $penerimaanPenjualan->jumlah_pembayaran,
+                'selisih_tarif' => $penerimaanPenjualan->selisih_tarif,
+                'keterangan' => $penerimaanPenjualan->keterangan,
+            ]);
 
-        return $penerimaanPenjualan->load([
-            'pelanggan',
-            'akunBank',
-            'akunPiutang',
-            'akunSelisihTarif',
-            'rincian.fakturPenjualan',
-        ]);
+            return $penerimaanPenjualan->load([
+                'pelanggan',
+                'akunBank',
+                'akunPiutang',
+                'akunSelisihTarif',
+                'rincian.fakturPenjualan',
+            ]);
+        });
     }
 
     public function update(PenerimaanPenjualan $penerimaanPenjualan, array $data, string $actor = 'system'): PenerimaanPenjualan
     {
-        $oldData = [
-            'nomer' => $penerimaanPenjualan->nomer,
-            'tanggal' => $penerimaanPenjualan->tanggal->format('Y-m-d'),
-            'jumlah_pembayaran' => $penerimaanPenjualan->jumlah_pembayaran,
-            'selisih_tarif' => $penerimaanPenjualan->selisih_tarif,
-            'keterangan' => $penerimaanPenjualan->keterangan,
-        ];
+        return DB::transaction(function () use ($penerimaanPenjualan, $data, $actor) {
+            $selectedRincian = $this->extractSelectedRincian($data['rincian']);
+            $this->validateInvoices((int) $data['pelanggan_id'], $selectedRincian, $penerimaanPenjualan);
 
-        $oldRincian = $penerimaanPenjualan->rincian()
-            ->get(['faktur_penjualan_id', 'nominal_bayar'])
-            ->map(fn ($item) => [
-                'faktur_penjualan_id' => (int) $item->faktur_penjualan_id,
-                'nominal_bayar' => (float) $item->nominal_bayar,
+            $oldData = [
+                'nomer' => $penerimaanPenjualan->nomer,
+                'tanggal' => $penerimaanPenjualan->tanggal->format('Y-m-d'),
+                'jumlah_pembayaran' => $penerimaanPenjualan->jumlah_pembayaran,
+                'selisih_tarif' => $penerimaanPenjualan->selisih_tarif,
+                'keterangan' => $penerimaanPenjualan->keterangan,
+            ];
+
+            $oldRincian = $penerimaanPenjualan->rincian()
+                ->get(['faktur_penjualan_id', 'nominal_bayar'])
+                ->map(fn ($item) => [
+                    'faktur_penjualan_id' => (int) $item->faktur_penjualan_id,
+                    'nominal_bayar' => (float) $item->nominal_bayar,
+                ]);
+
+            $this->invoicePendapatanService->decreaseSudahTerbayar($oldRincian);
+
+            $penerimaanPenjualan->update([
+                'akun_bank_id' => $data['akun_bank_id'],
+                'akun_piutang_id' => $data['akun_piutang_id'],
+                'akun_selisih_tarif_id' => $data['akun_selisih_tarif_id'] ?? null,
+                'nomer' => $data['nomer'],
+                'tanggal' => $data['tanggal'],
+                'jumlah_pembayaran' => $data['jumlah_pembayaran'],
+                'selisih_tarif' => $data['selisih_tarif'] ?? 0,
+                'keterangan' => $data['keterangan'] ?? null,
+                'updated_by' => $actor,
             ]);
 
-        $this->invoicePendapatanService->decreaseSudahTerbayar($oldRincian);
+            $penerimaanPenjualan->rincian()->delete();
+            $penerimaanPenjualan->rincian()->createMany($selectedRincian->map(fn ($row) => [
+                'faktur_penjualan_id' => $row['faktur_penjualan_id'],
+                'nominal_bayar' => $row['nominal_bayar'],
+            ])->all());
 
-        $penerimaanPenjualan->update([
-            'akun_bank_id' => $data['akun_bank_id'],
-            'akun_piutang_id' => $data['akun_piutang_id'],
-            'akun_selisih_tarif_id' => $data['akun_selisih_tarif_id'] ?? null,
-            'nomer' => $data['nomer'],
-            'tanggal' => $data['tanggal'],
-            'jumlah_pembayaran' => $data['jumlah_pembayaran'],
-            'selisih_tarif' => $data['selisih_tarif'] ?? 0,
-            'keterangan' => $data['keterangan'] ?? null,
-            'updated_by' => $actor,
-        ]);
+            $this->invoicePendapatanService->increaseSudahTerbayar($selectedRincian);
+            $this->bukuBesarService->syncFromPenerimaanPendapatan(
+                penerimaanPenjualanId: (int) $penerimaanPenjualan->id,
+                akunBankId: (int) $penerimaanPenjualan->akun_bank_id,
+                akunPiutangId: (int) $penerimaanPenjualan->akun_piutang_id,
+                akunSelisihTarifId: $penerimaanPenjualan->akun_selisih_tarif_id ? (int) $penerimaanPenjualan->akun_selisih_tarif_id : null,
+                nomer: $penerimaanPenjualan->nomer,
+                tanggal: $penerimaanPenjualan->tanggal->format('Y-m-d'),
+                keterangan: $penerimaanPenjualan->keterangan,
+                jumlahPembayaran: (float) $penerimaanPenjualan->jumlah_pembayaran,
+                selisihTarif: (float) $penerimaanPenjualan->selisih_tarif,
+            );
 
-        $penerimaanPenjualan->rincian()->delete();
-        $selectedRincian = $this->extractSelectedRincian($data['rincian']);
-        $penerimaanPenjualan->rincian()->createMany($selectedRincian->map(fn ($row) => [
-            'faktur_penjualan_id' => $row['faktur_penjualan_id'],
-            'nominal_bayar' => $row['nominal_bayar'],
-        ])->all());
+            $this->logService->log('Penerimaan Pendapatan', 'update', $oldData, [
+                'nomer' => $penerimaanPenjualan->nomer,
+                'tanggal' => $penerimaanPenjualan->tanggal->format('Y-m-d'),
+                'jumlah_pembayaran' => $penerimaanPenjualan->jumlah_pembayaran,
+                'selisih_tarif' => $penerimaanPenjualan->selisih_tarif,
+                'keterangan' => $penerimaanPenjualan->keterangan,
+            ]);
 
-        $this->invoicePendapatanService->increaseSudahTerbayar($selectedRincian);
-        $this->bukuBesarService->syncFromPenerimaanPendapatan(
-            penerimaanPenjualanId: (int) $penerimaanPenjualan->id,
-            akunBankId: (int) $penerimaanPenjualan->akun_bank_id,
-            akunPiutangId: (int) $penerimaanPenjualan->akun_piutang_id,
-            akunSelisihTarifId: $penerimaanPenjualan->akun_selisih_tarif_id ? (int) $penerimaanPenjualan->akun_selisih_tarif_id : null,
-            nomer: $penerimaanPenjualan->nomer,
-            tanggal: $penerimaanPenjualan->tanggal->format('Y-m-d'),
-            keterangan: $penerimaanPenjualan->keterangan,
-            jumlahPembayaran: (float) $penerimaanPenjualan->jumlah_pembayaran,
-            selisihTarif: (float) $penerimaanPenjualan->selisih_tarif,
-        );
-
-        $this->logService->log('Penerimaan Pendapatan', 'update', $oldData, [
-            'nomer' => $penerimaanPenjualan->nomer,
-            'tanggal' => $penerimaanPenjualan->tanggal->format('Y-m-d'),
-            'jumlah_pembayaran' => $penerimaanPenjualan->jumlah_pembayaran,
-            'selisih_tarif' => $penerimaanPenjualan->selisih_tarif,
-            'keterangan' => $penerimaanPenjualan->keterangan,
-        ]);
-
-        return $penerimaanPenjualan->load([
-            'pelanggan',
-            'akunBank',
-            'akunPiutang',
-            'akunSelisihTarif',
-            'rincian.fakturPenjualan',
-        ]);
+            return $penerimaanPenjualan->load([
+                'pelanggan',
+                'akunBank',
+                'akunPiutang',
+                'akunSelisihTarif',
+                'rincian.fakturPenjualan',
+            ]);
+        });
     }
 
     public function delete(PenerimaanPenjualan $penerimaanPenjualan): void
     {
-        $this->logService->log('Penerimaan Pendapatan', 'delete', [
-            'nomer' => $penerimaanPenjualan->nomer,
-            'tanggal' => $penerimaanPenjualan->tanggal->format('Y-m-d'),
-            'pelanggan_id' => $penerimaanPenjualan->pelanggan_id,
-            'jumlah_pembayaran' => $penerimaanPenjualan->jumlah_pembayaran,
-            'selisih_tarif' => $penerimaanPenjualan->selisih_tarif,
-            'keterangan' => $penerimaanPenjualan->keterangan,
-        ]);
-
-        $rincian = $penerimaanPenjualan->rincian()
-            ->get(['faktur_penjualan_id', 'nominal_bayar'])
-            ->map(fn ($item) => [
-                'faktur_penjualan_id' => (int) $item->faktur_penjualan_id,
-                'nominal_bayar' => (float) $item->nominal_bayar,
+        DB::transaction(function () use ($penerimaanPenjualan) {
+            $this->logService->log('Penerimaan Pendapatan', 'delete', [
+                'nomer' => $penerimaanPenjualan->nomer,
+                'tanggal' => $penerimaanPenjualan->tanggal->format('Y-m-d'),
+                'pelanggan_id' => $penerimaanPenjualan->pelanggan_id,
+                'jumlah_pembayaran' => $penerimaanPenjualan->jumlah_pembayaran,
+                'selisih_tarif' => $penerimaanPenjualan->selisih_tarif,
+                'keterangan' => $penerimaanPenjualan->keterangan,
             ]);
 
-        $this->bukuBesarService->deleteBySource('Penerimaan Pendapatan', (int) $penerimaanPenjualan->id);
-        $this->invoicePendapatanService->decreaseSudahTerbayar($rincian);
-        $penerimaanPenjualan->rincian()->delete();
-        $penerimaanPenjualan->delete();
+            $rincian = $penerimaanPenjualan->rincian()
+                ->get(['faktur_penjualan_id', 'nominal_bayar'])
+                ->map(fn ($item) => [
+                    'faktur_penjualan_id' => (int) $item->faktur_penjualan_id,
+                    'nominal_bayar' => (float) $item->nominal_bayar,
+                ]);
+
+            $this->bukuBesarService->deleteBySource('Penerimaan Pendapatan', (int) $penerimaanPenjualan->id);
+            $this->invoicePendapatanService->decreaseSudahTerbayar($rincian);
+            $penerimaanPenjualan->rincian()->delete();
+            $penerimaanPenjualan->delete();
+        });
     }
 
     public function findById(int $id, bool $includeInvoice = false): ?PenerimaanPenjualan
@@ -253,5 +264,41 @@ class PenerimaanPendapatanService
                 'nominal_bayar' => (float) ($row['nominal_bayar'] ?? 0),
             ])
             ->values();
+    }
+
+    private function validateInvoices(int $pelangganId, SupportCollection $selectedRincian, ?PenerimaanPenjualan $current = null): void
+    {
+        if ($selectedRincian->isEmpty()) {
+            throw new InvalidArgumentException('Minimal satu faktur harus dicentang.');
+        }
+
+        $invoiceIds = $selectedRincian->pluck('faktur_penjualan_id')->filter()->unique()->all();
+        $invoices = FakturPenjualan::query()->whereIn('id', $invoiceIds)->get()->keyBy('id');
+
+        $oldPayments = $current
+            ? $current->rincian()->pluck('nominal_bayar', 'faktur_penjualan_id')->map(fn ($v) => (float) $v)->all()
+            : [];
+
+        foreach ($selectedRincian as $row) {
+            $invoiceId = (int) $row['faktur_penjualan_id'];
+            /** @var FakturPenjualan|null $faktur */
+            $faktur = $invoices->get($invoiceId);
+
+            if (! $faktur) {
+                throw new InvalidArgumentException("Faktur dengan ID {$invoiceId} tidak ditemukan.");
+            }
+
+            if ((int) $faktur->pelanggan_id !== $pelangganId) {
+                throw new InvalidArgumentException("Faktur [{$faktur->nomor_faktur}] bukan milik pelanggan yang dipilih.");
+            }
+
+            $oldPaid = (float) ($oldPayments[$invoiceId] ?? 0);
+            $sisaTagihan = max(0, ((float) $faktur->grandtotal - (float) $faktur->sudah_terbayar) + $oldPaid);
+            $nominalBayar = (float) $row['nominal_bayar'];
+
+            if ($nominalBayar - $sisaTagihan > 0.0001) {
+                throw new InvalidArgumentException("Nominal bayar faktur [{$faktur->nomor_faktur}] melebihi sisa tagihan.");
+            }
+        }
     }
 }

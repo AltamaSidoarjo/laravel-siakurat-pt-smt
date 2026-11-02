@@ -49,12 +49,18 @@ Implementasi utama:
 - `tanggal` wajib berupa tanggal,
 - `keterangan` opsional,
 - `debit`, `kredit` wajib numerik `>= 0`,
-- `rincian` wajib array minimal 1 baris,
+- `rincian` wajib array minimal 2 baris (double-entry accounting),
 - `rincian.*.coa_id` wajib integer yang ada di tabel `coa`,
 - `rincian.*.debit`, `rincian.*.kredit` wajib numerik `>= 0`,
-- `rincian.*.catatan` opsional,
-- Validasi tambahan (`after`): total `debit` harus sama dengan total `kredit`, jika tidak akan
-  menambahkan error pada field `debit`.
+- `rincian.*.catatan` opsional.
+
+Validasi tambahan (`after`):
+
+- Total `debit` header harus sama dengan total `kredit` header (`abs(debit - kredit) <= 0.0001`),
+- Setiap baris rincian tidak boleh mengisi debit dan kredit sekaligus, dan tidak boleh bernilai nol di kedua sisi,
+- Total rincian debit harus sama dengan total rincian kredit (`abs(sum(debit) - sum(kredit)) <= 0.0001`),
+- Total debit header harus sama persis dengan total rincian debit, dan total kredit header harus sama persis dengan total rincian kredit.
+- Service level (`JurnalUmumService::validateBalance`) juga menegakkan aturan keseimbangan ini sebagai proteksi domain lapis kedua.
 
 `ImportJurnalUmumRequest` memvalidasi berkas unggahan:
 
@@ -130,14 +136,15 @@ flowchart TD
 
 ### Algoritma
 
-1. Request tervalidasi, termasuk cek total debit = kredit.
-2. Controller membungkus operasi dalam `DB::transaction`.
-3. Service menyimpan/memperbarui header `jurnal_umum`.
-4. `mapRincianPayload()` menyaring baris tanpa `coa_id`, menormalkan `debit`/`kredit`/`catatan`.
-5. Pada create: `rincian()->createMany()`. Pada update: hapus rincian lama lalu `createMany()`.
-6. `BukuBesarService::syncFromJurnalUmum()` mengisi ulang mutasi buku besar untuk jurnal ini.
-7. Aktivitas dicatat via `LogAktifitasService::log()` (create menyertakan data baru; update menyertakan data lama & baru).
-8. Pada `store`, bila `action = save_print`, redirect ke halaman print; selain itu ke index.
+1. Request tervalidasi lengkap (keseimbangan debit-kredit header dan rincian).
+2. Service membungkus seluruh alur dalam `DB::transaction` atomik.
+3. Service menjalankan `validateBalance()` untuk memastikan rincian seimbang sebelum menulis ke tabel.
+4. Service menyimpan/memperbarui header `jurnal_umum`.
+5. `mapRincianPayload()` menyaring baris tanpa `coa_id`, menormalkan `debit`/`kredit`/`catatan`.
+6. Pada create: `rincian()->createMany()`. Pada update: hapus rincian lama lalu `createMany()`.
+7. `BukuBesarService::syncFromJurnalUmum()` mengisi ulang mutasi buku besar untuk jurnal ini.
+8. Aktivitas dicatat via `LogAktifitasService::log()` (create menyertakan data baru; update menyertakan data lama & baru).
+9. Pada `store`, bila `action = save_print`, redirect ke halaman print; selain itu ke index.
 
 ## Alur 2b: Import Jurnal dari XLSX
 
