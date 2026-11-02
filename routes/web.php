@@ -261,6 +261,9 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('pembelian')->name('pembelian.')->group(function () {
         Route::middleware('module.access:pembelian.invoice,create')->group(function () {
+            Route::get('/invoice/import', [InvoicePembelianController::class, 'importForm'])->name('invoice.import.form');
+            Route::get('/invoice/import/template', [InvoicePembelianController::class, 'importTemplate'])->name('invoice.import.template');
+            Route::post('/invoice/import', [InvoicePembelianController::class, 'import'])->name('invoice.import.store');
             Route::get('/invoice/create', [InvoicePembelianController::class, 'create'])->name('invoice.create');
             Route::post('/invoice', [InvoicePembelianController::class, 'store'])->name('invoice.store');
         });

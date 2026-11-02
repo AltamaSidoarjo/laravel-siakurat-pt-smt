@@ -4,18 +4,24 @@ namespace App\Http\Controllers\Pembelian;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\StreamsCsvExport;
+use App\Http\Requests\Pembelian\ImportInvoicePembelianRequest;
 use App\Http\Requests\Pembelian\StoreInvoicePembelianRequest;
 use App\Http\Requests\Pembelian\UpdateInvoicePembelianRequest;
 use App\Models\FakturPembelian;
+use App\Services\Pembelian\InvoicePembelianImportException;
+use App\Services\Pembelian\InvoicePembelianImportService;
 use App\Services\Pembelian\InvoicePembelianService;
 use App\Services\PreferensiPerusahaanService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 use Yajra\DataTables\Facades\DataTables;
 
 class InvoicePembelianController extends Controller
@@ -25,6 +31,7 @@ class InvoicePembelianController extends Controller
     public function __construct(
         private readonly InvoicePembelianService $invoicePembelianService,
         private readonly PreferensiPerusahaanService $preferensiPerusahaanService,
+        private readonly InvoicePembelianImportService $invoicePembelianImportService,
     ) {
     }
 
@@ -98,6 +105,47 @@ class InvoicePembelianController extends Controller
             'canMutate' => (float) $fakturPembelian->sudah_terbayar <= 0
                 && ! $fakturPembelian->pembayaranPembelianRincis()->exists(),
         ]);
+    }
+
+    public function importForm(): View
+    {
+        return view('pembelian.invoice.import', [
+            'page' => 'app',
+            'phpUploadMaxFileSize' => ini_get('upload_max_filesize') ?: 'tidak diketahui',
+            'phpPostMaxSize' => ini_get('post_max_size') ?: 'tidak diketahui',
+        ]);
+    }
+
+    public function importTemplate(): BinaryFileResponse
+    {
+        $template = $this->invoicePembelianImportService->buildTemplate();
+
+        return response()
+            ->download(
+                $template['output_path'],
+                $template['download_name'],
+                ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+            )
+            ->deleteFileAfterSend(true);
+    }
+
+    public function import(ImportInvoicePembelianRequest $request): RedirectResponse
+    {
+        try {
+            $result = DB::transaction(
+                fn () => $this->invoicePembelianImportService->importFromXlsx($request->file('file'), $this->actor())
+            );
+        } catch (InvoicePembelianImportException $exception) {
+            return back()->withErrors(['file' => $exception->errors()]);
+        } catch (Throwable $throwable) {
+            report($throwable);
+
+            return back()->withErrors(['file' => 'File gagal diproses. Pastikan file sesuai template.']);
+        }
+
+        return redirect()
+            ->route('pembelian.invoice.index')
+            ->with('success', sprintf('Import berhasil. %d invoice pembelian dibuat (%s).', $result['created'], implode(', ', $result['nomer'])));
     }
 
     public function create(): View
