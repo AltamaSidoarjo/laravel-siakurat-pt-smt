@@ -710,7 +710,6 @@ class LaporanPendapatanService
     public function getPelaksanaOptions(): Collection
     {
         return DB::table('pelaksana')
-            ->whereIn(DB::raw('SUBSTR(no_proyek, 1, 2)'), ['1_', '2_'])
             ->orderBy('nama_pelaksana')
             ->get(['id', 'nama_pelaksana']);
     }
@@ -1204,7 +1203,6 @@ class LaporanPendapatanService
             ->join('faktur_penjualan as fp', 'fp.id', '=', 'fpr.faktur_penjualan_id')
             ->join('pelaksana as p', 'p.id', '=', 'fpr.pelaksana_id')
             ->join('coa as c', 'c.id', '=', 'fpr.coa_id')
-            ->whereIn(DB::raw('SUBSTR(p.no_proyek, 1, 2)'), ['1_', '2_'])
             ->whereBetween('fp.tanggal_faktur', [$startDate, $endDate])
             ->when($pelaksanaId !== null, fn (QueryBuilder $query) => $query->where('p.id', $pelaksanaId))
             ->when($poli !== '', fn (QueryBuilder $query) => $query->where('fp.nama_poli', 'like', '%'.$poli.'%'))

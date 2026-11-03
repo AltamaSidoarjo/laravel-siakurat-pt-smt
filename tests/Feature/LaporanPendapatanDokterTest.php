@@ -32,9 +32,9 @@ class LaporanPendapatanDokterTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('recordsFiltered', 4)
+            ->assertJsonPath('recordsFiltered', 5)
             ->assertJsonPath('totalBilling', 3)
-            ->assertJsonPath('grandTotal', 650000);
+            ->assertJsonPath('grandTotal', 720000);
 
         $rows = collect($response->json('data'));
         $igdDrA = $rows->first(fn (array $row) => $row['dokter'] === 'Dr. A'
@@ -113,7 +113,7 @@ class LaporanPendapatanDokterTest extends TestCase
             ->assertJsonPath('data.0.layanan', 'Pendapatan IGD');
     }
 
-    public function test_non_doctor_executor_rows_are_excluded(): void
+    public function test_non_doctor_executor_rows_are_included(): void
     {
         $response = $this
             ->actingAs($this->makeUser())
@@ -125,9 +125,11 @@ class LaporanPendapatanDokterTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('recordsFiltered', 0)
-            ->assertJsonPath('totalBilling', 0)
-            ->assertJsonPath('grandTotal', 0);
+            ->assertJsonPath('recordsFiltered', 1)
+            ->assertJsonPath('totalBilling', 1)
+            ->assertJsonPath('grandTotal', 70000)
+            ->assertJsonPath('data.0.dokter', 'Apoteker A')
+            ->assertJsonPath('data.0.layanan', 'Pendapatan Farmasi');
     }
 
     public function test_export_pdf_downloads_grouped_doctor_income_report(): void
@@ -200,7 +202,7 @@ class LaporanPendapatanDokterTest extends TestCase
             $this->assertNotNull($grandTotalRow);
             $this->assertStringStartsWith('=', $sheet->getCell('C'.$doctorTotalRow)->getValue());
             $this->assertSame(350000.0, (float) $sheet->getCell('C'.$doctorTotalRow)->getCalculatedValue());
-            $this->assertSame(650000.0, (float) $sheet->getCell('C'.$grandTotalRow)->getCalculatedValue());
+            $this->assertSame(720000.0, (float) $sheet->getCell('C'.$grandTotalRow)->getCalculatedValue());
 
             $spreadsheet->disconnectWorksheets();
         } finally {
