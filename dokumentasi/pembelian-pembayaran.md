@@ -57,7 +57,7 @@ Validasi tambahan (`after`):
 
 - minimal satu faktur dicentang (`check`),
 - setiap faktur terpilih wajib berelasi dengan `supplier_id` yang dipilih (mencegah manipulasi faktur antar-supplier),
-- nominal bayar pada tiap faktur tidak boleh melebihi sisa tagihan (`grandtotal - sudah_terbayar`); pada skenario edit/update, sisa tagihan memperhitungkan alokasi nominal bayar lama pada pembayaran ini,
+- nominal bayar pada tiap faktur tidak boleh melebihi sisa tagihan (`grandtotal - sudah_terbayar`) dengan batas toleransi pembulatan integer Rupiah (`max(sisaTagihan, round(sisaTagihan))`) agar faktur berdesimal sen dari SIMRS dapat dilunasi secara bulat; pada skenario edit/update, sisa tagihan memperhitungkan alokasi nominal bayar lama pada pembayaran ini,
 - `total_bayar` harus sama dengan total nominal rincian tercentang,
 - bila `potongan_admin > 0`, `akun_potongan_admin_id` wajib,
 - `potongan_admin` tidak boleh lebih besar dari `total_bayar`.

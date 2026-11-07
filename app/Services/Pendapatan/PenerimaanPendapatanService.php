@@ -48,7 +48,7 @@ class PenerimaanPendapatanService
             ->active()
             ->whereHas('fakturPenjualans', function ($query) {
                 $query
-                    ->whereRaw('COALESCE(grandtotal, 0) <> COALESCE(sudah_terbayar, 0)')
+                    ->whereRaw($this->outstandingInvoiceCondition())
                     ->where(function ($statusQuery) {
                         $statusQuery
                             ->whereNull('status_proses')
@@ -63,7 +63,7 @@ class PenerimaanPendapatanService
     {
         return FakturPenjualan::query()
             ->where('pelanggan_id', $pelangganId)
-            ->whereRaw('COALESCE(grandtotal, 0) <> COALESCE(sudah_terbayar, 0)')
+            ->whereRaw($this->outstandingInvoiceCondition())
             ->where(function ($statusQuery) {
                 $statusQuery
                     ->whereNull('status_proses')
@@ -294,11 +294,21 @@ class PenerimaanPendapatanService
 
             $oldPaid = (float) ($oldPayments[$invoiceId] ?? 0);
             $sisaTagihan = max(0, ((float) $faktur->grandtotal - (float) $faktur->sudah_terbayar) + $oldPaid);
+            $maxBayar = max($sisaTagihan, (float) round($sisaTagihan));
             $nominalBayar = (float) $row['nominal_bayar'];
 
-            if ($nominalBayar - $sisaTagihan > 0.0001) {
+            if ($nominalBayar - $maxBayar > 0.0001) {
                 throw new InvalidArgumentException("Nominal bayar faktur [{$faktur->nomor_faktur}] melebihi sisa tagihan.");
             }
         }
+    }
+
+    private function outstandingInvoiceCondition(): string
+    {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return 'CAST(COALESCE(grandtotal, 0) AS INTEGER) > CAST(COALESCE(sudah_terbayar, 0) AS INTEGER)';
+        }
+
+        return 'FLOOR(COALESCE(grandtotal, 0)) > FLOOR(COALESCE(sudah_terbayar, 0))';
     }
 }

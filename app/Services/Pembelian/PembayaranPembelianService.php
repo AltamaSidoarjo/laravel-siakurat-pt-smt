@@ -284,9 +284,10 @@ class PembayaranPembelianService
 
             $oldPaid = (float) ($oldPayments[$invoiceId] ?? 0);
             $sisaTagihan = max(0, ((float) $faktur->grandtotal - (float) $faktur->sudah_terbayar) + $oldPaid);
+            $maxBayar = max($sisaTagihan, (float) round($sisaTagihan));
             $nominalBayar = (float) $row['nominal_bayar'];
 
-            if ($nominalBayar - $sisaTagihan > 0.0001) {
+            if ($nominalBayar - $maxBayar > 0.0001) {
                 throw new InvalidArgumentException("Nominal bayar faktur [{$faktur->nomer_faktur}] melebihi sisa tagihan.");
             }
         }

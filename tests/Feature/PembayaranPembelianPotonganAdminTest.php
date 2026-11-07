@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Middleware\EnsureModuleAccess;
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -13,6 +14,7 @@ class PembayaranPembelianPotonganAdminTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->withoutMiddleware(ValidateCsrfToken::class);
 
         Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('preferensi_perusahaan');
@@ -390,6 +392,57 @@ class PembayaranPembelianPotonganAdminTest extends TestCase
                 akunHutangId: $akunHutangId,
                 invoiceId: $invoiceId,
                 totalBayar: 600_000,
+            ));
+
+        $response
+            ->assertRedirect(route('pembelian.pembayaran.create'))
+            ->assertSessionHasErrors(['rincian.0.nominal_bayar']);
+    }
+
+    public function test_validation_allows_nominal_bayar_matching_rounded_invoice_amount(): void
+    {
+        [$supplierId, $akunBankId, $akunHutangId] = $this->seedMasterData();
+        // Client scenario: invoice with cents (e.g. 4,319,775.90) paid with rounded integer (4,319,776)
+        $invoiceId = $this->createInvoice($supplierId, 4_319_775.90);
+
+        $response = $this
+            ->withoutMiddleware(EnsureModuleAccess::class)
+            ->actingAs($this->makeUser())
+            ->from(route('pembelian.pembayaran.create'))
+            ->post(route('pembelian.pembayaran.store'), $this->buildPayload(
+                supplierId: $supplierId,
+                akunBankId: $akunBankId,
+                akunHutangId: $akunHutangId,
+                invoiceId: $invoiceId,
+                totalBayar: 4_319_776,
+            ));
+
+        $response
+            ->assertRedirect(route('pembelian.pembayaran.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('faktur_pembelian', [
+            'id' => $invoiceId,
+            'sudah_terbayar' => 4_319_776,
+        ]);
+    }
+
+    public function test_validation_rejects_nominal_bayar_exceeding_rounded_invoice_amount(): void
+    {
+        [$supplierId, $akunBankId, $akunHutangId] = $this->seedMasterData();
+        // Sisa tagihan 4,319,775.90 rounded to 4,319,776; user attempts 4,319,777
+        $invoiceId = $this->createInvoice($supplierId, 4_319_775.90);
+
+        $response = $this
+            ->withoutMiddleware(EnsureModuleAccess::class)
+            ->actingAs($this->makeUser())
+            ->from(route('pembelian.pembayaran.create'))
+            ->post(route('pembelian.pembayaran.store'), $this->buildPayload(
+                supplierId: $supplierId,
+                akunBankId: $akunBankId,
+                akunHutangId: $akunHutangId,
+                invoiceId: $invoiceId,
+                totalBayar: 4_319_777,
             ));
 
         $response

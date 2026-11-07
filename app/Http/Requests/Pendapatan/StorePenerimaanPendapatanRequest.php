@@ -71,12 +71,13 @@ class StorePenerimaanPendapatanRequest extends FormRequest
                     }
 
                     $sisaTagihan = max(0, (float) $faktur->grandtotal - (float) $faktur->sudah_terbayar);
+                    $maxBayar = max($sisaTagihan, (float) round($sisaTagihan));
                     $nominalBayar = (float) ($row['nominal_bayar'] ?? 0);
 
-                    if ($nominalBayar - $sisaTagihan > 0.0001) {
+                    if ($nominalBayar - $maxBayar > 0.0001) {
                         $validator->errors()->add(
                             "rincian.{$index}.nominal_bayar",
-                            "Nominal bayar faktur [{$faktur->nomor_faktur}] melebihi sisa tagihan (Rp " . number_format($sisaTagihan, 2, ',', '.') . ")."
+                            "Nominal bayar faktur [{$faktur->nomor_faktur}] melebihi sisa tagihan (Rp " . number_format($maxBayar, 0, ',', '.') . ")."
                         );
                     }
                 }

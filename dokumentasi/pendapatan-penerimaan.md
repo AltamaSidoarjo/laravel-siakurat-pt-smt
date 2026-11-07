@@ -57,7 +57,7 @@ Validasi tambahan (`after`):
 
 - minimal satu faktur harus dicentang (`check`),
 - setiap faktur terpilih wajib berelasi dengan `pelanggan_id` yang dipilih (pencegahan manipulasi ID faktur lintas pelanggan),
-- nominal bayar pada tiap faktur tidak boleh melebihi sisa tagihan (`grandtotal - sudah_terbayar`); pada skenario edit/update, sisa tagihan memperhitungkan alokasi nominal bayar lama pada penerimaan ini agar tidak tertolak palsu,
+- nominal bayar pada tiap faktur tidak boleh melebihi sisa tagihan (`grandtotal - sudah_terbayar`) dengan batas toleransi pembulatan integer Rupiah (`max(sisaTagihan, round(sisaTagihan))`) agar faktur berdesimal sen dapat dilunasi secara bulat; pada skenario edit/update, sisa tagihan memperhitungkan alokasi nominal bayar lama pada penerimaan ini agar tidak tertolak palsu,
 - `jumlah_pembayaran` harus sama dengan (total nominal rincian tercentang + `selisih_tarif`),
 - bila `selisih_tarif` ≠ 0, `akun_selisih_tarif_id` wajib diisi.
 
