@@ -171,6 +171,78 @@ class LaporanPendapatanController extends Controller
         );
     }
 
+    public function aktivitasDokter(Request $request): View
+    {
+        [$startDate, $endDate] = $this->resolveDateRange($request);
+        $pelaksanaId = $request->integer('pelaksanaId') ?: null;
+
+        $reportData = $this->laporanPendapatanService->getAktivitasDokterData(
+            $startDate,
+            $endDate,
+            $pelaksanaId
+        );
+
+        return view('laporan.pendapatan.aktivitas-dokter', [
+            'page' => 'app',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'pelaksanaId' => $pelaksanaId,
+            'pelaksanaOptions' => $this->laporanPendapatanService->getPelaksanaOptions(),
+            'reportData' => $reportData,
+        ]);
+    }
+
+    public function exportAktivitasDokterPdf(Request $request): Response
+    {
+        $validated = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+            'pelaksanaId' => ['nullable', 'integer', 'exists:pelaksana,id'],
+        ]);
+
+        $fileName = sprintf(
+            'aktivitas-dokter-%s-%s.pdf',
+            str_replace('-', '', $validated['startDate']),
+            str_replace('-', '', $validated['endDate'])
+        );
+
+        $pdf = $this->laporanPendapatanService->renderAktivitasDokterPdf(
+            $validated['startDate'],
+            $validated['endDate'],
+            isset($validated['pelaksanaId']) ? (int) $validated['pelaksanaId'] : null
+        );
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => sprintf('inline; filename="%s"', $fileName),
+        ]);
+    }
+
+    public function exportAktivitasDokterExcel(Request $request): StreamedResponse
+    {
+        $validated = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+            'pelaksanaId' => ['nullable', 'integer', 'exists:pelaksana,id'],
+        ]);
+
+        $fileName = sprintf(
+            'aktivitas-dokter-%s-%s.xlsx',
+            str_replace('-', '', $validated['startDate']),
+            str_replace('-', '', $validated['endDate'])
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPendapatanService->streamAktivitasDokterExcel(
+                $validated['startDate'],
+                $validated['endDate'],
+                isset($validated['pelaksanaId']) ? (int) $validated['pelaksanaId'] : null
+            ),
+            $fileName,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        );
+    }
+
     public function loadKunjungan(Request $request): JsonResponse
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
