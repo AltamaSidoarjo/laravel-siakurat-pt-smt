@@ -58,15 +58,15 @@ berekstensi `xlsx`/`xls` (`mimes:xlsx,xls`), dan maksimal 10 MB (`max:10240`). V
 ```mermaid
 flowchart TD
     A["GET /kasbank/pembayaran"] --> B["KasbankPembayaranController::index()"]
-    B --> C["Tentukan rentang tanggal (default awal bulan s.d hari ini)"]
-    C --> D["Render view kasbank.pembayaran.index"]
+    B --> C["resolveDateRange()"]
+    B --> C1["KasbankPembayaranService::getSummary(start, end)"]
+    C & C1 --> D["Render view kasbank.pembayaran.index\n(Quick Metrics + Unified Surface)"]
     D --> E["DataTable GET /load-data -> getIndexQuery()"]
-    E --> F["DataTables::eloquent()->toJson()"]
+    E --> F["DataTables::eloquent()\n+ edit_url, print_url, destroy_url, can_update, can_delete -> toJson()"]
     D --> G["Export CSV -> streamCsvExport()"]
 ```
 
-Kolom yang diformat: `tanggal`, `total`; kolom tambahan `coa_display` (nama akun bank) dan
-`nomer_link` (menuju edit). Ekspor CSV: Nomor, Tanggal, Bank, Nominal, Keterangan.
+View dirender dengan **Quick Metric Cards** (Total Pembayaran, Total Nominal Dibayar, Periode Terpilih) dan **Unified Surface** modern. Kolom yang diformat: `tanggal` (`d-m-Y`), `total` (pemisah ribuan); kolom `coa_display` menampilkan `kode - nama`; kolom `edit_url`, `print_url`, `destroy_url`, `can_update`, `can_delete` untuk aksi baris; mendukung dynamic sorting dan custom debounced search. Ekspor CSV: Nomor, Tanggal (format ISO `Y-m-d`), Bank, Nominal, Keterangan terurut `tanggal DESC, id DESC`.
 
 ## Alur 2: Buat / Ubah + Sinkronisasi Buku Besar
 

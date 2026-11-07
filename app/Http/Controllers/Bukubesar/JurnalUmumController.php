@@ -41,29 +41,89 @@ class JurnalUmumController extends Controller
             'page' => 'app',
             'startDate' => $startDate,
             'endDate' => $endDate,
+            'summary' => $this->jurnalUmumService->getSummary($startDate, $endDate),
         ]);
     }
 
     public function loadData(Request $request): JsonResponse
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
+        $user = $request->user();
+        $canUpdate = $user?->hasModuleAccess('bukubesar.jurnal-umum', 'update') ?? false;
+        $canDelete = $user?->hasModuleAccess('bukubesar.jurnal-umum', 'delete') ?? false;
 
         $query = $this->jurnalUmumService->getIndexQuery($startDate, $endDate);
 
         return DataTables::eloquent($query)
-            ->editColumn('tanggal', fn (JurnalUmum $jurnalUmum) => optional($jurnalUmum->tanggal)->format('Y-m-d'))
+            ->editColumn('tanggal', fn (JurnalUmum $jurnalUmum) => optional($jurnalUmum->tanggal)->format('d-m-Y'))
             ->editColumn('debit', fn (JurnalUmum $jurnalUmum) => number_format((float) $jurnalUmum->debit, 0, ',', '.'))
             ->filterColumn('tanggal', function ($query, $keyword) {
-                $query->whereDate('tanggal', $keyword);
+                if (preg_match('/^\d{2}-\d{2}-\d{4}$/', $keyword)) {
+                    $parts = explode('-', $keyword);
+                    $query->whereDate('tanggal', "{$parts[2]}-{$parts[1]}-{$parts[0]}");
+                } elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $keyword)) {
+                    $query->whereDate('tanggal', $keyword);
+                } else {
+                    $query->where('tanggal', 'like', "%{$keyword}%");
+                }
+            })
+            ->order(function ($query) use ($request) {
+                $orders = $request->input('order', []);
+                if (empty($orders)) {
+                    $query->orderByDesc('tanggal')->orderByDesc('id');
+
+                    return;
+                }
+
+                $columns = $request->input('columns', []);
+                foreach ($orders as $order) {
+                    $colIdx = $order['column'] ?? null;
+                    $dir = strtolower($order['dir'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
+                    $colName = $columns[$colIdx]['name'] ?? $columns[$colIdx]['data'] ?? null;
+
+                    if ($colName === 'nomer') {
+                        $query->orderBy('nomer', $dir);
+                    } elseif ($colName === 'tanggal') {
+                        $query->orderBy('tanggal', $dir)->orderBy('id', $dir);
+                    } elseif ($colName === 'debit') {
+                        $query->orderBy('debit', $dir);
+                    } elseif ($colName === 'keterangan') {
+                        $query->orderBy('keterangan', $dir);
+                    }
+                }
             })
             ->addColumn('nomer_link', fn (JurnalUmum $jurnalUmum) => route('bukubesar.jurnal-umum.edit', $jurnalUmum))
+            ->addColumn('edit_url', fn (JurnalUmum $jurnalUmum) => route('bukubesar.jurnal-umum.edit', $jurnalUmum))
+            ->addColumn('print_url', fn (JurnalUmum $jurnalUmum) => route('bukubesar.jurnal-umum.print', $jurnalUmum))
+            ->addColumn('destroy_url', fn (JurnalUmum $jurnalUmum) => route('bukubesar.jurnal-umum.destroy', $jurnalUmum))
+            ->addColumn('can_update', fn () => $canUpdate)
+            ->addColumn('can_delete', fn () => $canDelete)
             ->toJson();
     }
 
     public function exportCsv(Request $request): StreamedResponse
     {
-        $data = $request->validate(['startDate' => ['required', 'date_format:Y-m-d'], 'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate']]);
-        return $this->streamCsvExport($request, $this->jurnalUmumService->getIndexQuery($data['startDate'], $data['endDate']), 'jurnal-umum', ['Nomor', 'Tanggal', 'Nominal', 'Keterangan'], fn (JurnalUmum $item) => [(string) $item->nomer, optional($item->tanggal)->format('Y-m-d'), $this->csvNumber($item->debit), (string) $item->keterangan]);
+        $data = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+        ]);
+
+        $query = $this->jurnalUmumService->getIndexQuery($data['startDate'], $data['endDate'])
+            ->orderByDesc('tanggal')
+            ->orderByDesc('id');
+
+        return $this->streamCsvExport(
+            $request,
+            $query,
+            'jurnal-umum',
+            ['Nomor', 'Tanggal', 'Nominal', 'Keterangan'],
+            fn (JurnalUmum $item) => [
+                (string) $item->nomer,
+                optional($item->tanggal)->format('Y-m-d'),
+                $this->csvNumber($item->debit),
+                (string) $item->keterangan,
+            ]
+        );
     }
 
     private function resolveDateRange(Request $request): array

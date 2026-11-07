@@ -29,9 +29,23 @@ class KasbankPenerimaanService
     {
         return KasbankPenerimaan::query()
             ->with('coa:id,kode,nama')
+            ->betweenDates($startDate, $endDate);
+    }
+
+    /**
+     * @return array{total_count: int, total_nominal: float}
+     */
+    public function getSummary(string $startDate, string $endDate): array
+    {
+        $aggregate = KasbankPenerimaan::query()
             ->betweenDates($startDate, $endDate)
-            ->orderByDesc('tanggal')
-            ->orderByDesc('id');
+            ->selectRaw('COUNT(*) as total_count, COALESCE(SUM(total), 0) as total_nominal')
+            ->first();
+
+        return [
+            'total_count' => (int) ($aggregate?->total_count ?? 0),
+            'total_nominal' => (float) ($aggregate?->total_nominal ?? 0),
+        ];
     }
 
     public function create(array $data): KasbankPenerimaan
