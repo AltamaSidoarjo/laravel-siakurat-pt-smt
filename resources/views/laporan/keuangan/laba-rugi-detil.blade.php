@@ -79,9 +79,32 @@
                             </thead>
                             <tbody>
                                 @forelse ($rows as $row)
+                                    @php
+                                        $bukuBesarUrl = ! empty($row['coa_id']) ? route('laporan.keuangan.bukubesar', [
+                                            'startDate' => $startDate,
+                                            'endDate' => $endDate,
+                                            'coaIds' => [$row['coa_id']],
+                                        ]) : null;
+                                    @endphp
                                     <tr>
-                                        <td>{{ $row['kode'] }}</td>
-                                        <td>{{ $row['deskripsi'] }}</td>
+                                        <td>
+                                            @if ($bukuBesarUrl)
+                                                <a href="{{ $bukuBesarUrl }}" target="_blank" rel="noopener noreferrer" class="text-decoration-underline text-primary fw-semibold" title="Buka buku besar akun {{ $row['kode'] }} di tab baru">
+                                                    {{ $row['kode'] }}
+                                                </a>
+                                            @else
+                                                {{ $row['kode'] }}
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if ($bukuBesarUrl)
+                                                <a href="{{ $bukuBesarUrl }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none text-dark hover-underline" title="Buka buku besar akun {{ $row['kode'] }} di tab baru">
+                                                    {{ $row['deskripsi'] }}
+                                                </a>
+                                            @else
+                                                {{ $row['deskripsi'] }}
+                                            @endif
+                                        </td>
                                         <td>{{ $row['tipe_coa'] }}</td>
                                         <td class="text-end">{{ number_format((float) $row['nominal'], 0, ',', '.') }}</td>
                                     </tr>
@@ -199,10 +222,19 @@
             line-height: 1.2;
         }
 
+        .hover-underline:hover {
+            text-decoration: underline !important;
+        }
+
         @media print {
             .laporan-header__logo-image {
                 max-width: 90px;
                 max-height: 72px;
+            }
+
+            #laba-rugi-detil-table a {
+                color: inherit !important;
+                text-decoration: none !important;
             }
         }
     </style>
