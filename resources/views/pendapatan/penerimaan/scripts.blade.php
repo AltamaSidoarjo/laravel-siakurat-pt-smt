@@ -44,10 +44,44 @@
                 return 0;
             }
 
-            const cleaned = value.toString().replace(/[^\d-]/g, '');
-            const parsed = parseInt(cleaned, 10);
+            if (typeof value === 'number') {
+                return Number.isFinite(value) ? Math.round(value) : 0;
+            }
 
-            return Number.isNaN(parsed) ? 0 : parsed;
+            let normalized = value.toString().trim();
+
+            if (normalized === '') {
+                return 0;
+            }
+
+            normalized = normalized.replace(/\s/g, '');
+
+            const lastComma = normalized.lastIndexOf(',');
+            const lastDot = normalized.lastIndexOf('.');
+
+            if (lastComma !== -1 && lastDot !== -1) {
+                if (lastComma > lastDot) {
+                    normalized = normalized.replace(/\./g, '').replace(',', '.');
+                } else {
+                    normalized = normalized.replace(/,/g, '');
+                }
+            } else if (lastComma !== -1) {
+                const decimalDigits = normalized.length - lastComma - 1;
+                normalized = decimalDigits > 0 && decimalDigits <= 2
+                    ? normalized.replace(/\./g, '').replace(',', '.')
+                    : normalized.replace(/,/g, '');
+            } else if (lastDot !== -1) {
+                const decimalDigits = normalized.length - lastDot - 1;
+                normalized = decimalDigits > 0 && decimalDigits <= 2
+                    ? normalized.replace(/,/g, '')
+                    : normalized.replace(/\./g, '');
+            }
+
+            normalized = normalized.replace(/[^\d.-]/g, '');
+
+            const parsed = Number(normalized);
+
+            return Number.isFinite(parsed) ? Math.round(parsed) : 0;
         }
 
         function formatIdInteger(value) {

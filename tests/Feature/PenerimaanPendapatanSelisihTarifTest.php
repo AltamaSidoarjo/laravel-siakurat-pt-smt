@@ -407,6 +407,57 @@ class PenerimaanPendapatanSelisihTarifTest extends TestCase
             ->assertSessionHasErrors(['rincian.0.nominal_bayar']);
     }
 
+    public function test_it_allows_nominal_bayar_matching_rounded_invoice_amount(): void
+    {
+        [$pelangganId, $akunBankId, $akunPiutangId] = $this->seedMasterData();
+        // Client scenario: invoice with cents (e.g. 3,613,299.75) paid with rounded integer (3,613,300)
+        $invoiceId = $this->createInvoice($pelangganId, 3_613_299.75);
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->from(route('pendapatan.penerimaan.create'))
+            ->post(route('pendapatan.penerimaan.store'), $this->buildPayload(
+                pelangganId: $pelangganId,
+                akunBankId: $akunBankId,
+                akunPiutangId: $akunPiutangId,
+                invoiceId: $invoiceId,
+                jumlahPembayaran: 3_613_300,
+                nominalBayar: 3_613_300,
+            ));
+
+        $response
+            ->assertRedirect(route('pendapatan.penerimaan.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('faktur_penjualan', [
+            'id' => $invoiceId,
+            'sudah_terbayar' => 3_613_300,
+        ]);
+    }
+
+    public function test_it_rejects_nominal_bayar_exceeding_rounded_invoice_amount(): void
+    {
+        [$pelangganId, $akunBankId, $akunPiutangId] = $this->seedMasterData();
+        // Sisa tagihan 3,613,299.75 rounded to 3,613,300; user attempts 3,613,301
+        $invoiceId = $this->createInvoice($pelangganId, 3_613_299.75);
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->from(route('pendapatan.penerimaan.create'))
+            ->post(route('pendapatan.penerimaan.store'), $this->buildPayload(
+                pelangganId: $pelangganId,
+                akunBankId: $akunBankId,
+                akunPiutangId: $akunPiutangId,
+                invoiceId: $invoiceId,
+                jumlahPembayaran: 3_613_301,
+                nominalBayar: 3_613_301,
+            ));
+
+        $response
+            ->assertRedirect(route('pendapatan.penerimaan.create'))
+            ->assertSessionHasErrors(['rincian.0.nominal_bayar']);
+    }
+
     // --- helpers ---
 
     private function seedMasterData(bool $withSelisih = false): array
@@ -453,7 +504,7 @@ class PenerimaanPendapatanSelisihTarifTest extends TestCase
         return [$pelangganId, $akunBankId, $akunPiutangId, $akunSelisihId];
     }
 
-    private function createInvoice(int $pelangganId, int $grandTotal): int
+    private function createInvoice(int $pelangganId, int|float $grandTotal): int
     {
         return \DB::table('faktur_penjualan')->insertGetId([
             'pelanggan_id' => $pelangganId,
