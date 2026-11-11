@@ -18,9 +18,7 @@ class SettingRbaService
     {
         return SettingRba::query()
             ->with('coa:id,kode,nama')
-            ->betweenYears($yearFrom, $yearTo)
-            ->orderByDesc('tahun')
-            ->orderByDesc('id');
+            ->betweenYears($yearFrom, $yearTo);
     }
 
     public function getCoaOptions(): Collection

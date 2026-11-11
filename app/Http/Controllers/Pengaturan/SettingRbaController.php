@@ -37,12 +37,55 @@ class SettingRbaController extends Controller
     {
         $yearFrom = $request->integer('yearFrom') ?: null;
         $yearTo = $request->integer('yearTo') ?: null;
+        $user = $request->user();
+        $canDelete = $user?->hasModuleAccess('pengaturan.setting-rba', 'delete') ?? false;
 
         $query = $this->settingRbaService->getIndexQuery($yearFrom, $yearTo);
 
         return DataTables::eloquent($query)
             ->addColumn('coa_display', fn (SettingRba $item) => trim(($item->coa?->kode ?? '').' - '.($item->coa?->nama ?? '')))
             ->addColumn('nominal_display', fn (SettingRba $item) => number_format((float) $item->total_nominal, 2, ',', '.'))
+            ->filterColumn('coa_display', function ($query, $keyword) {
+                $query->whereHas('coa', function ($q) use ($keyword) {
+                    $q->where('kode', 'like', "%{$keyword}%")
+                        ->orWhere('nama', 'like', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('nominal_display', function ($query, $keyword) {
+                $cleaned = preg_replace('/[^\d]/', '', (string) $keyword);
+                if ($cleaned !== '') {
+                    $query->where('setting_rba.total_nominal', 'like', "%{$cleaned}%");
+                }
+            })
+            ->order(function ($query) use ($request) {
+                $orders = $request->input('order', []);
+                if (empty($orders)) {
+                    $query->orderByDesc('setting_rba.tahun')->orderByDesc('setting_rba.id');
+
+                    return;
+                }
+
+                $columns = $request->input('columns', []);
+                foreach ($orders as $order) {
+                    $colIdx = $order['column'] ?? null;
+                    $dir = strtolower($order['dir'] ?? 'asc') === 'desc' ? 'desc' : 'asc';
+                    $colName = $columns[$colIdx]['name'] ?? $columns[$colIdx]['data'] ?? null;
+
+                    if ($colName === 'coa_display' || $colName === 'coa_id' || $colName === 'coa.kode') {
+                        $query->join('coa', 'setting_rba.coa_id', '=', 'coa.id')
+                            ->orderBy('coa.kode', $dir)
+                            ->select('setting_rba.*');
+                    } elseif ($colName === 'tahun') {
+                        $query->orderBy('setting_rba.tahun', $dir)->orderBy('setting_rba.id', $dir);
+                    } elseif ($colName === 'nominal_display' || $colName === 'total_nominal') {
+                        $query->orderBy('setting_rba.total_nominal', $dir);
+                    } elseif ($colName === 'catatan') {
+                        $query->orderBy('setting_rba.catatan', $dir);
+                    }
+                }
+            })
+            ->addColumn('destroy_url', fn (SettingRba $item) => route('pengaturan.setting-rba.destroy', $item))
+            ->addColumn('can_delete', fn () => $canDelete)
             ->toJson();
     }
 

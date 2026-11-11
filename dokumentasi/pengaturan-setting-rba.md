@@ -30,20 +30,20 @@ flowchart TD
     A["GET index?yearFrom&yearTo"] --> B["Default: 5 tahun terakhir s.d tahun ini"]
     B --> C["Render pengaturan.setting-rba.index"]
     C --> D["DataTable /load-data -> getIndexQuery(yearFrom, yearTo)"]
-    D --> E["Kolom coa_display + nominal_display (total_nominal)"]
-    E --> F["DataTables::eloquent()->toJson()"]
+    D --> E["Filter coa_display (kode/nama) & sorting dinamis (COA, tahun, nominal, catatan)"]
+    E --> F["DataTables::eloquent() + can_delete & destroy_url -> toJson()"]
     G["POST store"] --> H["StoreSettingRbaRequest -> DB::transaction -> createMany()"]
     I["DELETE /{id}"] --> J["DB::transaction -> delete()"]
 ```
 
 ### Algoritma
 
-1. `index()` menentukan rentang tahun (`yearFrom`/`yearTo`, default tahun ini − 5 s.d. tahun ini).
-2. `loadData()` memakai `getIndexQuery()` dan menampilkan `coa_display` (kode - nama) serta
-   `nominal_display` dari `total_nominal`.
-3. `create()` menyediakan opsi COA (`getCoaOptions`).
-4. `store()` menyimpan banyak baris RBA (`createMany`) dalam transaksi.
-5. `destroy()` menghapus satu setting RBA dalam transaksi.
+1. `index()` menentukan rentang tahun (`yearFrom`/`yearTo`, default tahun ini − 5 s.d. tahun ini). Tombol Tambah hanya tampil jika user memiliki izin create.
+2. `loadData()` memakai `getIndexQuery()` dan menampilkan `coa_display` (kode - nama), `nominal_display` dari `total_nominal`, serta `destroy_url` dan `can_delete`.
+3. `loadData()` mendukung pencarian COA berdasarkan kode maupun nama (`filterColumn('coa_display')`), pencarian nominal terformat (`filterColumn('nominal_display')`), serta pengurutan dinamis (`order()` callback) yang mengisolasi tabel `setting_rba` guna mencegah ambiguitas kolom SQL saat join COA.
+4. `create()` menyediakan opsi COA (`getCoaOptions`).
+5. `store()` menyimpan banyak baris RBA (`createMany`) dalam transaksi.
+6. `destroy()` menghapus satu setting RBA dalam transaksi.
 
 ## Fungsi yang Dipanggil
 
