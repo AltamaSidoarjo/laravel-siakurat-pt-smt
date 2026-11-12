@@ -191,6 +191,7 @@ class JurnalUmumController extends Controller
         return view('bukubesar.jurnal-umum.create', [
             'page' => 'app',
             'coaOptions' => $this->jurnalUmumService->getCoaOptions(),
+            'pelaksanaOptions' => $this->jurnalUmumService->getPelaksanaOptions(),
             'templateOptions' => $this->templateService->getTemplateOptions(),
             'selectedTemplate' => $selectedTemplate,
             'initialKeterangan' => $initialKeterangan ?? '',
@@ -254,10 +255,13 @@ class JurnalUmumController extends Controller
 
     public function edit(JurnalUmum $jurnalUmum): View
     {
+        $jurnalUmum->load(['rincian.coa', 'rincian.pelaksana']);
+
         return view('bukubesar.jurnal-umum.edit', [
             'page' => 'app',
-            'jurnalUmum' => $jurnalUmum->load('rincian.coa'),
+            'jurnalUmum' => $jurnalUmum,
             'coaOptions' => $this->jurnalUmumService->getCoaOptions(),
+            'pelaksanaOptions' => $this->jurnalUmumService->getPelaksanaOptions($jurnalUmum),
         ]);
     }
 
@@ -287,7 +291,7 @@ class JurnalUmumController extends Controller
 
         return view('bukubesar.jurnal-umum.print', [
             'page' => 'app',
-            'jurnalUmum' => $jurnalUmum->load('rincian.coa'),
+            'jurnalUmum' => $jurnalUmum->load(['rincian.coa', 'rincian.pelaksana']),
             'namaRumahSakit' => $printIdentity['namaRumahSakit'],
             'printedAt' => Carbon::now(),
             'namaPetugas' => auth()->user()?->name ?? '(Nama Petugas)',

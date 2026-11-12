@@ -252,7 +252,7 @@
                         <tr>
                             <th style="width: 4%;">#</th>
                             <th style="width: 10%;">TANGGAL</th>
-                            <th style="width: 13%;">NO. FAKTUR</th>
+                            <th style="width: 13%;">NO. REFERENSI</th>
                             <th style="width: 38%;">PASIEN & KETERANGAN</th>
                             <th style="width: 15%;">LAYANAN / AKUN</th>
                             <th class="text-end" style="width: 10%;">NOMINAL JASA</th>
@@ -278,18 +278,30 @@
 
                             <!-- Detail Transaction Rows -->
                             @foreach ($kategori['rincian'] as $item)
+                                @php
+                                    $isJournal = ($item['source_type'] ?? 'faktur_penjualan') === 'jurnal_umum';
+                                    $detailRoute = $isJournal
+                                        ? route('bukubesar.jurnal-umum.edit', $item['source_id'])
+                                        : route('pendapatan.invoice.read', $item['faktur_id']);
+                                    $nominal = (float) ($item['nominal'] ?? $item['kredit']);
+                                    $formattedNominal = ($nominal < 0 ? '-Rp ' : 'Rp ').number_format(abs($nominal), 2, ',', '.');
+                                @endphp
                                 <tr>
                                     <td class="text-muted small">{{ $rowNumber++ }}</td>
                                     <td class="text-nowrap">{{ $item['tanggal_format'] ?? $item['tanggal'] }}</td>
                                     <td>
-                                        <a href="{{ route('pendapatan.invoice.read', $item['faktur_id']) }}" class="invoice-link font-monospace">
-                                            <i class="bi bi-receipt me-1"></i>{{ $item['no_ref'] }}
+                                        <a href="{{ $detailRoute }}" class="invoice-link font-monospace">
+                                            <i class="bi {{ $isJournal ? 'bi-journal-text' : 'bi-receipt' }} me-1"></i>{{ $item['no_ref'] }}
                                         </a>
                                     </td>
                                     <td>
                                         <div>
                                             <span class="fw-semibold text-dark">{{ $item['nama_pasien'] ?: $item['deskripsi'] }}</span>
-                                            @if (!empty($item['poli']) || !empty($item['penjamin']))
+                                            @if ($isJournal)
+                                                <div class="d-flex gap-1 mt-1">
+                                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle small">Jurnal Umum</span>
+                                                </div>
+                                            @elseif (!empty($item['poli']) || !empty($item['penjamin']))
                                                 <div class="d-flex gap-1 mt-1">
                                                     @if (!empty($item['poli']))
                                                         <span class="badge bg-light text-secondary border small">{{ $item['poli'] }}</span>
@@ -307,11 +319,11 @@
                                         </div>
                                     </td>
                                     <td class="text-secondary small">{{ $kategori['nama_akun'] }}</td>
-                                    <td class="text-end text-nowrap font-monospace fw-semibold text-dark">
-                                        Rp {{ number_format($item['kredit'], 2, ',', '.') }}
+                                    <td class="text-end text-nowrap font-monospace fw-semibold {{ $nominal < 0 ? 'text-danger' : 'text-dark' }}">
+                                        {{ $formattedNominal }}
                                     </td>
                                     <td class="text-end text-nowrap font-monospace text-muted small">
-                                        Rp {{ number_format($item['mutasi'], 2, ',', '.') }}
+                                        {{ ($item['mutasi'] < 0 ? '-Rp ' : 'Rp ').number_format(abs($item['mutasi']), 2, ',', '.') }}
                                     </td>
                                 </tr>
                             @endforeach
@@ -322,10 +334,10 @@
                                     TOTAL {{ $kategori['nama_akun'] }}:
                                 </td>
                                 <td class="text-end text-nowrap font-monospace text-primary">
-                                    Rp {{ number_format($kategori['total_kredit'], 2, ',', '.') }}
+                                    {{ ($kategori['total_mutasi'] < 0 ? '-Rp ' : 'Rp ').number_format(abs($kategori['total_mutasi']), 2, ',', '.') }}
                                 </td>
                                 <td class="text-end text-nowrap font-monospace text-primary">
-                                    Rp {{ number_format($kategori['total_mutasi'], 2, ',', '.') }}
+                                    {{ ($kategori['total_mutasi'] < 0 ? '-Rp ' : 'Rp ').number_format(abs($kategori['total_mutasi']), 2, ',', '.') }}
                                 </td>
                             </tr>
                         @endforeach
@@ -336,10 +348,10 @@
                                 TOTAL {{ $dokter['dokter'] }}:
                             </td>
                             <td class="text-end text-nowrap font-monospace text-success fs-7">
-                                Rp {{ number_format($dokter['total_kredit'], 2, ',', '.') }}
+                                {{ ($dokter['total_mutasi'] < 0 ? '-Rp ' : 'Rp ').number_format(abs($dokter['total_mutasi']), 2, ',', '.') }}
                             </td>
                             <td class="text-end text-nowrap font-monospace text-success fs-7">
-                                Rp {{ number_format($dokter['total_mutasi'], 2, ',', '.') }}
+                                {{ ($dokter['total_mutasi'] < 0 ? '-Rp ' : 'Rp ').number_format(abs($dokter['total_mutasi']), 2, ',', '.') }}
                             </td>
                         </tr>
                     </tbody>

@@ -671,17 +671,19 @@ class LaporanPendapatanService
         string $penjamin = '',
     ): QueryBuilder {
         return $this->getPendapatanDokterBaseQuery($startDate, $endDate, $pelaksanaId, $poli, $penjamin)
-            ->selectRaw('p.id AS pelaksana_id')
-            ->selectRaw('p.nama_pelaksana AS dokter')
-            ->selectRaw('fp.tanggal_faktur AS tanggal')
-            ->selectRaw('c.kode AS kode_akun')
-            ->selectRaw('c.nama AS layanan')
-            ->selectRaw('COUNT(DISTINCT fp.id) AS jumlah_billing')
-            ->selectRaw('SUM(fpr.subtotal) AS total_pendapatan')
-            ->groupBy('p.id', 'p.nama_pelaksana', 'fp.tanggal_faktur', 'c.id', 'c.kode', 'c.nama')
-            ->orderBy('p.nama_pelaksana')
-            ->orderBy('fp.tanggal_faktur')
-            ->orderBy('c.kode');
+            ->select([
+                'pelaksana_id',
+                'dokter',
+                'tanggal',
+                'kode_akun',
+                'layanan',
+            ])
+            ->selectRaw('COUNT(DISTINCT faktur_id) AS jumlah_billing')
+            ->selectRaw('SUM(nominal) AS total_pendapatan')
+            ->groupBy('pelaksana_id', 'dokter', 'tanggal', 'coa_id', 'kode_akun', 'layanan')
+            ->orderBy('dokter')
+            ->orderBy('tanggal')
+            ->orderBy('kode_akun');
     }
 
     public function getPendapatanDokterSummary(
@@ -703,8 +705,8 @@ class LaporanPendapatanService
         $this->applyPendapatanDokterSearch($query, $search);
 
         return [
-            'totalBilling' => (clone $query)->distinct()->count('fp.id'),
-            'grandTotal' => (float) (clone $query)->sum('fpr.subtotal'),
+            'totalBilling' => (clone $query)->distinct()->count('faktur_id'),
+            'grandTotal' => (float) (clone $query)->sum('nominal'),
         ];
     }
 
@@ -727,12 +729,12 @@ class LaporanPendapatanService
 
         $query->where(function (QueryBuilder $searchQuery) use ($likeSearch): void {
             $searchQuery
-                ->where('p.nama_pelaksana', 'like', $likeSearch)
-                ->orWhere('p.no_proyek', 'like', $likeSearch)
-                ->orWhere('c.kode', 'like', $likeSearch)
-                ->orWhere('c.nama', 'like', $likeSearch)
-                ->orWhere('fp.nama_poli', 'like', $likeSearch)
-                ->orWhere('fp.nama_penjamin', 'like', $likeSearch);
+                ->where('dokter', 'like', $likeSearch)
+                ->orWhere('no_proyek', 'like', $likeSearch)
+                ->orWhere('kode_akun', 'like', $likeSearch)
+                ->orWhere('layanan', 'like', $likeSearch)
+                ->orWhere('nama_poli', 'like', $likeSearch)
+                ->orWhere('nama_penjamin', 'like', $likeSearch);
         });
     }
 
@@ -881,7 +883,7 @@ class LaporanPendapatanService
         string $endDate,
         ?int $pelaksanaId = null
     ): array {
-        $rows = DB::table('faktur_penjualan_rinci as fpr')
+        $invoiceRows = DB::table('faktur_penjualan_rinci as fpr')
             ->join('faktur_penjualan as fp', 'fp.id', '=', 'fpr.faktur_penjualan_id')
             ->join('pelaksana as p', 'p.id', '=', 'fpr.pelaksana_id')
             ->join('coa as c', 'c.id', '=', 'fpr.coa_id')
@@ -894,21 +896,58 @@ class LaporanPendapatanService
                 'c.id as coa_id',
                 'c.kode as kode_akun',
                 'c.nama as nama_akun',
-                'fp.id as faktur_penjualan_id',
-                'fp.nomor_faktur',
-                'fp.tanggal_faktur',
+                DB::raw("'faktur_penjualan' as source_type"),
+                'fp.id as source_id',
+                'fp.nomor_faktur as no_ref',
+                'fp.tanggal_faktur as tanggal',
                 'fp.keterangan',
                 'fp.nama_pasien',
                 'fp.nama_poli',
                 'fp.nama_penjamin',
                 'fpr.id as rincian_id',
-                'fpr.subtotal',
-            ])
-            ->orderBy('p.nama_pelaksana')
-            ->orderBy('c.nama')
-            ->orderBy('fp.tanggal_faktur')
-            ->orderBy('fp.nomor_faktur')
-            ->orderBy('fpr.id')
+                DB::raw('CASE WHEN fpr.subtotal < 0 THEN ABS(fpr.subtotal) ELSE 0 END as debit'),
+                DB::raw('CASE WHEN fpr.subtotal >= 0 THEN fpr.subtotal ELSE 0 END as kredit'),
+            ]);
+
+        if ($this->hasJurnalUmumPelaksanaSupport()) {
+            $journalRows = DB::table('jurnal_umum_rinci as jur')
+                ->join('jurnal_umum as ju', 'ju.id', '=', 'jur.jurnal_umum_id')
+                ->join('pelaksana as p', 'p.id', '=', 'jur.pelaksana_id')
+                ->join('coa as c', 'c.id', '=', 'jur.coa_id')
+                ->whereBetween('ju.tanggal', [$startDate, $endDate])
+                ->whereRaw("LOWER(COALESCE(c.tipe_coa, '')) LIKE ?", ['%pendapatan%'])
+                ->when($pelaksanaId !== null, fn (QueryBuilder $query) => $query->where('p.id', $pelaksanaId))
+                ->select([
+                    'p.id as pelaksana_id',
+                    'p.nama_pelaksana as dokter',
+                    'p.no_proyek',
+                    'c.id as coa_id',
+                    'c.kode as kode_akun',
+                    'c.nama as nama_akun',
+                    DB::raw("'jurnal_umum' as source_type"),
+                    'ju.id as source_id',
+                    'ju.nomer as no_ref',
+                    'ju.tanggal as tanggal',
+                    DB::raw("COALESCE(NULLIF(TRIM(jur.catatan), ''), ju.keterangan) as keterangan"),
+                    DB::raw('NULL as nama_pasien'),
+                    DB::raw('NULL as nama_poli'),
+                    DB::raw('NULL as nama_penjamin'),
+                    'jur.id as rincian_id',
+                    DB::raw('COALESCE(jur.debit, 0) as debit'),
+                    DB::raw('COALESCE(jur.kredit, 0) as kredit'),
+                ]);
+
+            $invoiceRows->unionAll($journalRows);
+        }
+
+        $rows = DB::query()
+            ->fromSub($invoiceRows, 'akt')
+            ->orderBy('dokter')
+            ->orderBy('nama_akun')
+            ->orderBy('tanggal')
+            ->orderBy('no_ref')
+            ->orderBy('source_type')
+            ->orderBy('rincian_id')
             ->get();
 
         $dokterGroups = $rows
@@ -927,27 +966,31 @@ class LaporanPendapatanService
                         $subtotalKredit = 0.0;
 
                         $rincian = $coaRows->map(function (object $row) use (&$runningMutasi, &$subtotalDebit, &$subtotalKredit): array {
-                            $subtotal = (float) $row->subtotal;
-                            $debit = $subtotal < 0 ? abs($subtotal) : 0.0;
-                            $kredit = $subtotal >= 0 ? $subtotal : 0.0;
-                            $runningMutasi += ($kredit - $debit);
+                            $debit = (float) $row->debit;
+                            $kredit = (float) $row->kredit;
+                            $nominal = $kredit - $debit;
+                            $runningMutasi += $nominal;
                             $subtotalDebit += $debit;
                             $subtotalKredit += $kredit;
 
+                            $isJournal = $row->source_type === 'jurnal_umum';
                             $deskripsi = trim((string) ($row->keterangan ?: $row->nama_pasien ?: '-'));
 
                             return [
-                                'faktur_id' => (int) $row->faktur_penjualan_id,
-                                'tanggal' => Carbon::parse($row->tanggal_faktur)->format('Y-m-d'),
-                                'tanggal_format' => Carbon::parse($row->tanggal_faktur)->format('d/m/Y'),
-                                'tipe' => 'Faktur Penjualan',
-                                'no_ref' => (string) $row->nomor_faktur,
+                                'source_type' => (string) $row->source_type,
+                                'source_id' => (int) $row->source_id,
+                                'faktur_id' => $isJournal ? null : (int) $row->source_id,
+                                'tanggal' => Carbon::parse($row->tanggal)->format('Y-m-d'),
+                                'tanggal_format' => Carbon::parse($row->tanggal)->format('d/m/Y'),
+                                'tipe' => $isJournal ? 'Jurnal Umum' : 'Faktur Penjualan',
+                                'no_ref' => (string) $row->no_ref,
                                 'nama_pasien' => (string) ($row->nama_pasien ?? ''),
                                 'poli' => (string) ($row->nama_poli ?? ''),
                                 'penjamin' => (string) ($row->nama_penjamin ?? ''),
                                 'deskripsi' => $deskripsi,
                                 'debit' => $debit,
                                 'kredit' => $kredit,
+                                'nominal' => $nominal,
                                 'mutasi' => $runningMutasi,
                             ];
                         })->values();
@@ -1106,7 +1149,7 @@ class LaporanPendapatanService
                 $currentRow++;
 
                 // Table Header
-                $sheet->fromArray(['#', 'TANGGAL', 'NO. FAKTUR', 'PASIEN & KETERANGAN', 'KATEGORI TINDAKAN', 'NOMINAL JASA (RP)', 'KUMULATIF (RP)'], null, "A{$currentRow}");
+                $sheet->fromArray(['#', 'TANGGAL', 'NO. REFERENSI', 'PASIEN & KETERANGAN', 'KATEGORI TINDAKAN', 'NOMINAL JASA (RP)', 'KUMULATIF (RP)'], null, "A{$currentRow}");
                 $sheet->getStyle("A{$currentRow}:G{$currentRow}")->getFont()->setBold(true)->setSize(9)->setColor(new Color(Color::COLOR_WHITE));
                 $sheet->getStyle("A{$currentRow}:G{$currentRow}")->getFill()
                     ->setFillType(Fill::FILL_SOLID)
@@ -1132,7 +1175,9 @@ class LaporanPendapatanService
 
                     foreach ($kategori['rincian'] as $item) {
                         $desc = $item['nama_pasien'] ?: $item['deskripsi'];
-                        if (! empty($item['poli']) || ! empty($item['penjamin'])) {
+                        if (($item['source_type'] ?? 'faktur_penjualan') === 'jurnal_umum') {
+                            $desc = '[Jurnal Umum] '.$desc;
+                        } elseif (! empty($item['poli']) || ! empty($item['penjamin'])) {
                             $desc .= ' ('.implode(' - ', array_filter([$item['poli'], $item['penjamin']])).')';
                         }
 
@@ -1141,7 +1186,7 @@ class LaporanPendapatanService
                         $sheet->setCellValueExplicit("C{$currentRow}", $item['no_ref'], DataType::TYPE_STRING);
                         $sheet->setCellValue("D{$currentRow}", $desc);
                         $sheet->setCellValue("E{$currentRow}", $kategori['nama_akun']);
-                        $sheet->setCellValue("F{$currentRow}", (float) $item['kredit']);
+                        $sheet->setCellValue("F{$currentRow}", (float) $item['nominal']);
                         $sheet->setCellValue("G{$currentRow}", (float) $item['mutasi']);
                         $currentRow++;
                     }
@@ -1150,7 +1195,7 @@ class LaporanPendapatanService
                     $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
                     $sheet->setCellValue("A{$currentRow}", 'TOTAL '.$kategori['nama_akun'].':');
                     $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                    $sheet->setCellValue("F{$currentRow}", (float) $kategori['total_kredit']);
+                    $sheet->setCellValue("F{$currentRow}", (float) $kategori['total_mutasi']);
                     $sheet->setCellValue("G{$currentRow}", (float) $kategori['total_mutasi']);
                     $sheet->getStyle("A{$currentRow}:G{$currentRow}")->getFont()->setBold(true);
                     $sheet->getStyle("A{$currentRow}:G{$currentRow}")->getBorders()->getTop()
@@ -1166,7 +1211,7 @@ class LaporanPendapatanService
                 $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
                 $sheet->setCellValue("A{$currentRow}", 'TOTAL JASA '.$dokter['dokter'].':');
                 $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                $sheet->setCellValue("F{$currentRow}", (float) $dokter['total_kredit']);
+                $sheet->setCellValue("F{$currentRow}", (float) $dokter['total_mutasi']);
                 $sheet->setCellValue("G{$currentRow}", (float) $dokter['total_mutasi']);
                 $sheet->getStyle("A{$currentRow}:G{$currentRow}")->getFont()->setBold(true)->setSize(10);
                 $sheet->getStyle("A{$currentRow}:G{$currentRow}")->getFill()
@@ -1186,7 +1231,7 @@ class LaporanPendapatanService
                 $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
                 $sheet->setCellValue("A{$currentRow}", 'TOTAL KESELURUHAN SELURUH DOKTER:');
                 $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-                $sheet->setCellValue("F{$currentRow}", (float) $report['grandTotalKredit']);
+                $sheet->setCellValue("F{$currentRow}", (float) $report['grandTotalMutasi']);
                 $sheet->setCellValue("G{$currentRow}", (float) $report['grandTotalMutasi']);
                 $sheet->getStyle("A{$currentRow}:G{$currentRow}")->getFont()->setBold(true)->setSize(10);
                 $sheet->getStyle("A{$currentRow}:G{$currentRow}")->getFill()
@@ -1444,31 +1489,31 @@ class LaporanPendapatanService
         string $penjamin,
     ): Collection {
         return $this->getPendapatanDokterBaseQuery($startDate, $endDate, $pelaksanaId, $poli, $penjamin)
-            ->leftJoin('coa as pc', 'pc.id', '=', 'c.parent_coa')
-            ->selectRaw('p.id AS pelaksana_id')
-            ->selectRaw('p.nama_pelaksana AS dokter')
-            ->selectRaw('fp.tanggal_faktur AS tanggal')
-            ->selectRaw('COALESCE(pc.id, c.id) AS kelompok_id')
-            ->selectRaw('COALESCE(pc.kode, c.kode) AS kode_kelompok')
-            ->selectRaw('COALESCE(pc.nama, c.nama) AS kelompok')
-            ->selectRaw('c.kode AS kode_akun')
-            ->selectRaw('c.nama AS nama_akun')
-            ->selectRaw('SUM(fpr.subtotal) AS total_pendapatan')
+            ->leftJoin('coa as pc', 'pc.id', '=', 'pd.parent_coa')
+            ->selectRaw('pd.pelaksana_id')
+            ->selectRaw('pd.dokter')
+            ->selectRaw('pd.tanggal')
+            ->selectRaw('COALESCE(pc.id, pd.coa_id) AS kelompok_id')
+            ->selectRaw('COALESCE(pc.kode, pd.kode_akun) AS kode_kelompok')
+            ->selectRaw('COALESCE(pc.nama, pd.layanan) AS kelompok')
+            ->selectRaw('pd.kode_akun')
+            ->selectRaw('pd.layanan AS nama_akun')
+            ->selectRaw('SUM(pd.nominal) AS total_pendapatan')
             ->groupBy(
-                'p.id',
-                'p.nama_pelaksana',
-                'fp.tanggal_faktur',
+                'pd.pelaksana_id',
+                'pd.dokter',
+                'pd.tanggal',
                 'pc.id',
                 'pc.kode',
                 'pc.nama',
-                'c.id',
-                'c.kode',
-                'c.nama',
+                'pd.coa_id',
+                'pd.kode_akun',
+                'pd.layanan',
             )
-            ->orderBy('p.nama_pelaksana')
-            ->orderBy('fp.tanggal_faktur')
-            ->orderByRaw('COALESCE(pc.kode, c.kode)')
-            ->orderBy('c.kode')
+            ->orderBy('pd.dokter')
+            ->orderBy('pd.tanggal')
+            ->orderByRaw('COALESCE(pc.kode, pd.kode_akun)')
+            ->orderBy('pd.kode_akun')
             ->get()
             ->map(function (object $row): object {
                 $row->kode_akun_format = $this->formatCoaCode((string) $row->kode_akun);
@@ -1551,6 +1596,14 @@ class LaporanPendapatanService
         return number_format((float) $value, 2, '.', '');
     }
 
+    private function hasJurnalUmumPelaksanaSupport(): bool
+    {
+        return Schema::hasTable('jurnal_umum')
+            && Schema::hasTable('jurnal_umum_rinci')
+            && Schema::hasColumn('jurnal_umum_rinci', 'pelaksana_id')
+            && Schema::hasColumn('coa', 'tipe_coa');
+    }
+
     private function getPendapatanDokterBaseQuery(
         string $startDate,
         string $endDate,
@@ -1558,13 +1611,55 @@ class LaporanPendapatanService
         string $poli,
         string $penjamin,
     ): QueryBuilder {
-        return DB::table('faktur_penjualan_rinci as fpr')
+        $invoiceRows = DB::table('faktur_penjualan_rinci as fpr')
             ->join('faktur_penjualan as fp', 'fp.id', '=', 'fpr.faktur_penjualan_id')
             ->join('pelaksana as p', 'p.id', '=', 'fpr.pelaksana_id')
             ->join('coa as c', 'c.id', '=', 'fpr.coa_id')
             ->whereBetween('fp.tanggal_faktur', [$startDate, $endDate])
             ->when($pelaksanaId !== null, fn (QueryBuilder $query) => $query->where('p.id', $pelaksanaId))
             ->when($poli !== '', fn (QueryBuilder $query) => $query->where('fp.nama_poli', 'like', '%'.$poli.'%'))
-            ->when($penjamin !== '', fn (QueryBuilder $query) => $query->where('fp.nama_penjamin', 'like', '%'.$penjamin.'%'));
+            ->when($penjamin !== '', fn (QueryBuilder $query) => $query->where('fp.nama_penjamin', 'like', '%'.$penjamin.'%'))
+            ->select([
+                'p.id as pelaksana_id',
+                'p.nama_pelaksana as dokter',
+                'p.no_proyek',
+                'fp.tanggal_faktur as tanggal',
+                'c.id as coa_id',
+                'c.parent_coa',
+                'c.kode as kode_akun',
+                'c.nama as layanan',
+                'fp.nama_poli',
+                'fp.nama_penjamin',
+                'fp.id as faktur_id',
+                'fpr.subtotal as nominal',
+            ]);
+
+        if ($poli === '' && $penjamin === '' && $this->hasJurnalUmumPelaksanaSupport()) {
+            $journalRows = DB::table('jurnal_umum_rinci as jur')
+                ->join('jurnal_umum as ju', 'ju.id', '=', 'jur.jurnal_umum_id')
+                ->join('pelaksana as p', 'p.id', '=', 'jur.pelaksana_id')
+                ->join('coa as c', 'c.id', '=', 'jur.coa_id')
+                ->whereBetween('ju.tanggal', [$startDate, $endDate])
+                ->whereRaw("LOWER(COALESCE(c.tipe_coa, '')) LIKE ?", ['%pendapatan%'])
+                ->when($pelaksanaId !== null, fn (QueryBuilder $query) => $query->where('p.id', $pelaksanaId))
+                ->select([
+                    'p.id as pelaksana_id',
+                    'p.nama_pelaksana as dokter',
+                    'p.no_proyek',
+                    'ju.tanggal as tanggal',
+                    'c.id as coa_id',
+                    'c.parent_coa',
+                    'c.kode as kode_akun',
+                    'c.nama as layanan',
+                    DB::raw('NULL as nama_poli'),
+                    DB::raw('NULL as nama_penjamin'),
+                    DB::raw('NULL as faktur_id'),
+                    DB::raw('(COALESCE(jur.kredit, 0) - COALESCE(jur.debit, 0)) as nominal'),
+                ]);
+
+            $invoiceRows->unionAll($journalRows);
+        }
+
+        return DB::query()->fromSub($invoiceRows, 'pd');
     }
 }

@@ -13,7 +13,7 @@
 
         function initSelect2(scope = document) {
             if (window.jQuery && window.jQuery.fn.select2) {
-                window.jQuery(scope).find('.select2-coa').each(function () {
+                window.jQuery(scope).find('.select2-coa, .select2-pelaksana').each(function () {
                     const $select = window.jQuery(this);
                     if ($select.data('select2')) {
                         return;
@@ -94,6 +94,10 @@
             return `@foreach ($coaOptions as $coa)<option value="{{ $coa->id }}">{{ $coa->kode }} - {{ $coa->nama }}</option>@endforeach`;
         }
 
+        function createPelaksanaOptions() {
+            return `@foreach (($pelaksanaOptions ?? collect())->where('status_aktif', true) as $pelaksana)<option value="{{ $pelaksana->id }}">{{ $pelaksana->nama_pelaksana }}</option>@endforeach`;
+        }
+
         function addRow(data = null) {
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -101,6 +105,12 @@
                     <select name="rincian[${detailIndex}][coa_id]" class="form-select select2-coa" required>
                         <option value="">Pilih Akun</option>
                         ${createCoaOptions()}
+                    </select>
+                </td>
+                <td class="align-middle">
+                    <select name="rincian[${detailIndex}][pelaksana_id]" class="form-select select2-pelaksana">
+                        <option value="">Tanpa Pelaksana</option>
+                        ${createPelaksanaOptions()}
                     </select>
                 </td>
                 <td class="align-middle">
@@ -125,6 +135,13 @@
                 const selectEl = row.querySelector('.select2-coa');
                 if (selectEl) {
                     selectEl.value = data.coa_id;
+                }
+            }
+
+            if (data && data.pelaksana_id) {
+                const selectPelaksana = row.querySelector('.select2-pelaksana');
+                if (selectPelaksana) {
+                    selectPelaksana.value = data.pelaksana_id;
                 }
             }
 

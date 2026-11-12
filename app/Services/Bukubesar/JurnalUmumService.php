@@ -4,10 +4,12 @@ namespace App\Services\Bukubesar;
 
 use App\Models\Coa;
 use App\Models\JurnalUmum;
+use App\Models\Pelaksana;
 use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class JurnalUmumService
 {
@@ -22,6 +24,25 @@ class JurnalUmumService
         return Coa::query()
             ->selectableTransaction()
             ->get(['id', 'kode', 'nama']);
+    }
+
+    public function getPelaksanaOptions(?JurnalUmum $jurnalUmum = null): Collection
+    {
+        if (! Schema::hasTable('pelaksana')) {
+            return new Collection();
+        }
+
+        $selectedIds = ($jurnalUmum !== null && Schema::hasColumn('jurnal_umum_rinci', 'pelaksana_id'))
+            ? $jurnalUmum->rincian->pluck('pelaksana_id')->filter()->all()
+            : [];
+
+        return Pelaksana::query()
+            ->where(fn (Builder $query) => $query->where('status_aktif', true)->when(
+                $selectedIds !== [],
+                fn (Builder $query) => $query->orWhereIn('id', $selectedIds),
+            ))
+            ->orderBy('nama_pelaksana')
+            ->get(['id', 'no_proyek', 'nama_pelaksana', 'status_aktif']);
     }
 
     public function getIndexQuery(string $startDate, string $endDate): Builder
@@ -76,7 +97,7 @@ class JurnalUmumService
                 'rincian' => $rincianPayload,
             ]);
 
-            return $jurnal->load('rincian.coa');
+            return $jurnal->load(['rincian.coa', 'rincian.pelaksana']);
         });
     }
 
@@ -89,7 +110,7 @@ class JurnalUmumService
                 'keterangan' => $jurnalUmum->keterangan,
                 'debit' => $jurnalUmum->debit,
                 'kredit' => $jurnalUmum->kredit,
-                'rincian' => $jurnalUmum->rincian->map->only(['coa_id', 'debit', 'kredit', 'catatan'])->all(),
+                'rincian' => $jurnalUmum->rincian->map->only(['coa_id', 'pelaksana_id', 'debit', 'kredit', 'catatan'])->all(),
             ];
 
             $jurnalUmum->update([
@@ -120,7 +141,7 @@ class JurnalUmumService
                 'rincian' => $rincianPayload,
             ]);
 
-            return $jurnalUmum->load('rincian.coa');
+            return $jurnalUmum->load(['rincian.coa', 'rincian.pelaksana']);
         });
     }
 
@@ -143,14 +164,26 @@ class JurnalUmumService
 
     public function mapRincianPayload(array $rincian): array
     {
+        $hasPelaksanaColumn = Schema::hasColumn('jurnal_umum_rinci', 'pelaksana_id');
+
         return collect($rincian)
             ->filter(fn ($row) => ! empty($row['coa_id']))
-            ->map(fn ($row) => [
-                'coa_id' => $row['coa_id'],
-                'debit' => $row['debit'] ?? 0,
-                'kredit' => $row['kredit'] ?? 0,
-                'catatan' => $row['catatan'] ?? null,
-            ])
+            ->map(function ($row) use ($hasPelaksanaColumn): array {
+                $mapped = [
+                    'coa_id' => $row['coa_id'],
+                    'debit' => $row['debit'] ?? 0,
+                    'kredit' => $row['kredit'] ?? 0,
+                    'catatan' => $row['catatan'] ?? null,
+                ];
+
+                if ($hasPelaksanaColumn) {
+                    $mapped['pelaksana_id'] = filled($row['pelaksana_id'] ?? null)
+                        ? (int) $row['pelaksana_id']
+                        : null;
+                }
+
+                return $mapped;
+            })
             ->values()
             ->all();
     }

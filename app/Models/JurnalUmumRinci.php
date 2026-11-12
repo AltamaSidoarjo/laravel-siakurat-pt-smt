@@ -17,6 +17,7 @@ class JurnalUmumRinci extends Model
     protected $fillable = [
         'jurnal_umum_id',
         'coa_id',
+        'pelaksana_id',
         'debit',
         'kredit',
         'catatan',
@@ -24,6 +25,7 @@ class JurnalUmumRinci extends Model
 
     protected $casts = [
         'coa_id' => 'integer',
+        'pelaksana_id' => 'integer',
         'debit' => 'decimal:2',
         'kredit' => 'decimal:2',
         'created_at' => 'datetime',
@@ -33,6 +35,11 @@ class JurnalUmumRinci extends Model
     public function coa()
     {
         return $this->belongsTo(Coa::class, 'coa_id');
+    }
+
+    public function pelaksana()
+    {
+        return $this->belongsTo(Pelaksana::class, 'pelaksana_id');
     }
 
     public function jurnal()

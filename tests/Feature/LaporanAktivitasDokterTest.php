@@ -155,6 +155,96 @@ class LaporanAktivitasDokterTest extends TestCase
             ->assertSessionHasErrors(['endDate']);
     }
 
+    public function test_jurnal_umum_return_appears_as_negative_nominal_and_reduces_mutasi(): void
+    {
+        DB::table('coa')->insert([
+            ['id' => 201, 'parent_coa' => null, 'kode' => '1101', 'nama' => 'Kas Utama', 'tipe_coa' => 'Kasbank'],
+        ]);
+
+        DB::table('jurnal_umum')->insert([
+            'id' => 10,
+            'nomer' => 'JU-RET-01',
+            'tanggal' => '2026-09-06',
+            'keterangan' => 'Pengembalian jasa operasi',
+        ]);
+
+        DB::table('jurnal_umum_rinci')->insert([
+            ['jurnal_umum_id' => 10, 'coa_id' => 101, 'pelaksana_id' => 1, 'debit' => 500000, 'kredit' => 0, 'catatan' => 'Retur jasa Dr. A'],
+            // Akun lawan Kasbank tidak boleh muncul di laporan dokter meskipun pelaksana_id diisi
+            ['jurnal_umum_id' => 10, 'coa_id' => 201, 'pelaksana_id' => 1, 'debit' => 0, 'kredit' => 500000, 'catatan' => 'Kas keluar'],
+        ]);
+
+        $webResponse = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.aktivitas-dokter', [
+                'startDate' => '2026-09-01',
+                'endDate' => '2026-09-30',
+                'pelaksanaId' => 1,
+            ]));
+
+        $webResponse
+            ->assertOk()
+            ->assertSee('JU-RET-01')
+            ->assertSee(route('bukubesar.jurnal-umum.edit', 10))
+            ->assertSee('Jurnal Umum')
+            ->assertSee('Retur jasa Dr. A')
+            ->assertSee('-Rp 500.000,00')
+            ->assertSee('Rp 3.315.000,00')
+            ->assertDontSee('Kas Utama');
+
+        $pdfResponse = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.aktivitas-dokter.export-pdf', [
+                'startDate' => '2026-09-01',
+                'endDate' => '2026-09-30',
+                'pelaksanaId' => 1,
+            ]));
+
+        $pdfResponse->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF-', $pdfResponse->getContent());
+
+        $excelResponse = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.aktivitas-dokter.export-excel', [
+                'startDate' => '2026-09-01',
+                'endDate' => '2026-09-30',
+                'pelaksanaId' => 1,
+            ]));
+
+        $temporaryFile = tempnam(sys_get_temp_dir(), 'test_akt_doc_ju_');
+        file_put_contents($temporaryFile, $excelResponse->streamedContent());
+
+        try {
+            $spreadsheet = IOFactory::load($temporaryFile);
+            $sheet = $spreadsheet->getActiveSheet();
+
+            $foundJournalNominal = null;
+            $doctorTotalNominal = null;
+            $doctorTotalMutasi = null;
+
+            for ($row = 1; $row <= $sheet->getHighestRow(); $row++) {
+                $colA = (string) $sheet->getCell('A'.$row)->getValue();
+                $colC = (string) $sheet->getCell('C'.$row)->getValue();
+
+                if ($colC === 'JU-RET-01') {
+                    $foundJournalNominal = (float) $sheet->getCell('F'.$row)->getValue();
+                }
+                if (str_contains($colA, 'TOTAL JASA DR. A')) {
+                    $doctorTotalNominal = (float) $sheet->getCell('F'.$row)->getValue();
+                    $doctorTotalMutasi = (float) $sheet->getCell('G'.$row)->getValue();
+                }
+            }
+
+            $this->assertSame(-500000.0, $foundJournalNominal);
+            $this->assertSame(3315000.0, $doctorTotalNominal);
+            $this->assertSame(3315000.0, $doctorTotalMutasi);
+
+            $spreadsheet->disconnectWorksheets();
+        } finally {
+            unlink($temporaryFile);
+        }
+    }
+
     private function makeUser(): User
     {
         return User::factory()->make([
@@ -178,6 +268,7 @@ class LaporanAktivitasDokterTest extends TestCase
             $table->unsignedBigInteger('parent_coa')->nullable();
             $table->string('kode');
             $table->string('nama');
+            $table->string('tipe_coa')->nullable();
         });
 
         Schema::create('faktur_penjualan', function (Blueprint $table): void {
@@ -197,6 +288,23 @@ class LaporanAktivitasDokterTest extends TestCase
             $table->unsignedBigInteger('coa_id');
             $table->decimal('subtotal', 15, 2);
         });
+
+        Schema::create('jurnal_umum', function (Blueprint $table): void {
+            $table->id();
+            $table->string('nomer');
+            $table->date('tanggal');
+            $table->text('keterangan')->nullable();
+        });
+
+        Schema::create('jurnal_umum_rinci', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('jurnal_umum_id');
+            $table->unsignedBigInteger('coa_id');
+            $table->unsignedBigInteger('pelaksana_id')->nullable();
+            $table->decimal('debit', 15, 2)->default(0);
+            $table->decimal('kredit', 15, 2)->default(0);
+            $table->text('catatan')->nullable();
+        });
     }
 
     private function seedRows(): void
@@ -207,8 +315,8 @@ class LaporanAktivitasDokterTest extends TestCase
         ]);
 
         DB::table('coa')->insert([
-            ['id' => 101, 'parent_coa' => null, 'kode' => '4201', 'nama' => 'Tindakan Operasi Khusus'],
-            ['id' => 102, 'parent_coa' => null, 'kode' => '4301', 'nama' => 'Pendapatan Rawat Jalan'],
+            ['id' => 101, 'parent_coa' => null, 'kode' => '4201', 'nama' => 'Tindakan Operasi Khusus', 'tipe_coa' => 'Pendapatan'],
+            ['id' => 102, 'parent_coa' => null, 'kode' => '4301', 'nama' => 'Pendapatan Rawat Jalan', 'tipe_coa' => 'Pendapatan'],
         ]);
 
         DB::table('faktur_penjualan')->insert([

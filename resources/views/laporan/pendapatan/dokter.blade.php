@@ -145,10 +145,10 @@
                 order: [[0, 'asc'], [1, 'asc'], [2, 'asc']],
                 pageLength: 25,
                 columns: [
-                    { data: 'dokter', name: 'p.nama_pelaksana' },
-                    { data: 'tanggal', name: 'fp.tanggal_faktur' },
-                    { data: 'kode_akun', name: 'c.kode' },
-                    { data: 'layanan', name: 'c.nama' },
+                    { data: 'dokter', name: 'dokter' },
+                    { data: 'tanggal', name: 'tanggal' },
+                    { data: 'kode_akun', name: 'kode_akun' },
+                    { data: 'layanan', name: 'layanan' },
                     { data: 'jumlah_billing', name: 'jumlah_billing', className: 'text-end', orderable: false },
                     {
                         data: 'total_pendapatan',

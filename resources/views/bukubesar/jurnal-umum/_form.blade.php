@@ -1,12 +1,15 @@
 @php
     $isEdit = isset($jurnalUmum);
+    $pelaksanaOptions = $pelaksanaOptions ?? collect();
     $rincian = old('rincian', $isEdit ? $jurnalUmum->rincian->map(fn ($item) => [
         'coa_id' => $item->coa_id,
+        'pelaksana_id' => $item->pelaksana_id,
         'debit' => (int) $item->debit,
         'kredit' => (int) $item->kredit,
         'catatan' => $item->catatan,
     ])->toArray() : ($initialRincian ?? [[
         'coa_id' => '',
+        'pelaksana_id' => '',
         'debit' => 0,
         'kredit' => 0,
         'catatan' => '',
@@ -90,6 +93,7 @@
                     <thead>
                         <tr>
                             <th class="text-center align-middle" style="min-width: 250px;">Akun<span class="text-danger">*</span></th>
+                            <th class="text-center align-middle" style="min-width: 220px;">Pelaksana</th>
                             <th class="text-center align-middle" style="min-width: 160px;">Debit<span class="text-danger">*</span></th>
                             <th class="text-center align-middle" style="min-width: 160px;">Kredit<span class="text-danger">*</span></th>
                             <th class="text-center align-middle" style="min-width: 200px;">Catatan</th>
@@ -105,6 +109,16 @@
                                         @foreach ($coaOptions as $coa)
                                             <option value="{{ $coa->id }}" @selected((string) ($item['coa_id'] ?? '') === (string) $coa->id)>
                                                 {{ $coa->kode }} - {{ $coa->nama }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td class="align-middle">
+                                    <select name="rincian[{{ $index }}][pelaksana_id]" class="form-select select2-pelaksana">
+                                        <option value="">Tanpa Pelaksana</option>
+                                        @foreach ($pelaksanaOptions as $pelaksana)
+                                            <option value="{{ $pelaksana->id }}" @selected((string) ($item['pelaksana_id'] ?? '') === (string) $pelaksana->id)>
+                                                {{ $pelaksana->nama_pelaksana }}@if (! $pelaksana->status_aktif) (Nonaktif)@endif
                                             </option>
                                         @endforeach
                                     </select>
@@ -128,7 +142,7 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <th class="text-end align-middle">Total</th>
+                            <th colspan="2" class="text-end align-middle">Total</th>
                             <td>
                                 <input type="text" name="debit" id="input_total_debit" class="form-control text-end" value="{{ number_format((float) old('debit', $jurnalUmum->debit ?? 0), 0, ',', '.') }}" readonly>
                             </td>

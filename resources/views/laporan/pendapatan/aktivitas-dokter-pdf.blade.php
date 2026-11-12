@@ -271,7 +271,7 @@
                 <tr>
                     <th class="col-no">#</th>
                     <th class="col-date">TANGGAL</th>
-                    <th class="col-ref">NO. FAKTUR</th>
+                    <th class="col-ref">NO. REFERENSI</th>
                     <th class="col-desc">PASIEN & KETERANGAN</th>
                     <th class="col-cat">KATEGORI TINDAKAN</th>
                     <th class="col-amount">NOMINAL JASA (RP)</th>
@@ -287,13 +287,20 @@
                         </td>
                     </tr>
                     @foreach ($kategori['rincian'] as $index => $item)
+                        @php
+                            $isJournal = ($item['source_type'] ?? 'faktur_penjualan') === 'jurnal_umum';
+                            $nominal = (float) ($item['nominal'] ?? $item['kredit']);
+                            $formattedNominal = ($nominal < 0 ? '-Rp ' : 'Rp ').number_format(abs($nominal), 2, '.', ',');
+                        @endphp
                         <tr class="{{ $index % 2 === 1 ? 'zebra-row' : '' }}">
                             <td class="col-no">{{ $rowNumber++ }}</td>
                             <td class="col-date">{{ $item['tanggal_format'] ?? $item['tanggal'] }}</td>
                             <td class="col-ref">{{ $item['no_ref'] }}</td>
                             <td class="col-desc">
                                 <strong>{{ $item['nama_pasien'] ?: $item['deskripsi'] }}</strong>
-                                @if (!empty($item['poli']) || !empty($item['penjamin']))
+                                @if ($isJournal)
+                                    <span style="color: #b45309;">(Jurnal Umum)</span>
+                                @elseif (!empty($item['poli']) || !empty($item['penjamin']))
                                     <span style="color: #64748b;">({{ implode(' - ', array_filter([$item['poli'], $item['penjamin']])) }})</span>
                                 @endif
                                 @if ($item['deskripsi'] && $item['deskripsi'] !== $item['nama_pasien'])
@@ -301,20 +308,20 @@
                                 @endif
                             </td>
                             <td class="col-cat">{{ $kategori['nama_akun'] }}</td>
-                            <td class="col-amount">Rp {{ number_format($item['kredit'], 2, '.', ',') }}</td>
-                            <td class="col-cumulative">Rp {{ number_format($item['mutasi'], 2, '.', ',') }}</td>
+                            <td class="col-amount" @if ($nominal < 0) style="color: #dc2626;" @endif>{{ $formattedNominal }}</td>
+                            <td class="col-cumulative">{{ ($item['mutasi'] < 0 ? '-Rp ' : 'Rp ').number_format(abs($item['mutasi']), 2, '.', ',') }}</td>
                         </tr>
                     @endforeach
                     <tr class="subtotal-row">
                         <td colspan="5" class="text-right">TOTAL {{ $kategori['nama_akun'] }}:</td>
-                        <td class="col-amount">Rp {{ number_format($kategori['total_kredit'], 2, '.', ',') }}</td>
-                        <td class="col-cumulative">Rp {{ number_format($kategori['total_mutasi'], 2, '.', ',') }}</td>
+                        <td class="col-amount">{{ ($kategori['total_mutasi'] < 0 ? '-Rp ' : 'Rp ').number_format(abs($kategori['total_mutasi']), 2, '.', ',') }}</td>
+                        <td class="col-cumulative">{{ ($kategori['total_mutasi'] < 0 ? '-Rp ' : 'Rp ').number_format(abs($kategori['total_mutasi']), 2, '.', ',') }}</td>
                     </tr>
                 @endforeach
                 <tr class="doctor-total-row">
                     <td colspan="5" class="text-right">TOTAL JASA {{ $dokter['dokter'] }}:</td>
-                    <td class="col-amount">Rp {{ number_format($dokter['total_kredit'], 2, '.', ',') }}</td>
-                    <td class="col-cumulative">Rp {{ number_format($dokter['total_mutasi'], 2, '.', ',') }}</td>
+                    <td class="col-amount">{{ ($dokter['total_mutasi'] < 0 ? '-Rp ' : 'Rp ').number_format(abs($dokter['total_mutasi']), 2, '.', ',') }}</td>
+                    <td class="col-cumulative">{{ ($dokter['total_mutasi'] < 0 ? '-Rp ' : 'Rp ').number_format(abs($dokter['total_mutasi']), 2, '.', ',') }}</td>
                 </tr>
             </tbody>
         </table>
@@ -328,8 +335,8 @@
         <table class="grand-total-table">
             <tr>
                 <td style="width: 76%; text-align: right;">TOTAL KESELURUHAN SELURUH DOKTER:</td>
-                <td style="width: 12%; text-align: right; color: #15803d;">Rp {{ number_format($grandTotalKredit, 2, '.', ',') }}</td>
-                <td style="width: 12%; text-align: right; color: #15803d;">Rp {{ number_format($grandTotalMutasi, 2, '.', ',') }}</td>
+                <td style="width: 12%; text-align: right; color: #15803d;">{{ ($grandTotalMutasi < 0 ? '-Rp ' : 'Rp ').number_format(abs($grandTotalMutasi), 2, '.', ',') }}</td>
+                <td style="width: 12%; text-align: right; color: #15803d;">{{ ($grandTotalMutasi < 0 ? '-Rp ' : 'Rp ').number_format(abs($grandTotalMutasi), 2, '.', ',') }}</td>
             </tr>
         </table>
     @endif
