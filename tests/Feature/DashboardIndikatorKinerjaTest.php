@@ -231,6 +231,25 @@ class DashboardIndikatorKinerjaTest extends TestCase
             ->assertSee('2026-01-31');
     }
 
+    public function test_invalid_date_format_falls_back_gracefully_to_default_dates(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+        $this->assignRolePermission($user);
+
+        $response = $this->actingAs($user)->get(route('dashboard.indikator-kinerja.index', [
+            'start_date' => 'not-a-valid-date',
+            'end_date' => 'invalid-end-date',
+        ]));
+
+        $defaultStart = now()->startOfMonth()->toDateString();
+        $defaultEnd = now()->toDateString();
+
+        $response->assertOk()
+            ->assertSee($defaultStart)
+            ->assertSee($defaultEnd);
+    }
+
     public function test_unauthenticated_user_cannot_access_dashboard(): void
     {
         $response = $this->get(route('dashboard.indikator-kinerja.index'));
