@@ -87,6 +87,7 @@ sama dengan `kode` yang dipakai pada middleware `module.access` di `routes/web.p
 | Kode Modul | Nama | Group |
 | --- | --- | --- |
 | `home` | Home | Dashboard |
+| `dashboard.indikator-kinerja` | Indikator Kinerja | Dashboard |
 | `bukubesar.jurnal-umum` | Jurnal Umum | Bukubesar |
 | `bukubesar.coa` | COA | Bukubesar |
 | `kasbank.penerimaan` | Kasbank Penerimaan | Kasbank |
@@ -104,6 +105,7 @@ sama dengan `kode` yang dipakai pada middleware `module.access` di `routes/web.p
 | `pengaturan.mapping-pendapatan` | Mapping Pendapatan | Pengaturan |
 | `pengaturan.mapping-general` | Mapping General | Pengaturan |
 | `pengaturan.setting-rba` | Setting RBA | Pengaturan |
+| `pengaturan.setting-indikator-kinerja` | Setting Indikator Kinerja | Pengaturan |
 | `pengaturan.preferensi` | Preferensi | Pengaturan |
 | `pengaturan.pengguna` | Pengguna | Pengaturan |
 | `pengaturan.role-akses` | Role Akses | Pengaturan |
@@ -115,6 +117,7 @@ sama dengan `kode` yang dipakai pada middleware `module.access` di `routes/web.p
 | Modul | view | create | update | delete |
 | --- | :---: | :---: | :---: | :---: |
 | `home` | ✔ | | | |
+| `dashboard.indikator-kinerja` | ✔ | | | |
 | `bukubesar.jurnal-umum` | ✔ | ✔ | ✔ | ✔ |
 | `bukubesar.coa` | ✔ | ✔ | ✔ | ✔ |
 | `kasbank.penerimaan` | ✔ | ✔ | ✔ | ✔ |
@@ -132,6 +135,7 @@ sama dengan `kode` yang dipakai pada middleware `module.access` di `routes/web.p
 | `pengaturan.mapping-pendapatan` | ✔ | ✔ | | ✔ |
 | `pengaturan.mapping-general` | ✔ | ✔ | | ✔ |
 | `pengaturan.setting-rba` | ✔ | ✔ | | ✔ |
+| `pengaturan.setting-indikator-kinerja` | ✔ | ✔ | ✔ | ✔ |
 | `pengaturan.preferensi` | ✔ | | ✔ | |
 | `pengaturan.pengguna` | ✔ | ✔ | ✔ | ✔ |
 | `pengaturan.role-akses` | ✔ | ✔ | ✔ | |

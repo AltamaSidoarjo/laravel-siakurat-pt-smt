@@ -47,8 +47,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/home/dokter', [HomeController::class, 'topDokter'])->name('home.dokter');
         Route::get('/home/pendapatan-harian', [HomeController::class, 'pendapatanHarian'])->name('home.pendapatan-harian');
         Route::get('/home/penjamin', [HomeController::class, 'komposisiPenjamin'])->name('home.penjamin');
+        Route::get('/home/ringkasan-indikator', [HomeController::class, 'ringkasanIndikator'])->name('home.ringkasan-indikator');
     });
-    Route::get('/home/ringkasan-indikator', [HomeController::class, 'ringkasanIndikator'])->name('home.ringkasan-indikator');
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
 
     Route::prefix('bukubesar')->name('bukubesar.')->group(function () {

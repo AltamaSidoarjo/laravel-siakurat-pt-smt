@@ -133,11 +133,13 @@
                     </span>
                     <h5 class="mb-0 fw-bold fs-6">Status Indikator Kinerja (KPI)</h5>
                 </div>
-                <div>
-                    <a href="{{ Route::has('dashboard.indikator-kinerja.index') ? route('dashboard.indikator-kinerja.index') : url('/dashboard/indikator-kinerja') }}" class="btn btn-outline-primary btn-sm fw-semibold">
-                        Lihat Dashboard Indikator Selengkapnya &rarr;
-                    </a>
-                </div>
+                @if (auth()->user()?->hasModuleAccess('dashboard.indikator-kinerja', 'view'))
+                    <div>
+                        <a href="{{ Route::has('dashboard.indikator-kinerja.index') ? route('dashboard.indikator-kinerja.index') : url('/dashboard/indikator-kinerja') }}" class="btn btn-outline-primary btn-sm fw-semibold">
+                            Lihat Dashboard Indikator Selengkapnya &rarr;
+                        </a>
+                    </div>
+                @endif
             </div>
 
             <div class="row g-3">

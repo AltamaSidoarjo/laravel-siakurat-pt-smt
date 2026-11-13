@@ -92,7 +92,7 @@ class HomeDashboardRingkasanIndikatorTest extends TestCase
     public function test_can_fetch_ringkasan_indikator_as_json(): void
     {
         $this->seed(IndikatorKinerjaSeeder::class);
-        $user = User::factory()->create();
+        $user = User::factory()->make();
 
         $response = $this->actingAs($user)->getJson(route('home.ringkasan-indikator', [
             'start_date' => now()->startOfMonth()->format('Y-m-d'),
@@ -106,13 +106,16 @@ class HomeDashboardRingkasanIndikatorTest extends TestCase
                 'kuning',
                 'merah',
                 'netral',
+            ])
+            ->assertJson([
+                'total' => 11,
             ]);
     }
 
     public function test_can_fetch_ringkasan_indikator_with_indonesian_query_params(): void
     {
         $this->seed(IndikatorKinerjaSeeder::class);
-        $user = User::factory()->create();
+        $user = User::factory()->make();
 
         $response = $this->actingAs($user)->getJson(route('home.ringkasan-indikator', [
             'dariTanggal' => now()->startOfMonth()->format('Y-m-d'),
@@ -126,6 +129,9 @@ class HomeDashboardRingkasanIndikatorTest extends TestCase
                 'kuning',
                 'merah',
                 'netral',
+            ])
+            ->assertJson([
+                'total' => 11,
             ]);
     }
 
