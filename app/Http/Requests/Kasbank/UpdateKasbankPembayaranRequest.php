@@ -26,6 +26,7 @@ class UpdateKasbankPembayaranRequest extends FormRequest
             'total' => ['required', 'numeric', 'min:0'],
             'rincian' => ['required', 'array', 'min:1'],
             'rincian.*.coa_id' => ['required', 'integer', 'exists:coa,id'],
+            'rincian.*.pelaksana_id' => ['nullable', 'integer', 'exists:pelaksana,id'],
             'rincian.*.nominal' => ['required', 'numeric', 'min:0'],
             'rincian.*.catatan' => ['nullable', 'string'],
         ];

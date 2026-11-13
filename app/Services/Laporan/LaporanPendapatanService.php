@@ -940,6 +940,37 @@ class LaporanPendapatanService
             $invoiceRows->unionAll($journalRows);
         }
 
+        if ($this->hasKasbankPembayaranPelaksanaSupport()) {
+            $kasbankRows = DB::table('kasbank_pembayaran_rinci as kbpr')
+                ->join('kasbank_pembayaran as kbp', 'kbp.id', '=', 'kbpr.kasbank_pembayaran_id')
+                ->join('pelaksana as p', 'p.id', '=', 'kbpr.pelaksana_id')
+                ->join('coa as c', 'c.id', '=', 'kbpr.coa_id')
+                ->whereBetween('kbp.tanggal', [$startDate, $endDate])
+                ->whereRaw("LOWER(COALESCE(c.tipe_coa, '')) LIKE ?", ['%pendapatan%'])
+                ->when($pelaksanaId !== null, fn (QueryBuilder $query) => $query->where('p.id', $pelaksanaId))
+                ->select([
+                    'p.id as pelaksana_id',
+                    'p.nama_pelaksana as dokter',
+                    'p.no_proyek',
+                    'c.id as coa_id',
+                    'c.kode as kode_akun',
+                    'c.nama as nama_akun',
+                    DB::raw("'kasbank_pembayaran' as source_type"),
+                    'kbp.id as source_id',
+                    'kbp.nomer as no_ref',
+                    'kbp.tanggal as tanggal',
+                    DB::raw("COALESCE(NULLIF(TRIM(kbpr.catatan), ''), kbp.keterangan) as keterangan"),
+                    DB::raw('NULL as nama_pasien'),
+                    DB::raw('NULL as nama_poli'),
+                    DB::raw('NULL as nama_penjamin'),
+                    'kbpr.id as rincian_id',
+                    DB::raw('COALESCE(kbpr.nominal, 0) as debit'),
+                    DB::raw('0 as kredit'),
+                ]);
+
+            $invoiceRows->unionAll($kasbankRows);
+        }
+
         $rows = DB::query()
             ->fromSub($invoiceRows, 'akt')
             ->orderBy('dokter')
@@ -974,15 +1005,20 @@ class LaporanPendapatanService
                             $subtotalKredit += $kredit;
 
                             $isJournal = $row->source_type === 'jurnal_umum';
+                            $isKasbank = $row->source_type === 'kasbank_pembayaran';
                             $deskripsi = trim((string) ($row->keterangan ?: $row->nama_pasien ?: '-'));
 
                             return [
                                 'source_type' => (string) $row->source_type,
                                 'source_id' => (int) $row->source_id,
-                                'faktur_id' => $isJournal ? null : (int) $row->source_id,
+                                'faktur_id' => ($isJournal || $isKasbank) ? null : (int) $row->source_id,
                                 'tanggal' => Carbon::parse($row->tanggal)->format('Y-m-d'),
                                 'tanggal_format' => Carbon::parse($row->tanggal)->format('d/m/Y'),
-                                'tipe' => $isJournal ? 'Jurnal Umum' : 'Faktur Penjualan',
+                                'tipe' => match ((string) $row->source_type) {
+                                    'jurnal_umum' => 'Jurnal Umum',
+                                    'kasbank_pembayaran' => 'Kasbank Pembayaran',
+                                    default => 'Faktur Penjualan',
+                                },
                                 'no_ref' => (string) $row->no_ref,
                                 'nama_pasien' => (string) ($row->nama_pasien ?? ''),
                                 'poli' => (string) ($row->nama_poli ?? ''),
@@ -1177,6 +1213,8 @@ class LaporanPendapatanService
                         $desc = $item['nama_pasien'] ?: $item['deskripsi'];
                         if (($item['source_type'] ?? 'faktur_penjualan') === 'jurnal_umum') {
                             $desc = '[Jurnal Umum] '.$desc;
+                        } elseif (($item['source_type'] ?? '') === 'kasbank_pembayaran') {
+                            $desc = '[Kasbank Pembayaran] '.$desc;
                         } elseif (! empty($item['poli']) || ! empty($item['penjamin'])) {
                             $desc .= ' ('.implode(' - ', array_filter([$item['poli'], $item['penjamin']])).')';
                         }
@@ -1604,6 +1642,14 @@ class LaporanPendapatanService
             && Schema::hasColumn('coa', 'tipe_coa');
     }
 
+    private function hasKasbankPembayaranPelaksanaSupport(): bool
+    {
+        return Schema::hasTable('kasbank_pembayaran')
+            && Schema::hasTable('kasbank_pembayaran_rinci')
+            && Schema::hasColumn('kasbank_pembayaran_rinci', 'pelaksana_id')
+            && Schema::hasColumn('coa', 'tipe_coa');
+    }
+
     private function getPendapatanDokterBaseQuery(
         string $startDate,
         string $endDate,
@@ -1658,6 +1704,32 @@ class LaporanPendapatanService
                 ]);
 
             $invoiceRows->unionAll($journalRows);
+        }
+
+        if ($poli === '' && $penjamin === '' && $this->hasKasbankPembayaranPelaksanaSupport()) {
+            $kasbankRows = DB::table('kasbank_pembayaran_rinci as kbpr')
+                ->join('kasbank_pembayaran as kbp', 'kbp.id', '=', 'kbpr.kasbank_pembayaran_id')
+                ->join('pelaksana as p', 'p.id', '=', 'kbpr.pelaksana_id')
+                ->join('coa as c', 'c.id', '=', 'kbpr.coa_id')
+                ->whereBetween('kbp.tanggal', [$startDate, $endDate])
+                ->whereRaw("LOWER(COALESCE(c.tipe_coa, '')) LIKE ?", ['%pendapatan%'])
+                ->when($pelaksanaId !== null, fn (QueryBuilder $query) => $query->where('p.id', $pelaksanaId))
+                ->select([
+                    'p.id as pelaksana_id',
+                    'p.nama_pelaksana as dokter',
+                    'p.no_proyek',
+                    'kbp.tanggal as tanggal',
+                    'c.id as coa_id',
+                    'c.parent_coa',
+                    'c.kode as kode_akun',
+                    'c.nama as layanan',
+                    DB::raw('NULL as nama_poli'),
+                    DB::raw('NULL as nama_penjamin'),
+                    DB::raw('NULL as faktur_id'),
+                    DB::raw('(0 - COALESCE(kbpr.nominal, 0)) as nominal'),
+                ]);
+
+            $invoiceRows->unionAll($kasbankRows);
         }
 
         return DB::query()->fromSub($invoiceRows, 'pd');

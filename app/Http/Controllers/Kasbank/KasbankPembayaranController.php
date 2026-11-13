@@ -147,6 +147,7 @@ class KasbankPembayaranController extends Controller
         return view('kasbank.pembayaran.create', [
             'page' => 'app',
             'coaOptions' => $this->kasbankPembayaranService->getCoaOptions(),
+            'pelaksanaOptions' => $this->kasbankPembayaranService->getPelaksanaOptions(),
             'templateOptions' => $this->templateService->getTemplateOptions(),
             'selectedTemplate' => $selectedTemplate,
             'initialKeterangan' => $initialKeterangan ?? '',
@@ -172,8 +173,9 @@ class KasbankPembayaranController extends Controller
     {
         return view('kasbank.pembayaran.edit', [
             'page' => 'app',
-            'kasbankPembayaran' => $kasbankPembayaran->load(['coa', 'rincian.coa']),
+            'kasbankPembayaran' => $kasbankPembayaran->load(['coa', 'rincian.coa', 'rincian.pelaksana']),
             'coaOptions' => $this->kasbankPembayaranService->getCoaOptions(),
+            'pelaksanaOptions' => $this->kasbankPembayaranService->getPelaksanaOptions(),
         ]);
     }
 
@@ -203,7 +205,7 @@ class KasbankPembayaranController extends Controller
 
         return view('kasbank.pembayaran.print', [
             'page' => 'app',
-            'kasbankPembayaran' => $kasbankPembayaran->load(['coa', 'rincian.coa']),
+            'kasbankPembayaran' => $kasbankPembayaran->load(['coa', 'rincian.coa', 'rincian.pelaksana']),
             'namaRumahSakit' => $printIdentity['namaRumahSakit'],
             'printedAt' => Carbon::now(),
             'namaPetugas' => auth()->user()?->name ?? '(Nama Petugas)',

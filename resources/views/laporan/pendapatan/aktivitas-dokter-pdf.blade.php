@@ -288,7 +288,9 @@
                     </tr>
                     @foreach ($kategori['rincian'] as $index => $item)
                         @php
-                            $isJournal = ($item['source_type'] ?? 'faktur_penjualan') === 'jurnal_umum';
+                            $sourceType = $item['source_type'] ?? 'faktur_penjualan';
+                            $isJournal = $sourceType === 'jurnal_umum';
+                            $isKasbank = $sourceType === 'kasbank_pembayaran';
                             $nominal = (float) ($item['nominal'] ?? $item['kredit']);
                             $formattedNominal = ($nominal < 0 ? '-Rp ' : 'Rp ').number_format(abs($nominal), 2, '.', ',');
                         @endphp
@@ -300,6 +302,8 @@
                                 <strong>{{ $item['nama_pasien'] ?: $item['deskripsi'] }}</strong>
                                 @if ($isJournal)
                                     <span style="color: #b45309;">(Jurnal Umum)</span>
+                                @elseif ($isKasbank)
+                                    <span style="color: #dc2626;">(Kasbank Pembayaran)</span>
                                 @elseif (!empty($item['poli']) || !empty($item['penjamin']))
                                     <span style="color: #64748b;">({{ implode(' - ', array_filter([$item['poli'], $item['penjamin']])) }})</span>
                                 @endif

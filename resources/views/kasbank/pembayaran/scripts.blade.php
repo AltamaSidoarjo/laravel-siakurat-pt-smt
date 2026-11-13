@@ -10,7 +10,7 @@
 
         function initSelect2(scope = document) {
             if (window.jQuery && window.jQuery.fn.select2) {
-                window.jQuery(scope).find('.select2-coa').each(function () {
+                window.jQuery(scope).find('.select2-coa, .select2-pelaksana').each(function () {
                     const $select = window.jQuery(this);
                     if ($select.data('select2')) {
                         return;
@@ -61,13 +61,34 @@
             return `@foreach ($coaOptions as $coa)<option value="{{ $coa->id }}">{{ $coa->kode }} - {{ $coa->nama }}</option>@endforeach`;
         }
 
+        function createPelaksanaOptions() {
+            return `@foreach ($pelaksanaOptions ?? [] as $pelaksana)<option value="{{ $pelaksana->id }}">{{ $pelaksana->nama_pelaksana }}</option>@endforeach`;
+        }
+
         function reindexRows() {
             let nextIndex = 0;
 
             tableBody.querySelectorAll('tr').forEach((row) => {
-                row.querySelector('select').setAttribute('name', `rincian[${nextIndex}][coa_id]`);
-                row.querySelector('.input-nominal').setAttribute('name', `rincian[${nextIndex}][nominal]`);
-                row.querySelector('.input-catatan').setAttribute('name', `rincian[${nextIndex}][catatan]`);
+                const coaSelect = row.querySelector('.select2-coa');
+                if (coaSelect) {
+                    coaSelect.setAttribute('name', `rincian[${nextIndex}][coa_id]`);
+                }
+
+                const pelaksanaSelect = row.querySelector('.select2-pelaksana');
+                if (pelaksanaSelect) {
+                    pelaksanaSelect.setAttribute('name', `rincian[${nextIndex}][pelaksana_id]`);
+                }
+
+                const nominalInput = row.querySelector('.input-nominal');
+                if (nominalInput) {
+                    nominalInput.setAttribute('name', `rincian[${nextIndex}][nominal]`);
+                }
+
+                const catatanInput = row.querySelector('.input-catatan');
+                if (catatanInput) {
+                    catatanInput.setAttribute('name', `rincian[${nextIndex}][catatan]`);
+                }
+
                 nextIndex += 1;
             });
 
@@ -94,6 +115,12 @@
                     </select>
                 </td>
                 <td class="align-middle">
+                    <select name="rincian[${detailIndex}][pelaksana_id]" class="form-select select2-pelaksana">
+                        <option value="">Pilih Pelaksana (Opsional)</option>
+                        ${createPelaksanaOptions()}
+                    </select>
+                </td>
+                <td class="align-middle">
                     <input type="text" name="rincian[${detailIndex}][nominal]" value="${data ? formatIdInteger(data.nominal) : '0'}" class="form-control text-end input-nominal" required>
                 </td>
                 <td class="align-middle">
@@ -112,6 +139,13 @@
                 const selectEl = row.querySelector('.select2-coa');
                 if (selectEl) {
                     selectEl.value = data.coa_id;
+                }
+            }
+
+            if (data && data.pelaksana_id) {
+                const pelaksanaEl = row.querySelector('.select2-pelaksana');
+                if (pelaksanaEl) {
+                    pelaksanaEl.value = data.pelaksana_id;
                 }
             }
 

@@ -245,6 +245,84 @@ class LaporanAktivitasDokterTest extends TestCase
         }
     }
 
+    public function test_report_includes_kasbank_pembayaran_with_proper_badge_and_debit_mutasi(): void
+    {
+        DB::table('coa')->insert([
+            ['id' => 103, 'parent_coa' => null, 'kode' => '5101', 'nama' => 'Beban Operasional', 'tipe_coa' => 'Beban'],
+        ]);
+
+        DB::table('kasbank_pembayaran')->insert([
+            ['id' => 10, 'nomer' => 'BK-RET-01', 'tanggal' => '2026-09-08', 'keterangan' => 'Pengembalian fee via kasir', 'total' => 250000],
+        ]);
+
+        DB::table('kasbank_pembayaran_rinci')->insert([
+            // Akun pendapatan: harus masuk dan mendebit jasa Dr. A (-200.000)
+            [
+                'kasbank_pembayaran_id' => 10,
+                'coa_id' => 101, // Tindakan Operasi Khusus
+                'pelaksana_id' => 1, // Dr. A
+                'nominal' => 200000,
+                'catatan' => 'Retur tindakan khusus pasien Susan',
+            ],
+            // Akun beban operasional: harus DIABAIKAN dari laporan aktivitas dokter
+            [
+                'kasbank_pembayaran_id' => 10,
+                'coa_id' => 103, // Beban
+                'pelaksana_id' => 1,
+                'nominal' => 50000,
+                'catatan' => 'Beban non-pendapatan',
+            ],
+        ]);
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.aktivitas-dokter', [
+                'startDate' => '2026-09-01',
+                'endDate' => '2026-09-30',
+                'pelaksanaId' => 1,
+            ]));
+
+        $response
+            ->assertOk()
+            ->assertSee('BK-RET-01')
+            ->assertSee('Kasbank Pembayaran')
+            ->assertSee(route('kasbank.pembayaran.edit', 10))
+            ->assertSee('Retur tindakan khusus pasien Susan')
+            ->assertSee('-Rp 200.000,00');
+
+        $excelResponse = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.aktivitas-dokter.export-excel', [
+                'startDate' => '2026-09-01',
+                'endDate' => '2026-09-30',
+                'pelaksanaId' => 1,
+            ]));
+
+        $temporaryFile = tempnam(sys_get_temp_dir(), 'test_akt_doc_bk_');
+        file_put_contents($temporaryFile, $excelResponse->streamedContent());
+
+        try {
+            $spreadsheet = IOFactory::load($temporaryFile);
+            $sheet = $spreadsheet->getActiveSheet();
+
+            $foundBkNominal = null;
+            for ($row = 1; $row <= $sheet->getHighestRow(); $row++) {
+                $colC = (string) $sheet->getCell('C'.$row)->getValue();
+                $colD = (string) $sheet->getCell('D'.$row)->getValue();
+
+                if ($colC === 'BK-RET-01') {
+                    $foundBkNominal = (float) $sheet->getCell('F'.$row)->getValue();
+                    $this->assertStringContainsString('[Kasbank Pembayaran]', $colD);
+                }
+            }
+
+            $this->assertSame(-200000.0, $foundBkNominal);
+            $spreadsheet->disconnectWorksheets();
+        } finally {
+            unlink($temporaryFile);
+        }
+    }
+
     private function makeUser(): User
     {
         return User::factory()->make([
@@ -303,6 +381,23 @@ class LaporanAktivitasDokterTest extends TestCase
             $table->unsignedBigInteger('pelaksana_id')->nullable();
             $table->decimal('debit', 15, 2)->default(0);
             $table->decimal('kredit', 15, 2)->default(0);
+            $table->text('catatan')->nullable();
+        });
+
+        Schema::create('kasbank_pembayaran', function (Blueprint $table): void {
+            $table->id();
+            $table->string('nomer');
+            $table->date('tanggal');
+            $table->text('keterangan')->nullable();
+            $table->decimal('total', 15, 2)->default(0);
+        });
+
+        Schema::create('kasbank_pembayaran_rinci', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('kasbank_pembayaran_id');
+            $table->unsignedBigInteger('coa_id');
+            $table->unsignedBigInteger('pelaksana_id')->nullable();
+            $table->decimal('nominal', 15, 2)->default(0);
             $table->text('catatan')->nullable();
         });
     }

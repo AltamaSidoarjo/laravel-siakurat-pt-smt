@@ -323,6 +323,61 @@ class LaporanPendapatanDokterTest extends TestCase
         }
     }
 
+    public function test_report_includes_kasbank_pembayaran_adjustments_for_doctor(): void
+    {
+        DB::table('coa')->insert([
+            ['id' => 21, 'parent_coa' => null, 'kode' => '1102', 'nama' => 'Bank Mandiri', 'tipe_coa' => 'Kasbank'],
+            ['id' => 22, 'parent_coa' => null, 'kode' => '5101', 'nama' => 'Beban Operasional', 'tipe_coa' => 'Beban'],
+        ]);
+
+        DB::table('kasbank_pembayaran')->insert([
+            ['id' => 1, 'nomer' => 'BK-001', 'tanggal' => '2026-09-02', 'keterangan' => 'Pengembalian via kas', 'total' => 70000],
+        ]);
+
+        DB::table('kasbank_pembayaran_rinci')->insert([
+            // Akun pendapatan Dr. A: harus mengurangi pendapatan Dr. A pada 2026-09-02
+            ['kasbank_pembayaran_id' => 1, 'coa_id' => 11, 'pelaksana_id' => 1, 'nominal' => 50000, 'catatan' => 'Retur visite kasir'],
+            // Akun beban operasional dengan pelaksana_id: harus DIABAIKAN karena bukan akun pendapatan
+            ['kasbank_pembayaran_id' => 1, 'coa_id' => 22, 'pelaksana_id' => 1, 'nominal' => 20000, 'catatan' => 'Beban dokter'],
+        ]);
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.dokter.load-data', $this->dataTableRequest([
+                'startDate' => '2026-09-01',
+                'endDate' => '2026-09-30',
+            ])));
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('totalBilling', 3)
+            ->assertJsonPath('grandTotal', 670000); // 720000 - 50000
+
+        $rows = collect($response->json('data'));
+        $drARow = $rows->first(fn (array $row) => $row['dokter'] === 'Dr. A'
+            && $row['tanggal'] === '2026-09-02'
+            && $row['kode_akun'] === '4101');
+
+        $this->assertNotNull($drARow);
+        $this->assertSame(1, $drARow['jumlah_billing']);
+        $this->assertSame('150.000', $drARow['total_pendapatan']); // 200k - 50k
+
+        // Filter poli aktif -> Kasbank Pembayaran tidak masuk
+        $filteredResponse = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.dokter.load-data', $this->dataTableRequest([
+                'startDate' => '2026-09-01',
+                'endDate' => '2026-09-30',
+                'poli' => 'Poli Umum',
+            ])));
+
+        $filteredResponse->assertOk();
+        $filteredRows = collect($filteredResponse->json('data'));
+        $drAFRow = $filteredRows->first(fn (array $row) => $row['dokter'] === 'Dr. A'
+            && $row['tanggal'] === '2026-09-02');
+        $this->assertSame('200.000', $drAFRow['total_pendapatan']);
+    }
+
     private function makeUser(): User
     {
         return User::factory()->make([
@@ -389,6 +444,23 @@ class LaporanPendapatanDokterTest extends TestCase
             $table->unsignedBigInteger('pelaksana_id')->nullable();
             $table->decimal('debit', 15, 2)->default(0);
             $table->decimal('kredit', 15, 2)->default(0);
+            $table->text('catatan')->nullable();
+        });
+
+        Schema::create('kasbank_pembayaran', function (Blueprint $table): void {
+            $table->id();
+            $table->string('nomer');
+            $table->date('tanggal');
+            $table->text('keterangan')->nullable();
+            $table->decimal('total', 15, 2)->default(0);
+        });
+
+        Schema::create('kasbank_pembayaran_rinci', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('kasbank_pembayaran_id');
+            $table->unsignedBigInteger('coa_id');
+            $table->unsignedBigInteger('pelaksana_id')->nullable();
+            $table->decimal('nominal', 15, 2)->default(0);
             $table->text('catatan')->nullable();
         });
     }

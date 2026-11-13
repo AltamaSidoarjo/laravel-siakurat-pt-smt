@@ -279,10 +279,19 @@
                             <!-- Detail Transaction Rows -->
                             @foreach ($kategori['rincian'] as $item)
                                 @php
-                                    $isJournal = ($item['source_type'] ?? 'faktur_penjualan') === 'jurnal_umum';
-                                    $detailRoute = $isJournal
-                                        ? route('bukubesar.jurnal-umum.edit', $item['source_id'])
-                                        : route('pendapatan.invoice.read', $item['faktur_id']);
+                                    $sourceType = $item['source_type'] ?? 'faktur_penjualan';
+                                    $isJournal = $sourceType === 'jurnal_umum';
+                                    $isKasbank = $sourceType === 'kasbank_pembayaran';
+                                    $detailRoute = match ($sourceType) {
+                                        'jurnal_umum' => route('bukubesar.jurnal-umum.edit', $item['source_id']),
+                                        'kasbank_pembayaran' => route('kasbank.pembayaran.edit', $item['source_id']),
+                                        default => route('pendapatan.invoice.read', $item['faktur_id']),
+                                    };
+                                    $iconClass = match ($sourceType) {
+                                        'jurnal_umum' => 'bi-journal-text',
+                                        'kasbank_pembayaran' => 'bi-cash-coin',
+                                        default => 'bi-receipt',
+                                    };
                                     $nominal = (float) ($item['nominal'] ?? $item['kredit']);
                                     $formattedNominal = ($nominal < 0 ? '-Rp ' : 'Rp ').number_format(abs($nominal), 2, ',', '.');
                                 @endphp
@@ -291,7 +300,7 @@
                                     <td class="text-nowrap">{{ $item['tanggal_format'] ?? $item['tanggal'] }}</td>
                                     <td>
                                         <a href="{{ $detailRoute }}" class="invoice-link font-monospace">
-                                            <i class="bi {{ $isJournal ? 'bi-journal-text' : 'bi-receipt' }} me-1"></i>{{ $item['no_ref'] }}
+                                            <i class="bi {{ $iconClass }} me-1"></i>{{ $item['no_ref'] }}
                                         </a>
                                     </td>
                                     <td>
@@ -300,6 +309,10 @@
                                             @if ($isJournal)
                                                 <div class="d-flex gap-1 mt-1">
                                                     <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle small">Jurnal Umum</span>
+                                                </div>
+                                            @elseif ($isKasbank)
+                                                <div class="d-flex gap-1 mt-1">
+                                                    <span class="badge bg-danger-subtle text-danger-emphasis border border-danger-subtle small">Kasbank Pembayaran</span>
                                                 </div>
                                             @elseif (!empty($item['poli']) || !empty($item['penjamin']))
                                                 <div class="d-flex gap-1 mt-1">

@@ -51,7 +51,10 @@ class PelaksanaManagementService
         if ($pelaksana->rincianFakturPenjualan()->exists()
             || (Schema::hasTable('jurnal_umum_rinci')
                 && Schema::hasColumn('jurnal_umum_rinci', 'pelaksana_id')
-                && $pelaksana->rincianJurnalUmum()->exists())) {
+                && $pelaksana->rincianJurnalUmum()->exists())
+            || (Schema::hasTable('kasbank_pembayaran_rinci')
+                && Schema::hasColumn('kasbank_pembayaran_rinci', 'pelaksana_id')
+                && $pelaksana->rincianKasbankPembayaran()->exists())) {
             return false;
         }
 
