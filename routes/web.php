@@ -6,6 +6,7 @@ use App\Http\Controllers\Bridging\BridgingPendapatanController;
 use App\Http\Controllers\Bridging\BridgingPendapatanObatController;
 use App\Http\Controllers\Bukubesar\CoaController;
 use App\Http\Controllers\Bukubesar\JurnalUmumController;
+use App\Http\Controllers\Dashboard\IndikatorKinerjaDashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Kasbank\BukuBankController;
 use App\Http\Controllers\Kasbank\KasbankPembayaranController;
@@ -48,6 +49,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/home/pendapatan-harian', [HomeController::class, 'pendapatanHarian'])->name('home.pendapatan-harian');
         Route::get('/home/penjamin', [HomeController::class, 'komposisiPenjamin'])->name('home.penjamin');
         Route::get('/home/ringkasan-indikator', [HomeController::class, 'ringkasanIndikator'])->name('home.ringkasan-indikator');
+    });
+
+    Route::middleware('module.access:dashboard.indikator-kinerja,view')->group(function () {
+        Route::get('/dashboard/indikator-kinerja', [IndikatorKinerjaDashboardController::class, 'index'])->name('dashboard.indikator-kinerja.index');
+        Route::get('/dashboard/indikator-kinerja/{kode}/tren', [IndikatorKinerjaDashboardController::class, 'tren'])->name('dashboard.indikator-kinerja.tren');
     });
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
 
