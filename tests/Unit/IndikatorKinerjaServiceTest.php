@@ -90,6 +90,7 @@ class IndikatorKinerjaServiceTest extends TestCase
         }
 
         $this->service = app(IndikatorKinerjaService::class);
+        $this->service->clearCoaTreeCache();
     }
 
     public function test_safe_divide_returns_null_on_zero_or_null_denominator(): void
@@ -142,6 +143,15 @@ class IndikatorKinerjaServiceTest extends TestCase
         $this->assertEquals(StatusEvaluasi::KUNING, $this->service->evaluasiStatus(28.0, $indikator));
         $this->assertEquals(StatusEvaluasi::MERAH, $this->service->evaluasiStatus(35.0, $indikator)); // >30
         $this->assertEquals(StatusEvaluasi::MERAH, $this->service->evaluasiStatus(15.0, $indikator)); // <20
+
+        $indikatorKosong = new IndikatorKinerja([
+            'pola_evaluasi' => PolaEvaluasi::TARGET_BAND,
+            'target_hijau_min' => null,
+            'target_hijau_max' => null,
+            'target_kuning_min' => null,
+            'target_kuning_max' => null,
+        ]);
+        $this->assertEquals(StatusEvaluasi::NETRAL, $this->service->evaluasiStatus(22.0, $indikatorKosong));
     }
 
     public function test_tren_bulanan_returns_null_for_future_months_in_current_year(): void
@@ -172,6 +182,15 @@ class IndikatorKinerjaServiceTest extends TestCase
             $this->assertNotNull($entry);
             $this->assertNull($entry['nilai']);
             $this->assertEquals(StatusEvaluasi::NETRAL, $entry['status']);
+        }
+
+        // Test future year returns all nulls without querying
+        $futureYear = $currentYear + 1;
+        $trenFuture = $this->service->getTrenBulanan('capaian_pendapatan', $futureYear);
+        $this->assertCount(12, $trenFuture['data']);
+        foreach ($trenFuture['data'] as $monthData) {
+            $this->assertNull($monthData['nilai']);
+            $this->assertEquals(StatusEvaluasi::NETRAL, $monthData['status']);
         }
     }
 
@@ -224,6 +243,41 @@ class IndikatorKinerjaServiceTest extends TestCase
         $this->assertContains($leaf1->id, $result);
         $this->assertNotContains($branchExcluded->id, $result);
         $this->assertNotContains($leafUnderExcluded->id, $result);
+    }
+
+    public function test_kumpulkan_leaf_descendant_coa_ids_handles_cycles_gracefully(): void
+    {
+        $coaA = Coa::create([
+            'kode' => '998',
+            'nama' => 'Node A',
+            'tipe_coa' => 'Aktiva Lainnya',
+            'status_aktif' => 1,
+            'is_postable' => 0,
+        ]);
+
+        $coaB = Coa::create([
+            'kode' => '999',
+            'nama' => 'Node B',
+            'parent_coa' => $coaA->id,
+            'tipe_coa' => 'Aktiva Lainnya',
+            'status_aktif' => 1,
+            'is_postable' => 0,
+        ]);
+
+        // Create artificial cycle: A's parent is B
+        $coaA->update(['parent_coa' => $coaB->id]);
+        $this->service->clearCoaTreeCache();
+
+        $result = $this->service->kumpulkanLeafDescendantCoaIds([$coaA->id]);
+        $this->assertIsArray($result);
+    }
+
+    public function test_cached_coa_tree_memoization(): void
+    {
+        $this->service->clearCoaTreeCache();
+        $tree1 = $this->service->getCachedCoaTree();
+        $tree2 = $this->service->getCachedCoaTree();
+        $this->assertSame($tree1, $tree2);
     }
 
     public function test_turnover_calculation_with_cumulative_balance(): void

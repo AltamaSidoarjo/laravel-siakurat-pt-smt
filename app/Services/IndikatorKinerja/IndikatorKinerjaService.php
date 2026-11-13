@@ -20,6 +20,29 @@ use Illuminate\Support\Collection;
 class IndikatorKinerjaService
 {
     /**
+     * @var Collection<int, Coa>|null
+     */
+    private ?Collection $cachedCoaTree = null;
+
+    /**
+     * Ambil seluruh COA tree (id, parent_coa) dengan in-memory memoization.
+     *
+     * @return Collection<int, Coa>
+     */
+    public function getCachedCoaTree(): Collection
+    {
+        return $this->cachedCoaTree ??= Coa::query()->get(['id', 'parent_coa']);
+    }
+
+    /**
+     * Reset cache hierarki COA (berguna saat test atau perubahan dinamis).
+     */
+    public function clearCoaTreeCache(): void
+    {
+        $this->cachedCoaTree = null;
+    }
+
+    /**
      * Evaluasi seluruh indikator aktif untuk rentang tanggal tertentu.
      *
      * @return Collection<int, array>
@@ -215,7 +238,7 @@ class IndikatorKinerjaService
         for ($bulan = 1; $bulan <= 12; $bulan++) {
             $labelBulan = $labelBulanList[$bulan - 1];
 
-            if ($tahun === $currentYear && $bulan > $currentMonth) {
+            if ($tahun > $currentYear || ($tahun === $currentYear && $bulan > $currentMonth)) {
                 $data[] = [
                     'bulan' => $bulan,
                     'label_bulan' => $labelBulan,
@@ -309,10 +332,18 @@ class IndikatorKinerjaService
         }
 
         if ($pola === PolaEvaluasi::TARGET_BAND) {
-            if (($hijauMin === null || $nilai >= $hijauMin) && ($hijauMax === null || $nilai <= $hijauMax)) {
+            $hasHijau = $hijauMin !== null || $hijauMax !== null;
+            $hasKuning = $kuningMin !== null || $kuningMax !== null;
+
+            if (! $hasHijau && ! $hasKuning) {
+                return StatusEvaluasi::NETRAL;
+            }
+
+            if ($hasHijau && ($hijauMin === null || $nilai >= $hijauMin) && ($hijauMax === null || $nilai <= $hijauMax)) {
                 return StatusEvaluasi::HIJAU;
             }
-            if (($kuningMin === null || $nilai >= $kuningMin) && ($kuningMax === null || $nilai <= $kuningMax)) {
+
+            if ($hasKuning && ($kuningMin === null || $nilai >= $kuningMin) && ($kuningMax === null || $nilai <= $kuningMax)) {
                 return StatusEvaluasi::KUNING;
             }
 
@@ -336,7 +367,7 @@ class IndikatorKinerjaService
             return [];
         }
 
-        $allCoas = Coa::query()->get(['id', 'parent_coa']);
+        $allCoas = $this->getCachedCoaTree();
         $childrenMap = [];
         foreach ($allCoas as $coa) {
             $parentId = (int) ($coa->parent_coa ?? 0);
@@ -354,18 +385,26 @@ class IndikatorKinerjaService
                 $allExcluded[$currentExclude] = true;
                 if (isset($childrenMap[$currentExclude])) {
                     foreach ($childrenMap[$currentExclude] as $childId) {
-                        $excludeQueue[] = $childId;
+                        if (! isset($allExcluded[$childId])) {
+                            $excludeQueue[] = $childId;
+                        }
                     }
                 }
             }
         }
 
-        // Traverse each root COA
+        // Traverse each root COA with cycle / visited guard
         $leafIds = [];
+        $visited = [];
         $queue = array_map('intval', $coaIds);
 
         while (! empty($queue)) {
             $currentId = array_shift($queue);
+
+            if (isset($visited[$currentId])) {
+                continue;
+            }
+            $visited[$currentId] = true;
 
             if (isset($allExcluded[$currentId])) {
                 continue;
@@ -373,7 +412,7 @@ class IndikatorKinerjaService
 
             if (isset($childrenMap[$currentId]) && ! empty($childrenMap[$currentId])) {
                 foreach ($childrenMap[$currentId] as $childId) {
-                    if (! isset($allExcluded[$childId])) {
+                    if (! isset($allExcluded[$childId]) && ! isset($visited[$childId])) {
                         $queue[] = $childId;
                     }
                 }
