@@ -25,6 +25,7 @@ use App\Http\Controllers\Pengaturan\MappingPendapatanController;
 use App\Http\Controllers\Pengaturan\PenggunaController;
 use App\Http\Controllers\Pengaturan\PreferensiController;
 use App\Http\Controllers\Pengaturan\RoleAksesController;
+use App\Http\Controllers\Pengaturan\SettingIndikatorKinerjaController;
 use App\Http\Controllers\Pengaturan\SettingRbaController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -348,6 +349,16 @@ Route::middleware('auth')->group(function () {
             Route::delete('/setting-rba/{settingRba}', [SettingRbaController::class, 'destroy'])->name('setting-rba.destroy');
         });
 
+        Route::middleware('module.access:pengaturan.setting-indikator-kinerja,view')->group(function () {
+            Route::get('/setting-indikator-kinerja', [SettingIndikatorKinerjaController::class, 'index'])->name('setting-indikator-kinerja.index');
+        });
+        Route::middleware('module.access:pengaturan.setting-indikator-kinerja,create')->group(function () {
+            Route::post('/setting-indikator-kinerja/variabel', [SettingIndikatorKinerjaController::class, 'storeVariabel'])->name('setting-indikator-kinerja.store-variabel');
+        });
+        Route::middleware('module.access:pengaturan.setting-indikator-kinerja,update')->group(function () {
+            Route::post('/setting-indikator-kinerja/simpan-manual-data', [SettingIndikatorKinerjaController::class, 'simpanManualData'])->name('setting-indikator-kinerja.simpan-manual-data');
+        });
+
         Route::middleware('module.access:pengaturan.preferensi,view')->group(function () {
             Route::get('/preferensi', [PreferensiController::class, 'index'])->name('preferensi.index');
         });
@@ -403,5 +414,15 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module.access:pengaturan.layanan-informasi,delete')->group(function () {
             Route::delete('/layanan-informasi/{layananInformasi}', [LayananInformasiController::class, 'destroy'])->name('layanan-informasi.destroy');
         });
+    });
+
+    Route::middleware('module.access:pengaturan.setting-indikator-kinerja,view')->group(function () {
+        Route::get('/setting-indikator-kinerja', [SettingIndikatorKinerjaController::class, 'index'])->name('setting-indikator-kinerja.index');
+    });
+    Route::middleware('module.access:pengaturan.setting-indikator-kinerja,create')->group(function () {
+        Route::post('/setting-indikator-kinerja/variabel', [SettingIndikatorKinerjaController::class, 'storeVariabel'])->name('setting-indikator-kinerja.store-variabel');
+    });
+    Route::middleware('module.access:pengaturan.setting-indikator-kinerja,update')->group(function () {
+        Route::post('/setting-indikator-kinerja/simpan-manual-data', [SettingIndikatorKinerjaController::class, 'simpanManualData'])->name('setting-indikator-kinerja.simpan-manual-data');
     });
 });
