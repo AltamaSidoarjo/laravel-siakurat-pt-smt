@@ -33,6 +33,7 @@ bagian **Documentation Policy**.
 | --- | --- | --- |
 | Autentikasi | [auth.md](auth.md) | selesai |
 | Home / Dashboard | [home-dashboard.md](home-dashboard.md) | selesai |
+| Dashboard — Indikator Kinerja | [indikator-kinerja.md](indikator-kinerja.md) | selesai |
 | Bukubesar — Jurnal Umum | [bukubesar-jurnal-umum.md](bukubesar-jurnal-umum.md) | selesai |
 | Bukubesar — COA | [bukubesar-coa.md](bukubesar-coa.md) | selesai |
 | Kasbank — Penerimaan | [kasbank-penerimaan.md](kasbank-penerimaan.md) | selesai |
@@ -50,6 +51,7 @@ bagian **Documentation Policy**.
 | Pengaturan — Mapping Pendapatan | [pengaturan-mapping-pendapatan.md](pengaturan-mapping-pendapatan.md) | selesai |
 | Pengaturan — Mapping General | [pengaturan-mapping-general.md](pengaturan-mapping-general.md) | selesai |
 | Pengaturan — Setting RBA | [pengaturan-setting-rba.md](pengaturan-setting-rba.md) | selesai |
+| Pengaturan — Setting Indikator Kinerja | [pengaturan-setting-indikator-kinerja.md](pengaturan-setting-indikator-kinerja.md) | selesai |
 | Pengaturan — Preferensi | [pengaturan-preferensi.md](pengaturan-preferensi.md) | selesai |
 | Pengaturan — Pengguna | [pengaturan-pengguna.md](pengaturan-pengguna.md) | selesai |
 | Pengaturan — Role Akses | [pengaturan-role-akses.md](pengaturan-role-akses.md) | selesai |

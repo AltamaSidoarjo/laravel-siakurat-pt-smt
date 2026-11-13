@@ -274,6 +274,7 @@ documentation updates as part of the change, not an afterthought.
 | --- | --- |
 | `app/Http/Controllers/Auth/AuthController.php` | `dokumentasi/auth.md` |
 | `app/Http/Controllers/HomeController.php`, `app/Services/HomeDashboardService.php` | `dokumentasi/home-dashboard.md` |
+| `app/Http/Controllers/Dashboard/IndikatorKinerjaDashboardController.php`, `app/Services/IndikatorKinerja/IndikatorKinerjaService.php` | `dokumentasi/indikator-kinerja.md` |
 | `app/Http/Controllers/Bukubesar/JurnalUmumController.php`, `app/Services/Bukubesar/JurnalUmumService.php`, `app/Http/Requests/Bukubesar/*JurnalUmum*` | `dokumentasi/bukubesar-jurnal-umum.md` |
 | `app/Http/Controllers/Bukubesar/CoaController.php`, `app/Services/Bukubesar/CoaService.php`, `app/Http/Requests/Bukubesar/*Coa*` | `dokumentasi/bukubesar-coa.md` |
 | `app/Http/Controllers/Kasbank/KasbankPenerimaanController.php`, `app/Services/Kasbank/KasbankPenerimaanService.php`, `app/Http/Requests/Kasbank/*Penerimaan*` | `dokumentasi/kasbank-penerimaan.md` |
@@ -291,6 +292,7 @@ documentation updates as part of the change, not an afterthought.
 | `app/Http/Controllers/Pengaturan/MappingPendapatanController.php`, `app/Services/Pengaturan/MappingPendapatanTindakanService.php`, `app/Http/Requests/Pengaturan/*MappingPendapatan*`, `*MappingLawanPendapatan*` | `dokumentasi/pengaturan-mapping-pendapatan.md` |
 | `app/Http/Controllers/Pengaturan/MappingGeneralController.php`, `app/Services/Pengaturan/MappingGeneralService.php`, `app/Http/Requests/Pengaturan/*MappingGeneral*` | `dokumentasi/pengaturan-mapping-general.md` |
 | `app/Http/Controllers/Pengaturan/SettingRbaController.php`, `app/Services/Pengaturan/SettingRbaService.php`, `app/Http/Requests/Pengaturan/*SettingRba*` | `dokumentasi/pengaturan-setting-rba.md` |
+| `app/Http/Controllers/Pengaturan/SettingIndikatorKinerjaController.php`, `app/Http/Requests/Pengaturan/*IndikatorKinerja*`, `*VariabelManual*`, `*SimpanManualData*` | `dokumentasi/pengaturan-setting-indikator-kinerja.md` |
 | `app/Http/Controllers/Pengaturan/PreferensiController.php`, `app/Services/Pengaturan/PreferensiService.php`, `app/Services/PreferensiPerusahaanService.php`, `app/Http/Requests/Pengaturan/*Preferensi*` | `dokumentasi/pengaturan-preferensi.md` |
 | `app/Http/Controllers/Pengaturan/PenggunaController.php`, `app/Services/Pengaturan/UserManagementService.php`, `app/Http/Requests/Pengaturan/*User*` | `dokumentasi/pengaturan-pengguna.md` |
 | `app/Http/Controllers/Pengaturan/RoleAksesController.php`, `app/Services/Pengaturan/RoleAccessManagementService.php`, `app/Http/Requests/Pengaturan/*RoleAccess*` | `dokumentasi/pengaturan-role-akses.md` |
