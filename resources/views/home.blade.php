@@ -123,6 +123,76 @@
         </div>
     </div>
 
+    <!-- Executive KPI Status Strip -->
+    <div class="card shadow-sm border-0 mb-4 dashboard-kpi-card">
+        <div class="card-body p-3 p-md-4">
+            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-3 pb-2 border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                        <i class="bi bi-speedometer2 me-1"></i> Executive Summary
+                    </span>
+                    <h5 class="mb-0 fw-bold fs-6">Status Indikator Kinerja (KPI)</h5>
+                </div>
+                <div>
+                    <a href="{{ Route::has('dashboard.indikator-kinerja.index') ? route('dashboard.indikator-kinerja.index') : url('/dashboard/indikator-kinerja') }}" class="btn btn-outline-primary btn-sm fw-semibold">
+                        Lihat Dashboard Indikator Selengkapnya &rarr;
+                    </a>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-6 col-lg-3">
+                    <div class="p-3 rounded-3 bg-light border d-flex align-items-center justify-content-between">
+                        <div>
+                            <div class="text-muted small fw-semibold text-uppercase">Total Indikator</div>
+                            <h3 class="mb-0 fw-bold text-dark mt-1" id="kpiTotalCount">-</h3>
+                        </div>
+                        <div class="rounded-circle p-2 bg-secondary-subtle text-secondary">
+                            <i class="bi bi-collection fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="p-3 rounded-3 bg-success-subtle border border-success-subtle d-flex align-items-center justify-content-between">
+                        <div>
+                            <div class="text-success small fw-semibold text-uppercase">Tercapai (Hijau)</div>
+                            <h3 class="mb-0 fw-bold text-success mt-1" id="kpiHijauCount">-</h3>
+                        </div>
+                        <div class="rounded-circle p-2 bg-success text-white">
+                            <i class="bi bi-check-circle fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="p-3 rounded-3 bg-warning-subtle border border-warning-subtle d-flex align-items-center justify-content-between">
+                        <div>
+                            <div class="text-warning-emphasis small fw-semibold text-uppercase">Perhatian (Kuning)</div>
+                            <h3 class="mb-0 fw-bold text-warning-emphasis mt-1" id="kpiKuningCount">-</h3>
+                        </div>
+                        <div class="rounded-circle p-2 bg-warning text-dark">
+                            <i class="bi bi-exclamation-triangle fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-3">
+                    <div class="p-3 rounded-3 bg-danger-subtle border border-danger-subtle d-flex align-items-center justify-content-between">
+                        <div>
+                            <div class="text-danger small fw-semibold text-uppercase">Kritis (Merah)</div>
+                            <h3 class="mb-0 fw-bold text-danger mt-1" id="kpiMerahCount">-</h3>
+                        </div>
+                        <div class="rounded-circle p-2 bg-danger text-white">
+                            <i class="bi bi-x-circle fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="kpiNetralBadge" class="d-none mt-2 text-muted small">
+                <i class="bi bi-info-circle me-1"></i> <span id="kpiNetralCount">0</span> indikator berstatus netral/informasi.
+            </div>
+        </div>
+    </div>
+
     <div class="row g-4">
         @foreach ($chartCards as $chartCard)
             <div class="col-12 col-xl-6">
@@ -499,20 +569,58 @@
                 });
             }
 
+            async function loadRingkasanIndikator() {
+                try {
+                    const response = await fetch('{{ route('home.ringkasan-indikator') }}' + getQueryString());
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const data = await response.json();
+                    const elTotal = document.getElementById('kpiTotalCount');
+                    const elHijau = document.getElementById('kpiHijauCount');
+                    const elKuning = document.getElementById('kpiKuningCount');
+                    const elMerah = document.getElementById('kpiMerahCount');
+                    const elNetralBadge = document.getElementById('kpiNetralBadge');
+                    const elNetralCount = document.getElementById('kpiNetralCount');
+
+                    if (elTotal) elTotal.textContent = data.total ?? 0;
+                    if (elHijau) elHijau.textContent = data.hijau ?? 0;
+                    if (elKuning) elKuning.textContent = data.kuning ?? 0;
+                    if (elMerah) elMerah.textContent = data.merah ?? 0;
+
+                    if (elNetralBadge && elNetralCount) {
+                        if (data.netral && data.netral > 0) {
+                            elNetralCount.textContent = data.netral;
+                            elNetralBadge.classList.remove('d-none');
+                        } else {
+                            elNetralBadge.classList.add('d-none');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Gagal memuat ringkasan indikator:', error);
+                }
+            }
+
             async function loadAllCharts() {
                 await Promise.all(
                     Object.entries(chartConfigs).map(([chartId, config]) => loadChart(chartId, config))
                 );
             }
 
-            applyButton.addEventListener('click', loadAllCharts);
+            function reloadDashboard() {
+                loadAllCharts();
+                loadRingkasanIndikator();
+            }
+
+            applyButton.addEventListener('click', reloadDashboard);
             resetButton.addEventListener('click', function () {
                 inputDari.value = defaultStartDate;
                 inputSampai.value = defaultEndDate;
-                loadAllCharts();
+                reloadDashboard();
             });
 
-            loadAllCharts();
+            reloadDashboard();
         });
     </script>
 @endpush
@@ -529,6 +637,12 @@
             background:
                 radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 28%),
                 linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(248, 250, 252, 0.94));
+        }
+
+        .dashboard-kpi-card {
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.95));
+            border-left: 4px solid #0d6efd;
         }
 
         .dashboard-info-alert {

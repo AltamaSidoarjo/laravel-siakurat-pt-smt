@@ -8,6 +8,7 @@ class AccessModuleRegistry
     {
         return [
             ['kode' => 'home', 'nama' => 'Home', 'group_nama' => 'Dashboard', 'urutan' => 10],
+            ['kode' => 'dashboard.indikator-kinerja', 'nama' => 'Indikator Kinerja', 'group_nama' => 'Dashboard', 'urutan' => 15],
             ['kode' => 'bukubesar.jurnal-umum', 'nama' => 'Jurnal Umum', 'group_nama' => 'Bukubesar', 'urutan' => 20],
             ['kode' => 'bukubesar.coa', 'nama' => 'COA', 'group_nama' => 'Bukubesar', 'urutan' => 30],
             ['kode' => 'kasbank.penerimaan', 'nama' => 'Kasbank Penerimaan', 'group_nama' => 'Kasbank', 'urutan' => 40],
@@ -26,6 +27,7 @@ class AccessModuleRegistry
             ['kode' => 'pengaturan.mapping-pendapatan', 'nama' => 'Mapping Pendapatan', 'group_nama' => 'Pengaturan', 'urutan' => 150],
             ['kode' => 'pengaturan.mapping-general', 'nama' => 'Mapping General', 'group_nama' => 'Pengaturan', 'urutan' => 160],
             ['kode' => 'pengaturan.setting-rba', 'nama' => 'Setting RBA', 'group_nama' => 'Pengaturan', 'urutan' => 170],
+            ['kode' => 'pengaturan.setting-indikator-kinerja', 'nama' => 'Setting Indikator Kinerja', 'group_nama' => 'Pengaturan', 'urutan' => 175],
             ['kode' => 'pengaturan.preferensi', 'nama' => 'Preferensi', 'group_nama' => 'Pengaturan', 'urutan' => 180],
             ['kode' => 'pengaturan.pengguna', 'nama' => 'Pengguna', 'group_nama' => 'Pengaturan', 'urutan' => 190],
             ['kode' => 'pengaturan.role-akses', 'nama' => 'Role Akses', 'group_nama' => 'Pengaturan', 'urutan' => 200],

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\HomeDashboardService;
+use App\Services\IndikatorKinerja\IndikatorKinerjaService;
 use App\Services\Pengaturan\LayananInformasiService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,8 +14,8 @@ class HomeController extends Controller
     public function __construct(
         private readonly HomeDashboardService $homeDashboardService,
         private readonly LayananInformasiService $layananInformasiService,
-    ) {
-    }
+        private readonly IndikatorKinerjaService $indikatorKinerjaService,
+    ) {}
 
     public function index(): View
     {
@@ -71,10 +72,23 @@ class HomeController extends Controller
         );
     }
 
+    public function ringkasanIndikator(Request $request): JsonResponse
+    {
+        [$startDate, $endDate] = $this->resolveDateRange($request);
+
+        return response()->json(
+            $this->indikatorKinerjaService->getRingkasanStatus($startDate, $endDate)
+        );
+    }
+
     private function resolveDateRange(Request $request): array
     {
-        $startDate = $request->date('dariTanggal')?->format('Y-m-d') ?? now()->startOfMonth()->format('Y-m-d');
-        $endDate = $request->date('sampaiTanggal')?->format('Y-m-d') ?? now()->format('Y-m-d');
+        $startDate = $request->date('start_date')?->format('Y-m-d')
+            ?? $request->date('dariTanggal')?->format('Y-m-d')
+            ?? now()->startOfMonth()->format('Y-m-d');
+        $endDate = $request->date('end_date')?->format('Y-m-d')
+            ?? $request->date('sampaiTanggal')?->format('Y-m-d')
+            ?? now()->format('Y-m-d');
 
         return [$startDate, $endDate];
     }
