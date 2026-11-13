@@ -135,12 +135,20 @@ class IndikatorKinerjaServiceTest extends TestCase
             'pola_evaluasi' => PolaEvaluasi::TARGET_BAND,
             'target_hijau_min' => 20.0,
             'target_hijau_max' => 25.0,
-            'target_kuning_min' => 25.01,
+            'target_kuning_min' => 25.0,
             'target_kuning_max' => 30.0,
         ]);
 
         $this->assertEquals(StatusEvaluasi::HIJAU, $this->service->evaluasiStatus(22.0, $indikator));
+        $this->assertEquals(StatusEvaluasi::HIJAU, $this->service->evaluasiStatus(25.0, $indikator));
+        // Fractional rounding & boundary check
+        $this->assertEquals(StatusEvaluasi::HIJAU, $this->service->evaluasiStatus(25.004, $indikator));
+        $this->assertEquals(StatusEvaluasi::KUNING, $this->service->evaluasiStatus(25.006, $indikator));
+        $this->assertEquals(StatusEvaluasi::KUNING, $this->service->evaluasiStatus(25.01, $indikator));
         $this->assertEquals(StatusEvaluasi::KUNING, $this->service->evaluasiStatus(28.0, $indikator));
+        $this->assertEquals(StatusEvaluasi::KUNING, $this->service->evaluasiStatus(30.0, $indikator));
+        $this->assertEquals(StatusEvaluasi::KUNING, $this->service->evaluasiStatus(30.004, $indikator));
+        $this->assertEquals(StatusEvaluasi::MERAH, $this->service->evaluasiStatus(30.006, $indikator));
         $this->assertEquals(StatusEvaluasi::MERAH, $this->service->evaluasiStatus(35.0, $indikator)); // >30
         $this->assertEquals(StatusEvaluasi::MERAH, $this->service->evaluasiStatus(15.0, $indikator)); // <20
 

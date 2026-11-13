@@ -178,7 +178,8 @@ class IndikatorKinerjaService
         }
 
         // 4. Evaluasi Status
-        $status = $this->evaluasiStatus($nilai, $indikator);
+        $evalNilai = $nilai !== null ? round($nilai, 2) : null;
+        $status = $this->evaluasiStatus($evalNilai, $indikator);
 
         // 5. Format Nilai
         $nilaiFormatted = $nilai !== null
@@ -292,6 +293,8 @@ class IndikatorKinerjaService
         if ($nilai === null) {
             return StatusEvaluasi::NETRAL;
         }
+
+        $nilai = round($nilai, 2);
 
         $pola = $indikator->pola_evaluasi;
         if ($pola === null) {

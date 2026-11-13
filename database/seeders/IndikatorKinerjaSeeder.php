@@ -125,7 +125,7 @@ class IndikatorKinerjaSeeder extends Seeder
                 'pola_evaluasi' => PolaEvaluasi::TARGET_BAND,
                 'target_hijau_min' => 20.00,
                 'target_hijau_max' => 25.00,
-                'target_kuning_min' => 25.01,
+                'target_kuning_min' => 25.00,
                 'target_kuning_max' => 30.00,
                 'target_merah_min' => null,
                 'target_merah_max' => null,

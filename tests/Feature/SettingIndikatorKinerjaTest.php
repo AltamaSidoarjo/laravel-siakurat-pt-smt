@@ -164,7 +164,11 @@ class SettingIndikatorKinerjaTest extends TestCase
         $response = $this->actingAs($user)->get(route('setting-indikator-kinerja.index'));
         $response->assertOk()
             ->assertSee('Manajemen Indikator')
-            ->assertSee('Entri Data Manual');
+            ->assertSee('Entri Data Manual')
+            ->assertSee('Turnover (Hari)')
+            ->assertSee('Manual (Non-Akuntansi)')
+            ->assertSee('Rasio')
+            ->assertDontSee('Bridging SIMRS Otomatis');
     }
 
     public function test_user_can_view_manual_tab_with_year_filter(): void
@@ -249,6 +253,19 @@ class SettingIndikatorKinerjaTest extends TestCase
         ]);
 
         $response->assertSessionHasErrors(['kode']);
+    }
+
+    public function test_store_manual_variable_validation_fails_when_nama_exceeds_100_chars(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post(route('setting-indikator-kinerja.store-variabel'), [
+            'kode' => 'VAR_LONG_NAME',
+            'nama' => str_repeat('A', 101),
+            'satuan' => SatuanIndikator::ORANG->value,
+        ]);
+
+        $response->assertSessionHasErrors(['nama']);
     }
 
     public function test_unauthenticated_user_cannot_access(): void

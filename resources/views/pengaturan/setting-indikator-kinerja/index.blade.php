@@ -98,30 +98,26 @@
                                         </td>
                                         <td>
                                             @php
-                                                $tipeVal = $item->tipe_kalkulasi?->value ?? $item->tipe_kalkulasi;
+                                                $tipeVal = $item->tipe_kalkulasi instanceof \App\Enums\IndikatorKinerja\TipeKalkulasi
+                                                    ? $item->tipe_kalkulasi->value
+                                                    : (string) ($item->tipe_kalkulasi?->value ?? $item->tipe_kalkulasi);
                                             @endphp
-                                            @if ($tipeVal === 'jurnal')
-                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
-                                                    <i class="bi bi-journal-text me-1"></i> Jurnal Umum
-                                                </span>
-                                            @elseif ($tipeVal === 'variabel_manual')
+                                            @if ($tipeVal === 'MANUAL')
                                                 <span class="badge bg-warning-subtle text-dark border border-warning-subtle">
-                                                    <i class="bi bi-pencil-square me-1"></i> Variabel Manual
+                                                    <i class="bi bi-pencil-square me-1"></i> Manual (Non-Akuntansi)
+                                                </span>
+                                            @elseif ($tipeVal === 'TURNOVER')
+                                                <span class="badge bg-info-subtle text-dark border border-info-subtle">
+                                                    <i class="bi bi-arrow-repeat me-1"></i> Turnover (Hari)
                                                 </span>
                                             @else
-                                                <span class="badge bg-info-subtle text-dark border border-info-subtle">
-                                                    <i class="bi bi-hospital me-1"></i> SIMRS
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                                                    <i class="bi bi-calculator me-1"></i> Rasio
                                                 </span>
                                             @endif
                                         </td>
                                         <td>
-                                            @if ($tipeVal === 'jurnal')
-                                                <div class="small">
-                                                    <div><strong>Pembilang:</strong> {{ $item->basis_pembilang?->label() ?? '-' }}</div>
-                                                    <div><strong>Penyebut:</strong> {{ $item->basis_penyebut?->label() ?? '-' }}</div>
-                                                    <div class="text-muted"><i class="bi bi-link-45deg"></i> {{ $item->mappingCoa->count() }} COA dipetakan</div>
-                                                </div>
-                                            @elseif ($tipeVal === 'variabel_manual')
+                                            @if ($tipeVal === 'MANUAL')
                                                 <div class="small">
                                                     <strong>Variabel:</strong>
                                                     @if ($item->variabelManual)
@@ -131,7 +127,11 @@
                                                     @endif
                                                 </div>
                                             @else
-                                                <div class="small text-muted">Bridging SIMRS Otomatis</div>
+                                                <div class="small">
+                                                    <div><strong>Pembilang:</strong> {{ $item->basis_pembilang?->label() ?? '-' }}</div>
+                                                    <div><strong>Penyebut:</strong> {{ $item->basis_penyebut?->label() ?? '-' }}</div>
+                                                    <div class="text-muted"><i class="bi bi-link-45deg"></i> {{ $item->mappingCoa->count() }} COA dipetakan</div>
+                                                </div>
                                             @endif
                                         </td>
                                         <td>

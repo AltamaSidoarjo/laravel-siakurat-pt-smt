@@ -2,7 +2,7 @@
 
 ## Ringkasan Modul
 
-Modul **Dashboard Indikator Kinerja** menyajikan visualisasi performa keuangan dan operasional rumah sakit berbasis indikator kinerja utama (KPI) standar BLU / Kepmenkes (seperti POBO, ROI, ROE, Current Ratio, Quick Ratio, Cash Ratio, Penagihan Piutang, Perputaran Persediaan, Rasio Kas terhadap Pengeluaran, Rasio Belanja SDM, dan Rasio Pendapatan terhadap RBA).
+Modul **Dashboard Indikator Kinerja** menyajikan visualisasi performa keuangan dan operasional rumah sakit berbasis 11 indikator kinerja utama (KPI) rumah sakit: Capaian Pendapatan, EBITDA, Profitabilitas, Beban Pegawai, Beban Farmasi, Beban Operasional, Collection Period, Kualitas Klaim JKN, Perputaran Persediaan, Beban Dana Sosial, dan Produktifitas Karyawan.
 
 Fitur utama meliputi:
 1. Monitoring eksekutif status ketercapaian target indikator dengan visual badge warna (Hijau / Kuning / Merah / Netral).
@@ -41,7 +41,7 @@ Seluruh endpoint di bawah ini diproteksi oleh middleware `auth` dan `module.acce
    - `q`: Kata kunci pencarian kode atau nama indikator (opsional, pencarian case-insensitive).
 
 2. **Endpoint Tren Bulanan (`/dashboard/indikator-kinerja/{kode}/tren`)**:
-   - `{kode}`: Kode unik indikator kinerja (misal: `POBO`, `ROI`, `CR`).
+   - `{kode}`: Kode unik indikator kinerja (misal: `capaian_pendapatan`, `ebitda`, `collection_period`, `beban_pegawai`).
    - `tahun`: Tahun kalender 12 bulan yang akan dievaluasi (integer, default: tahun berjalan).
 
 ---
@@ -60,7 +60,7 @@ flowchart TD
     D --> E["Query IndikatorKinerja aktif + relasi mappingCoa & variabelManual"]
     E --> F["Loop indikator -> evaluasiIndikator()"]
     F --> G["Resolve Pembilang: Saldo Neraca / Mutasi COA / Surplus Periode"]
-    F --> H["Resolve Penyebut: Saldo Neraca / Mutasi COA / RBA Prorata / Variabel Manual / Hari Riil"]
+    F --> H["Resolve Penyebut: Saldo Neraca / Mutasi COA / RBA Prorata / Variabel Manual"]
     F --> I["Hitung Nilai Akhir: safeDivide() + Tipe Kalkulasi"]
     F --> J["Evaluasi Status Target: HIJAU / KUNING / MERAH / NETRAL"]
     J --> K["Koleksi hasil evaluasi terkumpul"]
@@ -81,9 +81,9 @@ flowchart TD
    - Menghitung jumlah hari riil (`$hariRiil = start->diff(end)->days + 1`).
    - Mengambil seluruh leaf descendant COA IDs dengan fungsi memoized `kumpulkanLeafDescendantCoaIds()` untuk numerator dan denominator (termasuk filter akun eksklusi `is_excluded`).
    - Menghitung nilai pembilang: saldo per tanggal akhir jika bertipe `TURNOVER`, mutasi debet/kredit jika bertipe umum, atau surplus/defisit berjalan jika berbasis `SURPLUS`, ditambah mapping `ADDITION` dan dikurangi `DEDUCTION`.
-   - Menghitung nilai penyebut: saldo neraca, mutasi COA, nilai RBA proporsional bulan (`ambilRbaCoa()`), variabel manual terdekat (`ambilNilaiManualTerakhir()`), atau jumlah hari kalender riil.
+   - Menghitung nilai penyebut: saldo neraca, mutasi COA, nilai target RBA proporsional (`ambilRbaCoa()`), atau nilai variabel manual operasional terdekat (`ambilNilaiManualTerakhir()`). Untuk indikator bertipe `TURNOVER`, pembagian dilakukan terhadap rata-rata harian (dikali jumlah hari riil periode).
    - Menghitung rasio melalui `safeDivide($pembilang, $penyebut)`. Jika penyebut bernilai nol atau null, nilai diset `null` dan status dievaluasi sebagai `NETRAL`.
-   - Melakukan evaluasi ambang batas target melalui `evaluasiStatus()` berdasarkan `pola_evaluasi` (RENTANG_OPTIMAL, LEBIH_BESAR_BAIK, LEBIH_KECIL_BAIK) dan rentang target warna (hijau, kuning, merah).
+   - Melakukan evaluasi ambang batas target melalui `evaluasiStatus()` berdasarkan `pola_evaluasi` (`HIGHER_IS_BETTER`, `LOWER_IS_BETTER`, `TARGET_BAND`) dan rentang target warna (`HIJAU`, `KUNING`, `MERAH`, `NETRAL`), dengan pembulatan 2 desimal untuk mencegah celah nilai pecahan (*fractional gap*).
 5. Controller mengagregasikan `ringkasanStatus` secara in-memory dari koleksi evaluasi tanpa melakukan query database tambahan.
 6. Bila parameter `q` diberikan, controller menyaring koleksi indikator berdasarkan kecocokan substring pada `kode` atau `nama` (case-insensitive).
 7. Mengembalikan view `dashboard.indikator-kinerja.index` yang berisi widget ringkasan eksekutif, filter periode, dan kartu matriks indikator.
@@ -158,3 +158,16 @@ flowchart TD
    - Untuk penyebut berbasis `RBA`, sistem menghitung porsi target anggaran RBA secara proporsional sesuai jumlah bulan dalam rentang filter tanggal (`ambilRbaCoa()` dan `hitungAlokasiBulanPerTahun()`).
 5. **Widget Home Dashboard**:
    - Ringkasan status indikator kinerja juga dapat ditampilkan pada halaman utama (Home) melalui endpoint JSON `/home/ringkasan-indikator` yang memanggil `IndikatorKinerjaService::getRingkasanStatus()`.
+6. **Daftar 11 Indikator Kinerja Baseline & Variabel Manual**:
+   - `capaian_pendapatan`: Capaian Pendapatan (`%`, `RASIO`, COA / RBA, `HIGHER_IS_BETTER`)
+   - `ebitda`: EBITDA Margin (`%`, `RASIO`, SURPLUS + Addition / COA, `HIGHER_IS_BETTER`)
+   - `profitabilitas`: Profitabilitas / NPM (`%`, `RASIO`, SURPLUS / COA, `HIGHER_IS_BETTER`)
+   - `beban_pegawai`: Beban Pegawai (`%`, `RASIO`, COA / COA, `TARGET_BAND`: 20%-25% Hijau, 25%-30% Kuning)
+   - `beban_farmasi`: Beban Farmasi (`%`, `RASIO`, COA / COA, `LOWER_IS_BETTER`)
+   - `beban_operasional`: Beban Operasional (`%`, `RASIO`, COA / COA, `LOWER_IS_BETTER`)
+   - `collection_period`: Collection Period (`Hari`, `TURNOVER`, COA / COA, `LOWER_IS_BETTER`)
+   - `kualitas_klaim_jkn`: Kualitas Klaim JKN (`%`, `MANUAL`, Variabel Manual, `HIGHER_IS_BETTER`)
+   - `perputaran_persediaan`: Perputaran Persediaan (`Hari`, `TURNOVER`, COA / COA, `LOWER_IS_BETTER`)
+   - `beban_dana_sosial`: Beban Dana Sosial (`%`, `RASIO`, COA / COA, `HIGHER_IS_BETTER`)
+   - `produktifitas_karyawan`: Produktifitas Karyawan (`Juta/org/bln`, `RASIO`, COA / Variabel Manual, `HIGHER_IS_BETTER`)
+   - Variabel Manual: `lolos_bahv_pertama_jkn` (Persentase Lolos BAHV Pertama JKN, `%`) dan `sdm_non_organik` (Jumlah SDM Non Organik, `Orang`).
