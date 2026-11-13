@@ -54,14 +54,7 @@
                         </div>
                         <div>
                             @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'create'))
-                                @php
-                                    $createUrl = Route::has('setting-indikator-kinerja.create')
-                                        ? route('setting-indikator-kinerja.create')
-                                        : (Route::has('pengaturan.setting-indikator-kinerja.create')
-                                            ? route('pengaturan.setting-indikator-kinerja.create')
-                                            : '#');
-                                @endphp
-                                <a href="{{ $createUrl }}" class="btn btn-success fw-bold">
+                                <a href="{{ route('setting-indikator-kinerja.create') }}" class="btn btn-success fw-bold">
                                     <i class="bi bi-plus-circle me-1"></i> Tambah Indikator Baru
                                 </a>
                             @endif
@@ -165,24 +158,20 @@
                                             @endif
                                         </td>
                                         <td class="text-center text-nowrap">
-                                            @php
-                                                $editUrl = Route::has('setting-indikator-kinerja.edit')
-                                                    ? route('setting-indikator-kinerja.edit', $item->id)
-                                                    : (Route::has('pengaturan.setting-indikator-kinerja.edit')
-                                                        ? route('pengaturan.setting-indikator-kinerja.edit', $item->id)
-                                                        : '#');
-                                                $destroyUrl = Route::has('setting-indikator-kinerja.destroy')
-                                                    ? route('setting-indikator-kinerja.destroy', $item->id)
-                                                    : (Route::has('pengaturan.setting-indikator-kinerja.destroy')
-                                                        ? route('pengaturan.setting-indikator-kinerja.destroy', $item->id)
-                                                        : '#');
-                                            @endphp
-                                            <a href="{{ $editUrl }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="Edit">
-                                                <i class="bi bi-pencil"></i>
-                                            </a>
-                                            <a href="{{ $destroyUrl }}" class="btn btn-sm btn-outline-danger py-0 px-2 ms-1" title="Hapus" onclick="if(!confirm('Apakah Anda yakin ingin menghapus indikator ini?')) return false;">
-                                                <i class="bi bi-trash"></i>
-                                            </a>
+                                            @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'update'))
+                                                <a href="{{ route('setting-indikator-kinerja.edit', $item->id) }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                            @endif
+                                            @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'delete'))
+                                                <form action="{{ route('setting-indikator-kinerja.destroy', $item->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus indikator ini?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2 ms-1" title="Hapus">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
                                         </td>
                                     </tr>
                                 @empty

@@ -2,10 +2,18 @@
 
 namespace App\Http\Controllers\Pengaturan;
 
+use App\Enums\IndikatorKinerja\BasisPembilang;
+use App\Enums\IndikatorKinerja\BasisPenyebut;
+use App\Enums\IndikatorKinerja\PeranCoa;
+use App\Enums\IndikatorKinerja\PolaEvaluasi;
 use App\Enums\IndikatorKinerja\SatuanIndikator;
+use App\Enums\IndikatorKinerja\TipeKalkulasi;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Pengaturan\SimpanManualDataRequest;
+use App\Http\Requests\Pengaturan\StoreIndikatorKinerjaRequest;
 use App\Http\Requests\Pengaturan\StoreVariabelManualRequest;
+use App\Http\Requests\Pengaturan\UpdateIndikatorKinerjaRequest;
+use App\Models\Coa;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKinerjaManualData;
 use App\Models\IndikatorKinerjaVariabelManual;
@@ -47,6 +55,109 @@ class SettingIndikatorKinerjaController extends Controller
             'variabelManuals' => $variabelManuals,
             'satuanOptions' => $satuanOptions,
         ]);
+    }
+
+    public function create(): View
+    {
+        $coas = Coa::active()->orderBy('kode')->get();
+        $variabelManuals = IndikatorKinerjaVariabelManual::orderBy('id')->get();
+
+        return view('pengaturan.setting-indikator-kinerja.create', [
+            'coas' => $coas,
+            'variabelManuals' => $variabelManuals,
+            'satuanOptions' => SatuanIndikator::cases(),
+            'tipeKalkulasiOptions' => TipeKalkulasi::cases(),
+            'basisPembilangOptions' => BasisPembilang::cases(),
+            'basisPenyebutOptions' => BasisPenyebut::cases(),
+            'polaEvaluasiOptions' => PolaEvaluasi::cases(),
+            'peranCoaOptions' => PeranCoa::cases(),
+        ]);
+    }
+
+    public function store(StoreIndikatorKinerjaRequest $request): RedirectResponse
+    {
+        DB::transaction(function () use ($request): void {
+            $data = $request->safe()->except('mappings');
+            if (! isset($data['urutan']) || $data['urutan'] === null) {
+                $data['urutan'] = ((int) IndikatorKinerja::max('urutan')) + 1;
+            }
+
+            $indikator = IndikatorKinerja::create($data);
+
+            $mappings = $request->input('mappings', []);
+            if (is_array($mappings)) {
+                foreach ($mappings as $mapping) {
+                    if (! empty($mapping['coa_id'])) {
+                        $indikator->mappingCoa()->create([
+                            'coa_id' => (int) $mapping['coa_id'],
+                            'peran' => $mapping['peran'] ?? PeranCoa::NUMERATOR->value,
+                            'is_excluded' => ! empty($mapping['is_excluded']),
+                        ]);
+                    }
+                }
+            }
+        });
+
+        return redirect()
+            ->route('setting-indikator-kinerja.index', ['tab' => 'indikator'])
+            ->with('success', 'Indikator kinerja berhasil ditambahkan.');
+    }
+
+    public function edit(IndikatorKinerja $indikator): View
+    {
+        $indikator->load(['mappingCoa.coa', 'variabelManual']);
+        $coas = Coa::active()->orderBy('kode')->get();
+        $variabelManuals = IndikatorKinerjaVariabelManual::orderBy('id')->get();
+
+        return view('pengaturan.setting-indikator-kinerja.edit', [
+            'indikator' => $indikator,
+            'coas' => $coas,
+            'variabelManuals' => $variabelManuals,
+            'satuanOptions' => SatuanIndikator::cases(),
+            'tipeKalkulasiOptions' => TipeKalkulasi::cases(),
+            'basisPembilangOptions' => BasisPembilang::cases(),
+            'basisPenyebutOptions' => BasisPenyebut::cases(),
+            'polaEvaluasiOptions' => PolaEvaluasi::cases(),
+            'peranCoaOptions' => PeranCoa::cases(),
+        ]);
+    }
+
+    public function update(UpdateIndikatorKinerjaRequest $request, IndikatorKinerja $indikator): RedirectResponse
+    {
+        DB::transaction(function () use ($request, $indikator): void {
+            $data = $request->safe()->except('mappings');
+            $indikator->update($data);
+
+            $indikator->mappingCoa()->delete();
+
+            $mappings = $request->input('mappings', []);
+            if (is_array($mappings)) {
+                foreach ($mappings as $mapping) {
+                    if (! empty($mapping['coa_id'])) {
+                        $indikator->mappingCoa()->create([
+                            'coa_id' => (int) $mapping['coa_id'],
+                            'peran' => $mapping['peran'] ?? PeranCoa::NUMERATOR->value,
+                            'is_excluded' => ! empty($mapping['is_excluded']),
+                        ]);
+                    }
+                }
+            }
+        });
+
+        return redirect()
+            ->route('setting-indikator-kinerja.index', ['tab' => 'indikator'])
+            ->with('success', 'Indikator kinerja berhasil diperbarui.');
+    }
+
+    public function destroy(IndikatorKinerja $indikator): RedirectResponse
+    {
+        DB::transaction(function () use ($indikator): void {
+            $indikator->delete();
+        });
+
+        return redirect()
+            ->route('setting-indikator-kinerja.index', ['tab' => 'indikator'])
+            ->with('success', 'Indikator kinerja berhasil dihapus.');
     }
 
     public function storeVariabel(StoreVariabelManualRequest $request): RedirectResponse
