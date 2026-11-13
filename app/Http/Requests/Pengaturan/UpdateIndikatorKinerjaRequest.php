@@ -43,7 +43,7 @@ class UpdateIndikatorKinerjaRequest extends FormRequest
                 'max:50',
                 Rule::unique('indikator_kinerja', 'kode')->ignore($indikatorId),
             ],
-            'nama' => ['required', 'string', 'max:255'],
+            'nama' => ['required', 'string', 'max:100'],
             'satuan' => ['required', Rule::enum(SatuanIndikator::class)],
             'tipe_kalkulasi' => ['required', Rule::enum(TipeKalkulasi::class)],
             'basis_pembilang' => ['nullable', Rule::enum(BasisPembilang::class)],

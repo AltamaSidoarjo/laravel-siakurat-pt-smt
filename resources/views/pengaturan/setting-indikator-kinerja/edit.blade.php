@@ -518,17 +518,11 @@
         }
 
         function updateBasisInteractivity() {
-            const tipe = tipeKalkulasiSelect.value;
-            const penyebut = basisPenyebutSelect.value;
+            const tipe = tipeKalkulasiSelect ? tipeKalkulasiSelect.value : '';
+            const penyebut = basisPenyebutSelect ? basisPenyebutSelect.value : '';
 
-            if (tipe === 'MANUAL') {
-                if (variabelManualCol) variabelManualCol.style.display = '';
-            } else {
-                if (penyebut === 'MANUAL') {
-                    if (variabelManualCol) variabelManualCol.style.display = '';
-                } else {
-                    if (variabelManualCol) variabelManualCol.style.display = '';
-                }
+            if (variabelManualCol) {
+                variabelManualCol.style.display = (tipe === 'MANUAL' || penyebut === 'MANUAL') ? '' : 'none';
             }
         }
 

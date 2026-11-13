@@ -84,17 +84,9 @@ class SettingIndikatorKinerjaController extends Controller
 
             $indikator = IndikatorKinerja::create($data);
 
-            $mappings = $request->input('mappings', []);
+            $mappings = $request->validated('mappings') ?? [];
             if (is_array($mappings)) {
-                foreach ($mappings as $mapping) {
-                    if (! empty($mapping['coa_id'])) {
-                        $indikator->mappingCoa()->create([
-                            'coa_id' => (int) $mapping['coa_id'],
-                            'peran' => $mapping['peran'] ?? PeranCoa::NUMERATOR->value,
-                            'is_excluded' => ! empty($mapping['is_excluded']),
-                        ]);
-                    }
-                }
+                $this->syncMappings($indikator, $mappings);
             }
         });
 
@@ -126,27 +118,39 @@ class SettingIndikatorKinerjaController extends Controller
     {
         DB::transaction(function () use ($request, $indikator): void {
             $data = $request->safe()->except('mappings');
+            if (! isset($data['urutan']) || $data['urutan'] === null) {
+                $data['urutan'] = $indikator->urutan ?? 0;
+            }
+
             $indikator->update($data);
 
-            $indikator->mappingCoa()->delete();
-
-            $mappings = $request->input('mappings', []);
+            $mappings = $request->validated('mappings') ?? [];
             if (is_array($mappings)) {
-                foreach ($mappings as $mapping) {
-                    if (! empty($mapping['coa_id'])) {
-                        $indikator->mappingCoa()->create([
-                            'coa_id' => (int) $mapping['coa_id'],
-                            'peran' => $mapping['peran'] ?? PeranCoa::NUMERATOR->value,
-                            'is_excluded' => ! empty($mapping['is_excluded']),
-                        ]);
-                    }
-                }
+                $this->syncMappings($indikator, $mappings);
             }
         });
 
         return redirect()
             ->route('setting-indikator-kinerja.index', ['tab' => 'indikator'])
             ->with('success', 'Indikator kinerja berhasil diperbarui.');
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $mappings
+     */
+    private function syncMappings(IndikatorKinerja $indikator, array $mappings): void
+    {
+        $indikator->mappingCoa()->delete();
+
+        foreach ($mappings as $mapping) {
+            if (! empty($mapping['coa_id'])) {
+                $indikator->mappingCoa()->create([
+                    'coa_id' => (int) $mapping['coa_id'],
+                    'peran' => $mapping['peran'] ?? PeranCoa::NUMERATOR->value,
+                    'is_excluded' => ! empty($mapping['is_excluded']),
+                ]);
+            }
+        }
     }
 
     public function destroy(IndikatorKinerja $indikator): RedirectResponse

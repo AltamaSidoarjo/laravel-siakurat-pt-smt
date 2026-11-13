@@ -34,7 +34,7 @@ class StoreIndikatorKinerjaRequest extends FormRequest
     {
         return [
             'kode' => ['required', 'string', 'max:50', 'unique:indikator_kinerja,kode'],
-            'nama' => ['required', 'string', 'max:255'],
+            'nama' => ['required', 'string', 'max:100'],
             'satuan' => ['required', Rule::enum(SatuanIndikator::class)],
             'tipe_kalkulasi' => ['required', Rule::enum(TipeKalkulasi::class)],
             'basis_pembilang' => ['nullable', Rule::enum(BasisPembilang::class)],

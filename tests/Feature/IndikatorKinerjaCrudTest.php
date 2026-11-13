@@ -319,6 +319,47 @@ class IndikatorKinerjaCrudTest extends TestCase
         $response->assertSessionHasErrors(['kode']);
     }
 
+    public function test_validation_fails_when_nama_exceeds_100_chars(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->post(route('setting-indikator-kinerja.store'), [
+            'kode' => 'kpi_long_name',
+            'nama' => str_repeat('A', 101),
+            'satuan' => SatuanIndikator::PERSEN->value,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO->value,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER->value,
+        ]);
+
+        $response->assertSessionHasErrors(['nama']);
+    }
+
+    public function test_update_preserves_existing_urutan_when_null_or_omitted(): void
+    {
+        $user = User::factory()->create();
+        $indikator = IndikatorKinerja::create([
+            'kode' => 'kpi_urutan_test',
+            'nama' => 'KPI Urutan Test',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'urutan' => 7,
+        ]);
+
+        $response = $this->actingAs($user)->put(route('setting-indikator-kinerja.update', $indikator->id), [
+            'kode' => 'kpi_urutan_test',
+            'nama' => 'KPI Urutan Test Updated',
+            'satuan' => SatuanIndikator::PERSEN->value,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO->value,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER->value,
+            'urutan' => null,
+        ]);
+
+        $response->assertRedirect(route('setting-indikator-kinerja.index', ['tab' => 'indikator']));
+        $indikator->refresh();
+        $this->assertSame(7, $indikator->urutan);
+    }
+
     public function test_unauthorized_user_cannot_access(): void
     {
         $roleTanpaAkses = Role::create([
