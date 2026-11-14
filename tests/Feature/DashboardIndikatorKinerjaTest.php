@@ -215,6 +215,21 @@ class DashboardIndikatorKinerjaTest extends TestCase
             ->assertSee('Tidak ada indikator yang sesuai dengan filter pencarian');
     }
 
+    public function test_status_filter_filters_indicators_by_rag_status(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+        $this->assignRolePermission($user);
+
+        // Filter by ALL returns standard list
+        $responseAll = $this->actingAs($user)->get(route('dashboard.indikator-kinerja.index', ['status' => 'ALL']));
+        $responseAll->assertOk();
+
+        // Filter by a specific status query parameter
+        $responseHijau = $this->actingAs($user)->get(route('dashboard.indikator-kinerja.index', ['status' => 'HIJAU']));
+        $responseHijau->assertOk();
+    }
+
     public function test_custom_date_range_filters_dashboard(): void
     {
         $this->seed(IndikatorKinerjaSeeder::class);

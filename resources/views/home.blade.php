@@ -149,7 +149,7 @@
                             <div class="text-muted small fw-semibold text-uppercase">Total Indikator</div>
                             <h3 class="mb-0 fw-bold text-dark mt-1" id="kpiTotalCount">-</h3>
                         </div>
-                        <div class="rounded-circle p-2 bg-secondary-subtle text-secondary">
+                        <div class="rounded-circle bg-secondary-subtle text-secondary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px;">
                             <i class="bi bi-collection fs-4"></i>
                         </div>
                     </div>
@@ -160,7 +160,7 @@
                             <div class="text-success small fw-semibold text-uppercase">Tercapai (Hijau)</div>
                             <h3 class="mb-0 fw-bold text-success mt-1" id="kpiHijauCount">-</h3>
                         </div>
-                        <div class="rounded-circle p-2 bg-success text-white">
+                        <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px;">
                             <i class="bi bi-check-circle fs-4"></i>
                         </div>
                     </div>
@@ -171,7 +171,7 @@
                             <div class="text-warning-emphasis small fw-semibold text-uppercase">Perhatian (Kuning)</div>
                             <h3 class="mb-0 fw-bold text-warning-emphasis mt-1" id="kpiKuningCount">-</h3>
                         </div>
-                        <div class="rounded-circle p-2 bg-warning text-dark">
+                        <div class="rounded-circle bg-warning text-dark d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px;">
                             <i class="bi bi-exclamation-triangle fs-4"></i>
                         </div>
                     </div>
@@ -182,7 +182,7 @@
                             <div class="text-danger small fw-semibold text-uppercase">Kritis (Merah)</div>
                             <h3 class="mb-0 fw-bold text-danger mt-1" id="kpiMerahCount">-</h3>
                         </div>
-                        <div class="rounded-circle p-2 bg-danger text-white">
+                        <div class="rounded-circle bg-danger text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px;">
                             <i class="bi bi-x-circle fs-4"></i>
                         </div>
                     </div>

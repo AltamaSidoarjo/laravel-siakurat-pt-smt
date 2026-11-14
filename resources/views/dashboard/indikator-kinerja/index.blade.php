@@ -2,13 +2,50 @@
 
 @section('title', 'Dashboard Indikator Kinerja')
 
+@push('styles')
+<style>
+    .kpi-executive-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        cursor: pointer;
+    }
+    .kpi-executive-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0.65rem 1.5rem rgba(15, 23, 42, 0.1) !important;
+    }
+    .kpi-executive-card:hover .kpi-card-title {
+        color: var(--bs-primary) !important;
+    }
+    .kpi-line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .status-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+    .status-dot-pulse {
+        box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
+        animation: statusPulse 2s infinite;
+    }
+    @keyframes statusPulse {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(25, 135, 84, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(25, 135, 84, 0); }
+    }
+</style>
+@endpush
+
 @php
-    $formatBand = function ($min, $max, $satuan = '') {
+    $formatBand = function ($min, $max, $satuan = '', $pola = null) {
         $satuanStr = $satuan ? ' '.$satuan : '';
         if ($min !== null && $max !== null) {
             $minFormatted = rtrim(rtrim(number_format((float) $min, 2, ',', '.'), '0'), ',');
             $maxFormatted = rtrim(rtrim(number_format((float) $max, 2, ',', '.'), '0'), ',');
-            return ($min == $max) ? "= {$minFormatted}{$satuanStr}" : "{$minFormatted} - {$maxFormatted}{$satuanStr}";
+            return ($min == $max) ? "= {$minFormatted}{$satuanStr}" : "{$minFormatted} – {$maxFormatted}{$satuanStr}";
         }
         if ($min !== null) {
             $minFormatted = rtrim(rtrim(number_format((float) $min, 2, ',', '.'), '0'), ',');
@@ -18,120 +55,125 @@
             $maxFormatted = rtrim(rtrim(number_format((float) $max, 2, ',', '.'), '0'), ',');
             return "≤ {$maxFormatted}{$satuanStr}";
         }
+        $polaVal = $pola instanceof \App\Enums\IndikatorKinerja\PolaEvaluasi ? $pola->value : (string) $pola;
+        if ($polaVal === 'TARGET_BAND') {
+            return 'Di luar rentang';
+        }
         return '-';
     };
+
+    $totalCount = $ringkasanStatus['total'] ?? 0;
+    $pctHijau = $totalCount > 0 ? round((($ringkasanStatus['hijau'] ?? 0) / $totalCount) * 100) : 0;
+    $pctKuning = $totalCount > 0 ? round((($ringkasanStatus['kuning'] ?? 0) / $totalCount) * 100) : 0;
+    $pctMerah = $totalCount > 0 ? round((($ringkasanStatus['merah'] ?? 0) / $totalCount) * 100) : 0;
+
+    $daysCount = \Carbon\Carbon::parse($startDate)->diffInDays(\Carbon\Carbon::parse($endDate)) + 1;
 @endphp
 
 @section('content')
-<div class="d-flex flex-column gap-4">
-    <!-- Header Page -->
+<div class="d-flex flex-column gap-3">
+
+    <!-- Header Page: Executive Identity -->
     <div class="card border-0 shadow-sm bg-white">
-        <div class="card-body p-4">
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-                <div>
-                    <div class="text-uppercase text-primary fw-semibold small tracking-wide mb-1">
-                        <i class="bi bi-speedometer2 me-1"></i> Dashboard Eksekutif
+        <div class="card-body p-3 p-md-4">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+                <div class="d-flex align-items-center gap-2.5">
+                    <div class="rounded-3 bg-success text-white p-2 d-flex align-items-center justify-content-center shadow-sm flex-shrink-0" style="width: 42px; height: 42px;">
+                        <i class="bi bi-activity fs-5"></i>
                     </div>
-                    <h3 class="mb-1 fw-bold text-dark">Dashboard Indikator Kinerja</h3>
-                    <p class="text-muted mb-0 small">
-                        Monitoring realisasi indikator kinerja utama rumah sakit berbasis standar evaluasi Red, Amber, Green (RAG).
-                    </p>
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <h5 class="mb-0 fw-bold text-dark">Dashboard Indikator Kinerja</h5>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle" style="font-size: 0.7rem;">Eksekutif</span>
+                        </div>
+                        <p class="text-muted mb-0 mt-0.5" style="max-width: 480px; font-size: 0.78rem; line-height: 1.35;">
+                            Monitoring capaian kinerja keuangan & operasional rumah sakit berbasis standar evaluasi Red, Amber, Green (RAG).
+                        </p>
+                    </div>
                 </div>
-                <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-light text-dark border px-3 py-2 fw-semibold">
-                        <i class="bi bi-calendar3 me-1 text-primary"></i>
-                        Periode: {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} — {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
-                    </span>
+
+                <div class="d-flex align-items-center flex-nowrap gap-2 flex-shrink-0 ms-lg-auto">
+                    <div class="d-flex align-items-center bg-light px-2.5 py-1.5 rounded-3 border small">
+                        <span class="status-dot bg-success status-dot-pulse me-2"></span>
+                        <span class="text-secondary me-1">Periode:</span>
+                        <strong class="text-dark">{{ \Carbon\Carbon::parse($startDate)->format('d M Y') }}</strong>
+                        <span class="text-muted mx-1">s/d</span>
+                        <strong class="text-dark">{{ \Carbon\Carbon::parse($endDate)->format('d M Y') }}</strong>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle ms-2">{{ $daysCount }} Hari Riil</span>
+                    </div>
+
+                    @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'view'))
+                        <a href="{{ route('pengaturan.setting-indikator-kinerja.index') }}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1.5 shadow-xs text-nowrap" title="Buka Pengaturan Indikator">
+                            <i class="bi bi-sliders text-success"></i>
+                            <span>Setting Indikator</span>
+                        </a>
+                    @endif
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- Filter Bar -->
-    <div class="card border-0 shadow-sm">
-        <div class="card-body p-3 p-md-4">
-            <form method="GET" action="{{ route('dashboard.indikator-kinerja.index') }}" id="filterForm">
-                <div class="row g-3 align-items-end">
-                    <div class="col-12 col-md-3">
-                        <label for="dariTanggal" class="form-label small fw-semibold text-muted">Tanggal Mulai</label>
-                        <input type="date" class="form-control" id="dariTanggal" name="dariTanggal" value="{{ $startDate }}">
-                    </div>
-                    <div class="col-12 col-md-3">
-                        <label for="sampaiTanggal" class="form-label small fw-semibold text-muted">Tanggal Selesai</label>
-                        <input type="date" class="form-control" id="sampaiTanggal" name="sampaiTanggal" value="{{ $endDate }}">
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <label for="q" class="form-label small fw-semibold text-muted">Cari Indikator</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-light text-muted border-end-0">
-                                <i class="bi bi-search"></i>
-                            </span>
-                            <input type="text" class="form-control border-start-0" id="q" name="q" value="{{ $q }}" placeholder="Cari nama atau kode indikator...">
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-2 d-flex gap-2">
-                        <button type="submit" class="btn btn-primary flex-fill">
-                            <i class="bi bi-funnel me-1"></i> Terapkan
-                        </button>
-                        <a href="{{ route('dashboard.indikator-kinerja.index') }}" class="btn btn-light border flex-fill text-center">
-                            Reset
-                        </a>
-                    </div>
-                </div>
-            </form>
         </div>
     </div>
 
     <!-- Executive Summary Status Strip -->
     <div class="row g-3">
+        <!-- Total Indikator -->
         <div class="col-6 col-lg-3">
-            <div class="card border-0 shadow-sm h-100 bg-white">
+            <div class="card border-0 shadow-sm h-100 bg-white border-start border-4 border-primary">
                 <div class="card-body p-3 p-md-4 d-flex align-items-center justify-content-between">
                     <div>
-                        <div class="text-muted small fw-semibold text-uppercase">Total Indikator</div>
-                        <h2 class="mb-0 fw-bold text-dark mt-1">{{ $ringkasanStatus['total'] }}</h2>
+                        <div class="text-muted small fw-semibold text-uppercase tracking-wider">Total Indikator</div>
+                        <h2 class="mb-0 fw-bold text-dark mt-1">{{ $totalCount }}</h2>
+                        <div class="small text-muted mt-1">Metrik Terpantau</div>
                     </div>
-                    <div class="rounded-circle p-3 bg-primary-subtle text-primary">
-                        <i class="bi bi-collection fs-4"></i>
+                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px;">
+                        <i class="bi bi-bar-chart-line-fill fs-4"></i>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Hijau (Baik) -->
         <div class="col-6 col-lg-3">
-            <div class="card border-0 shadow-sm h-100 bg-white">
+            <div class="card border-0 shadow-sm h-100 bg-white border-start border-4 border-success">
                 <div class="card-body p-3 p-md-4 d-flex align-items-center justify-content-between">
                     <div>
-                        <div class="text-success small fw-semibold text-uppercase">Tercapai (Hijau)</div>
-                        <h2 class="mb-0 fw-bold text-success mt-1">{{ $ringkasanStatus['hijau'] }}</h2>
+                        <div class="text-success small fw-semibold text-uppercase tracking-wider">Status Hijau (Baik)</div>
+                        <h2 class="mb-0 fw-bold text-success mt-1">{{ $ringkasanStatus['hijau'] ?? 0 }}</h2>
+                        <div class="small text-success fw-medium mt-1">{{ $pctHijau }}% Memenuhi Target</div>
                     </div>
-                    <div class="rounded-circle p-3 bg-success-subtle text-success">
-                        <i class="bi bi-check-circle fs-4"></i>
+                    <div class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px;">
+                        <i class="bi bi-check-circle-fill fs-4"></i>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Kuning (Waspada) -->
         <div class="col-6 col-lg-3">
-            <div class="card border-0 shadow-sm h-100 bg-white">
+            <div class="card border-0 shadow-sm h-100 bg-white border-start border-4 border-warning">
                 <div class="card-body p-3 p-md-4 d-flex align-items-center justify-content-between">
                     <div>
-                        <div class="text-warning-emphasis small fw-semibold text-uppercase">Perhatian (Kuning)</div>
-                        <h2 class="mb-0 fw-bold text-warning-emphasis mt-1">{{ $ringkasanStatus['kuning'] }}</h2>
+                        <div class="text-warning-emphasis small fw-semibold text-uppercase tracking-wider">Status Kuning (Waspada)</div>
+                        <h2 class="mb-0 fw-bold text-warning-emphasis mt-1">{{ $ringkasanStatus['kuning'] ?? 0 }}</h2>
+                        <div class="small text-warning-emphasis fw-medium mt-1">{{ $pctKuning }}% Perlu Perhatian</div>
                     </div>
-                    <div class="rounded-circle p-3 bg-warning-subtle text-warning">
-                        <i class="bi bi-exclamation-triangle fs-4"></i>
+                    <div class="rounded-circle bg-warning-subtle text-warning d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px;">
+                        <i class="bi bi-exclamation-triangle-fill fs-4"></i>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Merah (Kritis) -->
         <div class="col-6 col-lg-3">
-            <div class="card border-0 shadow-sm h-100 bg-white">
+            <div class="card border-0 shadow-sm h-100 bg-white border-start border-4 border-danger">
                 <div class="card-body p-3 p-md-4 d-flex align-items-center justify-content-between">
                     <div>
-                        <div class="text-danger small fw-semibold text-uppercase">Kritis (Merah)</div>
-                        <h2 class="mb-0 fw-bold text-danger mt-1">{{ $ringkasanStatus['merah'] }}</h2>
+                        <div class="text-danger small fw-semibold text-uppercase tracking-wider">Status Merah (Kritis)</div>
+                        <h2 class="mb-0 fw-bold text-danger mt-1">{{ $ringkasanStatus['merah'] ?? 0 }}</h2>
+                        <div class="small text-danger fw-medium mt-1">{{ $pctMerah }}% Evaluasi Diperlukan</div>
                     </div>
-                    <div class="rounded-circle p-3 bg-danger-subtle text-danger">
-                        <i class="bi bi-x-circle fs-4"></i>
+                    <div class="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center flex-shrink-0" style="width: 48px; height: 48px;">
+                        <i class="bi bi-x-circle-fill fs-4"></i>
                     </div>
                 </div>
             </div>
@@ -142,120 +184,206 @@
         <div class="alert alert-secondary border-0 shadow-sm py-2 px-3 mb-0 small d-flex align-items-center gap-2">
             <i class="bi bi-info-circle-fill text-secondary flex-shrink-0"></i>
             <div>
-                Terdapat <strong>{{ $ringkasanStatus['netral'] }}</strong> indikator berstatus netral / informasi (belum memiliki target RAG atau data manual belum terisi).
+                Terdapat <strong>{{ $ringkasanStatus['netral'] }}</strong> indikator berstatus netral / informasi (belum memiliki parameter target RAG lengkap atau data manual belum terisi).
             </div>
         </div>
     @endif
 
-    <!-- Content Card with View Switcher -->
+    <!-- Toolbar: Server-Side Filters & View Modes -->
+    <div class="card border-0 shadow-sm bg-white">
+        <div class="card-body p-3 p-md-4">
+            <form method="GET" action="{{ route('dashboard.indikator-kinerja.index') }}" id="filterForm">
+                <div class="row g-3 align-items-end">
+                    <!-- Tanggal Mulai -->
+                    <div class="col-12 col-sm-6 col-lg-2">
+                        <label for="dariTanggal" class="form-label small fw-semibold text-muted mb-1">
+                            <i class="bi bi-calendar-event me-1"></i> Tanggal Mulai
+                        </label>
+                        <input type="date" class="form-control form-control-sm" id="dariTanggal" name="dariTanggal" value="{{ $startDate }}">
+                    </div>
+
+                    <!-- Tanggal Selesai -->
+                    <div class="col-12 col-sm-6 col-lg-2">
+                        <label for="sampaiTanggal" class="form-label small fw-semibold text-muted mb-1">
+                            <i class="bi bi-calendar-check me-1"></i> Tanggal Selesai
+                        </label>
+                        <input type="date" class="form-control form-control-sm" id="sampaiTanggal" name="sampaiTanggal" value="{{ $endDate }}">
+                    </div>
+
+                    <!-- Search Input -->
+                    <div class="col-12 col-sm-6 col-lg-3">
+                        <label for="q" class="form-label small fw-semibold text-muted mb-1">
+                            <i class="bi bi-search me-1"></i> Cari Indikator
+                        </label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light text-muted border-end-0">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" class="form-control border-start-0" id="q" name="q" value="{{ $q }}" placeholder="Nama atau kode metrik...">
+                        </div>
+                    </div>
+
+                    <!-- Status RAG Filter -->
+                    <div class="col-12 col-sm-6 col-lg-2">
+                        <label for="statusSelect" class="form-label small fw-semibold text-muted mb-1">
+                            <i class="bi bi-funnel me-1"></i> Status RAG
+                        </label>
+                        <select class="form-select form-select-sm" id="statusSelect" name="status">
+                            <option value="ALL" @selected(($statusFilter ?? 'ALL') === 'ALL')>Semua Status</option>
+                            <option value="HIJAU" @selected(($statusFilter ?? '') === 'HIJAU')>🟢 Hijau (Baik)</option>
+                            <option value="KUNING" @selected(($statusFilter ?? '') === 'KUNING')>🟡 Kuning (Waspada)</option>
+                            <option value="MERAH" @selected(($statusFilter ?? '') === 'MERAH')>🔴 Merah (Kritis)</option>
+                        </select>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="col-12 col-lg-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary flex-fill fw-semibold">
+                            <i class="bi bi-filter me-1"></i> Terapkan
+                        </button>
+                        <a href="{{ route('dashboard.indikator-kinerja.index') }}" class="btn btn-sm btn-light border flex-fill text-center fw-semibold">
+                            Reset
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Content Card with Mode Toggle -->
     <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white border-bottom py-3 px-4 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+        <div class="card-header bg-white border-bottom py-3 px-3 px-md-4 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
             <div class="d-flex align-items-center gap-2">
-                <h5 class="mb-0 fw-bold text-dark fs-6">Daftar Indikator Kinerja</h5>
+                <h5 class="mb-0 fw-bold text-dark fs-6">Daftar Indikator Terpantau</h5>
                 <span class="badge bg-secondary-subtle text-secondary rounded-pill">
                     {{ $indikatorList->count() }} Indikator
                 </span>
             </div>
 
-            <!-- View Switcher Toggle -->
-            <div class="btn-group" role="group" aria-label="View Switcher">
-                <button type="button" class="btn btn-sm btn-outline-primary active" id="btnToggleCards" title="Tampilkan Mode Kartu Eksekutif">
-                    <i class="bi bi-grid-fill me-1"></i> Mode Kartu
+            <!-- View Switcher Segmented Buttons -->
+            <div class="btn-group btn-group-sm" role="group" aria-label="Pilihan Tampilan">
+                <button type="button" class="btn btn-outline-primary active" id="btnToggleCards" title="Tampilkan Mode Kartu Eksekutif">
+                    <i class="bi bi-grid-fill me-1"></i> Kartu Eksekutif
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="btnToggleTable" title="Tampilkan Mode Tabel Rinci">
-                    <i class="bi bi-table me-1"></i> Mode Tabel Rinci
+                <button type="button" class="btn btn-outline-primary" id="btnToggleTable" title="Tampilkan Mode Tabel Rinci">
+                    <i class="bi bi-table me-1"></i> Tabel Rinci
                 </button>
             </div>
         </div>
 
-        <div class="card-body p-4">
+        <div class="card-body p-3 p-md-4">
             @if ($indikatorList->isEmpty())
                 <div class="text-center py-5">
                     <div class="text-muted mb-3">
                         <i class="bi bi-search fs-1"></i>
                     </div>
-                    <h5 class="text-muted">Tidak ada indikator yang sesuai dengan filter pencarian.</h5>
-                    <p class="text-muted small mb-3">Coba gunakan kata kunci pencarian yang lain atau reset filter tanggal.</p>
-                    <a href="{{ route('dashboard.indikator-kinerja.index') }}" class="btn btn-outline-primary btn-sm">
+                    <h5 class="text-muted fw-bold">Tidak ada indikator yang sesuai dengan filter pencarian.</h5>
+                    <p class="text-muted small mb-3">Coba gunakan kata kunci pencarian yang lain atau sesuaikan filter status RAG & tanggal.</p>
+                    <a href="{{ route('dashboard.indikator-kinerja.index') }}" class="btn btn-outline-primary btn-sm fw-semibold">
                         <i class="bi bi-arrow-clockwise me-1"></i> Reset Filter
                     </a>
                 </div>
             @else
-                <!-- MODE 1: KARTU EKSEKUTIF (Card Grid) -->
+
+                <!-- ============================================== -->
+                <!-- VIEW 1: EXECUTIVE CARDS GRID                   -->
+                <!-- ============================================== -->
                 <div id="viewModeCards">
                     <div class="row g-3 g-lg-4">
                         @foreach ($indikatorList as $item)
                             @php
                                 $ind = $item['indikator'];
-                                $badgeClass = $item['status']->badgeClass();
+                                $statusEnum = $item['status'];
+                                $badgeClass = $statusEnum->badgeClass();
                                 $satuanStr = $item['satuan'] ?? '';
-                                $targetHijauText = $formatBand($ind->target_hijau_min, $ind->target_hijau_max, $satuanStr);
-                                $targetKuningText = $formatBand($ind->target_kuning_min, $ind->target_kuning_max, $satuanStr);
-                                $targetMerahText = $formatBand($ind->target_merah_min, $ind->target_merah_max, $satuanStr);
+                                $targetHijauText = $formatBand($ind->target_hijau_min, $ind->target_hijau_max, $satuanStr, $ind->pola_evaluasi);
+                                $targetKuningText = $formatBand($ind->target_kuning_min, $ind->target_kuning_max, $satuanStr, $ind->pola_evaluasi);
+                                $targetMerahText = $formatBand($ind->target_merah_min, $ind->target_merah_max, $satuanStr, $ind->pola_evaluasi);
                                 $polaLabel = $ind->pola_evaluasi ? $ind->pola_evaluasi->label() : '-';
                                 $tipeKalkulasiLabel = $ind->tipe_kalkulasi ? $ind->tipe_kalkulasi->label() : '-';
+
+                                // Color accents matching RAG
+                                $borderAccent = match($badgeClass) {
+                                    'success' => 'border-success',
+                                    'warning' => 'border-warning',
+                                    'danger' => 'border-danger',
+                                    default => 'border-secondary',
+                                };
+                                $bgSubtle = match($badgeClass) {
+                                    'success' => 'bg-success-subtle text-success border-success-subtle',
+                                    'warning' => 'bg-warning-subtle text-warning-emphasis border-warning-subtle',
+                                    'danger' => 'bg-danger-subtle text-danger border-danger-subtle',
+                                    default => 'bg-secondary-subtle text-secondary border-secondary-subtle',
+                                };
                             @endphp
+
                             <div class="col-12 col-md-6 col-xl-4">
-                                <div class="card h-100 border border-{{ $badgeClass }}-subtle shadow-sm transition-hover">
-                                    <div class="card-header bg-white border-bottom-0 pt-3 pb-0 d-flex justify-content-between align-items-start">
-                                        <div class="d-flex align-items-center gap-1">
-                                            <span class="badge bg-light text-muted border">#{{ $ind->urutan }}</span>
-                                            <span class="text-muted small font-monospace">{{ $item['kode'] }}</span>
+                                <div class="card h-100 border-0 shadow-sm border-start border-4 {{ $borderAccent }} kpi-executive-card btn-detail-tren"
+                                     data-kode="{{ $item['kode'] }}"
+                                     data-nama="{{ $item['nama'] }}"
+                                     data-urutan="{{ $ind->urutan }}"
+                                     data-satuan="{{ $item['satuan'] ?? '' }}"
+                                     data-nilai="{{ $item['nilai_formatted'] }}"
+                                     data-status-label="{{ $statusEnum->label() }}"
+                                     data-status-badge="{{ $badgeClass }}"
+                                     data-definisi="{{ $ind->definisi_operasional }}"
+                                     data-pola="{{ $polaLabel }}"
+                                     data-tipe="{{ $tipeKalkulasiLabel }}"
+                                     data-target-hijau="{{ $targetHijauText }}"
+                                     data-target-kuning="{{ $targetKuningText }}"
+                                     data-target-merah="{{ $targetMerahText }}">
+
+                                    <!-- Top Meta Bar -->
+                                    <div class="card-body p-4 pb-3">
+                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <div class="d-flex align-items-center gap-1.5">
+                                                <span class="badge bg-light text-muted border font-monospace">#{{ $ind->urutan }}</span>
+                                                <span class="small text-muted font-monospace">{{ $item['kode'] }}</span>
+                                            </div>
+
+                                            <span class="badge {{ $bgSubtle }} border px-2.5 py-1 rounded-pill fw-semibold d-inline-flex align-items-center">
+                                                <i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i>
+                                                {{ $statusEnum->label() }}
+                                            </span>
                                         </div>
-                                        <span class="badge bg-{{ $badgeClass }} text-white px-2 py-1">
-                                            {{ $item['status']->label() }}
-                                        </span>
-                                    </div>
-                                    <div class="card-body pt-2 pb-3 d-flex flex-column justify-content-between">
-                                        <div>
-                                            <h6 class="fw-bold text-dark mb-2 text-truncate" title="{{ $item['nama'] }}">
-                                                {{ $item['nama'] }}
-                                            </h6>
-                                            <div class="d-flex align-items-baseline gap-2 mb-3">
-                                                <div class="fs-2 fw-bold text-{{ $badgeClass === 'secondary' ? 'dark' : $badgeClass }}">
+
+                                        <!-- Title -->
+                                        <h6 class="fw-bold text-dark mb-1 kpi-card-title text-truncate" title="{{ $item['nama'] }}">
+                                            {{ $item['nama'] }}
+                                        </h6>
+
+                                        <!-- Formula / Operational Definition -->
+                                        <div class="text-muted small kpi-line-clamp-2 mb-3" style="min-height: 38px;" title="{{ $ind->definisi_operasional }}">
+                                            <i class="bi bi-info-circle me-1 text-muted"></i>
+                                            {{ $ind->definisi_operasional ?: 'Formula kalkulasi berdasarkan konfigurasi indikator.' }}
+                                        </div>
+
+                                        <!-- Realization Value & Target Benchmark Pill -->
+                                        <div class="pt-3 border-top d-flex align-items-baseline justify-content-between">
+                                            <div>
+                                                <div class="text-muted small" style="font-size: 0.75rem;">Nilai Realisasi:</div>
+                                                <div class="fs-2 fw-bolder text-dark tracking-tight">
                                                     {{ $item['nilai_formatted'] }}
                                                 </div>
                                             </div>
 
-                                            <!-- Target Bands Micro-guide -->
-                                            <div class="p-2 rounded bg-light border small mb-3">
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <span class="text-success fw-semibold"><i class="bi bi-check-circle-fill me-1"></i>Hijau:</span>
-                                                    <span class="text-dark">{{ $targetHijauText }}</span>
-                                                </div>
-                                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                                    <span class="text-warning-emphasis fw-semibold"><i class="bi bi-exclamation-triangle-fill me-1"></i>Kuning:</span>
-                                                    <span class="text-dark">{{ $targetKuningText }}</span>
-                                                </div>
-                                                <div class="d-flex justify-content-between align-items-center">
-                                                    <span class="text-danger fw-semibold"><i class="bi bi-x-circle-fill me-1"></i>Merah:</span>
-                                                    <span class="text-dark">{{ $targetMerahText }}</span>
-                                                </div>
+                                            <div class="text-end">
+                                                <div class="text-muted small" style="font-size: 0.75rem;">Target Hijau:</div>
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle fw-semibold mt-0.5">
+                                                    {{ $targetHijauText }}
+                                                </span>
                                             </div>
-
-                                            @if ($item['catatan'])
-                                                <div class="text-muted small fst-italic mb-2">
-                                                    <i class="bi bi-info-circle me-1"></i>{{ $item['catatan'] }}
-                                                </div>
-                                            @endif
                                         </div>
+                                    </div>
 
-                                        <button type="button"
-                                            class="btn btn-outline-primary btn-sm w-100 fw-semibold btn-detail-tren"
-                                            data-kode="{{ $item['kode'] }}"
-                                            data-nama="{{ $item['nama'] }}"
-                                            data-satuan="{{ $item['satuan'] ?? '' }}"
-                                            data-nilai="{{ $item['nilai_formatted'] }}"
-                                            data-status-label="{{ $item['status']->label() }}"
-                                            data-status-badge="{{ $badgeClass }}"
-                                            data-definisi="{{ $ind->definisi_operasional }}"
-                                            data-pola="{{ $polaLabel }}"
-                                            data-tipe="{{ $tipeKalkulasiLabel }}"
-                                            data-target-hijau="{{ $targetHijauText }}"
-                                            data-target-kuning="{{ $targetKuningText }}"
-                                            data-target-merah="{{ $targetMerahText }}">
-                                            <i class="bi bi-graph-up me-1"></i> Detail & Tren
-                                        </button>
+                                    <!-- Card Footer Note & Detail Affordance -->
+                                    <div class="card-footer bg-light border-top py-2 px-4 d-flex align-items-center justify-content-between">
+                                        <span class="text-muted small text-truncate pe-2" style="max-width: 200px;" title="{{ $item['catatan'] }}">
+                                            {{ $item['catatan'] ?: 'Kinerja terpantau aktif' }}
+                                        </span>
+                                        <span class="text-primary small fw-bold d-inline-flex align-items-center">
+                                            Detail & Tren <i class="bi bi-chevron-right ms-1"></i>
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -263,74 +391,93 @@
                     </div>
                 </div>
 
-                <!-- MODE 2: TABEL RINCI (Detailed Table) -->
+                <!-- ============================================== -->
+                <!-- VIEW 2: DETAILED TABLE VIEW                    -->
+                <!-- ============================================== -->
                 <div id="viewModeTable" class="d-none">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0 border">
-                            <thead class="table-light">
-                                <tr>
-                                    <th scope="col" class="text-center" style="width: 50px;">No</th>
-                                    <th scope="col" style="min-width: 220px;">Indikator</th>
-                                    <th scope="col" class="text-center" style="width: 100px;">Satuan</th>
-                                    <th scope="col" style="min-width: 140px;">Tipe Kalkulasi</th>
-                                    <th scope="col" class="text-end" style="min-width: 130px;">Nilai Aktual</th>
-                                    <th scope="col" style="min-width: 220px;">Panduan Target</th>
-                                    <th scope="col" class="text-center" style="width: 140px;">Status</th>
-                                    <th scope="col" class="text-center" style="width: 120px;">Aksi</th>
+                    <div class="table-responsive border rounded-3 shadow-xs">
+                        <table class="table table-hover align-middle mb-0 text-sm w-100">
+                            <thead class="table-light border-bottom">
+                                <tr class="small text-uppercase tracking-wider text-secondary">
+                                    <th scope="col" class="text-center py-2.5" style="width: 4%;">No</th>
+                                    <th scope="col" class="py-2.5" style="width: 22%;">Indikator Kinerja</th>
+                                    <th scope="col" class="py-2.5" style="width: 28%;">Definisi Operasional (Rumus)</th>
+                                    <th scope="col" class="text-end py-2.5" style="width: 12%;">Nilai Realisasi</th>
+                                    <th scope="col" class="text-center py-2.5" style="width: 12%;">Status RAG</th>
+                                    <th scope="col" class="py-2.5" style="width: 14%;">Ambang Batas Target</th>
+                                    <th scope="col" class="text-center py-2.5" style="width: 8%;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($indikatorList as $item)
                                     @php
                                         $ind = $item['indikator'];
-                                        $badgeClass = $item['status']->badgeClass();
+                                        $statusEnum = $item['status'];
+                                        $badgeClass = $statusEnum->badgeClass();
                                         $satuanStr = $item['satuan'] ?? '';
-                                        $targetHijauText = $formatBand($ind->target_hijau_min, $ind->target_hijau_max, $satuanStr);
-                                        $targetKuningText = $formatBand($ind->target_kuning_min, $ind->target_kuning_max, $satuanStr);
-                                        $targetMerahText = $formatBand($ind->target_merah_min, $ind->target_merah_max, $satuanStr);
+                                        $targetHijauText = $formatBand($ind->target_hijau_min, $ind->target_hijau_max, $satuanStr, $ind->pola_evaluasi);
+                                        $targetKuningText = $formatBand($ind->target_kuning_min, $ind->target_kuning_max, $satuanStr, $ind->pola_evaluasi);
+                                        $targetMerahText = $formatBand($ind->target_merah_min, $ind->target_merah_max, $satuanStr, $ind->pola_evaluasi);
                                         $polaLabel = $ind->pola_evaluasi ? $ind->pola_evaluasi->label() : '-';
                                         $tipeKalkulasiLabel = $ind->tipe_kalkulasi ? $ind->tipe_kalkulasi->label() : '-';
+
+                                        $bgSubtle = match($badgeClass) {
+                                            'success' => 'bg-success-subtle text-success border-success-subtle',
+                                            'warning' => 'bg-warning-subtle text-warning-emphasis border-warning-subtle',
+                                            'danger' => 'bg-danger-subtle text-danger border-danger-subtle',
+                                            default => 'bg-secondary-subtle text-secondary border-secondary-subtle',
+                                        };
                                     @endphp
                                     <tr>
-                                        <td class="text-center text-muted fw-semibold">{{ $loop->iteration }}</td>
-                                        <td>
+                                        <td class="text-center align-middle text-muted fw-bold">{{ $loop->iteration }}</td>
+                                        <td class="align-middle">
                                             <div class="fw-bold text-dark">{{ $item['nama'] }}</div>
-                                            <div class="small text-muted font-monospace">{{ $item['kode'] }}</div>
+                                            <div class="small text-muted font-monospace">#{{ $ind->urutan }} • {{ $item['kode'] }}</div>
                                         </td>
-                                        <td class="text-center">
-                                            <span class="badge bg-light text-dark border">{{ $item['satuan'] ?: '-' }}</span>
+                                        <td class="align-middle text-muted small">
+                                            <div class="text-truncate" style="max-width: 320px;" title="{{ $ind->definisi_operasional }}">
+                                                {{ $ind->definisi_operasional ?: '-' }}
+                                            </div>
                                         </td>
-                                        <td class="small text-secondary">
-                                            {{ $tipeKalkulasiLabel }}
-                                        </td>
-                                        <td class="text-end fw-bold fs-6 text-{{ $badgeClass === 'secondary' ? 'dark' : $badgeClass }}">
+                                        <td class="text-end align-middle fw-bolder fs-6 text-dark font-monospace">
                                             {{ $item['nilai_formatted'] }}
                                         </td>
-                                        <td class="small">
-                                            <div><span class="text-success fw-semibold">H:</span> {{ $targetHijauText }}</div>
-                                            <div><span class="text-warning-emphasis fw-semibold">K:</span> {{ $targetKuningText }}</div>
-                                            <div><span class="text-danger fw-semibold">M:</span> {{ $targetMerahText }}</div>
-                                        </td>
-                                        <td class="text-center">
-                                            <span class="badge bg-{{ $badgeClass }} text-white">
-                                                {{ $item['status']->label() }}
+                                        <td class="text-center align-middle">
+                                            <span class="badge {{ $bgSubtle }} border px-2.5 py-1 rounded-pill fw-semibold d-inline-flex align-items-center">
+                                                <i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i>
+                                                {{ $statusEnum->label() }}
                                             </span>
                                         </td>
-                                        <td class="text-center">
+                                        <td class="align-middle">
+                                            <div class="d-flex flex-column gap-1 small">
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-2 text-start font-monospace" style="font-size: 0.72rem;" title="Target Hijau">
+                                                    🟢 {{ $targetHijauText }}
+                                                </span>
+                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-0.5 px-2 text-start font-monospace" style="font-size: 0.72rem;" title="Target Kuning">
+                                                    🟡 {{ $targetKuningText }}
+                                                </span>
+                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-0.5 px-2 text-start font-monospace" style="font-size: 0.72rem;" title="Target Merah">
+                                                    🔴 {{ $targetMerahText }}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td class="text-center align-middle">
                                             <button type="button"
-                                                class="btn btn-outline-primary btn-sm fw-semibold btn-detail-tren"
+                                                class="btn btn-sm btn-outline-primary fw-semibold btn-detail-tren"
                                                 data-kode="{{ $item['kode'] }}"
                                                 data-nama="{{ $item['nama'] }}"
+                                                data-urutan="{{ $ind->urutan }}"
                                                 data-satuan="{{ $item['satuan'] ?? '' }}"
                                                 data-nilai="{{ $item['nilai_formatted'] }}"
-                                                data-status-label="{{ $item['status']->label() }}"
+                                                data-status-label="{{ $statusEnum->label() }}"
                                                 data-status-badge="{{ $badgeClass }}"
                                                 data-definisi="{{ $ind->definisi_operasional }}"
                                                 data-pola="{{ $polaLabel }}"
                                                 data-tipe="{{ $tipeKalkulasiLabel }}"
                                                 data-target-hijau="{{ $targetHijauText }}"
                                                 data-target-kuning="{{ $targetKuningText }}"
-                                                data-target-merah="{{ $targetMerahText }}">
+                                                data-target-merah="{{ $targetMerahText }}"
+                                                title="Lihat Detail & Tren Grafis">
                                                 <i class="bi bi-graph-up me-1"></i> Detail
                                             </button>
                                         </td>
@@ -340,92 +487,86 @@
                         </table>
                     </div>
                 </div>
+
             @endif
         </div>
     </div>
 </div>
 
-<!-- Modal Drill-down Detail & Tren -->
+<!-- ============================================== -->
+<!-- MODAL DRILL-DOWN: DETAIL & TREN HISTORIS       -->
+<!-- ============================================== -->
 <div class="modal fade" id="modalDetailTren" tabindex="-1" aria-labelledby="modalDetailTrenLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content shadow border-0">
-            <div class="modal-header bg-light border-bottom">
-                <div class="d-flex align-items-center gap-2">
-                    <div class="p-2 rounded bg-primary-subtle text-primary">
-                        <i class="bi bi-speedometer2 fs-5"></i>
-                    </div>
+        <div class="modal-content shadow border-0 overflow-hidden">
+            <!-- Modal Header: Clean Executive Style (No Black) -->
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <div class="d-flex align-items-center gap-3">
+                    <span id="modalIndicatorNumber" class="badge bg-success-subtle text-success border border-success-subtle font-monospace fw-bold fs-6 px-2.5 py-1.5 rounded-3">1</span>
                     <div>
-                        <h5 class="modal-title fw-bold text-dark fs-6" id="modalDetailTrenLabel">Detail Indikator Kinerja</h5>
-                        <div class="small text-muted font-monospace" id="modalIndicatorKode">-</div>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="modalDetailTrenLabel">Detail Indikator Kinerja</h5>
+                        <div class="small text-muted font-monospace mt-0.5" id="modalIndicatorKode">-</div>
                     </div>
                 </div>
-                <div class="d-flex align-items-center gap-2">
-                    <span id="modalIndicatorStatusBadge" class="badge bg-secondary">-</span>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="d-flex align-items-center gap-2 ms-auto">
+                    <span id="modalIndicatorStatusBadge" class="badge bg-secondary px-3 py-1.5 rounded-pill fw-semibold shadow-xs">-</span>
+                    <button type="button" class="btn-close ms-1" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
             </div>
-            <div class="modal-body p-4">
-                <!-- Section 1: Definisi & Panduan -->
+
+            <div class="modal-body p-4 space-y-4">
+                <!-- Section 1: Summary Box (Formula & Nilai Saat Ini) -->
+                <div class="bg-light p-3 rounded-3 border mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-7 border-end-md">
+                            <span class="text-muted small fw-semibold text-uppercase d-block mb-1">Definisi Operasional / Formula:</span>
+                            <div class="fw-semibold text-dark small" id="modalIndicatorDefinisi" style="line-height: 1.6;">
+                                -
+                            </div>
+                        </div>
+                        <div class="col-md-5 ps-md-4">
+                            <span class="text-muted small fw-semibold text-uppercase d-block mb-1">Capaian Periode Ini:</span>
+                            <div class="d-flex align-items-baseline gap-2">
+                                <span class="fs-3 fw-bolder text-dark tracking-tight" id="modalIndicatorNilai">-</span>
+                            </div>
+                            <div class="small text-muted mt-1">
+                                Tipe: <span class="fw-semibold text-dark" id="modalIndicatorTipe">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: 3 Benchmark Boxes (Hijau, Kuning, Merah) -->
                 <div class="mb-4">
-                    <h6 class="fw-bold text-dark mb-2">Definisi Operasional</h6>
-                    <div class="p-3 bg-light rounded border text-secondary small" id="modalIndicatorDefinisi" style="line-height: 1.6;">
-                        -
-                    </div>
-                </div>
-
-                <div class="row g-3 mb-4">
-                    <div class="col-12 col-md-4">
-                        <div class="p-3 bg-light rounded border">
-                            <div class="text-muted small fw-semibold">Nilai Periode Aktif</div>
-                            <div class="fs-4 fw-bold text-dark mt-1" id="modalIndicatorNilai">-</div>
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <div class="p-3 bg-light rounded border">
-                            <div class="text-muted small fw-semibold">Tipe Kalkulasi</div>
-                            <div class="small fw-semibold text-dark mt-1" id="modalIndicatorTipe">-</div>
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-4">
-                        <div class="p-3 bg-light rounded border">
-                            <div class="text-muted small fw-semibold">Pola Evaluasi</div>
-                            <div class="small fw-semibold text-dark mt-1" id="modalIndicatorPola">-</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card border-0 bg-light p-3 mb-4">
-                    <div class="fw-semibold text-dark small mb-2">Panduan Target Standar (RAG):</div>
+                    <div class="text-muted small fw-semibold text-uppercase tracking-wider mb-2">Panduan Ambang Batas Target (RAG)</div>
                     <div class="row g-2 text-center small">
                         <div class="col-4">
-                            <div class="p-2 bg-success-subtle text-success border border-success-subtle rounded">
-                                <div class="fw-bold">Hijau (Tercapai)</div>
-                                <div id="modalTargetHijau" class="fw-semibold text-dark mt-1">-</div>
+                            <div class="p-2.5 bg-success-subtle text-success border border-success-subtle rounded-3">
+                                <span class="d-block text-uppercase fw-bold" style="font-size: 0.7rem;">Hijau (Baik)</span>
+                                <div id="modalTargetHijau" class="fw-bold fs-6 text-dark mt-1">-</div>
                             </div>
                         </div>
                         <div class="col-4">
-                            <div class="p-2 bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded">
-                                <div class="fw-bold">Kuning (Waspada)</div>
-                                <div id="modalTargetKuning" class="fw-semibold text-dark mt-1">-</div>
+                            <div class="p-2.5 bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-3">
+                                <span class="d-block text-uppercase fw-bold" style="font-size: 0.7rem;">Kuning (Waspada)</span>
+                                <div id="modalTargetKuning" class="fw-bold fs-6 text-dark mt-1">-</div>
                             </div>
                         </div>
                         <div class="col-4">
-                            <div class="p-2 bg-danger-subtle text-danger border border-danger-subtle rounded">
-                                <div class="fw-bold">Merah (Kritis)</div>
-                                <div id="modalTargetMerah" class="fw-semibold text-dark mt-1">-</div>
+                            <div class="p-2.5 bg-danger-subtle text-danger border border-danger-subtle rounded-3">
+                                <span class="d-block text-uppercase fw-bold" style="font-size: 0.7rem;">Merah (Kritis)</span>
+                                <div id="modalTargetMerah" class="fw-bold fs-6 text-dark mt-1">-</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <hr class="my-4">
-
-                <!-- Section 2: Grafik Tren 12 Bulan -->
+                <!-- Section 3: Grafik Tren 12 Bulan -->
                 <div>
                     <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3">
                         <div>
-                            <h6 class="fw-bold text-dark mb-0">Tren Realisasi Bulanan</h6>
-                            <div class="text-muted small">Pergerakan capaian indikator selama 12 bulan pada tahun terpilih.</div>
+                            <h6 class="fw-bold text-dark mb-0">Tren Historis Realisasi Bulanan</h6>
+                            <div class="text-muted small">Pergerakan capaian indikator selama 12 bulan pada tahun anggaran terpilih.</div>
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             <label for="selectTahunTren" class="small text-muted fw-semibold mb-0">Tahun:</label>
@@ -441,27 +582,28 @@
                     </div>
 
                     <!-- Chart Container -->
-                    <div class="position-relative bg-white rounded border p-3" style="min-height: 280px;">
+                    <div class="position-relative bg-white rounded-3 border p-3" style="min-height: 270px;">
                         <div id="trenChartLoading" class="position-absolute top-50 start-50 translate-middle text-center d-none">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Memuat data...</span>
+                            <div class="spinner-border text-primary spinner-border-sm" role="status">
+                                <span class="visually-hidden">Memuat...</span>
                             </div>
-                            <div class="small text-muted mt-2">Memuat data tren bulanan...</div>
+                            <div class="small text-muted mt-2">Memuat tren realisasi...</div>
                         </div>
 
                         <div id="trenChartError" class="position-absolute top-50 start-50 translate-middle text-center d-none w-75">
-                            <i class="bi bi-exclamation-triangle text-warning fs-3"></i>
+                            <i class="bi bi-exclamation-triangle text-warning fs-4"></i>
                             <div class="small text-danger fw-semibold mt-1">Gagal memuat data tren indikator.</div>
                         </div>
 
-                        <div id="trenChartCanvasWrapper" style="height: 260px;">
+                        <div id="trenChartCanvasWrapper" style="height: 250px;">
                             <canvas id="trenChartCanvas"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer bg-light py-2">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+
+            <div class="modal-footer bg-light py-2 px-4 border-top">
+                <button type="button" class="btn btn-sm btn-secondary fw-semibold px-3" data-bs-dismiss="modal">Tutup</button>
             </div>
         </div>
     </div>
@@ -523,24 +665,26 @@ document.addEventListener('DOMContentLoaded', function () {
     const canvasWrapper = document.getElementById('trenChartCanvasWrapper');
     const canvasEl = document.getElementById('trenChartCanvas');
 
-    // Attach click event to all Detail & Tren buttons
-    document.querySelectorAll('.btn-detail-tren').forEach(function (button) {
-        button.addEventListener('click', function () {
+    // Attach click event to all cards and buttons with .btn-detail-tren
+    document.querySelectorAll('.btn-detail-tren').forEach(function (element) {
+        element.addEventListener('click', function (e) {
             const data = this.dataset;
             currentKode = data.kode;
 
             document.getElementById('modalDetailTrenLabel').textContent = data.nama;
+            document.getElementById('modalIndicatorNumber').textContent = data.urutan || '#';
             document.getElementById('modalIndicatorKode').textContent = data.kode;
             document.getElementById('modalIndicatorNilai').textContent = data.nilai;
             document.getElementById('modalIndicatorDefinisi').textContent = data.definisi || 'Tidak ada definisi operasional tercatat.';
             document.getElementById('modalIndicatorTipe').textContent = data.tipe || '-';
-            document.getElementById('modalIndicatorPola').textContent = data.pola || '-';
             document.getElementById('modalTargetHijau').textContent = data.targetHijau || '-';
             document.getElementById('modalTargetKuning').textContent = data.targetKuning || '-';
             document.getElementById('modalTargetMerah').textContent = data.targetMerah || '-';
 
             const badgeEl = document.getElementById('modalIndicatorStatusBadge');
-            badgeEl.className = 'badge bg-' + (data.statusBadge || 'secondary');
+            const badgeClass = data.statusBadge || 'secondary';
+            const isWarning = badgeClass === 'warning';
+            badgeEl.className = 'badge px-3 py-1.5 rounded-pill fw-semibold shadow-xs bg-' + badgeClass + (isWarning ? ' text-dark' : ' text-white');
             badgeEl.textContent = data.statusLabel || '-';
 
             modalBs?.show();
@@ -620,8 +764,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 datasets: [{
                     label: result.indikator ? result.indikator.nama : 'Nilai',
                     data: values,
-                    borderColor: '#0d6efd',
-                    backgroundColor: 'rgba(13, 110, 253, 0.08)',
+                    borderColor: '#198754',
+                    backgroundColor: 'rgba(25, 135, 84, 0.08)',
                     pointBackgroundColor: pointBackgroundColors,
                     pointBorderColor: '#ffffff',
                     pointBorderWidth: 2,
@@ -630,7 +774,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     borderWidth: 2.5,
                     fill: true,
                     tension: 0.25,
-                    spanGaps: false // null values break the line gracefully for future months
+                    spanGaps: false
                 }]
             },
             options: {
@@ -658,7 +802,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     y: {
                         beginAtZero: true,
                         grid: {
-                            color: '#f0f0f0'
+                            color: '#f1f5f9'
                         },
                         ticks: {
                             callback: function (value) {

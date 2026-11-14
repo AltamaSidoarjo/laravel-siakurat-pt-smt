@@ -163,12 +163,31 @@ class SettingIndikatorKinerjaTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.index'));
         $response->assertOk()
+            ->assertSee('Total Indikator')
+            ->assertSee('Indikator Aktif')
+            ->assertSee('Indikator Nonaktif')
+            ->assertSee('Variabel Manual')
             ->assertSee('Manajemen Indikator')
             ->assertSee('Entri Data Manual')
             ->assertSee('Turnover (Hari)')
             ->assertSee('Manual (Non-Akuntansi)')
             ->assertSee('Rasio')
             ->assertDontSee('Bridging SIMRS Otomatis');
+    }
+
+    public function test_user_can_filter_indicators_by_search_query_and_pola_evaluasi(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+
+        // Search by name
+        $responseSearch = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.index', ['q' => 'EBITDA']));
+        $responseSearch->assertOk()
+            ->assertSee('EBITDA');
+
+        // Filter by pola evaluasi HIGHER_IS_BETTER
+        $responsePola = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.index', ['pola' => 'HIGHER_IS_BETTER']));
+        $responsePola->assertOk();
     }
 
     public function test_user_can_view_manual_tab_with_year_filter(): void

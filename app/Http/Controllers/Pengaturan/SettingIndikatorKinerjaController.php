@@ -36,10 +36,33 @@ class SettingIndikatorKinerjaController extends Controller
             $tahun = (int) now()->year;
         }
 
-        $indikators = IndikatorKinerja::query()
+        $q = trim((string) $request->query('q', ''));
+        $pola = trim((string) $request->query('pola', 'ALL'));
+
+        $summaryCounts = [
+            'total' => IndikatorKinerja::count(),
+            'aktif' => IndikatorKinerja::where('status_aktif', true)->count(),
+            'nonaktif' => IndikatorKinerja::where('status_aktif', false)->count(),
+        ];
+
+        $indikatorQuery = IndikatorKinerja::query()
             ->with(['variabelManual', 'mappingCoa.coa'])
-            ->orderBy('urutan')
-            ->get();
+            ->orderBy('urutan');
+
+        if ($pola !== 'ALL' && $pola !== '') {
+            $indikatorQuery->where('pola_evaluasi', $pola);
+        }
+
+        if ($q !== '') {
+            $needle = '%'.$q.'%';
+            $indikatorQuery->where(function ($sub) use ($needle) {
+                $sub->where('nama', 'like', $needle)
+                    ->orWhere('kode', 'like', $needle)
+                    ->orWhere('definisi_operasional', 'like', $needle);
+            });
+        }
+
+        $indikators = $indikatorQuery->get();
 
         $variabelManuals = IndikatorKinerjaVariabelManual::query()
             ->with(['manualData' => fn ($q) => $q->where('tahun', $tahun)])
@@ -47,13 +70,18 @@ class SettingIndikatorKinerjaController extends Controller
             ->get();
 
         $satuanOptions = SatuanIndikator::cases();
+        $polaEvaluasiOptions = PolaEvaluasi::cases();
 
         return view('pengaturan.setting-indikator-kinerja.index', [
             'tab' => $tab,
             'tahun' => $tahun,
+            'q' => $q,
+            'pola' => $pola,
+            'summaryCounts' => $summaryCounts,
             'indikators' => $indikators,
             'variabelManuals' => $variabelManuals,
             'satuanOptions' => $satuanOptions,
+            'polaEvaluasiOptions' => $polaEvaluasiOptions,
         ]);
     }
 

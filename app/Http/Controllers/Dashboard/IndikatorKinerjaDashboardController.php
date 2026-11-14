@@ -24,11 +24,12 @@ class IndikatorKinerjaDashboardController extends Controller
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
         $q = trim((string) $request->query('q', ''));
+        $statusFilter = strtoupper(trim((string) $request->query('status', 'ALL')));
 
         // Evaluasi semua indikator sekali saja
         $indikatorList = $this->indikatorKinerjaService->evaluasiSemua($startDate, $endDate);
 
-        // Agregasi ringkasan eksekutif langsung in-memory dari koleksi evaluasi
+        // Agregasi ringkasan eksekutif langsung in-memory dari koleksi evaluasi lengkap
         $ringkasanStatus = [
             'total' => $indikatorList->count(),
             'hijau' => $indikatorList->where('status', StatusEvaluasi::HIJAU)->count(),
@@ -36,6 +37,14 @@ class IndikatorKinerjaDashboardController extends Controller
             'merah' => $indikatorList->where('status', StatusEvaluasi::MERAH)->count(),
             'netral' => $indikatorList->where('status', StatusEvaluasi::NETRAL)->count(),
         ];
+
+        // Filter status evaluasi RAG jika ditentukan
+        if ($statusFilter !== 'ALL' && $statusFilter !== '') {
+            $indikatorList = $indikatorList->filter(function (array $item) use ($statusFilter) {
+                $statusVal = $item['status'] instanceof StatusEvaluasi ? $item['status']->value : (string) $item['status'];
+                return strtoupper($statusVal) === $statusFilter;
+            })->values();
+        }
 
         // Filter pencarian indikator berdasarkan nama atau kode (case-insensitive)
         if ($q !== '') {
@@ -52,6 +61,7 @@ class IndikatorKinerjaDashboardController extends Controller
             'startDate' => $startDate,
             'endDate' => $endDate,
             'q' => $q,
+            'statusFilter' => $statusFilter,
             'indikatorList' => $indikatorList,
             'ringkasanStatus' => $ringkasanStatus,
         ]);

@@ -39,6 +39,7 @@ Seluruh endpoint di bawah ini diproteksi oleh middleware `auth` dan `module.acce
    - `start_date` / `dariTanggal`: Tanggal awal periode evaluasi (format `YYYY-MM-DD`, default: tanggal 1 bulan berjalan).
    - `end_date` / `sampaiTanggal`: Tanggal akhir periode evaluasi (format `YYYY-MM-DD`, default: tanggal hari ini).
    - `q`: Kata kunci pencarian kode atau nama indikator (opsional, pencarian case-insensitive).
+   - `status`: Filter status evaluasi RAG (`ALL`, `HIJAU`, `KUNING`, `MERAH`, default: `ALL`).
 
 2. **Endpoint Tren Bulanan (`/dashboard/indikator-kinerja/{kode}/tren`)**:
    - `{kode}`: Kode unik indikator kinerja (misal: `capaian_pendapatan`, `ebitda`, `collection_period`, `beban_pegawai`).
@@ -48,7 +49,7 @@ Seluruh endpoint di bawah ini diproteksi oleh middleware `auth` dan `module.acce
 
 ## Alur 1: Evaluasi & Tampilan Dashboard Eksekutif
 
-Alur ini memuat seluruh data indikator kinerja aktif, menghitung nilai riil pembilang dan penyebut, mengevaluasi status warna target, dan menampilkan kartu metrik serta ringkasan eksekutif.
+Alur ini memuat seluruh data indikator kinerja aktif, menghitung nilai riil pembilang dan penyebut, mengevaluasi status warna target, dan menampilkan kartu metrik serta ringkasan eksekutif. Tersedia 2 mode tampilan antarmuka: **Kartu Eksekutif** (Card Grid dengan interaktivitas klik seluruh kartu) dan **Tabel Rinci** (dengan header gelap eksekutif dan pil status RAG).
 
 ### Flowchart
 
@@ -63,13 +64,17 @@ flowchart TD
     F --> H["Resolve Penyebut: Saldo Neraca / Mutasi COA / RBA Prorata / Variabel Manual"]
     F --> I["Hitung Nilai Akhir: safeDivide() + Tipe Kalkulasi"]
     F --> J["Evaluasi Status Target: HIJAU / KUNING / MERAH / NETRAL"]
-    J --> K["Koleksi hasil evaluasi terkumpul"]
+    J --> K["Koleksi hasil evaluasi lengkap terkumpul"]
     K --> L["Agregasi ringkasanStatus in-memory (total, hijau, kuning, merah, netral)"]
-    L --> M{"Ada parameter filter pencarian q?"}
-    M -- Ya --> N["Filter koleksi berdasarkan kode / nama indikator"]
-    M -- Tidak --> O["Gunakan seluruh hasil evaluasi"]
-    N --> P["Render view dashboard.indikator-kinerja.index"]
+    L --> M{"Ada parameter filter status RAG (status != ALL)?"}
+    M -- Ya --> N["Filter koleksi berdasarkan status evaluasi"]
+    M -- Tidak --> O["Pertahankan koleksi"]
+    N --> P{"Ada parameter filter pencarian q?"}
     O --> P
+    P -- Ya --> Q["Filter koleksi berdasarkan kecocokan kode / nama indikator"]
+    P -- Tidak --> R["Gunakan koleksi saat ini"]
+    Q --> S["Render view dashboard.indikator-kinerja.index"]
+    R --> S
 ```
 
 ### Algoritma
@@ -84,9 +89,10 @@ flowchart TD
    - Menghitung nilai penyebut: saldo neraca, mutasi COA, nilai target RBA proporsional (`ambilRbaCoa()`), atau nilai variabel manual operasional terdekat (`ambilNilaiManualTerakhir()`). Untuk indikator bertipe `TURNOVER`, pembagian dilakukan terhadap rata-rata harian (dikali jumlah hari riil periode).
    - Menghitung rasio melalui `safeDivide($pembilang, $penyebut)`. Jika penyebut bernilai nol atau null, nilai diset `null` dan status dievaluasi sebagai `NETRAL`.
    - Melakukan evaluasi ambang batas target melalui `evaluasiStatus()` berdasarkan `pola_evaluasi` (`HIGHER_IS_BETTER`, `LOWER_IS_BETTER`, `TARGET_BAND`) dan rentang target warna (`HIJAU`, `KUNING`, `MERAH`, `NETRAL`), dengan pembulatan 2 desimal untuk mencegah celah nilai pecahan (*fractional gap*).
-5. Controller mengagregasikan `ringkasanStatus` secara in-memory dari koleksi evaluasi tanpa melakukan query database tambahan.
-6. Bila parameter `q` diberikan, controller menyaring koleksi indikator berdasarkan kecocokan substring pada `kode` atau `nama` (case-insensitive).
-7. Mengembalikan view `dashboard.indikator-kinerja.index` yang berisi widget ringkasan eksekutif, filter periode, dan kartu matriks indikator.
+5. Controller mengagregasikan `ringkasanStatus` secara in-memory dari koleksi evaluasi lengkap tanpa query database tambahan untuk menjaga keakuratan strip kartu ringkasan eksekutif dan persentase ketercapaian.
+6. Bila parameter `status` ditentukan (tidak sama dengan `ALL`), controller menyaring koleksi indikator berdasarkan status evaluasi RAG.
+7. Bila parameter `q` diberikan, controller menyaring koleksi indikator berdasarkan kecocokan substring pada `kode` atau `nama` (case-insensitive).
+8. Mengembalikan view `dashboard.indikator-kinerja.index` yang berisi widget ringkasan persentase eksekutif, toolbar filter server-side, view switcher (Kartu Eksekutif & Tabel Rinci), serta modal interaktif drill-down tren grafis 12 bulan.
 
 ### Fungsi yang Dipanggil
 

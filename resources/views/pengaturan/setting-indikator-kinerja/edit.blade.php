@@ -5,17 +5,19 @@
 @section('content')
 <div class="d-flex flex-column gap-3">
     <!-- Header -->
-    <div class="row">
-        <div class="col">
-            <div class="d-flex align-items-center gap-3 fs-3">
-                <a href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']) }}" class="text-dark text-decoration-none">
-                    <i class="bi bi-arrow-left"></i>
+    <div class="card border-0 shadow-sm bg-white mb-2">
+        <div class="card-body p-3 p-md-4">
+            <div class="d-flex align-items-center gap-3">
+                <a href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']) }}" class="btn btn-sm btn-light border rounded-circle d-flex align-items-center justify-content-center shadow-xs" style="width: 38px; height: 38px;" title="Kembali ke Daftar Indikator">
+                    <i class="bi bi-arrow-left fs-5"></i>
                 </a>
-                <span class="fw-bold">Edit Indikator Kinerja: {{ $indikator->nama }}</span>
+                <div>
+                    <h4 class="mb-0 fw-bold text-dark">Edit Indikator Kinerja: {{ $indikator->nama }}</h4>
+                    <p class="text-muted small mb-0 mt-1">
+                        Perbarui konfigurasi master indikator rumah sakit, formula kalkulasi, ambang batas target RAG, atau pemetaan akun COA.
+                    </p>
+                </div>
             </div>
-            <p class="text-muted small mb-0 mt-1">
-                Perbarui konfigurasi master indikator rumah sakit, formula kalkulasi, ambang batas target RAG, atau pemetaan akun COA.
-            </p>
         </div>
     </div>
 
