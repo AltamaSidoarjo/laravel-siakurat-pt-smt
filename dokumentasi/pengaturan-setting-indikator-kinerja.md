@@ -33,14 +33,14 @@ Modul ini dikendalikan oleh middleware `module.access:pengaturan.setting-indikat
 
 | Method | Path | Route Name | Controller Method | Izin |
 | --- | --- | --- | --- | --- |
-| `GET` | `/setting-indikator-kinerja` | `setting-indikator-kinerja.index` | `index(Request $request)` | view |
-| `GET` | `/setting-indikator-kinerja/create` | `setting-indikator-kinerja.create` | `create()` | create |
-| `POST` | `/setting-indikator-kinerja` | `setting-indikator-kinerja.store` | `store(StoreIndikatorKinerjaRequest $request)` | create |
-| `POST` | `/setting-indikator-kinerja/variabel` | `setting-indikator-kinerja.store-variabel` | `storeVariabel(StoreVariabelManualRequest $request)` | create |
-| `GET` | `/setting-indikator-kinerja/{indikator}/edit` | `setting-indikator-kinerja.edit` | `edit(IndikatorKinerja $indikator)` | update |
-| `PUT` | `/setting-indikator-kinerja/{indikator}` | `setting-indikator-kinerja.update` | `update(UpdateIndikatorKinerjaRequest $request, IndikatorKinerja $indikator)` | update |
-| `POST` | `/setting-indikator-kinerja/simpan-manual-data` | `setting-indikator-kinerja.simpan-manual-data` | `simpanManualData(SimpanManualDataRequest $request)` | update |
-| `DELETE` | `/setting-indikator-kinerja/{indikator}` | `setting-indikator-kinerja.destroy` | `destroy(IndikatorKinerja $indikator)` | delete |
+| `GET` | `/pengaturan/setting-indikator-kinerja` | `pengaturan.setting-indikator-kinerja.index` | `index(Request $request)` | view |
+| `GET` | `/pengaturan/setting-indikator-kinerja/create` | `pengaturan.setting-indikator-kinerja.create` | `create()` | create |
+| `POST` | `/pengaturan/setting-indikator-kinerja` | `pengaturan.setting-indikator-kinerja.store` | `store(StoreIndikatorKinerjaRequest $request)` | create |
+| `POST` | `/pengaturan/setting-indikator-kinerja/variabel` | `pengaturan.setting-indikator-kinerja.store-variabel` | `storeVariabel(StoreVariabelManualRequest $request)` | create |
+| `GET` | `/pengaturan/setting-indikator-kinerja/{indikator}/edit` | `pengaturan.setting-indikator-kinerja.edit` | `edit(IndikatorKinerja $indikator)` | update |
+| `PUT` | `/pengaturan/setting-indikator-kinerja/{indikator}` | `pengaturan.setting-indikator-kinerja.update` | `update(UpdateIndikatorKinerjaRequest $request, IndikatorKinerja $indikator)` | update |
+| `POST` | `/pengaturan/setting-indikator-kinerja/simpan-manual-data` | `pengaturan.setting-indikator-kinerja.simpan-manual-data` | `simpanManualData(SimpanManualDataRequest $request)` | update |
+| `DELETE` | `/pengaturan/setting-indikator-kinerja/{indikator}` | `pengaturan.setting-indikator-kinerja.destroy` | `destroy(IndikatorKinerja $indikator)` | delete |
 
 ---
 
@@ -99,7 +99,7 @@ flowchart TD
     G -- Tidak --> I["Lewati pembuatan mapping"]
     H --> J["Commit transaksi DB"]
     I --> J
-    J --> K["Redirect ke setting-indikator-kinerja.index?tab=indikator + Flash Success"]
+    J --> K["Redirect ke pengaturan.setting-indikator-kinerja.index?tab=indikator + Flash Success"]
 ```
 
 ### Algoritma
@@ -134,11 +134,10 @@ Alur ini mengelola pengisian matriks data numerik untuk variabel manual bulanan 
 
 ```mermaid
 flowchart TD
-    A["User buka tab Data Manual + pilih Tahun"] --> B["GET /setting-indikator-kinerja?tab=manual&tahun=YYYY"]
+    A["User buka tab Data Manual + pilih Tahun"] --> B["GET /pengaturan/setting-indikator-kinerja?tab=manual&tahun=YYYY"]
     B --> C["Query variabelManuals eager loading manualData where tahun = YYYY"]
-    C --> D["Render tabel matriks 12 bulan (Jan - Des)"]
     D --> E["User ubah angka di cell tabel & klik Simpan Data Manual"]
-    E --> F["POST /setting-indikator-kinerja/simpan-manual-data"]
+    E --> F["POST /pengaturan/setting-indikator-kinerja/simpan-manual-data"]
     F --> G["SimpanManualDataRequest: validasi tahun & array data"]
     G --> H["Mulai DB::transaction"]
     H --> I["Loop tiap variabel_id dan bulan 1 s.d. 12"]
@@ -152,7 +151,7 @@ flowchart TD
 
 1. Pada tampilan index dengan query string `?tab=manual&tahun=YYYY`, controller memuat seluruh `IndikatorKinerjaVariabelManual` beserta relasi `manualData` yang difilter khusus pada tahun tersebut.
 2. Pengguna mengisi atau mengosongkan nilai pada sel input bulan 1 s.d. 12.
-3. Form disubmit via method `POST` ke endpoint `setting-indikator-kinerja.simpan-manual-data`.
+3. Form disubmit via method `POST` ke endpoint `pengaturan.setting-indikator-kinerja.simpan-manual-data`.
 4. `SimpanManualDataRequest` memastikan `tahun` valid (2000-2100) dan struktur `data` berupa array.
 5. Controller menjalankan `DB::transaction`:
    - Melakukan loop ganda: `foreach ($data as $variabelId => $months)` lalu `foreach ($months as $bulan => $nilai)`.

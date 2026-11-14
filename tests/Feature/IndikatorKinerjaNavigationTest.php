@@ -14,7 +14,7 @@ class IndikatorKinerjaNavigationTest extends TestCase
         $response = $this->actingAs($user)->get(route('home'));
         $response->assertOk()
             ->assertSee(route('dashboard.indikator-kinerja.index'))
-            ->assertSee(route('setting-indikator-kinerja.index'));
+            ->assertSee(route('pengaturan.setting-indikator-kinerja.index'));
     }
 
     public function test_sidebar_hides_indicator_links_when_no_permission(): void
@@ -30,6 +30,6 @@ class IndikatorKinerjaNavigationTest extends TestCase
         $response = $this->actingAs($userWithoutKpiAccess)->get(route('home'));
         $response->assertOk()
             ->assertDontSee(route('dashboard.indikator-kinerja.index'))
-            ->assertDontSee(route('setting-indikator-kinerja.index'));
+            ->assertDontSee(route('pengaturan.setting-indikator-kinerja.index'));
     }
 }

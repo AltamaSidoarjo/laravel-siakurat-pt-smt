@@ -28,14 +28,14 @@
             <ul class="nav nav-tabs card-header-tabs" id="settingTab" role="tablist">
                 <li class="nav-item" role="presentation">
                     <a class="nav-link fw-semibold {{ $tab !== 'manual' ? 'active text-primary' : 'text-muted' }}" 
-                       href="{{ route('setting-indikator-kinerja.index', ['tab' => 'indikator', 'tahun' => $tahun]) }}">
+                       href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator', 'tahun' => $tahun]) }}">
                         <i class="bi bi-speedometer2 me-1"></i> Manajemen Indikator
                         <span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1">{{ $indikators->count() }}</span>
                     </a>
                 </li>
                 <li class="nav-item" role="presentation">
                     <a class="nav-link fw-semibold {{ $tab === 'manual' ? 'active text-primary' : 'text-muted' }}" 
-                       href="{{ route('setting-indikator-kinerja.index', ['tab' => 'manual', 'tahun' => $tahun]) }}">
+                       href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'manual', 'tahun' => $tahun]) }}">
                         <i class="bi bi-table me-1"></i> Entri Data Manual
                         <span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1">{{ $variabelManuals->count() }}</span>
                     </a>
@@ -54,7 +54,7 @@
                         </div>
                         <div>
                             @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'create'))
-                                <a href="{{ route('setting-indikator-kinerja.create') }}" class="btn btn-success fw-bold">
+                                <a href="{{ route('pengaturan.setting-indikator-kinerja.create') }}" class="btn btn-success fw-bold">
                                     <i class="bi bi-plus-circle me-1"></i> Tambah Indikator Baru
                                 </a>
                             @endif
@@ -159,12 +159,12 @@
                                         </td>
                                         <td class="text-center text-nowrap">
                                             @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'update'))
-                                                <a href="{{ route('setting-indikator-kinerja.edit', $item->id) }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="Edit">
+                                                <a href="{{ route('pengaturan.setting-indikator-kinerja.edit', $item->id) }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="Edit">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
                                             @endif
                                             @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'delete'))
-                                                <form action="{{ route('setting-indikator-kinerja.destroy', $item->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus indikator ini?');">
+                                                <form action="{{ route('pengaturan.setting-indikator-kinerja.destroy', $item->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Apakah Anda yakin ingin menghapus indikator ini?');">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2 ms-1" title="Hapus">
@@ -191,7 +191,7 @@
                 <div class="tab-pane fade show active">
                     <!-- Toolbar Filter Tahun & Tombol Tambah Variabel -->
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 bg-light p-3 rounded border">
-                        <form method="get" action="{{ route('setting-indikator-kinerja.index') }}" class="d-flex align-items-center gap-2">
+                        <form method="get" action="{{ route('pengaturan.setting-indikator-kinerja.index') }}" class="d-flex align-items-center gap-2">
                             <input type="hidden" name="tab" value="manual">
                             <label for="tahunSelect" class="form-label fw-bold mb-0 text-nowrap">
                                 <i class="bi bi-calendar3 me-1"></i> Tahun Data:
@@ -216,7 +216,7 @@
                     </div>
 
                     <!-- Spreadsheet Form Input Matriks Bulanan -->
-                    <form method="post" action="{{ route('setting-indikator-kinerja.simpan-manual-data') }}">
+                    <form method="post" action="{{ route('pengaturan.setting-indikator-kinerja.simpan-manual-data') }}">
                         @csrf
                         <input type="hidden" name="tahun" value="{{ $tahun }}">
 
@@ -326,7 +326,7 @@
 <div class="modal fade" id="modalTambahVariabel" tabindex="-1" aria-labelledby="modalTambahVariabelLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="post" action="{{ route('setting-indikator-kinerja.store-variabel') }}">
+            <form method="post" action="{{ route('pengaturan.setting-indikator-kinerja.store-variabel') }}">
                 @csrf
                 <input type="hidden" name="tahun" value="{{ $tahun }}">
                 <div class="modal-header">

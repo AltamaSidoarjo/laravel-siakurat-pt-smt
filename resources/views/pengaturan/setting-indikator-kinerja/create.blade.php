@@ -8,7 +8,7 @@
     <div class="row">
         <div class="col">
             <div class="d-flex align-items-center gap-3 fs-3">
-                <a href="{{ route('setting-indikator-kinerja.index', ['tab' => 'indikator']) }}" class="text-dark text-decoration-none">
+                <a href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']) }}" class="text-dark text-decoration-none">
                     <i class="bi bi-arrow-left"></i>
                 </a>
                 <span class="fw-bold">Tambah Indikator Kinerja Baru</span>
@@ -22,7 +22,7 @@
     @include('partials.flash-message')
     @include('partials.validation-errors')
 
-    <form action="{{ route('setting-indikator-kinerja.store') }}" method="POST" id="formIndikatorKinerja">
+    <form action="{{ route('pengaturan.setting-indikator-kinerja.store') }}" method="POST" id="formIndikatorKinerja">
         @csrf
 
         <!-- BAGIAN A: IDENTITAS DASAR INDIKATOR -->
@@ -340,7 +340,7 @@
 
         <!-- Tombol Aksi Simpan -->
         <div class="d-flex justify-content-end gap-2 mb-5">
-            <a href="{{ route('setting-indikator-kinerja.index', ['tab' => 'indikator']) }}" class="btn btn-outline-secondary px-4 fw-semibold">
+            <a href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']) }}" class="btn btn-outline-secondary px-4 fw-semibold">
                 Batal
             </a>
             <button type="submit" class="btn btn-success px-4 fw-bold">

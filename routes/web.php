@@ -404,22 +404,21 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module.access:pengaturan.layanan-informasi,delete')->group(function () {
             Route::delete('/layanan-informasi/{layananInformasi}', [LayananInformasiController::class, 'destroy'])->name('layanan-informasi.destroy');
         });
-    });
-
-    Route::middleware('module.access:pengaturan.setting-indikator-kinerja,view')->group(function () {
-        Route::get('/setting-indikator-kinerja', [SettingIndikatorKinerjaController::class, 'index'])->name('setting-indikator-kinerja.index');
-    });
-    Route::middleware('module.access:pengaturan.setting-indikator-kinerja,create')->group(function () {
-        Route::get('/setting-indikator-kinerja/create', [SettingIndikatorKinerjaController::class, 'create'])->name('setting-indikator-kinerja.create');
-        Route::post('/setting-indikator-kinerja', [SettingIndikatorKinerjaController::class, 'store'])->name('setting-indikator-kinerja.store');
-        Route::post('/setting-indikator-kinerja/variabel', [SettingIndikatorKinerjaController::class, 'storeVariabel'])->name('setting-indikator-kinerja.store-variabel');
-    });
-    Route::middleware('module.access:pengaturan.setting-indikator-kinerja,update')->group(function () {
-        Route::get('/setting-indikator-kinerja/{indikator}/edit', [SettingIndikatorKinerjaController::class, 'edit'])->name('setting-indikator-kinerja.edit');
-        Route::put('/setting-indikator-kinerja/{indikator}', [SettingIndikatorKinerjaController::class, 'update'])->name('setting-indikator-kinerja.update');
-        Route::post('/setting-indikator-kinerja/simpan-manual-data', [SettingIndikatorKinerjaController::class, 'simpanManualData'])->name('setting-indikator-kinerja.simpan-manual-data');
-    });
-    Route::middleware('module.access:pengaturan.setting-indikator-kinerja,delete')->group(function () {
-        Route::delete('/setting-indikator-kinerja/{indikator}', [SettingIndikatorKinerjaController::class, 'destroy'])->name('setting-indikator-kinerja.destroy');
+        Route::middleware('module.access:pengaturan.setting-indikator-kinerja,view')->group(function () {
+            Route::get('/setting-indikator-kinerja', [SettingIndikatorKinerjaController::class, 'index'])->name('setting-indikator-kinerja.index');
+        });
+        Route::middleware('module.access:pengaturan.setting-indikator-kinerja,create')->group(function () {
+            Route::get('/setting-indikator-kinerja/create', [SettingIndikatorKinerjaController::class, 'create'])->name('setting-indikator-kinerja.create');
+            Route::post('/setting-indikator-kinerja', [SettingIndikatorKinerjaController::class, 'store'])->name('setting-indikator-kinerja.store');
+            Route::post('/setting-indikator-kinerja/variabel', [SettingIndikatorKinerjaController::class, 'storeVariabel'])->name('setting-indikator-kinerja.store-variabel');
+        });
+        Route::middleware('module.access:pengaturan.setting-indikator-kinerja,update')->group(function () {
+            Route::get('/setting-indikator-kinerja/{indikator}/edit', [SettingIndikatorKinerjaController::class, 'edit'])->name('setting-indikator-kinerja.edit');
+            Route::put('/setting-indikator-kinerja/{indikator}', [SettingIndikatorKinerjaController::class, 'update'])->name('setting-indikator-kinerja.update');
+            Route::post('/setting-indikator-kinerja/simpan-manual-data', [SettingIndikatorKinerjaController::class, 'simpanManualData'])->name('setting-indikator-kinerja.simpan-manual-data');
+        });
+        Route::middleware('module.access:pengaturan.setting-indikator-kinerja,delete')->group(function () {
+            Route::delete('/setting-indikator-kinerja/{indikator}', [SettingIndikatorKinerjaController::class, 'destroy'])->name('setting-indikator-kinerja.destroy');
+        });
     });
 });

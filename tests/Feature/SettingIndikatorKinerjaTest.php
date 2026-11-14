@@ -161,7 +161,7 @@ class SettingIndikatorKinerjaTest extends TestCase
         $this->seed(IndikatorKinerjaSeeder::class);
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get(route('setting-indikator-kinerja.index'));
+        $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.index'));
         $response->assertOk()
             ->assertSee('Manajemen Indikator')
             ->assertSee('Entri Data Manual')
@@ -176,7 +176,7 @@ class SettingIndikatorKinerjaTest extends TestCase
         $this->seed(IndikatorKinerjaSeeder::class);
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get(route('setting-indikator-kinerja.index', [
+        $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.index', [
             'tab' => 'manual',
             'tahun' => 2026,
         ]));
@@ -192,7 +192,7 @@ class SettingIndikatorKinerjaTest extends TestCase
         $user = User::factory()->create();
         $variabel = IndikatorKinerjaVariabelManual::first();
 
-        $response = $this->actingAs($user)->post(route('setting-indikator-kinerja.simpan-manual-data'), [
+        $response = $this->actingAs($user)->post(route('pengaturan.setting-indikator-kinerja.simpan-manual-data'), [
             'tahun' => 2026,
             'data' => [
                 $variabel->id => [
@@ -221,7 +221,7 @@ class SettingIndikatorKinerjaTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->post(route('setting-indikator-kinerja.store-variabel'), [
+        $response = $this->actingAs($user)->post(route('pengaturan.setting-indikator-kinerja.store-variabel'), [
             'kode' => 'VAR_TEST_BARU',
             'nama' => 'Variabel Uji Coba Baru',
             'satuan' => SatuanIndikator::PASIEN->value,
@@ -246,7 +246,7 @@ class SettingIndikatorKinerjaTest extends TestCase
             'satuan' => SatuanIndikator::ORANG,
         ]);
 
-        $response = $this->actingAs($user)->post(route('setting-indikator-kinerja.store-variabel'), [
+        $response = $this->actingAs($user)->post(route('pengaturan.setting-indikator-kinerja.store-variabel'), [
             'kode' => 'EXISTING_VAR',
             'nama' => 'Duplicate Code Variable',
             'satuan' => SatuanIndikator::ORANG->value,
@@ -259,7 +259,7 @@ class SettingIndikatorKinerjaTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->post(route('setting-indikator-kinerja.store-variabel'), [
+        $response = $this->actingAs($user)->post(route('pengaturan.setting-indikator-kinerja.store-variabel'), [
             'kode' => 'VAR_LONG_NAME',
             'nama' => str_repeat('A', 101),
             'satuan' => SatuanIndikator::ORANG->value,
@@ -270,7 +270,7 @@ class SettingIndikatorKinerjaTest extends TestCase
 
     public function test_unauthenticated_user_cannot_access(): void
     {
-        $response = $this->get(route('setting-indikator-kinerja.index'));
+        $response = $this->get(route('pengaturan.setting-indikator-kinerja.index'));
         $response->assertRedirect(route('login'));
     }
 
@@ -287,7 +287,7 @@ class SettingIndikatorKinerjaTest extends TestCase
         $user->role_id = $viewerRole->id;
         $user->saveQuietly();
 
-        $response = $this->actingAs($user)->get(route('setting-indikator-kinerja.index'));
+        $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.index'));
         $response->assertForbidden();
     }
 }

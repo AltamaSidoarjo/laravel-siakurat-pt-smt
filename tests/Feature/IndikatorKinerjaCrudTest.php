@@ -149,7 +149,7 @@ class IndikatorKinerjaCrudTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get(route('setting-indikator-kinerja.create'));
+        $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.create'));
 
         $response->assertOk();
         $response->assertSee('Tambah Indikator Kinerja');
@@ -162,7 +162,7 @@ class IndikatorKinerjaCrudTest extends TestCase
         $user = User::factory()->create();
         $coa = Coa::create(['kode' => '401', 'nama' => 'Pendapatan Rawat Jalan', 'status_aktif' => 1]);
 
-        $response = $this->actingAs($user)->post(route('setting-indikator-kinerja.store'), [
+        $response = $this->actingAs($user)->post(route('pengaturan.setting-indikator-kinerja.store'), [
             'kode' => 'kpi_test',
             'nama' => 'KPI Test',
             'satuan' => SatuanIndikator::PERSEN->value,
@@ -182,7 +182,7 @@ class IndikatorKinerjaCrudTest extends TestCase
             ],
         ]);
 
-        $response->assertRedirect(route('setting-indikator-kinerja.index', ['tab' => 'indikator']));
+        $response->assertRedirect(route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']));
         $this->assertDatabaseHas('indikator_kinerja', ['kode' => 'kpi_test']);
         $this->assertDatabaseHas('indikator_kinerja_mapping_coa', [
             'coa_id' => $coa->id,
@@ -201,7 +201,7 @@ class IndikatorKinerjaCrudTest extends TestCase
             'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
         ]);
 
-        $response = $this->actingAs($user)->get(route('setting-indikator-kinerja.edit', $indikator->id));
+        $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.edit', $indikator->id));
 
         $response->assertOk();
         $response->assertSee('Edit Indikator Kinerja');
@@ -230,7 +230,7 @@ class IndikatorKinerjaCrudTest extends TestCase
             'is_excluded' => false,
         ]);
 
-        $response = $this->actingAs($user)->put(route('setting-indikator-kinerja.update', $indikator->id), [
+        $response = $this->actingAs($user)->put(route('pengaturan.setting-indikator-kinerja.update', $indikator->id), [
             'kode' => 'kpi_sync',
             'nama' => 'KPI Sync Test Updated',
             'satuan' => SatuanIndikator::KALI->value,
@@ -250,7 +250,7 @@ class IndikatorKinerjaCrudTest extends TestCase
             ],
         ]);
 
-        $response->assertRedirect(route('setting-indikator-kinerja.index', ['tab' => 'indikator']));
+        $response->assertRedirect(route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']));
         $this->assertDatabaseHas('indikator_kinerja', [
             'id' => $indikator->id,
             'nama' => 'KPI Sync Test Updated',
@@ -290,9 +290,9 @@ class IndikatorKinerjaCrudTest extends TestCase
             'is_excluded' => false,
         ]);
 
-        $response = $this->actingAs($user)->delete(route('setting-indikator-kinerja.destroy', $indikator->id));
+        $response = $this->actingAs($user)->delete(route('pengaturan.setting-indikator-kinerja.destroy', $indikator->id));
 
-        $response->assertRedirect(route('setting-indikator-kinerja.index', ['tab' => 'indikator']));
+        $response->assertRedirect(route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']));
         $this->assertDatabaseMissing('indikator_kinerja', ['id' => $indikator->id]);
         $this->assertDatabaseMissing('indikator_kinerja_mapping_coa', ['id' => $mapping->id]);
     }
@@ -308,7 +308,7 @@ class IndikatorKinerjaCrudTest extends TestCase
             'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
         ]);
 
-        $response = $this->actingAs($user)->post(route('setting-indikator-kinerja.store'), [
+        $response = $this->actingAs($user)->post(route('pengaturan.setting-indikator-kinerja.store'), [
             'kode' => 'kpi_dup',
             'nama' => 'KPI Duplikat Baru',
             'satuan' => SatuanIndikator::PERSEN->value,
@@ -323,7 +323,7 @@ class IndikatorKinerjaCrudTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->post(route('setting-indikator-kinerja.store'), [
+        $response = $this->actingAs($user)->post(route('pengaturan.setting-indikator-kinerja.store'), [
             'kode' => 'kpi_long_name',
             'nama' => str_repeat('A', 101),
             'satuan' => SatuanIndikator::PERSEN->value,
@@ -346,7 +346,7 @@ class IndikatorKinerjaCrudTest extends TestCase
             'urutan' => 7,
         ]);
 
-        $response = $this->actingAs($user)->put(route('setting-indikator-kinerja.update', $indikator->id), [
+        $response = $this->actingAs($user)->put(route('pengaturan.setting-indikator-kinerja.update', $indikator->id), [
             'kode' => 'kpi_urutan_test',
             'nama' => 'KPI Urutan Test Updated',
             'satuan' => SatuanIndikator::PERSEN->value,
@@ -355,7 +355,7 @@ class IndikatorKinerjaCrudTest extends TestCase
             'urutan' => null,
         ]);
 
-        $response->assertRedirect(route('setting-indikator-kinerja.index', ['tab' => 'indikator']));
+        $response->assertRedirect(route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']));
         $indikator->refresh();
         $this->assertSame(7, $indikator->urutan);
     }
@@ -368,7 +368,7 @@ class IndikatorKinerjaCrudTest extends TestCase
         ]);
         $user = User::factory()->create(['role_id' => $roleTanpaAkses->id]);
 
-        $this->actingAs($user)->get(route('setting-indikator-kinerja.create'))->assertForbidden();
-        $this->actingAs($user)->post(route('setting-indikator-kinerja.store'), [])->assertForbidden();
+        $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.create'))->assertForbidden();
+        $this->actingAs($user)->post(route('pengaturan.setting-indikator-kinerja.store'), [])->assertForbidden();
     }
 }

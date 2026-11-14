@@ -312,18 +312,15 @@
         @endif
 
         @if ($canSeePengaturan)
-        @php
-            $isPengaturanActive = str_starts_with($path, '/pengaturan') || str_starts_with($path, '/setting-indikator-kinerja');
-        @endphp
         <li class="sidebar-item">
-            <a class="sidebar-link sidebar-toggle {{ $isPengaturanActive ? 'active' : '' }}"
+            <a class="sidebar-link sidebar-toggle {{ str_starts_with($path, '/pengaturan') ? 'active' : '' }}"
                data-bs-toggle="collapse" href="#menu-pengaturan" role="button"
-               aria-expanded="{{ $isPengaturanActive ? 'true' : 'false' }}">
+               aria-expanded="{{ str_starts_with($path, '/pengaturan') ? 'true' : 'false' }}">
                 <i class="bi bi-gear-fill sidebar-icon"></i>
                 <span class="sidebar-label">Pengaturan</span>
                 <i class="bi bi-chevron-down sidebar-arrow ms-auto"></i>
             </a>
-            <div class="collapse {{ $isPengaturanActive ? 'show' : '' }}" id="menu-pengaturan">
+            <div class="collapse {{ str_starts_with($path, '/pengaturan') ? 'show' : '' }}" id="menu-pengaturan">
                 <ul class="sidebar-submenu list-unstyled">
                     @if ($canPengaturanMappingPendapatan)
                     <li>
@@ -351,8 +348,8 @@
                     @endif
                     @if ($canPengaturanSettingIndikatorKinerja)
                     <li>
-                        <a class="sidebar-sublink {{ str_starts_with($path, '/setting-indikator-kinerja') ? 'active' : '' }}"
-                           href="{{ route('setting-indikator-kinerja.index') }}">
+                        <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/setting-indikator-kinerja') ? 'active' : '' }}"
+                           href="{{ route('pengaturan.setting-indikator-kinerja.index') }}">
                             <i class="bi bi-circle-fill sidebar-bullet"></i> Setting Indikator Kinerja
                         </a>
                     </li>

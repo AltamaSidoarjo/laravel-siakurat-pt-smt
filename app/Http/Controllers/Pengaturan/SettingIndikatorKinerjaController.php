@@ -91,7 +91,7 @@ class SettingIndikatorKinerjaController extends Controller
         });
 
         return redirect()
-            ->route('setting-indikator-kinerja.index', ['tab' => 'indikator'])
+            ->route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator'])
             ->with('success', 'Indikator kinerja berhasil ditambahkan.');
     }
 
@@ -131,7 +131,7 @@ class SettingIndikatorKinerjaController extends Controller
         });
 
         return redirect()
-            ->route('setting-indikator-kinerja.index', ['tab' => 'indikator'])
+            ->route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator'])
             ->with('success', 'Indikator kinerja berhasil diperbarui.');
     }
 
@@ -160,7 +160,7 @@ class SettingIndikatorKinerjaController extends Controller
         });
 
         return redirect()
-            ->route('setting-indikator-kinerja.index', ['tab' => 'indikator'])
+            ->route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator'])
             ->with('success', 'Indikator kinerja berhasil dihapus.');
     }
 
@@ -171,7 +171,7 @@ class SettingIndikatorKinerjaController extends Controller
         $tahun = (int) $request->input('tahun', $request->query('tahun', now()->year));
 
         return redirect()
-            ->route('setting-indikator-kinerja.index', ['tab' => 'manual', 'tahun' => $tahun])
+            ->route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'manual', 'tahun' => $tahun])
             ->with('success', 'Variabel manual berhasil ditambahkan.');
     }
 
@@ -209,7 +209,7 @@ class SettingIndikatorKinerjaController extends Controller
         });
 
         return redirect()
-            ->route('setting-indikator-kinerja.index', ['tab' => 'manual', 'tahun' => $tahun])
+            ->route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'manual', 'tahun' => $tahun])
             ->with('success', 'Data bulanan indikator kinerja manual berhasil disimpan.');
     }
 }
