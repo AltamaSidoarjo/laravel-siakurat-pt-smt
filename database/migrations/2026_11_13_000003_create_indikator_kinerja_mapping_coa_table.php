@@ -15,7 +15,7 @@ return new class extends Migration
         Schema::create('indikator_kinerja_mapping_coa', function (Blueprint $table): void {
             $table->increments('id');
             $table->unsignedInteger('indikator_id');
-            $table->unsignedInteger('coa_id');
+            $table->unsignedBigInteger('coa_id');
             $table->string('peran', 30)->default('numerator');
             $table->boolean('is_excluded')->default(false);
             $table->timestamps();
