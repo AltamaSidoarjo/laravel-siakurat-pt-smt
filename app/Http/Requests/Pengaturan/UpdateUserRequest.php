@@ -22,7 +22,15 @@ class UpdateUserRequest extends FormRequest
             'nama_lengkap' => ['nullable', 'string', 'max:255'],
             'jabatan' => ['nullable', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
-            'role_id' => ['required', 'integer', 'exists:roles,id'],
+            'role_id' => [
+                'required',
+                'integer',
+                Rule::exists('roles', 'id')->where(function ($query) {
+                    if (! (bool) $this->user()?->role?->is_system) {
+                        $query->where('is_system', false);
+                    }
+                }),
+            ],
             'password' => ['nullable', 'confirmed', Password::min(8)],
         ];
     }

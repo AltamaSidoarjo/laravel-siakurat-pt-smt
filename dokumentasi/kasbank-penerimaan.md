@@ -72,20 +72,22 @@ berekstensi `xlsx`/`xls` (`mimes:xlsx,xls`), dan maksimal 10 MB (`max:10240`). V
 ```mermaid
 flowchart TD
     A["GET /kasbank/penerimaan"] --> B["KasbankPenerimaanController::index()"]
-    B --> C["Tentukan rentang tanggal (default awal bulan s.d hari ini)"]
-    C --> D["Render view kasbank.penerimaan.index"]
+    B --> C["resolveDateRange()"]
+    B --> C1["KasbankPenerimaanService::getSummary(start, end)"]
+    C & C1 --> D["Render view kasbank.penerimaan.index\n(Quick Metrics + Unified Surface)"]
     D --> E["DataTable GET /load-data"]
     E --> F["loadData() -> KasbankPenerimaanService::getIndexQuery()"]
-    F --> G["DataTables::eloquent()->toJson()"]
+    F --> G["DataTables::eloquent()\n+ edit_url, print_url, destroy_url, can_update, can_delete -> toJson()"]
     D --> H["Export CSV -> streamCsvExport()"]
 ```
 
 ### Algoritma
 
-1. `index()` menentukan `startDate`/`endDate` (default awal bulan s.d. hari ini).
-2. `loadData()` mengambil query dari `getIndexQuery()` (eager load `coa`, urut `tanggal`/`id` desc).
-3. Kolom `tanggal`, `total` diformat; `coa_display` menampilkan nama akun; `nomer_link` menuju edit.
-4. Ekspor CSV memvalidasi rentang tanggal lalu men-stream kolom Nomor, Tanggal, Bank, Nominal, Keterangan.
+1. `index()` menentukan `startDate`/`endDate` via `resolveDateRange()` (default awal bulan s.d. hari ini) dan menghitung metrik ringkasan via `getSummary()`.
+2. View dirender dengan **Quick Metric Cards** (Total Penerimaan, Total Nominal Diterima, Periode Terpilih) dan **Unified Surface** modern.
+3. DataTable memanggil `loadData()`, mengambil query dari `getIndexQuery()`.
+4. Kolom `tanggal` diformat sebagai `d-m-Y`, `total` diformat pemisah ribuan, `coa_display` menampilkan `kode - nama`; kolom `edit_url`, `print_url`, `destroy_url`, `can_update`, `can_delete` untuk aksi baris; mendukung dynamic sorting dan custom debounced search.
+5. Ekspor CSV men-stream kolom Nomor, Tanggal (format ISO `Y-m-d`), Bank, Nominal, Keterangan secara terurut `tanggal DESC, id DESC`.
 
 ## Alur 2: Buat / Ubah + Sinkronisasi Buku Besar
 

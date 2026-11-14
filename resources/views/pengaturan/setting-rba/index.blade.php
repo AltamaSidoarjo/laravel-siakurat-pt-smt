@@ -22,15 +22,17 @@
                         @include('partials.flash-message')
                         @include('partials.validation-errors')
 
-                        <div class="card border-light shadow-sm">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-end gap-3 align-items-center">
-                                    <a href="{{ route('pengaturan.setting-rba.create') }}" class="btn btn-success fw-bold">
-                                        <i class="bi bi-plus-circle-fill"></i> Tambah
-                                    </a>
+                        @if (auth()->user()?->hasModuleAccess('pengaturan.setting-rba', 'create'))
+                            <div class="card border-light shadow-sm">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-end gap-3 align-items-center">
+                                        <a href="{{ route('pengaturan.setting-rba.create') }}" class="btn btn-success fw-bold">
+                                            <i class="bi bi-plus-circle-fill"></i> Tambah
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        @endif
 
                         <div class="card border-light shadow-sm">
                             <div class="card-header">
@@ -113,7 +115,7 @@
                 },
                 order: [[1, 'desc']],
                 columns: [
-                    { data: 'coa_display', name: 'coa.kode' },
+                    { data: 'coa_display', name: 'coa_display' },
                     { data: 'tahun', name: 'tahun', width: '120px' },
                     { data: 'nominal_display', name: 'total_nominal', width: '180px', className: 'text-end' },
                     { data: 'catatan', name: 'catatan', orderable: false },
@@ -123,8 +125,11 @@
                         searchable: false,
                         width: '100px',
                         className: 'text-center',
-                        render: function (data) {
-                            const action = '{{ url('/pengaturan/setting-rba') }}/' + data;
+                        render: function (data, type, row) {
+                            if (!row.can_delete) {
+                                return '<span class="text-muted small">-</span>';
+                            }
+                            const action = row.destroy_url || ('{{ url('/pengaturan/setting-rba') }}/' + data);
                             return `
                                 <form method="post" action="${action}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus data ini?');">
                                     @csrf

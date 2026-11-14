@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Pengaturan;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
 class StoreUserRequest extends FormRequest
@@ -19,7 +20,15 @@ class StoreUserRequest extends FormRequest
             'nama_lengkap' => ['nullable', 'string', 'max:255'],
             'jabatan' => ['nullable', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'role_id' => ['required', 'integer', 'exists:roles,id'],
+            'role_id' => [
+                'required',
+                'integer',
+                Rule::exists('roles', 'id')->where(function ($query) {
+                    if (! (bool) $this->user()?->role?->is_system) {
+                        $query->where('is_system', false);
+                    }
+                }),
+            ],
             'password' => ['required', 'confirmed', Password::min(8)],
         ];
     }

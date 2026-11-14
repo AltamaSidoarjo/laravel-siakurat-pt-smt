@@ -293,6 +293,44 @@ class RoleAccessManagementTest extends TestCase
         );
     }
 
+    public function test_admin_can_update_system_role_permissions(): void
+    {
+        $admin = $this->makeAdminUser();
+        $systemRole = Role::query()->create([
+            'nama' => 'Administrator',
+            'kode' => 'admin',
+            'deskripsi' => 'Administrator role',
+            'is_system' => true,
+        ]);
+        $penggunaModule = AccessModule::query()->where('kode', 'pengaturan.pengguna')->firstOrFail();
+
+        $response = $this
+            ->actingAs($admin)
+            ->get(route('pengaturan.role-akses.index'));
+
+        $response->assertOk();
+        $response->assertSee(route('pengaturan.role-akses.edit', $systemRole));
+
+        $updateResponse = $this
+            ->actingAs($admin)
+            ->put(route('pengaturan.role-akses.update', $systemRole), [
+                'nama' => $systemRole->nama,
+                'kode' => $systemRole->kode,
+                'deskripsi' => 'Administrator update test',
+                'permissions' => [
+                    $penggunaModule->id => [
+                        'can_view' => '1',
+                        'can_create' => '1',
+                        'can_update' => '1',
+                        'can_delete' => '1',
+                    ],
+                ],
+            ]);
+
+        $updateResponse->assertRedirect(route('pengaturan.role-akses.index'));
+        $updateResponse->assertSessionHas('success');
+    }
+
     public function test_admin_can_update_user_nama_lengkap_and_jabatan(): void
     {
         $admin = $this->makeAdminUser();
@@ -420,7 +458,220 @@ class RoleAccessManagementTest extends TestCase
             ->assertDontSee('action="'.route('pengaturan.pengguna.destroy', $target).'"', false);
     }
 
-    private function makeAdminUser(): User
+    public function test_user_cannot_delete_system_role_user(): void
+    {
+        $admin = $this->makeAdminUser();
+        $systemUser = $this->makeAdminUser('system-admin-2@example.com');
+
+        $response = $this
+            ->actingAs($admin)
+            ->delete(route('pengaturan.pengguna.destroy', $systemUser));
+
+        $response
+            ->assertRedirect(route('pengaturan.pengguna.index'))
+            ->assertSessionHas('error', 'Pengguna dengan role sistem tidak dapat dihapus.');
+
+        $this->assertDatabaseHas('users', ['id' => $systemUser->id]);
+    }
+
+    public function test_non_system_user_cannot_delete_system_role_user(): void
+    {
+        $nonSystemActor = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+            'pengaturan.pengguna' => ['view' => true, 'delete' => true],
+        ], 'staff-admin@example.com');
+        $systemUser = $this->makeAdminUser();
+
+        $response = $this
+            ->actingAs($nonSystemActor)
+            ->delete(route('pengaturan.pengguna.destroy', $systemUser));
+
+        $response
+            ->assertRedirect(route('pengaturan.pengguna.index'))
+            ->assertSessionHas('error', 'Pengguna dengan role sistem tidak dapat dihapus.');
+
+        $this->assertDatabaseHas('users', ['id' => $systemUser->id]);
+    }
+
+    public function test_delete_button_is_not_shown_for_system_role_user(): void
+    {
+        $admin = $this->makeAdminUser();
+        $systemTarget = $this->makeAdminUser('target-system@example.com');
+
+        $response = $this
+            ->actingAs($admin)
+            ->get(route('pengaturan.pengguna.index'));
+
+        $response
+            ->assertOk()
+            ->assertDontSee('action="'.route('pengaturan.pengguna.destroy', $systemTarget).'"', false);
+    }
+
+    public function test_non_system_user_cannot_edit_system_role_user(): void
+    {
+        $staffUser = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+            'pengaturan.pengguna' => ['view' => true, 'update' => true],
+        ], 'staff@example.com');
+        $systemUser = $this->makeAdminUser();
+
+        $this
+            ->actingAs($staffUser)
+            ->get(route('pengaturan.pengguna.edit', $systemUser))
+            ->assertForbidden();
+
+        $this
+            ->actingAs($staffUser)
+            ->put(route('pengaturan.pengguna.update', $systemUser), [
+                'name' => 'Hacked Admin',
+                'email' => 'admin@example.com',
+                'role_id' => $staffUser->role_id,
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_non_system_user_cannot_assign_system_role_when_creating_or_updating_user(): void
+    {
+        $staffUser = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+            'pengaturan.pengguna' => ['view' => true, 'create' => true, 'update' => true],
+        ], 'staff@example.com');
+        $systemRole = Role::query()->create([
+            'nama' => 'Admin Role',
+            'kode' => 'admin_role',
+            'deskripsi' => null,
+            'is_system' => true,
+        ]);
+        $targetUser = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+        ], 'target@example.com');
+
+        $storeResponse = $this
+            ->actingAs($staffUser)
+            ->post(route('pengaturan.pengguna.store'), [
+                'name' => 'Escalated User',
+                'nama_lengkap' => 'Escalated User',
+                'jabatan' => 'Staff',
+                'email' => 'escalated@example.com',
+                'role_id' => $systemRole->id,
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+            ]);
+
+        $storeResponse->assertSessionHasErrors('role_id');
+
+        $updateResponse = $this
+            ->actingAs($staffUser)
+            ->put(route('pengaturan.pengguna.update', $targetUser), [
+                'name' => $targetUser->name,
+                'nama_lengkap' => 'Target Updated',
+                'jabatan' => 'Staff',
+                'email' => $targetUser->email,
+                'role_id' => $systemRole->id,
+            ]);
+
+        $updateResponse->assertSessionHasErrors('role_id');
+    }
+
+    public function test_non_system_user_cannot_edit_system_role_in_role_akses(): void
+    {
+        $staffUser = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+            'pengaturan.role-akses' => ['view' => true, 'update' => true],
+        ], 'staff-role@example.com');
+        $systemRole = Role::query()->create([
+            'nama' => 'Admin System',
+            'kode' => 'admin_system',
+            'deskripsi' => null,
+            'is_system' => true,
+        ]);
+
+        $this
+            ->actingAs($staffUser)
+            ->get(route('pengaturan.role-akses.edit', $systemRole))
+            ->assertRedirect(route('pengaturan.role-akses.index'))
+            ->assertSessionHas('error', 'Role sistem hanya dapat diubah oleh Superadmin.');
+
+        $this
+            ->actingAs($staffUser)
+            ->put(route('pengaturan.role-akses.update', $systemRole), [
+                'nama' => 'Hacked Role',
+                'kode' => $systemRole->kode,
+            ])
+            ->assertRedirect(route('pengaturan.role-akses.index'))
+            ->assertSessionHas('error', 'Role sistem hanya dapat diubah oleh Superadmin.');
+    }
+
+    public function test_non_system_user_cannot_edit_their_own_role_in_role_akses(): void
+    {
+        $staffUser = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+            'pengaturan.role-akses' => ['view' => true, 'update' => true],
+        ], 'staff-own-role@example.com');
+
+        $this
+            ->actingAs($staffUser)
+            ->get(route('pengaturan.role-akses.edit', $staffUser->role))
+            ->assertRedirect(route('pengaturan.role-akses.index'))
+            ->assertSessionHas('error', 'Anda tidak dapat mengubah hak akses untuk role Anda sendiri.');
+
+        $this
+            ->actingAs($staffUser)
+            ->put(route('pengaturan.role-akses.update', $staffUser->role), [
+                'nama' => 'Self Escalated Role',
+                'kode' => $staffUser->role->kode,
+            ])
+            ->assertRedirect(route('pengaturan.role-akses.index'))
+            ->assertSessionHas('error', 'Anda tidak dapat mengubah hak akses untuk role Anda sendiri.');
+    }
+
+    public function test_create_and_edit_user_forms_have_autocomplete_disabled(): void
+    {
+        $admin = $this->makeAdminUser();
+        $targetUser = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+        ], 'target-form@example.com');
+
+        $createResponse = $this
+            ->actingAs($admin)
+            ->get(route('pengaturan.pengguna.create'));
+
+        $createResponse->assertOk();
+        $createResponse->assertSee('autocomplete="off"', false);
+        $createResponse->assertSee('autocomplete="new-password"', false);
+
+        $editResponse = $this
+            ->actingAs($admin)
+            ->get(route('pengaturan.pengguna.edit', $targetUser));
+
+        $editResponse->assertOk();
+        $editResponse->assertSee('autocomplete="off"', false);
+        $editResponse->assertSee('autocomplete="new-password"', false);
+    }
+
+    public function test_role_akses_index_shows_locked_button_for_system_role_and_own_role_when_viewed_by_non_system_user(): void
+    {
+        $staffUser = $this->makeUserWithPermissions([
+            'home' => ['view' => true],
+            'pengaturan.role-akses' => ['view' => true],
+        ], 'staff-index@example.com');
+        $systemRole = Role::query()->create([
+            'nama' => 'Administrator Role',
+            'kode' => 'admin_role_idx',
+            'deskripsi' => null,
+            'is_system' => true,
+        ]);
+
+        $response = $this
+            ->actingAs($staffUser)
+            ->get(route('pengaturan.role-akses.index'));
+
+        $response->assertOk();
+        $response->assertDontSee(route('pengaturan.role-akses.edit', $systemRole));
+        $response->assertDontSee(route('pengaturan.role-akses.edit', $staffUser->role));
+    }
+
+    private function makeAdminUser(string $email = 'admin@example.com'): User
     {
         return $this->makeUserWithPermissions(
             collect(AccessModule::query()->pluck('kode'))
@@ -433,17 +684,18 @@ class RoleAccessManagementTest extends TestCase
                     ],
                 ])
                 ->all(),
-            'admin@example.com'
+            $email,
+            true
         );
     }
 
-    private function makeUserWithPermissions(array $permissionsByModule, string $email = 'tester@example.com'): User
+    private function makeUserWithPermissions(array $permissionsByModule, string $email = 'tester@example.com', bool $isSystem = false): User
     {
         $role = Role::query()->create([
             'nama' => 'Role '.uniqid(),
             'kode' => 'role_'.uniqid(),
             'deskripsi' => null,
-            'is_system' => false,
+            'is_system' => $isSystem,
         ]);
 
         foreach (AccessModule::query()->get() as $module) {

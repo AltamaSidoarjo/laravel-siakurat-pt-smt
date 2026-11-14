@@ -20,7 +20,7 @@
                 <div class="card-body">
                     @include('partials.validation-errors')
 
-                    <form method="post" action="{{ route('pengaturan.pengguna.store') }}">
+                    <form method="post" action="{{ route('pengaturan.pengguna.store') }}" autocomplete="off">
                         @csrf
 
                         <div class="d-flex flex-column gap-3">
@@ -41,7 +41,7 @@
                                         </div>
                                         <div class="col-12">
                                             <label for="email" class="form-label">Email</label>
-                                            <input type="email" name="email" id="email" class="form-control" value="{{ old('email') }}" required>
+                                            <input type="email" name="email" id="email" class="form-control" value="{{ old('email') }}" autocomplete="off" required>
                                         </div>
                                         <div class="col-md-6">
                                             <label for="role_id" class="form-label">Role Akses</label>
@@ -56,12 +56,12 @@
                                         </div>
                                         <div class="col-md-6">
                                             <label for="password" class="form-label">Password</label>
-                                            <input type="password" name="password" id="password" class="form-control" required>
+                                            <input type="password" name="password" id="password" class="form-control" autocomplete="new-password" required>
                                             <div class="form-text">Minimal 8 karakter.</div>
                                         </div>
                                         <div class="col-md-6">
                                             <label for="password_confirmation" class="form-label">Konfirmasi Password</label>
-                                            <input type="password" name="password_confirmation" id="password_confirmation" class="form-control" required>
+                                            <input type="password" name="password_confirmation" id="password_confirmation" class="form-control" autocomplete="new-password" required>
                                         </div>
                                     </div>
                                 </div>

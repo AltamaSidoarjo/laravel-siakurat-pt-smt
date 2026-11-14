@@ -237,6 +237,25 @@ class ExampleTest extends TestCase
             ->assertHeader('content-type', 'application/json');
     }
 
+    public function test_laporan_keuangan_bukubesar_search_coa_endpoint_returns_options_without_query(): void
+    {
+        $this->prepareBukubesarTables();
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get('/laporan/keuangan/bukubesar/search-coa');
+
+        $response
+            ->assertOk()
+            ->assertJsonStructure([
+                'results' => [
+                    '*' => ['id', 'text'],
+                ],
+                'pagination' => ['more'],
+            ])
+            ->assertJsonPath('pagination.more', false);
+    }
+
     public function test_laporan_keuangan_menu_lists_core_report_links(): void
     {
         $response = $this

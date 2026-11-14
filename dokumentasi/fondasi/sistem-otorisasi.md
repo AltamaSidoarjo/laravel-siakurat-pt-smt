@@ -78,6 +78,11 @@ flowchart TD
 - `Role::hasModuleAccess()` memakai relasi `permissions` yang sudah dimuat bila tersedia
   (`relationLoaded`), jika tidak, melakukan query `whereHas('accessModule', ...)`.
 - Penolakan menghasilkan **HTTP 403** dengan pesan "Anda tidak memiliki akses ke modul ini."
+- **Perlindungan Role Sistem (`is_system = true`)**:
+  - Pengguna dengan role sistem tidak dapat dihapus oleh siapa pun.
+  - Pengguna non-sistem tidak dapat mengedit pengguna dengan role sistem atau menetapkan role sistem pada pembuatan/pembaruan user.
+  - Pengguna non-sistem tidak dapat mengubah matriks izin role sistem di modul Role Akses.
+  - Pengguna non-sistem tidak dapat mengubah matriks izin role miliknya sendiri guna mencegah eskalasi hak akses mandiri (*self privilege escalation*).
 
 ## Daftar Modul (AccessModuleRegistry)
 

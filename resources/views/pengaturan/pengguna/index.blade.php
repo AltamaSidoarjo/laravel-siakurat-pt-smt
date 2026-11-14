@@ -60,10 +60,16 @@
                                                     <td>{{ $user->email }}</td>
                                                     <td>{{ $user->role?->nama ?? '-' }}</td>
                                                     <td class="text-center">
-                                                        <a href="{{ route('pengaturan.pengguna.edit', $user) }}" class="btn btn-warning btn-sm">
-                                                            <i class="bi bi-pencil-square"></i> Edit
-                                                        </a>
-                                                        @if ($canDeleteUsers && ! $authenticatedUser->is($user))
+                                                        @if (! $user->role?->is_system || $authenticatedUser?->role?->is_system)
+                                                            <a href="{{ route('pengaturan.pengguna.edit', $user) }}" class="btn btn-warning btn-sm">
+                                                                <i class="bi bi-pencil-square"></i> Edit
+                                                            </a>
+                                                        @else
+                                                            <button type="button" class="btn btn-secondary btn-sm" disabled title="Pengguna dengan role sistem hanya dapat diedit oleh Superadmin">
+                                                                <i class="bi bi-lock-fill"></i> Terkunci
+                                                            </button>
+                                                        @endif
+                                                        @if ($canDeleteUsers && ! $authenticatedUser->is($user) && ! ($user->role?->is_system))
                                                             <form method="post"
                                                                   action="{{ route('pengaturan.pengguna.destroy', $user) }}"
                                                                   class="d-inline-block"

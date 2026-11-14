@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\StreamsCsvExport;
 use App\Models\FakturPenjualan;
 use App\Services\Pendapatan\InvoicePendapatanService;
+use App\Services\PreferensiPerusahaanService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -17,6 +19,7 @@ class InvoicePendapatanController extends Controller
     use StreamsCsvExport;
     public function __construct(
         private readonly InvoicePendapatanService $invoicePendapatanService,
+        private readonly PreferensiPerusahaanService $preferensiPerusahaanService,
     ) {
     }
 
@@ -64,6 +67,19 @@ class InvoicePendapatanController extends Controller
         return view('pendapatan.invoice.read', [
             'page' => 'app',
             'invoicePendapatan' => $fakturPenjualan->load('rincian'),
+        ]);
+    }
+
+    public function print(FakturPenjualan $fakturPenjualan): View
+    {
+        $printIdentity = $this->preferensiPerusahaanService->getPrintIdentity();
+
+        return view('pendapatan.invoice.print', [
+            'page' => 'app',
+            'invoicePendapatan' => $fakturPenjualan->load('rincian'),
+            'namaRumahSakit' => $printIdentity['namaRumahSakit'],
+            'printedAt' => Carbon::now(),
+            'namaPetugas' => auth()->user()?->name ?? '(Nama Petugas)',
         ]);
     }
 }
