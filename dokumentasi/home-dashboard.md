@@ -28,13 +28,16 @@ Semua endpoint memakai izin `home,view`.
 | `GET` | `/home/dokter` | `home.dokter` | `topDokter()` |
 | `GET` | `/home/pendapatan-harian` | `home.pendapatan-harian` | `pendapatanHarian()` |
 | `GET` | `/home/penjamin` | `home.penjamin` | `komposisiPenjamin()` |
+| `GET` | `/home/ringkasan-indikator` | `home.ringkasan-indikator` | `ringkasanIndikator()` |
 
 ## Parameter
 
-- Endpoint data menerima `dariTanggal` dan `sampaiTanggal`; `resolveDateRange()` memberi default
-  awal bulan s.d. hari ini bila kosong.
+- Endpoint data menerima parameter rentang tanggal: format `dariTanggal`/`sampaiTanggal` atau `start_date`/`end_date`;
+  `resolveDateRange()` memberi default awal bulan s.d. hari ini bila kosong.
 - `index()` mengirim `defaultStartDate`/`defaultEndDate` ke view untuk inisialisasi filter, serta
   `activeInformasiList` dari `LayananInformasiService::getActiveInformasi()` untuk banner pengumuman.
+- Endpoint `/home/ringkasan-indikator` mengembalikan ringkasan status indikator kinerja RS berformat
+  `{ total, hijau, kuning, merah, netral }` dari `IndikatorKinerjaService::getRingkasanStatus()`.
 - Respons `/home/poli` tetap berbentuk `{ poli, total }` dan berisi maksimal 11 baris: 10 poli
   terbesar ditambah `Lainnya` bila jumlah kategori lebih dari 10.
 
@@ -76,9 +79,10 @@ flowchart TD
 
 ## Fungsi yang Dipanggil
 
-- `HomeController::index()/kunjunganHarian()/distribusiPoli()/topDokter()/pendapatanHarian()/komposisiPenjamin()`
+- `HomeController::index()/kunjunganHarian()/distribusiPoli()/topDokter()/pendapatanHarian()/komposisiPenjamin()/ringkasanIndikator()`
 - `HomeController::resolveDateRange()` (private)
 - `HomeDashboardService::getKunjunganHarian()/getDistribusiPoli()/getTopDokter()/getPendapatanHarian()/getKomposisiPenjamin()`
+- `IndikatorKinerjaService::getRingkasanStatus()`
 - `LayananInformasiService::getActiveInformasi()`
 
 ## Catatan Penting Bisnis

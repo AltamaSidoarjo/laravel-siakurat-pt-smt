@@ -6,6 +6,7 @@ use App\Http\Controllers\Bridging\BridgingPendapatanController;
 use App\Http\Controllers\Bridging\BridgingPendapatanObatController;
 use App\Http\Controllers\Bukubesar\CoaController;
 use App\Http\Controllers\Bukubesar\JurnalUmumController;
+use App\Http\Controllers\Dashboard\IndikatorKinerjaDashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Kasbank\BukuBankController;
 use App\Http\Controllers\Kasbank\KasbankPembayaranController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\Pengaturan\MappingPendapatanController;
 use App\Http\Controllers\Pengaturan\PenggunaController;
 use App\Http\Controllers\Pengaturan\PreferensiController;
 use App\Http\Controllers\Pengaturan\RoleAksesController;
+use App\Http\Controllers\Pengaturan\SettingIndikatorKinerjaController;
 use App\Http\Controllers\Pengaturan\SettingRbaController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -47,6 +49,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/home/dokter', [HomeController::class, 'topDokter'])->name('home.dokter');
         Route::get('/home/pendapatan-harian', [HomeController::class, 'pendapatanHarian'])->name('home.pendapatan-harian');
         Route::get('/home/penjamin', [HomeController::class, 'komposisiPenjamin'])->name('home.penjamin');
+        Route::get('/home/ringkasan-indikator', [HomeController::class, 'ringkasanIndikator'])->name('home.ringkasan-indikator');
+    });
+
+    Route::middleware('module.access:dashboard.indikator-kinerja,view')->group(function () {
+        Route::get('/dashboard/indikator-kinerja', [IndikatorKinerjaDashboardController::class, 'index'])->name('dashboard.indikator-kinerja.index');
+        Route::get('/dashboard/indikator-kinerja/{kode}/tren', [IndikatorKinerjaDashboardController::class, 'tren'])->name('dashboard.indikator-kinerja.tren');
     });
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
 
@@ -395,6 +403,22 @@ Route::middleware('auth')->group(function () {
         });
         Route::middleware('module.access:pengaturan.layanan-informasi,delete')->group(function () {
             Route::delete('/layanan-informasi/{layananInformasi}', [LayananInformasiController::class, 'destroy'])->name('layanan-informasi.destroy');
+        });
+        Route::middleware('module.access:pengaturan.setting-indikator-kinerja,view')->group(function () {
+            Route::get('/setting-indikator-kinerja', [SettingIndikatorKinerjaController::class, 'index'])->name('setting-indikator-kinerja.index');
+        });
+        Route::middleware('module.access:pengaturan.setting-indikator-kinerja,create')->group(function () {
+            Route::get('/setting-indikator-kinerja/create', [SettingIndikatorKinerjaController::class, 'create'])->name('setting-indikator-kinerja.create');
+            Route::post('/setting-indikator-kinerja', [SettingIndikatorKinerjaController::class, 'store'])->name('setting-indikator-kinerja.store');
+            Route::post('/setting-indikator-kinerja/variabel', [SettingIndikatorKinerjaController::class, 'storeVariabel'])->name('setting-indikator-kinerja.store-variabel');
+        });
+        Route::middleware('module.access:pengaturan.setting-indikator-kinerja,update')->group(function () {
+            Route::get('/setting-indikator-kinerja/{indikator}/edit', [SettingIndikatorKinerjaController::class, 'edit'])->name('setting-indikator-kinerja.edit');
+            Route::put('/setting-indikator-kinerja/{indikator}', [SettingIndikatorKinerjaController::class, 'update'])->name('setting-indikator-kinerja.update');
+            Route::post('/setting-indikator-kinerja/simpan-manual-data', [SettingIndikatorKinerjaController::class, 'simpanManualData'])->name('setting-indikator-kinerja.simpan-manual-data');
+        });
+        Route::middleware('module.access:pengaturan.setting-indikator-kinerja,delete')->group(function () {
+            Route::delete('/setting-indikator-kinerja/{indikator}', [SettingIndikatorKinerjaController::class, 'destroy'])->name('setting-indikator-kinerja.destroy');
         });
     });
 });

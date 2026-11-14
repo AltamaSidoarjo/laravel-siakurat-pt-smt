@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setting Indikator Kinerja RS - SiAkurat</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Toast Notification -->
+    <div id="toastNotification" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center space-x-3 border border-slate-700">
+            <span id="toastIcon" class="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                <i data-lucide="check" class="w-4 h-4"></i>
+            </span>
+            <div>
+                <p id="toastTitle" class="text-xs font-semibold">Berhasil Disimpan</p>
+                <p id="toastMessage" class="text-[11px] text-slate-400">Konfigurasi indikator telah diperbarui.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header / Navbar -->
+    <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <a href="dashboard-indikator-kinerja-mockup.html" class="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg border border-slate-700 transition" title="Kembali ke Dashboard">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                </a>
+                <div class="bg-emerald-500 p-2 rounded-lg text-slate-900 font-bold">
+                    <i data-lucide="sliders" class="w-6 h-6 stroke-[2.5]"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="font-bold text-lg leading-tight">Setting Indikator Kinerja</h1>
+                        <span class="bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-semibold px-2 py-0.5 rounded-full">Superadmin</span>
+                    </div>
+                    <p class="text-xs text-slate-400">Konfigurasi Master Indikator, Ambang Batas Target (RAG), Mapping Akun COA & Data Manual</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3 text-sm">
+                <a href="dashboard-indikator-kinerja-mockup.html" class="hidden sm:flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    <span>Buka Dashboard Eksekutif</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Informative Banner -->
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start justify-between gap-4">
+            <div class="flex items-start space-x-3">
+                <div class="p-2 bg-blue-100 text-blue-700 rounded-lg mt-0.5">
+                    <i data-lucide="info" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h3 class="text-sm font-bold text-blue-900">Arsitektur Pengaturan Dinamis & Ekstensibel</h3>
+                    <p class="text-xs text-blue-800/80 mt-0.5 leading-relaxed">
+                        Modul ini tidak terkunci pada 11 indikator awal. Superadmin dapat menambah indikator baru, mengubah rumus dan ambang batas RAG, memetakan akun COA sesuai struktur rumah sakit, serta mencatat data non-akuntansi bulanan (seperti surat BAHV BPJS).
+                    </p>
+                </div>
+            </div>
+            <div class="hidden md:flex items-center space-x-2 text-xs font-semibold text-blue-700 shrink-0">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Auto Batch-Query Sync</span>
+            </div>
+        </div>
+
+        <!-- 3 Main Tabs Navigation -->
+        <div class="flex border-b border-slate-200 space-x-2 sm:space-x-4 bg-white px-4 pt-3 rounded-xl border shadow-sm">
+            <button id="tabBtn1" onclick="switchTab(1)" class="tab-btn px-4 py-3 text-sm font-bold border-b-2 border-emerald-600 text-emerald-600 flex items-center space-x-2 transition">
+                <i data-lucide="gauge" class="w-4 h-4"></i>
+                <span>1. Master Indikator & Ambang Batas</span>
+                <span id="badgeTab1Count" class="ml-1 bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded-full font-bold">11</span>
+            </button>
+            <button id="tabBtn2" onclick="switchTab(2)" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-900 flex items-center space-x-2 transition">
+                <i data-lucide="folder-tree" class="w-4 h-4"></i>
+                <span>2. Pemetaan Akun COA</span>
+                <span class="ml-1 bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Relasi Langsung</span>
+            </button>
+            <button id="tabBtn3" onclick="switchTab(3)" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-900 flex items-center space-x-2 transition">
+                <i data-lucide="calendar" class="w-4 h-4"></i>
+                <span>3. Entri Data Manual Bulanan</span>
+                <span class="ml-1 bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded-full font-bold">BAHV & SDM</span>
+            </button>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 1: MASTER INDIKATOR & AMBANG BATAS    -->
+        <!-- ========================================== -->
+        <div id="tabContent1" class="space-y-4">
+            
+            <!-- Toolbar Tab 1 -->
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    <div class="relative w-full sm:w-72">
+                        <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="searchIndicatorInput" onkeyup="filterIndicators()" placeholder="Cari Kode, Nama, atau Formula..." class="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+                    </div>
+                    <select id="patternFilter" onchange="filterIndicators()" class="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="ALL">Semua Pola Evaluasi</option>
+                        <option value="HIGHER_IS_BETTER">Semakin Besar Semakin Baik</option>
+                        <option value="LOWER_IS_BETTER">Semakin Kecil Semakin Baik</option>
+                        <option value="TARGET_BAND">Rentang Optimal (Band)</option>
+                    </select>
+                </div>
+                <button onclick="openIndicatorModal('new')" class="w-full md:w-auto flex items-center justify-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg shadow-sm transition">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span>Tambah Indikator Baru</span>
+                </button>
+            </div>
+
+            <!-- Table Master Indikator -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-800 text-slate-200 text-xs uppercase tracking-wider font-semibold border-b border-slate-700">
+                                <th class="py-3 px-4 w-12 text-center">Urutan</th>
+                                <th class="py-3 px-4 w-28">Kode</th>
+                                <th class="py-3 px-4 min-w-[180px]">Nama Indikator</th>
+                                <th class="py-3 px-4 min-w-[240px]">Definisi Operasional / Formula</th>
+                                <th class="py-3 px-4 w-28 text-center">Pola & Satuan</th>
+                                <th class="py-3 px-4 min-w-[280px]">Ambang Batas Target (RAG)</th>
+                                <th class="py-3 px-4 text-center w-20">Status</th>
+                                <th class="py-3 px-4 text-center w-28">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="indicatorTableBody" class="divide-y divide-slate-100 text-sm">
+                            <!-- Injected by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 2: PEMETAAN AKUN COA (COA MAPPING)    -->
+        <!-- ========================================== -->
+        <div id="tabContent2" class="hidden space-y-5">
+            
+            <!-- Selector Header -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Konfigurasi Pemetaan Akun COA</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Pilih indikator untuk melihat dan mengelola akun-akun buku besar yang dipetakan sebagai Pembilang, Penyebut, atau Komponen Tambahan.</p>
+                    </div>
+                    <div class="w-full md:w-96">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Pilih Indikator Kinerja:</label>
+                        <select id="selectedIndicatorForCoa" onchange="loadCoaMappingForIndicator()" class="w-full px-3 py-2 text-sm font-semibold bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <!-- Injected dynamically -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Active Indicator Details Card -->
+                <div id="activeIndicatorInfoCard" class="p-4 bg-slate-50 rounded-lg border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+                    <div>
+                        <span class="text-slate-400 font-medium">Formula / Definisi:</span>
+                        <p id="activeIndicatorFormula" class="font-bold text-slate-800 text-sm mt-0.5">Realisasi Pendapatan : Target RBA</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="openAddCoaModal()" class="flex items-center space-x-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow-sm transition">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                            <span>Petakan Akun COA Baru</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3 Columns / Sections for Roles: Pembilang, Penyebut, Komponen Tambahan -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                
+                <!-- Box Pembilang (Numerator) -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                    <div class="px-5 py-3.5 bg-emerald-50/70 border-b border-emerald-100 flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                            <h4 class="font-bold text-emerald-950 text-sm">Akun Pembilang (Numerator)</h4>
+                        </div>
+                        <span id="pembilangCountBadge" class="text-[11px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">0 Akun</span>
+                    </div>
+                    <div class="p-4 flex-grow space-y-2" id="pembilangCoaList">
+                        <!-- Dynamic list of mapped accounts -->
+                    </div>
+                </div>
+
+                <!-- Box Penyebut (Denominator) -->
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                    <div class="px-5 py-3.5 bg-blue-50/70 border-b border-blue-100 flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+                            <h4 class="font-bold text-blue-950 text-sm">Akun Penyebut (Denominator) / Target</h4>
+                        </div>
+                        <span id="penyebutCountBadge" class="text-[11px] font-bold px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">0 Akun</span>
+                    </div>
+                    <div class="p-4 flex-grow space-y-2" id="penyebutCoaList">
+                        <!-- Dynamic list of mapped accounts -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Special Box for Additional Components / Adjustment (Penyusutan, Amortisasi, Exclude Logistik RT, dll.) -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-5 py-3.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+                        <h4 class="font-bold text-slate-800 text-sm">Akun Penyesuaian & Pengecualian Khusus (Exclude / Add-back)</h4>
+                    </div>
+                    <span class="text-xs text-slate-500">Mendukung formula kompleks (EBITDA, Pengecualian Persediaan RT)</span>
+                </div>
+                <div class="p-4 space-y-2" id="additionalCoaList">
+                    <!-- Dynamic special mapping -->
+                </div>
+            </div>
+
+            <!-- Global Mapping Overview Table -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-5 py-3.5 bg-slate-800 text-white flex items-center justify-between">
+                    <h4 class="font-bold text-sm">Matriks Ringkasan Pemetaan Seluruh Indikator</h4>
+                    <span class="text-xs text-slate-400">Tabel Relasi Langsung `indikator_kinerja_mapping_coa`</span>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 font-semibold uppercase tracking-wider border-b border-slate-200">
+                                <th class="py-2.5 px-4">Indikator</th>
+                                <th class="py-2.5 px-4">Peran Relasi</th>
+                                <th class="py-2.5 px-4">Kode & Nama COA</th>
+                                <th class="py-2.5 px-4">Kategori Akun</th>
+                                <th class="py-2.5 px-4 text-center">Status Exclude</th>
+                                <th class="py-2.5 px-4 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="allMappingsTableBody" class="divide-y divide-slate-100">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB 3: ENTRI DATA MANUAL BULANAN          -->
+        <!-- ========================================== -->
+        <div id="tabContent3" class="hidden space-y-5">
+            
+            <!-- Header Tab 3 -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900">Entri Data Operasional Non-Akuntansi Bulanan</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Digunakan untuk metrik yang tidak bersumber dari buku besar keuangan, seperti hasil verifikasi surat BAHV BPJS Kesehatan, jumlah SDM non-organik, dan variabel manual lainnya.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+                    <div class="flex items-center space-x-2">
+                        <label class="text-xs font-semibold text-slate-600">Tahun:</label>
+                        <select id="selectedYear" onchange="renderManualDataTable()" class="px-3 py-1.5 text-sm font-bold bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option value="2026" selected>2026</option>
+                            <option value="2025">2025</option>
+                            <option value="2024">2024</option>
+                        </select>
+                    </div>
+                    <button onclick="openAddVariableModal()" class="flex items-center space-x-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg shadow-sm transition">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>Tambah Variabel Manual Baru</span>
+                    </button>
+                    <button onclick="saveManualDataBatch()" class="flex items-center space-x-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-sm transition">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        <span>Simpan Data Bulanan</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Spreadsheet-like Monthly Entry Table -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Matriks Data Bulanan (Tahun <span id="labelTahunActive">2026</span>)</span>
+                    <span class="text-[11px] text-slate-400">Perubahan disimpan saat menekan tombol "Simpan Data Bulanan"</span>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-800 text-slate-200 uppercase tracking-wider font-semibold border-b border-slate-700">
+                                <th class="py-3 px-3 w-10 text-center">No</th>
+                                <th class="py-3 px-4 min-w-[200px]">Variabel Operasional</th>
+                                <th class="py-3 px-2 w-16 text-center">Satuan</th>
+                                <th class="py-3 px-2 text-center w-16">Jan</th>
+                                <th class="py-3 px-2 text-center w-16">Feb</th>
+                                <th class="py-3 px-2 text-center w-16">Mar</th>
+                                <th class="py-3 px-2 text-center w-16">Apr</th>
+                                <th class="py-3 px-2 text-center w-16">Mei</th>
+                                <th class="py-3 px-2 text-center w-16">Jun</th>
+                                <th class="py-3 px-2 text-center w-16">Jul</th>
+                                <th class="py-3 px-2 text-center w-16">Agu</th>
+                                <th class="py-3 px-2 text-center w-16">Sep</th>
+                                <th class="py-3 px-2 text-center w-16">Okt</th>
+                                <th class="py-3 px-2 text-center w-16">Nov</th>
+                                <th class="py-3 px-2 text-center w-16">Des</th>
+                                <th class="py-3 px-3 text-center w-24 bg-slate-900">Rata-rata</th>
+                            </tr>
+                        </thead>
+                        <tbody id="manualDataTableBody" class="divide-y divide-slate-100">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Notes on Monthly Letter Resolution -->
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start space-x-3 text-xs text-amber-900">
+                <i data-lucide="alert-circle" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
+                <div class="space-y-1">
+                    <p class="font-bold">Mekanisme Rekapitulasi Surat BPJS Kesehatan (BAHV):</p>
+                    <p class="text-amber-800">
+                        BPJS Kesehatan menerbitkan surat Berita Acara Hasil Verifikasi (BAHV) satu kali setiap bulan per RS. Pada Dashboard Eksekutif, sistem akan mengambil persentase kelulusan BAHV dari bulan sesuai tanggal akhir filter (atau bulan terakhir yang sudah tercatat), disertai label referensi bulan surat pada kartu indikator.
+                    </p>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- ==================================================== -->
+    <!-- MODAL 1: FORM TAMBAH / EDIT INDIKATOR & THRESHOLD    -->
+    <!-- ==================================================== -->
+    <div id="indicatorModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden transform transition-all max-h-[92vh] flex flex-col">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span class="w-8 h-8 bg-emerald-500 text-slate-900 font-bold rounded-lg flex items-center justify-center">
+                        <i data-lucide="sliders" class="w-5 h-5"></i>
+                    </span>
+                    <div>
+                        <h3 id="modalIndicatorTitle" class="font-bold text-base leading-snug">Edit Parameter Indikator</h3>
+                        <p class="text-xs text-slate-400">Konfigurasi formula, pola evaluasi, dan batas desimal target</p>
+                    </div>
+                </div>
+                <button onclick="closeIndicatorModal()" class="text-slate-400 hover:text-white p-1 rounded-lg transition">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Modal Form Body -->
+            <div class="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-grow">
+                <input type="hidden" id="formIndicatorId">
+
+                <!-- Row 1: Kode, Urutan, Satuan -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Kode Indikator <span class="text-rose-500">*</span></label>
+                        <input type="text" id="formIndicatorKode" placeholder="Contoh: IK-01" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Urutan Tampil <span class="text-rose-500">*</span></label>
+                        <input type="number" id="formIndicatorUrutan" min="1" max="99" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Satuan <span class="text-rose-500">*</span></label>
+                        <select id="formIndicatorSatuan" onchange="updateThresholdLivePreview()" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option value="%">% (Persen)</option>
+                            <option value="Hari">Hari</option>
+                            <option value="Rupiah">Rupiah (Juta/Miliar)</option>
+                            <option value="Angka">Angka Desimal Bebas</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Row 2: Nama Indikator -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Indikator <span class="text-rose-500">*</span></label>
+                    <input type="text" id="formIndicatorNama" placeholder="Contoh: Capaian Pendapatan" class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold">
+                </div>
+
+                <!-- Row 3: Definisi Operasional -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Definisi Operasional & Rumus <span class="text-rose-500">*</span></label>
+                    <textarea id="formIndicatorDO" rows="2" placeholder="Jelaskan formula matematika dan sumber pembilang/penyebut..." class="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                </div>
+
+                <!-- Row 4: Pola Evaluasi -->
+                <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider">Pola Logika Evaluasi Status RAG <span class="text-rose-500">*</span></label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <label class="flex items-center space-x-2 p-2.5 rounded-lg border bg-white cursor-pointer hover:border-emerald-500 text-xs">
+                            <input type="radio" name="polaEvaluasi" value="HIGHER_IS_BETTER" onchange="onPatternChange()" checked class="text-emerald-600 focus:ring-emerald-500">
+                            <div>
+                                <span class="font-bold block text-slate-800">Semakin Tinggi Baik</span>
+                                <span class="text-[10px] text-slate-500">Pendapatan, Profit, EBITDA</span>
+                            </div>
+                        </label>
+                        <label class="flex items-center space-x-2 p-2.5 rounded-lg border bg-white cursor-pointer hover:border-emerald-500 text-xs">
+                            <input type="radio" name="polaEvaluasi" value="LOWER_IS_BETTER" onchange="onPatternChange()" class="text-emerald-600 focus:ring-emerald-500">
+                            <div>
+                                <span class="font-bold block text-slate-800">Semakin Rendah Baik</span>
+                                <span class="text-[10px] text-slate-500">Beban Operasional, Hari Piutang</span>
+                            </div>
+                        </label>
+                        <label class="flex items-center space-x-2 p-2.5 rounded-lg border bg-white cursor-pointer hover:border-emerald-500 text-xs">
+                            <input type="radio" name="polaEvaluasi" value="TARGET_BAND" onchange="onPatternChange()" class="text-emerald-600 focus:ring-emerald-500">
+                            <div>
+                                <span class="font-bold block text-slate-800">Rentang Optimal</span>
+                                <span class="text-[10px] text-slate-500">Beban Pegawai (20-25%)</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Row 5: Parameter Ambang Batas Desimal -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider">Konfigurasi Batas Angka Fisik (Desimal DB)</label>
+                        <span class="text-[11px] text-slate-400">Kosongkan jika tidak ada batas min/max</span>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3">
+                        <!-- Hijau -->
+                        <div class="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200 space-y-2">
+                            <span class="block text-xs font-bold text-emerald-800">🟢 Target Hijau</span>
+                            <div>
+                                <label class="text-[10px] text-emerald-700 block">Min:</label>
+                                <input type="number" step="0.01" id="thHijauMin" oninput="updateThresholdLivePreview()" class="w-full px-2 py-1 text-xs bg-white border border-emerald-300 rounded font-bold text-emerald-900">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-emerald-700 block">Max:</label>
+                                <input type="number" step="0.01" id="thHijauMax" oninput="updateThresholdLivePreview()" class="w-full px-2 py-1 text-xs bg-white border border-emerald-300 rounded font-bold text-emerald-900">
+                            </div>
+                        </div>
+
+                        <!-- Kuning -->
+                        <div class="p-3 bg-amber-50/60 rounded-xl border border-amber-200 space-y-2">
+                            <span class="block text-xs font-bold text-amber-800">🟡 Target Kuning</span>
+                            <div>
+                                <label class="text-[10px] text-amber-700 block">Min:</label>
+                                <input type="number" step="0.01" id="thKuningMin" oninput="updateThresholdLivePreview()" class="w-full px-2 py-1 text-xs bg-white border border-amber-300 rounded font-bold text-amber-900">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-amber-700 block">Max:</label>
+                                <input type="number" step="0.01" id="thKuningMax" oninput="updateThresholdLivePreview()" class="w-full px-2 py-1 text-xs bg-white border border-amber-300 rounded font-bold text-amber-900">
+                            </div>
+                        </div>
+
+                        <!-- Merah -->
+                        <div class="p-3 bg-rose-50/60 rounded-xl border border-rose-200 space-y-2">
+                            <span class="block text-xs font-bold text-rose-800">🔴 Target Merah</span>
+                            <div>
+                                <label class="text-[10px] text-rose-700 block">Min:</label>
+                                <input type="number" step="0.01" id="thMerahMin" oninput="updateThresholdLivePreview()" class="w-full px-2 py-1 text-xs bg-white border border-rose-300 rounded font-bold text-rose-900">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-rose-700 block">Max:</label>
+                                <input type="number" step="0.01" id="thMerahMax" oninput="updateThresholdLivePreview()" class="w-full px-2 py-1 text-xs bg-white border border-rose-300 rounded font-bold text-rose-900">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Accessor Preview Box -->
+                <div class="p-3 bg-slate-900 text-slate-100 rounded-xl text-xs space-y-1.5">
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Live Preview Teks Accessor (Otomatis Dihasilkan):</span>
+                    <div class="grid grid-cols-3 gap-2 text-[11px] font-mono">
+                        <div class="text-emerald-400">🟢 <span id="previewHijau">≥ 100%</span></div>
+                        <div class="text-amber-400">🟡 <span id="previewKuning">90% - 99%</span></div>
+                        <div class="text-rose-400">🔴 <span id="previewMerah">< 90%</span></div>
+                    </div>
+                </div>
+
+                <!-- Status Aktif -->
+                <div class="flex items-center space-x-2 pt-1">
+                    <input type="checkbox" id="formIndicatorStatus" checked class="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500">
+                    <label for="formIndicatorStatus" class="text-xs font-bold text-slate-800 cursor-pointer">Aktifkan Indikator di Dashboard Eksekutif</label>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
+                <button type="button" onclick="closeIndicatorModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition">
+                    Batal
+                </button>
+                <button type="button" onclick="saveIndicatorForm()" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg shadow-sm transition flex items-center space-x-1.5">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>Simpan Indikator</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================================================== -->
+    <!-- MODAL 2: FORM TAMBAH MAPPING AKUN COA               -->
+    <!-- ==================================================== -->
+    <div id="addCoaModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden transform transition-all">
+            <!-- Header -->
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+                <div class="flex items-center space-x-2.5">
+                    <span class="w-7 h-7 bg-emerald-500 text-slate-900 font-bold rounded-lg flex items-center justify-center text-xs">
+                        <i data-lucide="link" class="w-4 h-4"></i>
+                    </span>
+                    <div>
+                        <h3 class="font-bold text-base">Petakan Akun COA</h3>
+                        <p class="text-xs text-slate-400">Hubungkan akun buku besar ke indikator terpilih</p>
+                    </div>
+                </div>
+                <button onclick="closeAddCoaModal()" class="text-slate-400 hover:text-white p-1 rounded-lg transition">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 space-y-4 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase mb-1">Target Indikator:</label>
+                    <input type="text" id="targetIndicatorNameInModal" disabled class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-700 font-semibold cursor-not-allowed">
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block font-bold text-slate-700 uppercase">Peran Akun dalam Formula <span class="text-rose-500">*</span></label>
+                        <span class="text-[10px] text-slate-400">Disesuaikan dengan tipe kalkulasi</span>
+                    </div>
+                    <select id="modalCoaRole" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <optgroup label="Peran Standar (Universal: Rasio & Turnover)">
+                            <option value="pembilang">PEMBILANG (Numerator)</option>
+                            <option value="penyebut">PENYEBUT (Denominator)</option>
+                            <option value="pengurang">PENGURANG (Deduction)</option>
+                        </optgroup>
+                        <optgroup label="Peran Add-Back Khusus (Formula Komposit / EBITDA)">
+                            <option value="penyusutan">PENYUSUTAN (Add-back EBITDA)</option>
+                            <option value="amortisasi">AMORTISASI (Add-back EBITDA)</option>
+                            <option value="penyisihan_piutang">PENYISIHAN PIUTANG (Add-back EBITDA)</option>
+                            <option value="bunga_bank">BUNGA BANK (Add-back EBITDA)</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase mb-1">Pilih Akun Buku Besar (COA) <span class="text-rose-500">*</span></label>
+                    <select id="modalCoaSelect" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="411.01">411.01 - Pendapatan Rawat Inap</option>
+                        <option value="411.02">411.02 - Pendapatan Rawat Jalan</option>
+                        <option value="411.03">411.03 - Pendapatan IGD</option>
+                        <option value="411.04">411.04 - Pendapatan Instalasi Farmasi</option>
+                        <option value="510.01">510.01 - Beban Gaji & Tunjangan Pegawai</option>
+                        <option value="510.02">510.02 - Beban Jasa Medis Dokter</option>
+                        <option value="510.03">510.03 - Beban Obat & Bahan Medis Habis Pakai</option>
+                        <option value="510.04">510.04 - Beban Operasional Umum & Kantor</option>
+                        <option value="706">706 - Biaya Penyusutan</option>
+                        <option value="909.03">909.03 - Biaya Penghapusan Piutang</option>
+                        <option value="510.08">510.08 - Beban Dana Sosial & CSR</option>
+                        <option value="112.01">112.01 - Piutang Pasien BPJS Kesehatan</option>
+                        <option value="112.02">112.02 - Piutang Pasien Asuransi Swasta</option>
+                        <option value="113.01">113.01 - Persediaan Obat Paten & Generik</option>
+                        <option value="113.02">113.02 - Persediaan Bahan Medis Habis Pakai</option>
+                        <option value="113.04">113.04 - Persediaan Logistik Rumah Tangga</option>
+                    </select>
+                    <p class="text-[11px] text-slate-400 mt-1">Jika memilih akun Induk, sistem akan otomatis mengagregasi seluruh sub-akun (leaf accounts).</p>
+                </div>
+
+                <!-- Checkbox Exclude -->
+                <div class="p-3 bg-rose-50/70 border border-rose-200 rounded-lg">
+                    <label class="flex items-start space-x-2 cursor-pointer">
+                        <input type="checkbox" id="modalCoaIsExcluded" class="w-4 h-4 text-rose-600 rounded focus:ring-rose-500 mt-0.5">
+                        <div>
+                            <span class="font-bold text-rose-900 block">Kecualikan Akun Ini (Pengecualian / Exclude)</span>
+                            <span class="text-[11px] text-rose-700">Contoh: Pengecualian akun Logistik Rumah Tangga (`113.04`) dari total persediaan medis pada Indikator Perputaran Persediaan.</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end space-x-2">
+                <button onclick="closeAddCoaModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition">Batal</button>
+                <button onclick="saveCoaMapping()" class="px-4 py-2 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-500 transition">Simpan Mapping</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================================================== -->
+    <!-- MODAL 3: FORM TAMBAH VARIABEL MANUAL BARU           -->
+    <!-- ==================================================== -->
+    <div id="addVariableModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden transform transition-all">
+            <!-- Header -->
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+                <div class="flex items-center space-x-2.5">
+                    <span class="w-7 h-7 bg-blue-500 text-white font-bold rounded-lg flex items-center justify-center text-xs">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    </span>
+                    <div>
+                        <h3 class="font-bold text-base">Tambah Variabel Manual Baru</h3>
+                        <p class="text-xs text-slate-400">Registrasi metrik non-akuntansi untuk data bulanan</p>
+                    </div>
+                </div>
+                <button onclick="closeAddVariableModal()" class="text-slate-400 hover:text-white p-1 rounded-lg transition">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 space-y-4 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase mb-1">Nama Variabel Operasional <span class="text-rose-500">*</span></label>
+                    <input type="text" id="formVarNama" placeholder="Contoh: Indeks Kepuasan Pasien (IKM)" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 uppercase mb-1">Kode Unik Variabel <span class="text-rose-500">*</span></label>
+                        <input type="text" id="formVarKode" placeholder="ikm_pasien" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 uppercase mb-1">Satuan Nilai <span class="text-rose-500">*</span></label>
+                        <input type="text" id="formVarSatuan" placeholder="%, Skor, Orang, dll" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-700 uppercase mb-1">Keterangan / Sumber Data</label>
+                    <textarea id="formVarDeskripsi" rows="2" placeholder="Jelaskan mekanisme atau sumber pengisian data bulanan..." class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+
+                <div class="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-[11px] leading-relaxed">
+                    Variabel yang baru didaftarkan akan otomatis muncul sebagai baris baru pada matriks tabel input 12 bulan (Jan s.d. Des) untuk seluruh tahun kalender.
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end space-x-2">
+                <button onclick="closeAddVariableModal()" class="px-4 py-2 bg-slate-200 text-slate-700 font-semibold rounded-lg hover:bg-slate-300 transition">Batal</button>
+                <button onclick="saveNewVariable()" class="px-4 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-500 transition">Daftarkan Variabel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Master Indikator Dataset (Baseline 11 Seeders)
+        let indicators = [
+            {
+                id: 1,
+                kode: "IK-01",
+                urutan: 1,
+                nama: "Capaian Pendapatan",
+                definisi: "Realisasi pendapatan operasional : Target anggaran RBA",
+                satuan: "%",
+                pola: "HIGHER_IS_BETTER",
+                hMin: 100, hMax: null,
+                kMin: 90, kMax: 99.99,
+                mMin: null, mMax: 89.99,
+                status: true
+            },
+            {
+                id: 2,
+                kode: "IK-02",
+                urutan: 2,
+                nama: "EBITDA",
+                definisi: "Surplus sebelum bunga & pajak + penyusutan + amortisasi + penyisihan piutang",
+                satuan: "%",
+                pola: "HIGHER_IS_BETTER",
+                hMin: 22.01, hMax: null,
+                kMin: 15, kMax: 22,
+                mMin: null, mMax: 14.99,
+                status: true
+            },
+            {
+                id: 3,
+                kode: "IK-03",
+                urutan: 3,
+                nama: "Profitabilitas",
+                definisi: "Surplus Usaha : Pendapatan Operasional",
+                satuan: "%",
+                pola: "HIGHER_IS_BETTER",
+                hMin: 15.01, hMax: null,
+                kMin: 10, kMax: 15,
+                mMin: null, mMax: 9.99,
+                status: true
+            },
+            {
+                id: 4,
+                kode: "IK-04",
+                urutan: 4,
+                nama: "Beban Pegawai",
+                definisi: "Beban SDI : Pendapatan Operasional",
+                satuan: "%",
+                pola: "TARGET_BAND",
+                hMin: 20, hMax: 25,
+                kMin: 25.01, kMax: 30,
+                mMin: null, mMax: 19.99, // < 20% atau > 30%
+                status: true
+            },
+            {
+                id: 5,
+                kode: "IK-05",
+                urutan: 5,
+                nama: "Beban Farmasi",
+                definisi: "Beban Farmasi : Pendapatan Instalasi Farmasi",
+                satuan: "%",
+                pola: "LOWER_IS_BETTER",
+                hMin: null, hMax: 70,
+                kMin: 70.01, kMax: 75,
+                mMin: 75.01, mMax: null,
+                status: true
+            },
+            {
+                id: 6,
+                kode: "IK-06",
+                urutan: 6,
+                nama: "Beban Operasional",
+                definisi: "Beban Operasional : Pendapatan Operasional",
+                satuan: "%",
+                pola: "LOWER_IS_BETTER",
+                hMin: null, hMax: 46,
+                kMin: 47, kMax: 50,
+                mMin: 50.01, mMax: null,
+                status: true
+            },
+            {
+                id: 7,
+                kode: "IK-07",
+                urutan: 7,
+                nama: "Collection Period",
+                definisi: "Total Piutang Usaha : Pend Op × Hari Riil Periode",
+                satuan: "Hari",
+                pola: "LOWER_IS_BETTER",
+                hMin: null, hMax: 39.99,
+                kMin: 40, kMax: 60,
+                mMin: 60.01, mMax: null,
+                status: true
+            },
+            {
+                id: 8,
+                kode: "IK-08",
+                urutan: 8,
+                nama: "Kualitas Klaim JKN",
+                definisi: "Lolos BAHV pertama (Berdasarkan Surat Rekapitulasi BPJS)",
+                satuan: "%",
+                pola: "HIGHER_IS_BETTER",
+                hMin: 90.01, hMax: null,
+                kMin: 85, kMax: 90,
+                mMin: null, mMax: 84.99,
+                status: true
+            },
+            {
+                id: 9,
+                kode: "IK-09",
+                urutan: 9,
+                nama: "Perputaran Persediaan",
+                definisi: "Total persediaan (exclude Logistik RT) : Pend Op × Hari Riil Periode",
+                satuan: "Hari",
+                pola: "LOWER_IS_BETTER",
+                hMin: null, hMax: 60,
+                kMin: 61, kMax: 90,
+                mMin: 90.01, mMax: null,
+                status: true
+            },
+            {
+                id: 10,
+                kode: "IK-10",
+                urutan: 10,
+                nama: "Beban Dana Sosial",
+                definisi: "Beban Dana Sosial : Pendapatan Operasional",
+                satuan: "%",
+                pola: "HIGHER_IS_BETTER",
+                hMin: 1, hMax: null,
+                kMin: 0.5, kMax: 0.99,
+                mMin: null, mMax: 0.49,
+                status: true
+            },
+            {
+                id: 11,
+                kode: "IK-11",
+                urutan: 11,
+                nama: "Produktifitas Karyawan",
+                definisi: "Pendapatan Operasional : Jumlah SDM di luar dokter spesialis non organik",
+                satuan: "Rupiah",
+                pola: "HIGHER_IS_BETTER",
+                hMin: 22, hMax: null, // Juta
+                kMin: 15, kMax: 22,
+                mMin: null, mMax: 14.99,
+                status: true
+            }
+        ];
+
+        // COA Mappings Sample Dataset
+        let coaMappings = [
+            { id: 1, indikatorId: 1, peran: "pembilang", coaCode: "4", coaName: "Pendapatan Operasional (Parent)", category: "Pendapatan", isExcluded: false },
+            { id: 2, indikatorId: 1, peran: "penyebut", coaCode: "RBA", coaName: "Target Anggaran RBA (Setting RBA)", category: "Anggaran", isExcluded: false },
+            
+            { id: 3, indikatorId: 2, peran: "pembilang", coaCode: "4", coaName: "Pendapatan Operasional", category: "Pendapatan", isExcluded: false },
+            { id: 4, indikatorId: 2, peran: "penyebut", coaCode: "4", coaName: "Pendapatan Operasional", category: "Pendapatan", isExcluded: false },
+            { id: 5, indikatorId: 2, peran: "penyusutan", coaCode: "706", coaName: "Biaya Penyusutan", category: "Beban", isExcluded: false },
+            { id: 7, indikatorId: 2, peran: "penyisihan_piutang", coaCode: "909.03", coaName: "Biaya Penghapusan Piutang", category: "Beban lain", isExcluded: false },
+
+            { id: 8, indikatorId: 4, peran: "pembilang", coaCode: "510.01", coaName: "Beban Gaji & Tunjangan Pegawai", category: "Beban", isExcluded: false },
+            { id: 9, indikatorId: 4, peran: "pembilang", coaCode: "510.02", coaName: "Beban Jasa Medis Dokter", category: "Beban", isExcluded: false },
+            { id: 10, indikatorId: 4, peran: "penyebut", coaCode: "4", coaName: "Pendapatan Operasional", category: "Pendapatan", isExcluded: false },
+
+            { id: 11, indikatorId: 5, peran: "pembilang", coaCode: "510.03", coaName: "Beban Farmasi & BMHP", category: "Beban", isExcluded: false },
+            { id: 12, indikatorId: 5, peran: "penyebut", coaCode: "411.04", coaName: "Pendapatan Instalasi Farmasi", category: "Pendapatan", isExcluded: false },
+
+            { id: 13, indikatorId: 7, peran: "pembilang", coaCode: "112", coaName: "Piutang Pelayanan Pasien", category: "Aset Lancar", isExcluded: false },
+            { id: 14, indikatorId: 7, peran: "penyebut", coaCode: "4", coaName: "Pendapatan Operasional", category: "Pendapatan", isExcluded: false },
+
+            { id: 15, indikatorId: 9, peran: "pembilang", coaCode: "113", coaName: "Persediaan Medis & Obat", category: "Persediaan", isExcluded: false },
+            { id: 16, indikatorId: 9, peran: "pembilang", coaCode: "113.04", coaName: "Persediaan Logistik Rumah Tangga", category: "Persediaan", isExcluded: true }, // EXCLUDED!
+            { id: 17, indikatorId: 9, peran: "penyebut", coaCode: "4", coaName: "Pendapatan Operasional", category: "Pendapatan", isExcluded: false }
+        ];
+
+        // Monthly Manual Data Dataset
+        let manualData = {
+            "2026": [
+                {
+                    key: "bahv_jkn",
+                    name: "Kualitas Klaim JKN (Lolos BAHV Pertama)",
+                    unit: "%",
+                    values: [88.5, 90.2, 91.0, 92.4, 93.1, 91.8, 93.5, 94.0, 93.8, 94.2, null, null]
+                },
+                {
+                    key: "sdm_non_organik",
+                    name: "Jumlah SDM Non-Organik (di luar dokter spesialis)",
+                    unit: "Orang",
+                    values: [320, 322, 325, 325, 328, 330, 330, 332, 335, 335, null, null]
+                }
+            ],
+            "2025": [
+                {
+                    key: "bahv_jkn",
+                    name: "Kualitas Klaim JKN (Lolos BAHV Pertama)",
+                    unit: "%",
+                    values: [82.0, 83.5, 84.1, 85.0, 86.2, 87.0, 87.5, 88.0, 88.5, 89.0, 89.5, 90.0]
+                },
+                {
+                    key: "sdm_non_organik",
+                    name: "Jumlah SDM Non-Organik (di luar dokter spesialis)",
+                    unit: "Orang",
+                    values: [305, 305, 310, 310, 312, 315, 315, 318, 318, 320, 320, 320]
+                }
+            ]
+        };
+
+        // Tab Navigation
+        function switchTab(tabNum) {
+            document.getElementById('tabContent1').classList.toggle('hidden', tabNum !== 1);
+            document.getElementById('tabContent2').classList.toggle('hidden', tabNum !== 2);
+            document.getElementById('tabContent3').classList.toggle('hidden', tabNum !== 3);
+
+            for (let i = 1; i <= 3; i++) {
+                const btn = document.getElementById(`tabBtn${i}`);
+                if (i === tabNum) {
+                    btn.className = "tab-btn px-4 py-3 text-sm font-bold border-b-2 border-emerald-600 text-emerald-600 flex items-center space-x-2 transition";
+                } else {
+                    btn.className = "tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-900 flex items-center space-x-2 transition";
+                }
+            }
+
+            if (tabNum === 2) {
+                populateIndicatorDropdownForCoa();
+                loadCoaMappingForIndicator();
+            } else if (tabNum === 3) {
+                renderManualDataTable();
+            }
+            lucide.createIcons();
+        }
+
+        // ================= TAB 1 LOGIC =================
+        function formatRuleLabel(pola, min, max, satuan) {
+            const unit = satuan === '%' ? '%' : (satuan === 'Hari' ? ' hari' : (satuan === 'Rupiah' ? ' Juta' : ''));
+            if (min !== null && max !== null) {
+                return `${min}${unit} - ${max}${unit}`;
+            } else if (min !== null) {
+                return `≥ ${min}${unit}`;
+            } else if (max !== null) {
+                return `≤ ${max}${unit}`;
+            }
+            return '-';
+        }
+
+        function renderIndicators(data) {
+            const tbody = document.getElementById('indicatorTableBody');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">Tidak ada indikator yang cocok.</td></tr>`;
+                return;
+            }
+
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+
+                let polaBadge = '';
+                if (item.pola === 'HIGHER_IS_BETTER') {
+                    polaBadge = `<span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold border border-blue-200 block">▲ Semakin Besar</span>`;
+                } else if (item.pola === 'LOWER_IS_BETTER') {
+                    polaBadge = `<span class="bg-purple-50 text-purple-700 px-2 py-0.5 rounded text-[10px] font-bold border border-purple-200 block">▼ Semakin Kecil</span>`;
+                } else {
+                    polaBadge = `<span class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded text-[10px] font-bold border border-amber-200 block">◆ Rentang Target</span>`;
+                }
+
+                const hijauRule = formatRuleLabel(item.pola, item.hMin, item.hMax, item.satuan);
+                const kuningRule = formatRuleLabel(item.pola, item.kMin, item.kMax, item.satuan);
+                let merahRule = formatRuleLabel(item.pola, item.mMin, item.mMax, item.satuan);
+                if (item.pola === 'TARGET_BAND' && item.mMin === null && item.mMax !== null) {
+                    merahRule = `< ${item.mMax}% atau > ${item.kMax}%`;
+                }
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-center font-bold text-slate-400">${item.urutan}</td>
+                    <td class="py-3 px-4 font-mono font-bold text-slate-700 text-xs">${item.kode}</td>
+                    <td class="py-3 px-4 font-bold text-slate-900">${item.nama}</td>
+                    <td class="py-3 px-4 text-xs text-slate-600">
+                        <span class="line-clamp-2" title="${item.definisi}">${item.definisi}</span>
+                    </td>
+                    <td class="py-3 px-4 text-center space-y-1">
+                        ${polaBadge}
+                        <span class="text-[11px] text-slate-400 block">${item.satuan}</span>
+                    </td>
+                    <td class="py-3 px-4 text-xs">
+                        <div class="flex flex-wrap gap-1.5 items-center">
+                            <span class="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 font-semibold" title="Target Hijau">🟢 ${hijauRule}</span>
+                            <span class="bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded border border-amber-200 font-semibold" title="Target Kuning">🟡 ${kuningRule}</span>
+                            <span class="bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded border border-rose-200 font-semibold" title="Target Merah">🔴 ${merahRule}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <button onclick="toggleIndicatorStatus(${item.id})" class="text-xs font-bold px-2 py-0.5 rounded-full ${item.status ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'}">
+                            ${item.status ? 'Aktif' : 'Nonaktif'}
+                        </button>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="flex items-center justify-center space-x-1">
+                            <button onclick="openIndicatorModal('edit', ${item.id})" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Edit Parameter">
+                                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="deleteIndicator(${item.id})" class="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Hapus Indikator">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('badgeTab1Count').innerText = indicators.length;
+            lucide.createIcons();
+        }
+
+        function filterIndicators() {
+            const search = document.getElementById('searchIndicatorInput').value.toLowerCase();
+            const pattern = document.getElementById('patternFilter').value;
+
+            const filtered = indicators.filter(item => {
+                const matchSearch = item.nama.toLowerCase().includes(search) || 
+                                    item.kode.toLowerCase().includes(search) || 
+                                    item.definisi.toLowerCase().includes(search);
+                const matchPattern = (pattern === 'ALL') || (item.pola === pattern);
+                return matchSearch && matchPattern;
+            });
+
+            renderIndicators(filtered);
+        }
+
+        function toggleIndicatorStatus(id) {
+            const item = indicators.find(i => i.id === id);
+            if (item) {
+                item.status = !item.status;
+                filterIndicators();
+                showToast("Status Diperbarui", `Indikator ${item.nama} kini ${item.status ? 'Aktif' : 'Nonaktif'}.`);
+            }
+        }
+
+        function deleteIndicator(id) {
+            const item = indicators.find(i => i.id === id);
+            if (!item) return;
+            if (confirm(`Apakah Anda yakin ingin menghapus indikator "${item.nama}"? Relasi mapping COA terkait juga akan terhapus bersih (cascade).`)) {
+                indicators = indicators.filter(i => i.id !== id);
+                coaMappings = coaMappings.filter(m => m.indikatorId !== id);
+                filterIndicators();
+                showToast("Indikator Dihapus", `Indikator ${item.nama} telah dihapus.`);
+            }
+        }
+
+        // Indicator Modal & Threshold Live Preview
+        function openIndicatorModal(mode, id = null) {
+            const modal = document.getElementById('indicatorModal');
+            const title = document.getElementById('modalIndicatorTitle');
+
+            if (mode === 'edit' && id) {
+                const item = indicators.find(i => i.id === id);
+                if (!item) return;
+                title.innerText = `Edit Indikator: ${item.nama}`;
+                document.getElementById('formIndicatorId').value = item.id;
+                document.getElementById('formIndicatorKode').value = item.kode;
+                document.getElementById('formIndicatorUrutan').value = item.urutan;
+                document.getElementById('formIndicatorSatuan').value = item.satuan;
+                document.getElementById('formIndicatorNama').value = item.nama;
+                document.getElementById('formIndicatorDO').value = item.definisi;
+                document.getElementById('formIndicatorStatus').checked = item.status;
+
+                const radios = document.getElementsByName('polaEvaluasi');
+                radios.forEach(r => r.checked = (r.value === item.pola));
+
+                document.getElementById('thHijauMin').value = item.hMin ?? '';
+                document.getElementById('thHijauMax').value = item.hMax ?? '';
+                document.getElementById('thKuningMin').value = item.kMin ?? '';
+                document.getElementById('thKuningMax').value = item.kMax ?? '';
+                document.getElementById('thMerahMin').value = item.mMin ?? '';
+                document.getElementById('thMerahMax').value = item.mMax ?? '';
+            } else {
+                title.innerText = 'Tambah Indikator Kinerja Baru';
+                document.getElementById('formIndicatorId').value = '';
+                document.getElementById('formIndicatorKode').value = `IK-${(indicators.length + 1).toString().padStart(2, '0')}`;
+                document.getElementById('formIndicatorUrutan').value = indicators.length + 1;
+                document.getElementById('formIndicatorSatuan').value = '%';
+                document.getElementById('formIndicatorNama').value = '';
+                document.getElementById('formIndicatorDO').value = '';
+                document.getElementById('formIndicatorStatus').checked = true;
+
+                document.getElementsByName('polaEvaluasi')[0].checked = true;
+                document.getElementById('thHijauMin').value = 100;
+                document.getElementById('thHijauMax').value = '';
+                document.getElementById('thKuningMin').value = 90;
+                document.getElementById('thKuningMax').value = 99.99;
+                document.getElementById('thMerahMin').value = '';
+                document.getElementById('thMerahMax').value = 89.99;
+            }
+
+            updateThresholdLivePreview();
+            modal.classList.remove('hidden');
+        }
+
+        function closeIndicatorModal() {
+            document.getElementById('indicatorModal').classList.add('hidden');
+        }
+
+        function onPatternChange() {
+            updateThresholdLivePreview();
+        }
+
+        function updateThresholdLivePreview() {
+            const pola = document.querySelector('input[name="polaEvaluasi"]:checked')?.value || 'HIGHER_IS_BETTER';
+            const satuan = document.getElementById('formIndicatorSatuan').value;
+            const unit = satuan === '%' ? '%' : (satuan === 'Hari' ? ' hari' : (satuan === 'Rupiah' ? ' Juta' : ''));
+
+            const hMin = document.getElementById('thHijauMin').value;
+            const hMax = document.getElementById('thHijauMax').value;
+            const kMin = document.getElementById('thKuningMin').value;
+            const kMax = document.getElementById('thKuningMax').value;
+            const mMin = document.getElementById('thMerahMin').value;
+            const mMax = document.getElementById('thMerahMax').value;
+
+            document.getElementById('previewHijau').innerText = (hMin && hMax) ? `${hMin} - ${hMax}${unit}` : (hMin ? `≥ ${hMin}${unit}` : (hMax ? `≤ ${hMax}${unit}` : '-'));
+            document.getElementById('previewKuning').innerText = (kMin && kMax) ? `${kMin} - ${kMax}${unit}` : (kMin ? `≥ ${kMin}${unit}` : (kMax ? `≤ ${kMax}${unit}` : '-'));
+            document.getElementById('previewMerah').innerText = (mMin && mMax) ? `${mMin} - ${mMax}${unit}` : (mMin ? `≥ ${mMin}${unit}` : (mMax ? `< ${mMax}${unit}` : '-'));
+        }
+
+        function saveIndicatorForm() {
+            const id = document.getElementById('formIndicatorId').value;
+            const kode = document.getElementById('formIndicatorKode').value.trim();
+            const nama = document.getElementById('formIndicatorNama').value.trim();
+            const urutan = parseInt(document.getElementById('formIndicatorUrutan').value) || 1;
+            const satuan = document.getElementById('formIndicatorSatuan').value;
+            const definisi = document.getElementById('formIndicatorDO').value.trim();
+            const pola = document.querySelector('input[name="polaEvaluasi"]:checked').value;
+            const status = document.getElementById('formIndicatorStatus').checked;
+
+            if (!kode || !nama) {
+                alert("Kode dan Nama Indikator wajib diisi.");
+                return;
+            }
+
+            const hMin = document.getElementById('thHijauMin').value !== '' ? parseFloat(document.getElementById('thHijauMin').value) : null;
+            const hMax = document.getElementById('thHijauMax').value !== '' ? parseFloat(document.getElementById('thHijauMax').value) : null;
+            const kMin = document.getElementById('thKuningMin').value !== '' ? parseFloat(document.getElementById('thKuningMin').value) : null;
+            const kMax = document.getElementById('thKuningMax').value !== '' ? parseFloat(document.getElementById('thKuningMax').value) : null;
+            const mMin = document.getElementById('thMerahMin').value !== '' ? parseFloat(document.getElementById('thMerahMin').value) : null;
+            const mMax = document.getElementById('thMerahMax').value !== '' ? parseFloat(document.getElementById('thMerahMax').value) : null;
+
+            if (id) {
+                // Update
+                const item = indicators.find(i => i.id == id);
+                if (item) {
+                    item.kode = kode;
+                    item.nama = nama;
+                    item.urutan = urutan;
+                    item.satuan = satuan;
+                    item.definisi = definisi;
+                    item.pola = pola;
+                    item.status = status;
+                    item.hMin = hMin; item.hMax = hMax;
+                    item.kMin = kMin; item.kMax = kMax;
+                    item.mMin = mMin; item.mMax = mMax;
+                }
+                showToast("Indikator Diperbarui", `Parameter "${nama}" berhasil disimpan.`);
+            } else {
+                // New
+                const newId = Math.max(...indicators.map(i => i.id), 0) + 1;
+                indicators.push({
+                    id: newId,
+                    kode,
+                    urutan,
+                    nama,
+                    satuan,
+                    definisi,
+                    pola,
+                    status,
+                    hMin, hMax,
+                    kMin, kMax,
+                    mMin, mMax
+                });
+                showToast("Indikator Baru", `Indikator "${nama}" berhasil ditambahkan.`);
+            }
+
+            closeIndicatorModal();
+            filterIndicators();
+        }
+
+        // ================= TAB 2: COA MAPPING LOGIC =================
+        function populateIndicatorDropdownForCoa() {
+            const select = document.getElementById('selectedIndicatorForCoa');
+            select.innerHTML = '';
+            indicators.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.innerText = `${item.kode} - ${item.nama}`;
+                select.appendChild(opt);
+            });
+        }
+
+        function loadCoaMappingForIndicator() {
+            const indId = parseInt(document.getElementById('selectedIndicatorForCoa').value);
+            const indicator = indicators.find(i => i.id === indId);
+            if (!indicator) return;
+
+            document.getElementById('activeIndicatorFormula').innerText = indicator.definisi;
+
+            const pembilangList = document.getElementById('pembilangCoaList');
+            const penyebutList = document.getElementById('penyebutCoaList');
+            const additionalList = document.getElementById('additionalCoaList');
+
+            pembilangList.innerHTML = '';
+            penyebutList.innerHTML = '';
+            additionalList.innerHTML = '';
+
+            const mapped = coaMappings.filter(m => m.indikatorId === indId);
+
+            const pembilangs = mapped.filter(m => m.peran === 'pembilang');
+            const penyebuts = mapped.filter(m => m.peran === 'penyebut');
+            const specials = mapped.filter(m => !['pembilang', 'penyebut'].includes(m.peran) || m.isExcluded);
+
+            document.getElementById('pembilangCountBadge').innerText = `${pembilangs.length} Akun`;
+            document.getElementById('penyebutCountBadge').innerText = `${penyebuts.length} Akun`;
+
+            // Render Pembilang
+            if (pembilangs.length === 0) {
+                pembilangList.innerHTML = `<p class="text-xs text-slate-400 italic py-2">Belum ada akun pembilang yang dipetakan.</p>`;
+            } else {
+                pembilangs.forEach(m => {
+                    pembilangList.appendChild(createCoaItemCard(m));
+                });
+            }
+
+            // Render Penyebut
+            if (penyebuts.length === 0) {
+                penyebutList.innerHTML = `<p class="text-xs text-slate-400 italic py-2">Belum ada akun penyebut yang dipetakan.</p>`;
+            } else {
+                penyebuts.forEach(m => {
+                    penyebutList.appendChild(createCoaItemCard(m));
+                });
+            }
+
+            // Render Special / Exclude
+            if (specials.length === 0) {
+                additionalList.innerHTML = `<p class="text-xs text-slate-400 italic py-2">Tidak ada penyesuaian add-back atau akun yang dikecualikan (exclude).</p>`;
+            } else {
+                specials.forEach(m => {
+                    additionalList.appendChild(createCoaItemCard(m, true));
+                });
+            }
+
+            renderAllMappingsTable();
+            lucide.createIcons();
+        }
+
+        function createCoaItemCard(m, isSpecial = false) {
+            const div = document.createElement('div');
+            div.className = `p-3 rounded-lg border flex items-center justify-between text-xs ${m.isExcluded ? 'bg-rose-50/80 border-rose-200' : 'bg-slate-50 border-slate-200'}`;
+
+            let roleBadge = '';
+            if (m.isExcluded) {
+                roleBadge = `<span class="bg-rose-600 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider">DIKECUALIKAN (EXCLUDE)</span>`;
+            } else {
+                roleBadge = `<span class="bg-slate-200 text-slate-800 text-[10px] px-2 py-0.5 rounded font-bold uppercase">${m.peran}</span>`;
+            }
+
+            div.innerHTML = `
+                <div class="flex items-center space-x-2.5">
+                    <span class="font-mono font-bold text-slate-800 bg-white px-2 py-1 rounded border border-slate-200">${m.coaCode}</span>
+                    <div>
+                        <span class="font-bold text-slate-900 block leading-tight">${m.coaName}</span>
+                        <div class="flex items-center space-x-1.5 mt-0.5">
+                            <span class="text-[10px] text-slate-400 font-medium">${m.category}</span>
+                            ${roleBadge}
+                        </div>
+                    </div>
+                </div>
+                <button onclick="deleteCoaMapping(${m.id})" class="p-1.5 text-rose-500 hover:bg-rose-100 rounded-lg transition" title="Hapus Mapping">
+                    <i data-lucide="trash" class="w-4 h-4"></i>
+                </button>
+            `;
+            return div;
+        }
+
+        function renderAllMappingsTable() {
+            const tbody = document.getElementById('allMappingsTableBody');
+            tbody.innerHTML = '';
+
+            coaMappings.forEach(m => {
+                const ind = indicators.find(i => i.id === m.indikatorId);
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50";
+
+                tr.innerHTML = `
+                    <td class="py-2.5 px-4 font-semibold text-slate-800">${ind ? ind.nama : 'Unknown'}</td>
+                    <td class="py-2.5 px-4">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase ${m.peran === 'pembilang' ? 'bg-emerald-100 text-emerald-800' : (m.peran === 'penyebut' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800')}">${m.peran}</span>
+                    </td>
+                    <td class="py-2.5 px-4 font-mono font-medium text-slate-700">${m.coaCode} - ${m.coaName}</td>
+                    <td class="py-2.5 px-4 text-slate-500">${m.category}</td>
+                    <td class="py-2.5 px-4 text-center">
+                        ${m.isExcluded ? '<span class="bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded text-[10px]">EXCLUDED</span>' : '<span class="text-slate-400">-</span>'}
+                    </td>
+                    <td class="py-2.5 px-4 text-center">
+                        <button onclick="deleteCoaMapping(${m.id})" class="text-rose-500 hover:text-rose-700 font-bold p-1">Hapus</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openAddCoaModal() {
+            const indId = parseInt(document.getElementById('selectedIndicatorForCoa').value);
+            const indicator = indicators.find(i => i.id === indId);
+            if (!indicator) return;
+
+            document.getElementById('targetIndicatorNameInModal').value = `${indicator.kode} - ${indicator.nama}`;
+            document.getElementById('modalCoaIsExcluded').checked = false;
+            document.getElementById('addCoaModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeAddCoaModal() {
+            document.getElementById('addCoaModal').classList.add('hidden');
+        }
+
+        function saveCoaMapping() {
+            const indId = parseInt(document.getElementById('selectedIndicatorForCoa').value);
+            const peran = document.getElementById('modalCoaRole').value;
+            const coaValue = document.getElementById('modalCoaSelect').value;
+            const isExcluded = document.getElementById('modalCoaIsExcluded').checked;
+
+            const coaSelectElem = document.getElementById('modalCoaSelect');
+            const coaText = coaSelectElem.options[coaSelectElem.selectedIndex].text;
+            const parts = coaText.split(' - ');
+            const coaCode = parts[0];
+            const coaName = parts[1] || coaText;
+
+            const newId = Math.max(...coaMappings.map(m => m.id), 0) + 1;
+            coaMappings.push({
+                id: newId,
+                indikatorId: indId,
+                peran,
+                coaCode,
+                coaName,
+                category: coaCode.startsWith('4') ? 'Pendapatan' : (coaCode.startsWith('5') ? 'Beban' : 'Neraca'),
+                isExcluded
+            });
+
+            closeAddCoaModal();
+            loadCoaMappingForIndicator();
+            showToast("Mapping Disimpan", `Akun ${coaCode} berhasil dipetakan.`);
+        }
+
+        function deleteCoaMapping(id) {
+            const m = coaMappings.find(item => item.id === id);
+            if (!m) return;
+            coaMappings = coaMappings.filter(item => item.id !== id);
+            loadCoaMappingForIndicator();
+            showToast("Mapping Dihapus", `Pemetaan akun ${m.coaCode} telah dicabut.`);
+        }
+
+        // ================= TAB 3: DATA MANUAL BULANAN LOGIC =================
+        function renderManualDataTable() {
+            const year = document.getElementById('selectedYear').value;
+            document.getElementById('labelTahunActive').innerText = year;
+            const tbody = document.getElementById('manualDataTableBody');
+            tbody.innerHTML = '';
+
+            const dataRows = manualData[year] || [];
+
+            dataRows.forEach((row, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50";
+
+                // Calculate average
+                const validVals = row.values.filter(v => v !== null && v !== '');
+                const avg = validVals.length > 0 ? (validVals.reduce((a, b) => a + Number(b), 0) / validVals.length).toFixed(1) : '-';
+
+                let monthInputs = '';
+                row.values.forEach((val, mIdx) => {
+                    const displayVal = val !== null ? val : '';
+                    monthInputs += `
+                        <td class="py-2.5 px-1.5 text-center">
+                            <input type="number" step="0.1" value="${displayVal}" onchange="updateManualValue('${year}', ${idx}, ${mIdx}, this.value)" class="w-14 text-center px-1 py-1 bg-white border border-slate-200 rounded text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        </td>
+                    `;
+                });
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3 text-center font-bold text-slate-400">${idx + 1}</td>
+                    <td class="py-3 px-4 font-bold text-slate-800">${row.name}</td>
+                    <td class="py-3 px-2 text-center text-slate-500 font-semibold">${row.unit}</td>
+                    ${monthInputs}
+                    <td class="py-3 px-3 text-center font-bold text-emerald-400 bg-slate-900">${avg} ${row.unit}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateManualValue(year, rowIdx, monthIdx, value) {
+            const num = value !== '' ? parseFloat(value) : null;
+            manualData[year][rowIdx].values[monthIdx] = num;
+            renderManualDataTable();
+        }
+
+        function saveManualDataBatch() {
+            showToast("Data Bulanan Tersimpan", "Seluruh data non-akuntansi berhasil disinkronkan ke database.");
+        }
+
+        // ================= MODAL 3: TAMBAH VARIABEL MANUAL =================
+        function openAddVariableModal() {
+            document.getElementById('formVarNama').value = '';
+            document.getElementById('formVarKode').value = '';
+            document.getElementById('formVarSatuan').value = '%';
+            document.getElementById('formVarDeskripsi').value = '';
+            document.getElementById('addVariableModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeAddVariableModal() {
+            document.getElementById('addVariableModal').classList.add('hidden');
+        }
+
+        function saveNewVariable() {
+            const nama = document.getElementById('formVarNama').value.trim();
+            const kode = document.getElementById('formVarKode').value.trim();
+            const satuan = document.getElementById('formVarSatuan').value.trim();
+
+            if (!nama || !kode || !satuan) {
+                alert("Nama, Kode, dan Satuan Variabel wajib diisi.");
+                return;
+            }
+
+            // Add to all years in manualData
+            const years = ['2026', '2025', '2024'];
+            years.forEach(yr => {
+                if (!manualData[yr]) manualData[yr] = [];
+                // Check if key already exists in year
+                if (!manualData[yr].some(item => item.key === kode)) {
+                    manualData[yr].push({
+                        key: kode,
+                        name: nama,
+                        unit: satuan,
+                        values: [null, null, null, null, null, null, null, null, null, null, null, null]
+                    });
+                }
+            });
+
+            closeAddVariableModal();
+            renderManualDataTable();
+            showToast("Variabel Didaftarkan", `Variabel "${nama}" berhasil ditambahkan ke matriks bulanan.`);
+        }
+
+        // ================= GENERAL HELPERS =================
+        function showToast(title, message) {
+            const toast = document.getElementById('toastNotification');
+            document.getElementById('toastTitle').innerText = title;
+            document.getElementById('toastMessage').innerText = message;
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // Initialize on DOM Ready
+        window.onload = function() {
+            renderIndicators(indicators);
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>

@@ -23,15 +23,18 @@
     $canPengaturanMappingPendapatan = $can('pengaturan.mapping-pendapatan');
     $canPengaturanMappingGeneral = $can('pengaturan.mapping-general');
     $canPengaturanSettingRba = $can('pengaturan.setting-rba');
+    $canPengaturanSettingIndikatorKinerja = $can('pengaturan.setting-indikator-kinerja');
     $canPengaturanPreferensi = $can('pengaturan.preferensi');
     $canPengaturanPengguna = $can('pengaturan.pengguna');
     $canPengaturanRoleAkses = $can('pengaturan.role-akses');
     $canPengaturanKonversiFile = $can('pengaturan.konversi-file');
     $canPengaturanLayananInformasi = $can('pengaturan.layanan-informasi');
+    $canDashboardIndikatorKinerja = $can('dashboard.indikator-kinerja');
 
     $canSeePengaturan = $canPengaturanMappingPendapatan
         || $canPengaturanMappingGeneral
         || $canPengaturanSettingRba
+        || $canPengaturanSettingIndikatorKinerja
         || $canPengaturanPreferensi
         || $canPengaturanPengguna
         || $canPengaturanRoleAkses
@@ -79,6 +82,15 @@
             <a class="sidebar-link {{ $isHome ? 'active' : '' }}" href="{{ route('home') }}">
                 <i class="bi bi-house-door-fill sidebar-icon"></i>
                 <span class="sidebar-label">Home</span>
+            </a>
+        </li>
+        @endif
+
+        @if ($canDashboardIndikatorKinerja)
+        <li class="sidebar-item">
+            <a class="sidebar-link {{ str_starts_with($path, '/dashboard/indikator-kinerja') ? 'active' : '' }}" href="{{ route('dashboard.indikator-kinerja.index') }}">
+                <i class="bi bi-speedometer2 sidebar-icon"></i>
+                <span class="sidebar-label">Indikator Kinerja</span>
             </a>
         </li>
         @endif
@@ -331,6 +343,14 @@
                         <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/setting-rba') ? 'active' : '' }}"
                            href="{{ route('pengaturan.setting-rba.index') }}">
                             <i class="bi bi-circle-fill sidebar-bullet"></i> Setting RBA
+                        </a>
+                    </li>
+                    @endif
+                    @if ($canPengaturanSettingIndikatorKinerja)
+                    <li>
+                        <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/setting-indikator-kinerja') ? 'active' : '' }}"
+                           href="{{ route('pengaturan.setting-indikator-kinerja.index') }}">
+                            <i class="bi bi-circle-fill sidebar-bullet"></i> Setting Indikator Kinerja
                         </a>
                     </li>
                     @endif

@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Eksekutif Indikator Kinerja RS - SiAkurat</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js for Trend Charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Header / Navbar -->
+    <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-emerald-500 p-2 rounded-lg text-slate-900 font-bold">
+                    <i data-lucide="activity" class="w-6 h-6 stroke-[2.5]"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight">Dashboard Indikator Kinerja</h1>
+                    <p class="text-xs text-slate-400">Monitoring Eksekutif 11 Indikator Keuangan & Operasional RS</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3 text-sm">
+                <div class="hidden sm:flex items-center bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse mr-2"></span>
+                    <span>Periode: <strong>01 Okt 2026 s/d 31 Okt 2026</strong></span>
+                    <span class="ml-2 bg-emerald-950 text-emerald-300 px-2 py-0.5 rounded text-[10px] font-semibold">31 Hari Riil</span>
+                </div>
+                <button onclick="resetData()" class="p-2 hover:bg-slate-800 rounded-lg text-slate-300 hover:text-white transition" title="Refresh Data">
+                    <i data-lucide="rotate-cw" class="w-5 h-5"></i>
+                </button>
+                <a href="setting-indikator-kinerja-mockup.html" class="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 text-xs font-semibold transition" title="Buka Setting Indikator Kinerja">
+                    <i data-lucide="sliders" class="w-4 h-4 text-emerald-400"></i>
+                    <span class="hidden md:inline">Setting Indikator</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Executive Summary Banner & Overall Status -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Indikator</p>
+                    <h2 class="text-2xl font-bold text-slate-900 mt-1" id="stat-total">11</h2>
+                    <p class="text-xs text-slate-400 mt-1">Metrik Terpantau</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+                    <i data-lucide="bar-chart-3" class="w-6 h-6"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl border border-emerald-100 shadow-sm flex items-center justify-between border-l-4 border-l-emerald-500">
+                <div>
+                    <p class="text-xs font-medium text-emerald-700 uppercase tracking-wider">Status Hijau (Baik)</p>
+                    <h2 class="text-2xl font-bold text-emerald-600 mt-1" id="stat-hijau">0</h2>
+                    <p class="text-xs text-emerald-600/70 mt-1" id="pct-hijau">0% Memenuhi Target</p>
+                </div>
+                <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                    <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl border border-amber-100 shadow-sm flex items-center justify-between border-l-4 border-l-amber-500">
+                <div>
+                    <p class="text-xs font-medium text-amber-700 uppercase tracking-wider">Status Kuning (Waspada)</p>
+                    <h2 class="text-2xl font-bold text-amber-600 mt-1" id="stat-kuning">0</h2>
+                    <p class="text-xs text-amber-600/70 mt-1" id="pct-kuning">0% Perlu Perhatian</p>
+                </div>
+                <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+                    <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl border border-rose-100 shadow-sm flex items-center justify-between border-l-4 border-l-rose-500">
+                <div>
+                    <p class="text-xs font-medium text-rose-700 uppercase tracking-wider">Status Merah (Bahaya)</p>
+                    <h2 class="text-2xl font-bold text-rose-600 mt-1" id="stat-merah">0</h2>
+                    <p class="text-xs text-rose-600/70 mt-1" id="pct-merah">0% Kritis / Evaluasi</p>
+                </div>
+                <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center">
+                    <i data-lucide="x-circle" class="w-6 h-6"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toolbar: Filters & View Modes -->
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+            
+            <!-- Search & Status Filter -->
+            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <div class="relative w-full sm:w-72">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    <input type="text" id="searchInput" onkeyup="filterData()" placeholder="Cari Nama / Definisi..." class="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition">
+                </div>
+
+                <!-- Status Filter -->
+                <select id="statusFilter" onchange="filterData()" class="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="ALL">Semua Status RAG</option>
+                    <option value="HIJAU">🟢 Hijau (Sesuai Target)</option>
+                    <option value="KUNING">🟡 Kuning (Waspada)</option>
+                    <option value="MERAH">🔴 Merah (Tindakan Diperlukan)</option>
+                </select>
+            </div>
+
+            <!-- View Switcher Tabs -->
+            <div class="flex items-center bg-slate-100 p-1 rounded-lg self-end md:self-auto">
+                <button id="btnViewCards" onclick="switchView('cards')" class="px-3 py-1.5 text-xs font-semibold rounded-md flex items-center space-x-1.5 bg-white text-slate-800 shadow-sm transition">
+                    <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
+                    <span>Kartu Eksekutif</span>
+                </button>
+                <button id="btnViewTable" onclick="switchView('table')" class="px-3 py-1.5 text-xs font-semibold rounded-md flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 transition">
+                    <i data-lucide="table" class="w-3.5 h-3.5"></i>
+                    <span>Tabel Rinci</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- VIEW 1: EXECUTIVE CARDS GRID -->
+        <div id="cardsView" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- Dynamic KPI Cards will be injected here -->
+        </div>
+
+        <!-- VIEW 2: COMPREHENSIVE DATA TABLE -->
+        <div id="tableView" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-800 text-slate-200 text-xs uppercase tracking-wider font-semibold border-b border-slate-700">
+                            <th class="py-3.5 px-4 w-12 text-center">No</th>
+                            <th class="py-3.5 px-4 min-w-[200px]">Indikator Kinerja</th>
+                            <th class="py-3.5 px-4 min-w-[260px]">Definisi Operasional (Rumus)</th>
+                            <th class="py-3.5 px-4 text-center min-w-[120px]">Nilai Realisasi</th>
+                            <th class="py-3.5 px-4 text-center min-w-[120px]">Status RAG</th>
+                            <th class="py-3.5 px-4 min-w-[300px]">Ambang Batas Target</th>
+                            <th class="py-3.5 px-4 text-center w-20">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-100 text-sm">
+                        <!-- Dynamic Table Rows injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Detail Drill-Down & Grafik -->
+    <div id="detailModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden transform transition-all">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span id="modalNumber" class="w-7 h-7 bg-emerald-500 text-slate-900 font-bold rounded-lg flex items-center justify-center text-xs">1</span>
+                    <div>
+                        <h3 id="modalTitle" class="font-bold text-lg leading-snug">Capaian Pendapatan</h3>
+                        <p class="text-xs text-slate-400">Rincian Komponen & Riwayat Tren Bulanan</p>
+                    </div>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white p-1 rounded-lg transition">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 space-y-5">
+                <!-- Info Summary -->
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-2 gap-4">
+                    <div>
+                        <span class="text-xs text-slate-500 block font-medium">Definisi Operasional:</span>
+                        <p id="modalFormula" class="text-sm font-semibold text-slate-800 mt-0.5">Realisasi pendapatan : Target</p>
+                    </div>
+                    <div>
+                        <span class="text-xs text-slate-500 block font-medium">Capaian Saat Ini:</span>
+                        <div class="flex items-center space-x-2 mt-0.5">
+                            <span id="modalValue" class="text-xl font-extrabold text-slate-900">104.5%</span>
+                            <span id="modalBadge" class="px-2 py-0.5 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800">HIJAU</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Threshold Benchmark Box -->
+                <div>
+                    <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">Panduan Ambang Batas Target</span>
+                    <div class="grid grid-cols-3 gap-2 text-center text-xs font-semibold">
+                        <div class="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2.5 rounded-lg">
+                            <span class="block text-[10px] text-emerald-600 uppercase">Hijau (Baik)</span>
+                            <span id="modalHijauRule" class="font-bold text-sm">≥ 100%</span>
+                        </div>
+                        <div class="bg-amber-50 border border-amber-200 text-amber-800 p-2.5 rounded-lg">
+                            <span class="block text-[10px] text-amber-600 uppercase">Kuning (Waspada)</span>
+                            <span id="modalKuningRule" class="font-bold text-sm">90% - 99%</span>
+                        </div>
+                        <div class="bg-rose-50 border border-rose-200 text-rose-800 p-2.5 rounded-lg">
+                            <span class="block text-[10px] text-rose-600 uppercase">Merah (Kritis)</span>
+                            <span id="modalMerahRule" class="font-bold text-sm">< 90%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trend Chart Section -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tren Historis 6 Bulan Terakhir</span>
+                        <span class="text-xs text-slate-400">Mei - Oktober 2026</span>
+                    </div>
+                    <div class="h-52 w-full bg-slate-50 p-2 rounded-xl border border-slate-200">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <button onclick="closeModal()" class="px-4 py-2 bg-slate-800 text-white text-xs font-semibold rounded-lg hover:bg-slate-700 transition">
+                    Tutup Modal
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Datasets for 11 Key Performance Indicators (Cleaned, No Arbitrary Categories)
+        const kpiData = [
+            {
+                id: 1,
+                name: "Capaian Pendapatan",
+                formula: "Realisasi pendapatan : Target RBA",
+                val: "104.5%",
+                numericVal: 104.5,
+                unit: "%",
+                status: "HIJAU",
+                hijau: "≥ 100%",
+                kuning: "90% - 99%",
+                merah: "< 90%",
+                trend: [92, 95, 98, 101, 103, 104.5],
+                note: "Kinerja pendapatan melampaui target anggaran RBA sebesar 4.5%."
+            },
+            {
+                id: 2,
+                name: "EBITDA",
+                formula: "Surplus sebelum bunga & pajak + penyusutan + amortisasi + penyisihan piutang",
+                val: "19.8%",
+                numericVal: 19.8,
+                unit: "%",
+                status: "KUNING",
+                hijau: "> 22%",
+                kuning: "15% - 22%",
+                merah: "< 15%",
+                trend: [16.2, 17.5, 18.0, 19.1, 18.9, 19.8],
+                note: "EBITDA berada di zona waspada (15%-22%), perlu efisiensi biaya operasional."
+            },
+            {
+                id: 3,
+                name: "Profitabilitas",
+                formula: "Surplus Usaha : Pendapatan Operasional",
+                val: "16.2%",
+                numericVal: 16.2,
+                unit: "%",
+                status: "HIJAU",
+                hijau: "> 15%",
+                kuning: "10% - 15%",
+                merah: "< 10%",
+                trend: [12.1, 13.5, 14.8, 15.2, 15.9, 16.2],
+                note: "Marjin surplus usaha prima melampaui standar > 15%."
+            },
+            {
+                id: 4,
+                name: "Beban Pegawai",
+                formula: "Beban SDI : Pendapatan Operasional",
+                val: "23.4%",
+                numericVal: 23.4,
+                unit: "%",
+                status: "HIJAU",
+                hijau: "20% - 25%",
+                kuning: "25% - 30%",
+                merah: "> 30% dan < 20%",
+                trend: [26.5, 25.8, 24.9, 24.2, 23.8, 23.4],
+                note: "Porsi beban nakes/karyawan berada di rentang optimal sehat (20%-25%)."
+            },
+            {
+                id: 5,
+                name: "Beban Farmasi",
+                formula: "Beban Farmasi : Pendapatan Instalasi Farmasi",
+                val: "72.8%",
+                numericVal: 72.8,
+                unit: "%",
+                status: "KUNING",
+                hijau: "≤ 70%",
+                kuning: "> 70% - 75%",
+                merah: "> 75%",
+                trend: [68.0, 69.5, 71.2, 73.0, 74.1, 72.8],
+                note: "Beban obat/BMHP sedikit melampaui 70%, evaluasi harga beli distributor."
+            },
+            {
+                id: 6,
+                name: "Beban Operasional",
+                formula: "Beban Operasional : Pendapatan Operasional",
+                val: "52.3%",
+                numericVal: 52.3,
+                unit: "%",
+                status: "MERAH",
+                hijau: "≤ 46%",
+                kuning: "47% - 50%",
+                merah: "> 50%",
+                trend: [48.2, 49.5, 51.0, 53.2, 54.0, 52.3],
+                note: "PERHATIAN: Total beban operasional melampaui 50% pendapatan."
+            },
+            {
+                id: 7,
+                name: "Collection Period",
+                formula: "Total Piutang Usaha : Pend Op × Hari Riil Periode",
+                val: "38 Hari",
+                numericVal: 38,
+                unit: " Hari",
+                status: "HIJAU",
+                hijau: "< 40 hari",
+                kuning: "40 - 60 hari",
+                merah: "> 60 hari",
+                trend: [52, 48, 45, 42, 40, 38],
+                note: "Kecepatan pencairan piutang sangat efisien (< 40 hari)."
+            },
+            {
+                id: 8,
+                name: "Kualitas Klaim JKN",
+                formula: "Lolos BAHV pertama (Surat Rekapitulasi BPJS: Oktober 2026)",
+                val: "94.2%",
+                numericVal: 94.2,
+                unit: "%",
+                status: "HIJAU",
+                hijau: "> 90%",
+                kuning: "85% - 90%",
+                merah: "< 85%",
+                trend: [86.5, 88.0, 91.2, 92.5, 93.8, 94.2],
+                note: "Surat resmi BPJS bulan Oktober: Kelulusan verifikasi BAHV sangat baik."
+            },
+            {
+                id: 9,
+                name: "Perputaran Persediaan",
+                formula: "Total persediaan medis (exclude Logistik RT) : Pend Op × Hari Riil Periode",
+                val: "67 Hari",
+                numericVal: 67,
+                unit: " Hari",
+                status: "KUNING",
+                hijau: "≤ 60 hari",
+                kuning: "61 - 90 hari",
+                merah: "> 90 hari",
+                trend: [55, 58, 62, 65, 70, 67],
+                note: "Stok gudang farmasi agak mengendap, perbaiki buffer stock obat."
+            },
+            {
+                id: 10,
+                name: "Beban Dana Sosial",
+                formula: "Beban Dana Sosial : Pendapatan Operasional",
+                val: "0.4%",
+                numericVal: 0.4,
+                unit: "%",
+                status: "MERAH",
+                hijau: "≥ 1%",
+                kuning: "0.5% - < 1%",
+                merah: "< 0.5%",
+                trend: [0.8, 0.7, 0.6, 0.5, 0.4, 0.4],
+                note: "Alokasi dana sosial belum memenuhi komitmen minimal 0.5%."
+            },
+            {
+                id: 11,
+                name: "Produktifitas Karyawan",
+                formula: "Pendapatan Operasional : Jumlah SDM non-organik",
+                val: "24.5 Juta",
+                numericVal: 24.5,
+                unit: " Juta",
+                status: "HIJAU",
+                hijau: "> 22 Juta",
+                kuning: "15 s.d 22 Juta",
+                merah: "< 15 Juta",
+                trend: [19.5, 21.0, 22.2, 23.0, 24.0, 24.5],
+                note: "Rata-rata pendapatan per nakes/karyawan mencapai Rp 24.5 Juta."
+            }
+        ];
+
+        let activeChart = null;
+
+        // Color badge helper
+        function getBadgeStyle(status) {
+            switch(status) {
+                case 'HIJAU':
+                    return {
+                        bg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                        dot: 'bg-emerald-500',
+                        borderCard: 'border-l-4 border-l-emerald-500',
+                        textClr: 'text-emerald-700'
+                    };
+                case 'KUNING':
+                    return {
+                        bg: 'bg-amber-50 text-amber-700 border-amber-200',
+                        dot: 'bg-amber-500',
+                        borderCard: 'border-l-4 border-l-amber-500',
+                        textClr: 'text-amber-700'
+                    };
+                case 'MERAH':
+                    return {
+                        bg: 'bg-rose-50 text-rose-700 border-rose-200',
+                        dot: 'bg-rose-500',
+                        borderCard: 'border-l-4 border-l-rose-500',
+                        textClr: 'text-rose-700'
+                    };
+                default:
+                    return { bg: 'bg-slate-100 text-slate-800', dot: 'bg-slate-400', borderCard: '', textClr: 'text-slate-600' };
+            }
+        }
+
+        // Render Cards View
+        function renderCards(data) {
+            const container = document.getElementById('cardsView');
+            container.innerHTML = '';
+
+            if (data.length === 0) {
+                container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">Indikator tidak ditemukan.</div>`;
+                return;
+            }
+
+            data.forEach(item => {
+                const style = getBadgeStyle(item.status);
+                const card = document.createElement('div');
+                card.className = `bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-pointer overflow-hidden flex flex-col justify-between ${style.borderCard}`;
+                card.onclick = () => openModal(item.id);
+
+                card.innerHTML = `
+                    <div class="p-5">
+                        <div class="flex items-start justify-between gap-2 mb-3">
+                            <span class="text-xs font-bold text-slate-400 tracking-wider">#${item.id}</span>
+                            <span class="px-2.5 py-1 text-[11px] font-bold rounded-full border flex items-center space-x-1 ${style.bg}">
+                                <span class="w-1.5 h-1.5 rounded-full ${style.dot}"></span>
+                                <span>${item.status}</span>
+                            </span>
+                        </div>
+                        
+                        <h3 class="font-bold text-slate-800 text-base leading-snug hover:text-emerald-600 transition">${item.name}</h3>
+                        <p class="text-xs text-slate-500 mt-1 line-clamp-2" title="${item.formula}">
+                            <i data-lucide="help-circle" class="w-3.5 h-3.5 inline mr-1 text-slate-400"></i>${item.formula}
+                        </p>
+
+                        <div class="mt-4 pt-3 border-t border-slate-100 flex items-baseline justify-between">
+                            <div>
+                                <span class="text-xs text-slate-400 block">Nilai Realisasi</span>
+                                <span class="text-2xl font-extrabold text-slate-900 tracking-tight">${item.val}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[11px] text-slate-400 block">Target Hijau</span>
+                                <span class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">${item.hijau}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="px-5 py-2.5 bg-slate-50 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between">
+                        <span class="truncate max-w-[200px] text-slate-400">${item.note}</span>
+                        <span class="text-emerald-600 font-semibold flex items-center text-[11px]">
+                            Detail & Tren <i data-lucide="chevron-right" class="w-3.5 h-3.5 ml-0.5"></i>
+                        </span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        // Render Table View
+        function renderTable(data) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Tidak ada indikator yang sesuai dengan filter.</td></tr>`;
+                return;
+            }
+
+            data.forEach(item => {
+                const style = getBadgeStyle(item.status);
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+
+                tr.innerHTML = `
+                    <td class="py-3.5 px-4 text-center font-bold text-slate-400">${item.id}</td>
+                    <td class="py-3.5 px-4 font-bold text-slate-800">
+                        ${item.name}
+                    </td>
+                    <td class="py-3.5 px-4 text-xs text-slate-600">
+                        <div class="group relative cursor-help flex items-center">
+                            <span class="truncate max-w-[280px]">${item.formula}</span>
+                            <i data-lucide="info" class="w-3.5 h-3.5 ml-1.5 text-slate-400 shrink-0"></i>
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-4 text-center font-extrabold text-slate-900">${item.val}</td>
+                    <td class="py-3.5 px-4 text-center">
+                        <span class="px-2.5 py-1 text-xs font-bold rounded-full border inline-flex items-center space-x-1 ${style.bg}">
+                            <span class="w-1.5 h-1.5 rounded-full ${style.dot}"></span>
+                            <span>${item.status}</span>
+                        </span>
+                    </td>
+                    <td class="py-3.5 px-4 text-xs">
+                        <div class="flex items-center space-x-2">
+                            <span class="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 font-medium" title="Target Hijau">🟢 ${item.hijau}</span>
+                            <span class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded border border-amber-200 font-medium" title="Target Kuning">🟡 ${item.kuning}</span>
+                            <span class="bg-rose-50 text-rose-700 px-2 py-0.5 rounded border border-rose-200 font-medium" title="Target Merah">🔴 ${item.merah}</span>
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-4 text-center">
+                        <button onclick="openModal(${item.id})" class="p-1.5 bg-slate-100 hover:bg-emerald-500 hover:text-white rounded-lg text-slate-600 transition" title="Lihat Detail Grafis">
+                            <i data-lucide="line-chart" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        // Summary Counters Calculation
+        function updateSummaryCounters() {
+            const hijau = kpiData.filter(d => d.status === 'HIJAU').length;
+            const kuning = kpiData.filter(d => d.status === 'KUNING').length;
+            const merah = kpiData.filter(d => d.status === 'MERAH').length;
+            const total = kpiData.length;
+
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('stat-hijau').innerText = hijau;
+            document.getElementById('stat-kuning').innerText = kuning;
+            document.getElementById('stat-merah').innerText = merah;
+
+            document.getElementById('pct-hijau').innerText = `${((hijau/total)*100).toFixed(0)}% Sesuai Target`;
+            document.getElementById('pct-kuning').innerText = `${((kuning/total)*100).toFixed(0)}% Perlu Waspada`;
+            document.getElementById('pct-merah').innerText = `${((merah/total)*100).toFixed(0)}% Kritis / Evaluasi`;
+        }
+
+        // Search & Filter Logic (Purely Search & Status)
+        function filterData() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const status = document.getElementById('statusFilter').value;
+
+            const filtered = kpiData.filter(item => {
+                const matchSearch = item.name.toLowerCase().includes(search) || item.formula.toLowerCase().includes(search);
+                const matchStatus = (status === 'ALL') || (item.status === status);
+
+                return matchSearch && matchStatus;
+            });
+
+            renderCards(filtered);
+            renderTable(filtered);
+        }
+
+        // View Switcher (Cards vs Table)
+        function switchView(view) {
+            const cardsView = document.getElementById('cardsView');
+            const tableView = document.getElementById('tableView');
+            const btnCards = document.getElementById('btnViewCards');
+            const btnTable = document.getElementById('btnViewTable');
+
+            if (view === 'cards') {
+                cardsView.classList.remove('hidden');
+                tableView.classList.add('hidden');
+                btnCards.className = "px-3 py-1.5 text-xs font-semibold rounded-md flex items-center space-x-1.5 bg-white text-slate-800 shadow-sm transition";
+                btnTable.className = "px-3 py-1.5 text-xs font-semibold rounded-md flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 transition";
+            } else {
+                cardsView.classList.add('hidden');
+                tableView.classList.remove('hidden');
+                btnTable.className = "px-3 py-1.5 text-xs font-semibold rounded-md flex items-center space-x-1.5 bg-white text-slate-800 shadow-sm transition";
+                btnCards.className = "px-3 py-1.5 text-xs font-semibold rounded-md flex items-center space-x-1.5 text-slate-600 hover:text-slate-900 transition";
+            }
+        }
+
+        // Drill-Down Modal & Chart.js Implementation
+        function openModal(id) {
+            const item = kpiData.find(d => d.id === id);
+            if (!item) return;
+
+            document.getElementById('modalNumber').innerText = item.id;
+            document.getElementById('modalTitle').innerText = item.name;
+            document.getElementById('modalFormula').innerText = item.formula;
+            document.getElementById('modalValue').innerText = item.val;
+
+            const badgeElem = document.getElementById('modalBadge');
+            badgeElem.innerText = item.status;
+            const style = getBadgeStyle(item.status);
+            badgeElem.className = `px-2 py-0.5 text-xs font-bold rounded-full ${style.bg}`;
+
+            document.getElementById('modalHijauRule').innerText = item.hijau;
+            document.getElementById('modalKuningRule').innerText = item.kuning;
+            document.getElementById('modalMerahRule').innerText = item.merah;
+
+            // Render Chart
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            
+            if (activeChart) {
+                activeChart.destroy();
+            }
+
+            let chartColor = '#10b981'; // green default
+            if(item.status === 'KUNING') chartColor = '#f59e0b';
+            if(item.status === 'MERAH') chartColor = '#f43f5e';
+
+            activeChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt'],
+                    datasets: [{
+                        label: item.name + ` (${item.unit})`,
+                        data: item.trend,
+                        borderColor: chartColor,
+                        backgroundColor: chartColor + '1A', // transparent fill
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 5,
+                        pointBackgroundColor: chartColor
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: '#f1f5f9' },
+                            ticks: { font: { size: 10 } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('detailModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+        }
+
+        function resetData() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('statusFilter').value = 'ALL';
+            filterData();
+        }
+
+        // Initialize App on DOM Load
+        window.onload = function() {
+            updateSummaryCounters();
+            filterData();
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>

@@ -194,6 +194,21 @@ Follow this order of thought:
 
 ---
 
+## When Implementing a New Module (Mandatory Authorization Checklist)
+Every implementation plan, specification, and PR for a new module or submodule MUST explicitly include and execute the following 5-step authorization pipeline:
+1. **Registry**: Register the module in `App\Support\AccessModuleRegistry::all()` with its `kode`, `nama`, `group_nama`, and `urutan`.
+2. **Access Module Migration**: Create a dedicated database migration (e.g. `YYYY_MM_DD_HHMMSS_add_<module>_access_module.php`) that:
+   - Inserts/updates the record in `access_modules`.
+   - Automatically grants all permissions (`can_view`, `can_create`, `can_update`, `can_delete = true`) to system roles (`roles.is_system = 1`, including Administrator/Superadmin) in `role_permissions`.
+   - Cleans up both `role_permissions` and `access_modules` in `down()`.
+3. **Route Protection**: Apply `module.access:<kode>,<action>` middleware to all routes of the module in `routes/web.php`.
+4. **Sidebar & Layout Navigation**: Add visibility check using `$can('<kode>')` in `resources/views/partials/sidebar.blade.php`.
+5. **Documentation & Tests**:
+   - Update `dokumentasi/fondasi/sistem-otorisasi.md` (add to the registry table and actions matrix).
+   - Write feature tests asserting 403 Forbidden for unauthorized users and 200 OK for authorized/system users.
+
+---
+
 ## When Fixing Bugs
 - First identify the root cause.
 - Prefer minimal, targeted fixes.
@@ -257,8 +272,10 @@ documentation updates as part of the change, not an afterthought.
 1. Create a new document in `dokumentasi/` from `_template-modul.md`.
 2. Add it to the index table in `dokumentasi/README.md`.
 3. Add a row to the Code → Documentation mapping table below.
-4. If it introduces a new access module, also update `dokumentasi/fondasi/sistem-otorisasi.md`
-   and `App\Support\AccessModuleRegistry`.
+4. Follow the **Mandatory Authorization Checklist**:
+   - Register the module in `App\Support\AccessModuleRegistry`.
+   - Create a migration to add the module to `access_modules` and grant default permissions to system roles (`is_system = 1`) in `role_permissions`.
+   - Update `dokumentasi/fondasi/sistem-otorisasi.md`.
 
 ### When Changing Cross-Cutting Behavior
 - Authorization / middleware / roles → update `dokumentasi/fondasi/sistem-otorisasi.md`.
@@ -274,6 +291,7 @@ documentation updates as part of the change, not an afterthought.
 | --- | --- |
 | `app/Http/Controllers/Auth/AuthController.php` | `dokumentasi/auth.md` |
 | `app/Http/Controllers/HomeController.php`, `app/Services/HomeDashboardService.php` | `dokumentasi/home-dashboard.md` |
+| `app/Http/Controllers/Dashboard/IndikatorKinerjaDashboardController.php`, `app/Services/IndikatorKinerja/IndikatorKinerjaService.php` | `dokumentasi/indikator-kinerja.md` |
 | `app/Http/Controllers/Bukubesar/JurnalUmumController.php`, `app/Services/Bukubesar/JurnalUmumService.php`, `app/Http/Requests/Bukubesar/*JurnalUmum*` | `dokumentasi/bukubesar-jurnal-umum.md` |
 | `app/Http/Controllers/Bukubesar/CoaController.php`, `app/Services/Bukubesar/CoaService.php`, `app/Http/Requests/Bukubesar/*Coa*` | `dokumentasi/bukubesar-coa.md` |
 | `app/Http/Controllers/Kasbank/KasbankPenerimaanController.php`, `app/Services/Kasbank/KasbankPenerimaanService.php`, `app/Http/Requests/Kasbank/*Penerimaan*` | `dokumentasi/kasbank-penerimaan.md` |
@@ -291,6 +309,7 @@ documentation updates as part of the change, not an afterthought.
 | `app/Http/Controllers/Pengaturan/MappingPendapatanController.php`, `app/Services/Pengaturan/MappingPendapatanTindakanService.php`, `app/Http/Requests/Pengaturan/*MappingPendapatan*`, `*MappingLawanPendapatan*` | `dokumentasi/pengaturan-mapping-pendapatan.md` |
 | `app/Http/Controllers/Pengaturan/MappingGeneralController.php`, `app/Services/Pengaturan/MappingGeneralService.php`, `app/Http/Requests/Pengaturan/*MappingGeneral*` | `dokumentasi/pengaturan-mapping-general.md` |
 | `app/Http/Controllers/Pengaturan/SettingRbaController.php`, `app/Services/Pengaturan/SettingRbaService.php`, `app/Http/Requests/Pengaturan/*SettingRba*` | `dokumentasi/pengaturan-setting-rba.md` |
+| `app/Http/Controllers/Pengaturan/SettingIndikatorKinerjaController.php`, `app/Http/Requests/Pengaturan/*IndikatorKinerja*`, `*VariabelManual*`, `*SimpanManualData*` | `dokumentasi/pengaturan-setting-indikator-kinerja.md` |
 | `app/Http/Controllers/Pengaturan/PreferensiController.php`, `app/Services/Pengaturan/PreferensiService.php`, `app/Services/PreferensiPerusahaanService.php`, `app/Http/Requests/Pengaturan/*Preferensi*` | `dokumentasi/pengaturan-preferensi.md` |
 | `app/Http/Controllers/Pengaturan/PenggunaController.php`, `app/Services/Pengaturan/UserManagementService.php`, `app/Http/Requests/Pengaturan/*User*` | `dokumentasi/pengaturan-pengguna.md` |
 | `app/Http/Controllers/Pengaturan/RoleAksesController.php`, `app/Services/Pengaturan/RoleAccessManagementService.php`, `app/Http/Requests/Pengaturan/*RoleAccess*` | `dokumentasi/pengaturan-role-akses.md` |
