@@ -3,6 +3,10 @@
 @section('title', 'Role Akses')
 
 @section('content')
+    @php
+        $authenticatedUser = auth()->user();
+    @endphp
+
     <div class="row mb-3">
         <div class="col">
             <div class="d-flex align-items-center gap-3 fs-3">
@@ -58,12 +62,21 @@
                                                     <td>{{ $role->deskripsi ?: '-' }}</td>
                                                     <td>{{ $role->users_count }}</td>
                                                     <td class="text-center">
-                                                        @if (! $role->is_system)
+                                                        @php
+                                                            $isSystemRole = (bool) $role->is_system;
+                                                            $isOwnRole = (int) $role->id === (int) $authenticatedUser?->role_id;
+                                                            $isSystemUser = (bool) $authenticatedUser?->role?->is_system;
+                                                            $canEditRole = $isSystemUser || (! $isSystemRole && ! $isOwnRole);
+                                                        @endphp
+                                                        @if ($canEditRole)
                                                             <a href="{{ route('pengaturan.role-akses.edit', $role) }}" class="btn btn-warning btn-sm">
                                                                 <i class="bi bi-pencil-square"></i> Edit
                                                             </a>
                                                         @else
-                                                            <button type="button" class="btn btn-secondary btn-sm" disabled>
+                                                            <button type="button"
+                                                                    class="btn btn-secondary btn-sm"
+                                                                    disabled
+                                                                    title="{{ $isSystemRole ? 'Role sistem hanya dapat diubah oleh Superadmin' : 'Anda tidak dapat mengubah hak akses untuk role Anda sendiri' }}">
                                                                 <i class="bi bi-lock-fill"></i> Terkunci
                                                             </button>
                                                         @endif

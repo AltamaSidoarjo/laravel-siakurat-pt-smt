@@ -20,7 +20,7 @@
                 <div class="card-body">
                     @include('partials.validation-errors')
 
-                    <form method="post" action="{{ route('pengaturan.pengguna.update', $user) }}">
+                    <form method="post" action="{{ route('pengaturan.pengguna.update', $user) }}" autocomplete="off">
                         @csrf
                         @method('PUT')
 
@@ -42,7 +42,7 @@
                                         </div>
                                         <div class="col-12">
                                             <label for="email" class="form-label">Email</label>
-                                            <input type="email" name="email" id="email" class="form-control" value="{{ old('email', $user->email) }}" required>
+                                            <input type="email" name="email" id="email" class="form-control" value="{{ old('email', $user->email) }}" autocomplete="off" required>
                                         </div>
                                         <div class="col-md-6">
                                             <label for="role_id" class="form-label">Role Akses</label>
@@ -57,12 +57,12 @@
                                         </div>
                                         <div class="col-md-6">
                                             <label for="password" class="form-label">Password Baru</label>
-                                            <input type="password" name="password" id="password" class="form-control">
+                                            <input type="password" name="password" id="password" class="form-control" autocomplete="new-password">
                                             <div class="form-text">Kosongkan jika tidak ingin mengganti password. Minimal 8 karakter.</div>
                                         </div>
                                         <div class="col-md-6">
                                             <label for="password_confirmation" class="form-label">Konfirmasi Password Baru</label>
-                                            <input type="password" name="password_confirmation" id="password_confirmation" class="form-control">
+                                            <input type="password" name="password_confirmation" id="password_confirmation" class="form-control" autocomplete="new-password">
                                         </div>
                                     </div>
                                 </div>

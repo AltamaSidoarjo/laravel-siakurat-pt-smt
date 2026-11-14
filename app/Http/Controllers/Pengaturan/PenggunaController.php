@@ -25,11 +25,11 @@ class PenggunaController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         return view('pengaturan.pengguna.create', [
             'page' => 'app',
-            'roles' => $this->userManagementService->getRoleOptions(),
+            'roles' => $this->userManagementService->getRoleOptions($request->user()),
         ]);
     }
 
@@ -42,17 +42,25 @@ class PenggunaController extends Controller
             ->with('success', 'Pengguna berhasil disimpan.');
     }
 
-    public function edit(User $user): View
+    public function edit(Request $request, User $user): View
     {
+        if ($user->role?->is_system && ! (bool) $request->user()?->role?->is_system) {
+            abort(403, 'Anda tidak memiliki hak untuk mengedit pengguna dengan role sistem.');
+        }
+
         return view('pengaturan.pengguna.edit', [
             'page' => 'app',
             'user' => $user,
-            'roles' => $this->userManagementService->getRoleOptions(),
+            'roles' => $this->userManagementService->getRoleOptions($request->user()),
         ]);
     }
 
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
+        if ($user->role?->is_system && ! (bool) $request->user()?->role?->is_system) {
+            abort(403, 'Anda tidak memiliki hak untuk mengubah pengguna dengan role sistem.');
+        }
+
         $this->userManagementService->update($user, $request->validated());
 
         return redirect()
@@ -62,10 +70,22 @@ class PenggunaController extends Controller
 
     public function destroy(Request $request, User $user): RedirectResponse
     {
-        if (! $this->userManagementService->delete($user, $request->user())) {
+        if ($user->is($request->user())) {
             return redirect()
                 ->route('pengaturan.pengguna.index')
                 ->with('error', 'Anda tidak dapat menghapus akun yang sedang digunakan.');
+        }
+
+        if ($user->role?->is_system) {
+            return redirect()
+                ->route('pengaturan.pengguna.index')
+                ->with('error', 'Pengguna dengan role sistem tidak dapat dihapus.');
+        }
+
+        if (! $this->userManagementService->delete($user, $request->user())) {
+            return redirect()
+                ->route('pengaturan.pengguna.index')
+                ->with('error', 'Pengguna tidak dapat dihapus.');
         }
 
         return redirect()

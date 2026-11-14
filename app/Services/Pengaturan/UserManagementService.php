@@ -22,12 +22,17 @@ class UserManagementService
             ->get();
     }
 
-    public function getRoleOptions(): Collection
+    public function getRoleOptions(?User $actor = null): Collection
     {
-        return Role::query()
+        $query = Role::query()
             ->orderByDesc('is_system')
-            ->orderBy('nama')
-            ->get(['id', 'nama', 'kode']);
+            ->orderBy('nama');
+
+        if ($actor && ! (bool) $actor->role?->is_system) {
+            $query->where('is_system', false);
+        }
+
+        return $query->get(['id', 'nama', 'kode']);
     }
 
     public function create(array $data): User
@@ -81,7 +86,7 @@ class UserManagementService
 
     public function delete(User $user, User $actor): bool
     {
-        if ($user->is($actor)) {
+        if ($user->is($actor) || (bool) $user->role?->is_system) {
             return false;
         }
 
