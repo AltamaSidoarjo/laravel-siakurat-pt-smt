@@ -338,6 +338,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/pendapatan/aktivitas-dokter', [LaporanPendapatanController::class, 'aktivitasDokter'])->name('pendapatan.aktivitas-dokter');
             Route::get('/pendapatan/aktivitas-dokter/export-pdf', [LaporanPendapatanController::class, 'exportAktivitasDokterPdf'])->name('pendapatan.aktivitas-dokter.export-pdf');
             Route::get('/pendapatan/aktivitas-dokter/export-excel', [LaporanPendapatanController::class, 'exportAktivitasDokterExcel'])->name('pendapatan.aktivitas-dokter.export-excel');
+            Route::get('/pendapatan/rekonsiliasi-dokter', [LaporanPendapatanController::class, 'rekonsiliasiDokter'])->name('pendapatan.rekonsiliasi-dokter');
+            Route::get('/pendapatan/rekonsiliasi-dokter/detail', [LaporanPendapatanController::class, 'loadRekonsiliasiDokterDetail'])->name('pendapatan.rekonsiliasi-dokter.detail');
+            Route::get('/pendapatan/rekonsiliasi-dokter/export-excel', [LaporanPendapatanController::class, 'exportRekonsiliasiDokterExcel'])->name('pendapatan.rekonsiliasi-dokter.export-excel');
+            Route::get('/pendapatan/rekonsiliasi-dokter/export-csv', [LaporanPendapatanController::class, 'exportRekonsiliasiDokterCsv'])->name('pendapatan.rekonsiliasi-dokter.export-csv');
             Route::get('/pendapatan/penjualan-obat', [LaporanPendapatanController::class, 'penjualanObat'])->name('pendapatan.penjualan-obat');
             Route::get('/pendapatan/penjualan-obat/load-data', [LaporanPendapatanController::class, 'loadPenjualanObat'])->name('pendapatan.penjualan-obat.load-data');
             Route::get('/pendapatan/penjualan-obat/export-csv', [LaporanPendapatanController::class, 'exportPenjualanObatCsv'])->name('pendapatan.penjualan-obat.export-csv');

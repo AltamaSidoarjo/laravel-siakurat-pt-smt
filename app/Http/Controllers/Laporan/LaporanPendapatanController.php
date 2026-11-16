@@ -243,6 +243,114 @@ class LaporanPendapatanController extends Controller
         );
     }
 
+    public function rekonsiliasiDokter(Request $request): View
+    {
+        [$startDate, $endDate] = $this->resolveDateRange($request);
+        $coaId = $request->integer('coaId') ?: null;
+        $hanyaBerselisih = $request->has('filter_applied')
+            ? $request->boolean('hanyaBerselisih')
+            : true;
+
+        $reportData = $this->laporanPendapatanService->getRekonsiliasiDokterData(
+            $startDate,
+            $endDate,
+            $coaId,
+            $hanyaBerselisih
+        );
+
+        return view('laporan.pendapatan.rekonsiliasi-dokter', [
+            'page' => 'app',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'coaId' => $coaId,
+            'hanyaBerselisih' => $hanyaBerselisih,
+            'coaOptions' => $this->laporanPendapatanService->getCoaPendapatanOptions(),
+            'reportData' => $reportData,
+        ]);
+    }
+
+    public function loadRekonsiliasiDokterDetail(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+            'coaId' => ['required', 'integer', 'exists:coa,id'],
+        ]);
+
+        $details = $this->laporanPendapatanService->getDetailTransaksiTanpaDokter(
+            $validated['startDate'],
+            $validated['endDate'],
+            (int) $validated['coaId']
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => $details,
+        ]);
+    }
+
+    public function exportRekonsiliasiDokterExcel(Request $request): StreamedResponse
+    {
+        $validated = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+            'coaId' => ['nullable', 'integer', 'exists:coa,id'],
+            'hanyaBerselisih' => ['nullable'],
+        ]);
+
+        $hanyaBerselisih = $request->has('filter_applied')
+            ? $request->boolean('hanyaBerselisih')
+            : true;
+
+        $fileName = sprintf(
+            'rekonsiliasi-pendapatan-dokter-%s-%s.xlsx',
+            str_replace('-', '', $validated['startDate']),
+            str_replace('-', '', $validated['endDate'])
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPendapatanService->streamRekonsiliasiDokterExcel(
+                $validated['startDate'],
+                $validated['endDate'],
+                isset($validated['coaId']) ? (int) $validated['coaId'] : null,
+                $hanyaBerselisih
+            ),
+            $fileName,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        );
+    }
+
+    public function exportRekonsiliasiDokterCsv(Request $request): StreamedResponse
+    {
+        $validated = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+            'coaId' => ['nullable', 'integer', 'exists:coa,id'],
+            'hanyaBerselisih' => ['nullable'],
+        ]);
+
+        $hanyaBerselisih = $request->has('filter_applied')
+            ? $request->boolean('hanyaBerselisih')
+            : true;
+
+        $fileName = sprintf(
+            'rekonsiliasi-pendapatan-dokter-%s-%s.csv',
+            str_replace('-', '', $validated['startDate']),
+            str_replace('-', '', $validated['endDate'])
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPendapatanService->streamRekonsiliasiDokterCsv(
+                $validated['startDate'],
+                $validated['endDate'],
+                isset($validated['coaId']) ? (int) $validated['coaId'] : null,
+                $hanyaBerselisih
+            ),
+            $fileName,
+            ['Content-Type' => 'text/csv; charset=UTF-8']
+        );
+    }
+
     public function loadKunjungan(Request $request): JsonResponse
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);

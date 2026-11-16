@@ -1734,4 +1734,602 @@ class LaporanPendapatanService
 
         return DB::query()->fromSub($invoiceRows, 'pd');
     }
+
+    public function getCoaPendapatanOptions(): Collection
+    {
+        $hasChildren = Coa::query()
+            ->whereNotNull('parent_coa')
+            ->pluck('parent_coa')
+            ->map(fn ($id) => (int) $id)
+            ->flip();
+
+        return Coa::query()
+            ->where(function ($q): void {
+                $q->whereIn('tipe_coa', ['Pendapatan', 'Pendapatan lain'])
+                    ->orWhereRaw("LOWER(COALESCE(tipe_coa, '')) LIKE ?", ['%pendapatan%']);
+            })
+            ->orderBy('kode')
+            ->get(['id', 'kode', 'nama', 'parent_coa'])
+            ->reject(fn (Coa $c) => $hasChildren->has((int) $c->id))
+            ->values();
+    }
+
+    public function getRekonsiliasiDokterData(
+        string $startDate,
+        string $endDate,
+        ?int $coaId = null,
+        bool $hanyaBerselisih = true
+    ): array {
+        $hasChildren = Coa::query()
+            ->whereNotNull('parent_coa')
+            ->pluck('parent_coa')
+            ->map(fn ($id) => (int) $id)
+            ->flip();
+
+        $allCoas = Coa::query()
+            ->where(function ($q): void {
+                $q->whereIn('tipe_coa', ['Pendapatan', 'Pendapatan lain'])
+                    ->orWhereRaw("LOWER(COALESCE(tipe_coa, '')) LIKE ?", ['%pendapatan%']);
+            })
+            ->when($coaId !== null, fn ($q) => $q->where('id', $coaId))
+            ->orderBy('kode')
+            ->get(['id', 'kode', 'nama', 'tipe_coa', 'parent_coa'])
+            ->reject(fn (Coa $c) => $hasChildren->has((int) $c->id))
+            ->values();
+
+        // 1. Mutasi buku besar bersih (Kredit - Debit)
+        $bukuBesarRows = DB::table('bukubesar')
+            ->selectRaw('coa_id, (SUM(CASE WHEN tipe_mutasi = "K" THEN nominal ELSE 0 END) - SUM(CASE WHEN tipe_mutasi = "D" THEN nominal ELSE 0 END)) as nominal_buku_besar')
+            ->whereBetween('tanggal', [$startDate, $endDate])
+            ->when($coaId !== null, fn ($q) => $q->where('coa_id', $coaId))
+            ->groupBy('coa_id')
+            ->pluck('nominal_buku_besar', 'coa_id');
+
+        // 2. Faktur Penjualan Rinci (dengan dokter vs tanpa dokter)
+        $invoiceRows = DB::table('faktur_penjualan_rinci as fpr')
+            ->join('faktur_penjualan as fp', 'fp.id', '=', 'fpr.faktur_penjualan_id')
+            ->whereBetween('fp.tanggal_faktur', [$startDate, $endDate])
+            ->when($coaId !== null, fn ($q) => $q->where('fpr.coa_id', $coaId))
+            ->selectRaw('
+                fpr.coa_id,
+                SUM(CASE WHEN fpr.pelaksana_id IS NOT NULL THEN fpr.subtotal ELSE 0 END) as dengan_dokter,
+                SUM(CASE WHEN fpr.pelaksana_id IS NULL THEN fpr.subtotal ELSE 0 END) as tanpa_dokter,
+                SUM(CASE WHEN fpr.pelaksana_id IS NULL THEN 1 ELSE 0 END) as count_tanpa_dokter
+            ')
+            ->groupBy('fpr.coa_id')
+            ->get()
+            ->keyBy('coa_id');
+
+        // 3. Jurnal Umum Rinci (dengan dokter vs tanpa dokter)
+        $journalRows = collect();
+        if ($this->hasJurnalUmumPelaksanaSupport()) {
+            $journalRows = DB::table('jurnal_umum_rinci as jur')
+                ->join('jurnal_umum as ju', 'ju.id', '=', 'jur.jurnal_umum_id')
+                ->join('coa as c', 'c.id', '=', 'jur.coa_id')
+                ->whereBetween('ju.tanggal', [$startDate, $endDate])
+                ->whereRaw("LOWER(COALESCE(c.tipe_coa, '')) LIKE ?", ['%pendapatan%'])
+                ->when($coaId !== null, fn ($q) => $q->where('jur.coa_id', $coaId))
+                ->selectRaw('
+                    jur.coa_id,
+                    SUM(CASE WHEN jur.pelaksana_id IS NOT NULL THEN (COALESCE(jur.kredit, 0) - COALESCE(jur.debit, 0)) ELSE 0 END) as dengan_dokter,
+                    SUM(CASE WHEN jur.pelaksana_id IS NULL THEN (COALESCE(jur.kredit, 0) - COALESCE(jur.debit, 0)) ELSE 0 END) as tanpa_dokter,
+                    SUM(CASE WHEN jur.pelaksana_id IS NULL THEN 1 ELSE 0 END) as count_tanpa_dokter
+                ')
+                ->groupBy('jur.coa_id')
+                ->get()
+                ->keyBy('coa_id');
+        }
+
+        // 4. Kas & Bank Pembayaran Rinci (dengan dokter vs tanpa dokter)
+        $kasbankRows = collect();
+        if ($this->hasKasbankPembayaranPelaksanaSupport()) {
+            $kasbankRows = DB::table('kasbank_pembayaran_rinci as kbpr')
+                ->join('kasbank_pembayaran as kbp', 'kbp.id', '=', 'kbpr.kasbank_pembayaran_id')
+                ->join('coa as c', 'c.id', '=', 'kbpr.coa_id')
+                ->whereBetween('kbp.tanggal', [$startDate, $endDate])
+                ->whereRaw("LOWER(COALESCE(c.tipe_coa, '')) LIKE ?", ['%pendapatan%'])
+                ->when($coaId !== null, fn ($q) => $q->where('kbpr.coa_id', $coaId))
+                ->selectRaw('
+                    kbpr.coa_id,
+                    SUM(CASE WHEN kbpr.pelaksana_id IS NOT NULL THEN (0 - COALESCE(kbpr.nominal, 0)) ELSE 0 END) as dengan_dokter,
+                    SUM(CASE WHEN kbpr.pelaksana_id IS NULL THEN (0 - COALESCE(kbpr.nominal, 0)) ELSE 0 END) as tanpa_dokter,
+                    SUM(CASE WHEN kbpr.pelaksana_id IS NULL THEN 1 ELSE 0 END) as count_tanpa_dokter
+                ')
+                ->groupBy('kbpr.coa_id')
+                ->get()
+                ->keyBy('coa_id');
+        }
+
+        $allRows = $allCoas->map(function (Coa $c) use ($bukuBesarRows, $invoiceRows, $journalRows, $kasbankRows): array {
+            $cid = (int) $c->id;
+            $bb = (float) ($bukuBesarRows[$cid] ?? 0);
+
+            $invDokter = (float) ($invoiceRows[$cid]->dengan_dokter ?? 0);
+            $invTanpa = (float) ($invoiceRows[$cid]->tanpa_dokter ?? 0);
+            $invCount = (int) ($invoiceRows[$cid]->count_tanpa_dokter ?? 0);
+
+            $jurDokter = (float) ($journalRows[$cid]->dengan_dokter ?? 0);
+            $jurTanpa = (float) ($journalRows[$cid]->tanpa_dokter ?? 0);
+            $jurCount = (int) ($journalRows[$cid]->count_tanpa_dokter ?? 0);
+
+            $kbDokter = (float) ($kasbankRows[$cid]->dengan_dokter ?? 0);
+            $kbTanpa = (float) ($kasbankRows[$cid]->tanpa_dokter ?? 0);
+            $kbCount = (int) ($kasbankRows[$cid]->count_tanpa_dokter ?? 0);
+
+            $totalDokter = $invDokter + $jurDokter + $kbDokter;
+            $totalTanpaDokter = $invTanpa + $jurTanpa + $kbTanpa;
+            $countTanpaDokter = $invCount + $jurCount + $kbCount;
+
+            $selisih = $bb - $totalDokter;
+            $adaSelisih = abs($selisih) > 0.005 || abs($totalTanpaDokter) > 0.005;
+
+            return [
+                'coa_id' => $cid,
+                'kode_akun' => (string) $c->kode,
+                'nama_akun' => (string) $c->nama,
+                'tipe_coa' => (string) $c->tipe_coa,
+                'total_buku_besar' => $bb,
+                'total_pendapatan_dokter' => $totalDokter,
+                'total_tanpa_dokter' => $totalTanpaDokter,
+                'selisih' => $selisih,
+                'ada_selisih' => $adaSelisih,
+                'jumlah_transaksi_tanpa_dokter' => $countTanpaDokter,
+            ];
+        });
+
+        $filteredRows = $allRows->filter(function (array $r) use ($hanyaBerselisih, $coaId): bool {
+            if ($coaId !== null) {
+                return true;
+            }
+
+            if ($hanyaBerselisih) {
+                return $r['ada_selisih'];
+            }
+
+            return abs($r['total_buku_besar']) > 0.005
+                || abs($r['total_pendapatan_dokter']) > 0.005
+                || abs($r['total_tanpa_dokter']) > 0.005;
+        })->values();
+
+        $summary = [
+            'totalBukuBesar' => (float) $filteredRows->sum('total_buku_besar'),
+            'totalPendapatanDokter' => (float) $filteredRows->sum('total_pendapatan_dokter'),
+            'totalSelisih' => (float) $filteredRows->sum('selisih'),
+            'totalTanpaDokter' => (float) $filteredRows->sum('total_tanpa_dokter'),
+            'jumlahAkunBerselisih' => $filteredRows->where('ada_selisih', true)->count(),
+            'jumlahTotalAkun' => $filteredRows->count(),
+        ];
+
+        return [
+            'summary' => $summary,
+            'rows' => $filteredRows,
+        ];
+    }
+
+    public function getDetailTransaksiTanpaDokter(string $startDate, string $endDate, int $coaId): Collection
+    {
+        $details = collect();
+
+        // 1. Faktur Penjualan Rinci
+        $invoiceRows = DB::table('faktur_penjualan_rinci as fpr')
+            ->join('faktur_penjualan as fp', 'fp.id', '=', 'fpr.faktur_penjualan_id')
+            ->where('fpr.coa_id', $coaId)
+            ->whereNull('fpr.pelaksana_id')
+            ->whereBetween('fp.tanggal_faktur', [$startDate, $endDate])
+            ->select([
+                'fpr.id as id',
+                'fp.id as source_id',
+                'fp.tanggal_faktur as tanggal',
+                'fp.nomor_faktur as nomor_ref',
+                DB::raw("'Invoice Pendapatan' as sumber"),
+                'fp.nama_pasien',
+                'fp.nomer_rekam_medis',
+                'fp.nama_poli',
+                'fp.nama_penjamin',
+                'fpr.kode_proyek',
+                'fpr.catatan',
+                'fpr.subtotal as nominal',
+            ])
+            ->orderBy('fp.tanggal_faktur')
+            ->orderBy('fp.id')
+            ->get();
+
+        foreach ($invoiceRows as $row) {
+            $statusSimrs = filled($row->kode_proyek)
+                ? 'Kode SIMRS: '.$row->kode_proyek.' (Belum di Master)'
+                : 'Kosong dari SIMRS / Manual';
+
+            $details->push([
+                'id' => (int) $row->id,
+                'source_id' => (int) $row->source_id,
+                'tanggal' => Carbon::parse($row->tanggal)->format('Y-m-d'),
+                'nomor_ref' => (string) $row->nomor_ref,
+                'sumber' => (string) $row->sumber,
+                'nama_pasien' => filled($row->nama_pasien) ? (string) $row->nama_pasien : '-',
+                'nomer_rekam_medis' => filled($row->nomer_rekam_medis) ? (string) $row->nomer_rekam_medis : '-',
+                'nama_poli' => filled($row->nama_poli) ? (string) $row->nama_poli : '-',
+                'nama_penjamin' => filled($row->nama_penjamin) ? (string) $row->nama_penjamin : '-',
+                'kode_proyek' => $row->kode_proyek ? (string) $row->kode_proyek : null,
+                'status_simrs' => $statusSimrs,
+                'catatan' => filled($row->catatan) ? (string) $row->catatan : '-',
+                'nominal' => (float) $row->nominal,
+                'link_url' => route('pendapatan.invoice.edit', $row->source_id),
+                'link_label' => 'Buka Faktur',
+            ]);
+        }
+
+        // 2. Jurnal Umum Rinci
+        if ($this->hasJurnalUmumPelaksanaSupport()) {
+            $journalRows = DB::table('jurnal_umum_rinci as jur')
+                ->join('jurnal_umum as ju', 'ju.id', '=', 'jur.jurnal_umum_id')
+                ->where('jur.coa_id', $coaId)
+                ->whereNull('jur.pelaksana_id')
+                ->whereBetween('ju.tanggal', [$startDate, $endDate])
+                ->select([
+                    'jur.id as id',
+                    'ju.id as source_id',
+                    'ju.tanggal as tanggal',
+                    'ju.nomer as nomor_ref',
+                    DB::raw("'Jurnal Umum' as sumber"),
+                    DB::raw("'-' as nama_pasien"),
+                    DB::raw("'-' as nomer_rekam_medis"),
+                    DB::raw("'-' as nama_poli"),
+                    DB::raw("'-' as nama_penjamin"),
+                    DB::raw("NULL as kode_proyek"),
+                    DB::raw("COALESCE(jur.keterangan, ju.keterangan, '-') as catatan"),
+                    DB::raw('(COALESCE(jur.kredit, 0) - COALESCE(jur.debit, 0)) as nominal'),
+                ])
+                ->orderBy('ju.tanggal')
+                ->orderBy('ju.id')
+                ->get();
+
+            foreach ($journalRows as $row) {
+                $details->push([
+                    'id' => (int) $row->id,
+                    'source_id' => (int) $row->source_id,
+                    'tanggal' => Carbon::parse($row->tanggal)->format('Y-m-d'),
+                    'nomor_ref' => (string) $row->nomor_ref,
+                    'sumber' => (string) $row->sumber,
+                    'nama_pasien' => '-',
+                    'nomer_rekam_medis' => '-',
+                    'nama_poli' => '-',
+                    'nama_penjamin' => '-',
+                    'kode_proyek' => null,
+                    'status_simrs' => 'Jurnal Manual Tanpa Pelaksana',
+                    'catatan' => (string) $row->catatan,
+                    'nominal' => (float) $row->nominal,
+                    'link_url' => route('jurnal-umum.edit', $row->source_id),
+                    'link_label' => 'Buka Jurnal',
+                ]);
+            }
+        }
+
+        // 3. Kas & Bank Pembayaran Rinci
+        if ($this->hasKasbankPembayaranPelaksanaSupport()) {
+            $kasbankRows = DB::table('kasbank_pembayaran_rinci as kbpr')
+                ->join('kasbank_pembayaran as kbp', 'kbp.id', '=', 'kbpr.kasbank_pembayaran_id')
+                ->where('kbpr.coa_id', $coaId)
+                ->whereNull('kbpr.pelaksana_id')
+                ->whereBetween('kbp.tanggal', [$startDate, $endDate])
+                ->select([
+                    'kbpr.id as id',
+                    'kbp.id as source_id',
+                    'kbp.tanggal as tanggal',
+                    'kbp.nomer as nomor_ref',
+                    DB::raw("'Kas & Bank Pembayaran' as sumber"),
+                    DB::raw("'-' as nama_pasien"),
+                    DB::raw("'-' as nomer_rekam_medis"),
+                    DB::raw("'-' as nama_poli"),
+                    DB::raw("'-' as nama_penjamin"),
+                    DB::raw("NULL as kode_proyek"),
+                    DB::raw("COALESCE(kbpr.catatan, kbp.keterangan, '-') as catatan"),
+                    DB::raw('(0 - COALESCE(kbpr.nominal, 0)) as nominal'),
+                ])
+                ->orderBy('kbp.tanggal')
+                ->orderBy('kbp.id')
+                ->get();
+
+            foreach ($kasbankRows as $row) {
+                $details->push([
+                    'id' => (int) $row->id,
+                    'source_id' => (int) $row->source_id,
+                    'tanggal' => Carbon::parse($row->tanggal)->format('Y-m-d'),
+                    'nomor_ref' => (string) $row->nomor_ref,
+                    'sumber' => (string) $row->sumber,
+                    'nama_pasien' => '-',
+                    'nomer_rekam_medis' => '-',
+                    'nama_poli' => '-',
+                    'nama_penjamin' => '-',
+                    'kode_proyek' => null,
+                    'status_simrs' => 'Kas/Bank Tanpa Pelaksana',
+                    'catatan' => (string) $row->catatan,
+                    'nominal' => (float) $row->nominal,
+                    'link_url' => route('kasbank.pembayaran.edit', $row->source_id),
+                    'link_label' => 'Buka Kas/Bank',
+                ]);
+            }
+        }
+
+        return $details->sortBy('tanggal')->values();
+    }
+
+    public function streamRekonsiliasiDokterCsv(
+        string $startDate,
+        string $endDate,
+        ?int $coaId = null,
+        bool $hanyaBerselisih = true
+    ): void {
+        $data = $this->getRekonsiliasiDokterData($startDate, $endDate, $coaId, $hanyaBerselisih);
+        $handle = fopen('php://output', 'wb');
+
+        fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+
+        fputcsv($handle, ['REKONSILIASI PENDAPATAN DOKTER (AUDIT TANPA PELAKSANA)']);
+        fputcsv($handle, ['Periode', $startDate.' s/d '.$endDate]);
+        fputcsv($handle, []);
+
+        fputcsv($handle, [
+            'No',
+            'Kode Akun',
+            'Nama Akun',
+            'Tipe COA',
+            'Total Buku Besar (Laba Rugi)',
+            'Total Pendapatan Dokter',
+            'Total Tanpa Dokter',
+            'Selisih',
+            'Jml Trx Tanpa Dokter',
+            'Status',
+        ]);
+
+        $no = 1;
+        foreach ($data['rows'] as $row) {
+            fputcsv($handle, [
+                $no++,
+                $row['kode_akun'],
+                $row['nama_akun'],
+                $row['tipe_coa'],
+                $this->formatCsvNumber($row['total_buku_besar']),
+                $this->formatCsvNumber($row['total_pendapatan_dokter']),
+                $this->formatCsvNumber($row['total_tanpa_dokter']),
+                $this->formatCsvNumber($row['selisih']),
+                $row['jumlah_transaksi_tanpa_dokter'],
+                $row['ada_selisih'] ? 'Ada Selisih' : 'Sesuai',
+            ]);
+        }
+
+        fputcsv($handle, [
+            'TOTAL',
+            '',
+            '',
+            '',
+            $this->formatCsvNumber($data['summary']['totalBukuBesar']),
+            $this->formatCsvNumber($data['summary']['totalPendapatanDokter']),
+            $this->formatCsvNumber($data['summary']['totalTanpaDokter']),
+            $this->formatCsvNumber($data['summary']['totalSelisih']),
+            '',
+            '',
+        ]);
+
+        fputcsv($handle, []);
+        fputcsv($handle, ['RINCIAN TRANSAKSI TANPA PELAKSANA']);
+        fputcsv($handle, [
+            'No',
+            'Kode Akun',
+            'Nama Akun',
+            'Tanggal',
+            'No Referensi',
+            'Sumber',
+            'Nama Pasien',
+            'No RM',
+            'Poli',
+            'Penjamin',
+            'Status SIMRS',
+            'Catatan',
+            'Nominal',
+        ]);
+
+        $detailNo = 1;
+        foreach ($data['rows'] as $r) {
+            if ($r['jumlah_transaksi_tanpa_dokter'] > 0) {
+                $trxList = $this->getDetailTransaksiTanpaDokter($startDate, $endDate, $r['coa_id']);
+                foreach ($trxList as $trx) {
+                    fputcsv($handle, [
+                        $detailNo++,
+                        $r['kode_akun'],
+                        $r['nama_akun'],
+                        $trx['tanggal'],
+                        $trx['nomor_ref'],
+                        $trx['sumber'],
+                        $trx['nama_pasien'],
+                        $trx['nomer_rekam_medis'],
+                        $trx['nama_poli'],
+                        $trx['nama_penjamin'],
+                        $trx['status_simrs'],
+                        $trx['catatan'],
+                        $this->formatCsvNumber($trx['nominal']),
+                    ]);
+                }
+            }
+        }
+
+        fclose($handle);
+    }
+
+    public function streamRekonsiliasiDokterExcel(
+        string $startDate,
+        string $endDate,
+        ?int $coaId = null,
+        bool $hanyaBerselisih = true
+    ): void {
+        $identitas = $this->getIdentitasLaporan();
+        $data = $this->getRekonsiliasiDokterData($startDate, $endDate, $coaId, $hanyaBerselisih);
+
+        $spreadsheet = new Spreadsheet;
+        $spreadsheet->getProperties()
+            ->setCreator((string) config('app.name'))
+            ->setTitle('Rekonsiliasi Pendapatan Dokter')
+            ->setSubject('Audit pendapatan tanpa pelaksana');
+
+        // Sheet 1: Ringkasan Rekonsiliasi
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Ringkasan Rekonsiliasi');
+        $sheet->setShowGridlines(true);
+
+        foreach (['A1:I1', 'A2:I2', 'A3:I3'] as $range) {
+            $sheet->mergeCells($range);
+        }
+
+        $sheet->setCellValue('A1', mb_strtoupper($identitas['namaRumahSakit']));
+        $sheet->setCellValue('A2', 'REKONSILIASI PENDAPATAN DOKTER (AUDIT TANPA PELAKSANA)');
+        $sheet->setCellValue('A3', 'Periode: '.$startDate.' s/d '.$endDate);
+        $sheet->getStyle('A1:I3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12)->setColor(new Color('DC2626'));
+        $sheet->getStyle('A3')->getFont()->setSize(10)->setColor(new Color('555555'));
+
+        $headers = [
+            'A5' => 'NO',
+            'B5' => 'KODE AKUN',
+            'C5' => 'NAMA AKUN',
+            'D5' => 'TIPE COA',
+            'E5' => 'BUKU BESAR (LABA RUGI)',
+            'F5' => 'PENDAPATAN DOKTER',
+            'G5' => 'TOTAL TANPA DOKTER',
+            'H5' => 'SELISIH',
+            'I5' => 'STATUS',
+        ];
+
+        foreach ($headers as $cell => $text) {
+            $sheet->setCellValue($cell, $text);
+        }
+
+        $sheet->getStyle('A5:I5')->getFont()->setBold(true)->setColor(new Color('FFFFFF'));
+        $sheet->getStyle('A5:I5')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF1E293B');
+        $sheet->getStyle('A5:I5')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $rowNum = 6;
+        $idx = 1;
+        foreach ($data['rows'] as $row) {
+            $sheet->setCellValue("A{$rowNum}", $idx++);
+            $sheet->setCellValueExplicit("B{$rowNum}", $row['kode_akun'], DataType::TYPE_STRING);
+            $sheet->setCellValue("C{$rowNum}", $row['nama_akun']);
+            $sheet->setCellValue("D{$rowNum}", $row['tipe_coa']);
+            $sheet->setCellValue("E{$rowNum}", (float) $row['total_buku_besar']);
+            $sheet->setCellValue("F{$rowNum}", (float) $row['total_pendapatan_dokter']);
+            $sheet->setCellValue("G{$rowNum}", (float) $row['total_tanpa_dokter']);
+            $sheet->setCellValue("H{$rowNum}", (float) $row['selisih']);
+            $sheet->setCellValue("I{$rowNum}", $row['ada_selisih'] ? 'Ada Selisih' : 'Sesuai');
+
+            if ($row['ada_selisih']) {
+                $sheet->getStyle("I{$rowNum}")->getFont()->setColor(new Color('DC2626'))->setBold(true);
+            } else {
+                $sheet->getStyle("I{$rowNum}")->getFont()->setColor(new Color('16A34A'));
+            }
+
+            $rowNum++;
+        }
+
+        // Total Row
+        $sheet->mergeCells("A{$rowNum}:D{$rowNum}");
+        $sheet->setCellValue("A{$rowNum}", 'TOTAL');
+        $sheet->getStyle("A{$rowNum}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet->setCellValue("E{$rowNum}", (float) $data['summary']['totalBukuBesar']);
+        $sheet->setCellValue("F{$rowNum}", (float) $data['summary']['totalPendapatanDokter']);
+        $sheet->setCellValue("G{$rowNum}", (float) $data['summary']['totalTanpaDokter']);
+        $sheet->setCellValue("H{$rowNum}", (float) $data['summary']['totalSelisih']);
+        $sheet->getStyle("A{$rowNum}:I{$rowNum}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$rowNum}:I{$rowNum}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF1F5F9');
+
+        $sheet->getStyle("E6:H{$rowNum}")->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle("A5:I{$rowNum}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new Color('CBD5E1'));
+
+        foreach (['A' => 6, 'B' => 16, 'C' => 38, 'D' => 16, 'E' => 22, 'F' => 22, 'G' => 22, 'H' => 18, 'I' => 15] as $col => $w) {
+            $sheet->getColumnDimension($col)->setWidth($w);
+        }
+
+        // Sheet 2: Rincian Transaksi Tanpa Pelaksana
+        $sheet2 = $spreadsheet->createSheet();
+        $sheet2->setTitle('Rincian Tanpa Pelaksana');
+        $sheet2->setShowGridlines(true);
+
+        foreach (['A1:L1', 'A2:L2'] as $range) {
+            $sheet2->mergeCells($range);
+        }
+        $sheet2->setCellValue('A1', 'RINCIAN TRANSAKSI TANPA PELAKSANA');
+        $sheet2->setCellValue('A2', 'Periode: '.$startDate.' s/d '.$endDate);
+        $sheet2->getStyle('A1:L2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet2->getStyle('A1')->getFont()->setBold(true)->setSize(12)->setColor(new Color('DC2626'));
+        $sheet2->getStyle('A2')->getFont()->setSize(10)->setColor(new Color('555555'));
+
+        $headers2 = [
+            'A4' => 'NO',
+            'B4' => 'KODE AKUN',
+            'C4' => 'NAMA AKUN',
+            'D4' => 'TANGGAL',
+            'E4' => 'NO REFERENSI',
+            'F4' => 'SUMBER',
+            'G4' => 'NAMA PASIEN',
+            'H4' => 'POLI',
+            'I4' => 'PENJAMIN',
+            'J4' => 'STATUS SIMRS',
+            'K4' => 'CATATAN',
+            'L4' => 'NOMINAL',
+        ];
+
+        foreach ($headers2 as $cell => $text) {
+            $sheet2->setCellValue($cell, $text);
+        }
+        $sheet2->getStyle('A4:L4')->getFont()->setBold(true)->setColor(new Color('FFFFFF'));
+        $sheet2->getStyle('A4:L4')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF1E293B');
+        $sheet2->getStyle('A4:L4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $rowNum2 = 5;
+        $idx2 = 1;
+        $totalNominalTanpaDokter = 0;
+        foreach ($data['rows'] as $r) {
+            if ($r['jumlah_transaksi_tanpa_dokter'] > 0) {
+                $trxList = $this->getDetailTransaksiTanpaDokter($startDate, $endDate, $r['coa_id']);
+                foreach ($trxList as $trx) {
+                    $sheet2->setCellValue("A{$rowNum2}", $idx2++);
+                    $sheet2->setCellValueExplicit("B{$rowNum2}", $r['kode_akun'], DataType::TYPE_STRING);
+                    $sheet2->setCellValue("C{$rowNum2}", $r['nama_akun']);
+                    $sheet2->setCellValueExplicit("D{$rowNum2}", $trx['tanggal'], DataType::TYPE_STRING);
+                    $sheet2->setCellValueExplicit("E{$rowNum2}", $trx['nomor_ref'], DataType::TYPE_STRING);
+                    $sheet2->setCellValue("F{$rowNum2}", $trx['sumber']);
+                    $sheet2->setCellValue("G{$rowNum2}", $trx['nama_pasien']);
+                    $sheet2->setCellValue("H{$rowNum2}", $trx['nama_poli']);
+                    $sheet2->setCellValue("I{$rowNum2}", $trx['nama_penjamin']);
+                    $sheet2->setCellValue("J{$rowNum2}", $trx['status_simrs']);
+                    $sheet2->setCellValue("K{$rowNum2}", $trx['catatan']);
+                    $sheet2->setCellValue("L{$rowNum2}", (float) $trx['nominal']);
+                    $totalNominalTanpaDokter += (float) $trx['nominal'];
+                    $rowNum2++;
+                }
+            }
+        }
+
+        // Total Sheet 2
+        $sheet2->mergeCells("A{$rowNum2}:K{$rowNum2}");
+        $sheet2->setCellValue("A{$rowNum2}", 'TOTAL');
+        $sheet2->getStyle("A{$rowNum2}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $sheet2->setCellValue("L{$rowNum2}", (float) $totalNominalTanpaDokter);
+        $sheet2->getStyle("A{$rowNum2}:L{$rowNum2}")->getFont()->setBold(true);
+        $sheet2->getStyle("A{$rowNum2}:L{$rowNum2}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFF1F5F9');
+
+        $sheet2->getStyle("L5:L{$rowNum2}")->getNumberFormat()->setFormatCode('#,##0');
+        $sheet2->getStyle("A4:L{$rowNum2}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_THIN)->setColor(new Color('CBD5E1'));
+
+        foreach (['A' => 6, 'B' => 14, 'C' => 30, 'D' => 14, 'E' => 18, 'F' => 18, 'G' => 24, 'H' => 16, 'I' => 16, 'J' => 28, 'K' => 30, 'L' => 20] as $col => $w) {
+            $sheet2->getColumnDimension($col)->setWidth($w);
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+
+        try {
+            (new Xlsx($spreadsheet))->save('php://output');
+        } finally {
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+        }
+    }
 }

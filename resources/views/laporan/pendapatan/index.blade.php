@@ -26,6 +26,13 @@
             'description' => 'Rincian transaksi aktivitas tindakan dan layanan per dokter pelaksana dengan mutasi berjalan per akun.',
         ],
         [
+            'label' => 'Rekonsiliasi Pendapatan Dokter',
+            'route' => route('laporan.pendapatan.rekonsiliasi-dokter'),
+            'icon' => 'bi-clipboard2-pulse',
+            'color' => 'danger',
+            'description' => 'Rekonsiliasi saldo buku besar pendapatan dengan pendapatan dokter untuk melacak transaksi tanpa nama dokter/pelaksana.',
+        ],
+        [
             'label' => 'Laporan Pendapatan Penjualan Obat',
             'route' => route('laporan.pendapatan.penjualan-obat'),
             'icon' => 'bi-capsule',
