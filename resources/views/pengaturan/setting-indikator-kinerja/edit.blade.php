@@ -436,7 +436,7 @@
 
 @push('scripts')
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    window.jQuery(function () {
         const tableBody = document.getElementById('tableMappingBody');
         const btnAddRow = document.getElementById('btnAddRow');
         const template = document.getElementById('rowMappingTemplate');
@@ -466,6 +466,12 @@
                     placeholder: placeholder,
                     allowClear: !$select.prop('required')
                 });
+
+                const $container = $select.next('.select2-container');
+                if ($container.length) {
+                    $container.data('select2', true);
+                    $container.removeClass('select2');
+                }
             });
         }
 
