@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     window.getSelect2Options = function (element) {
         const $select = window.jQuery(element);
+        if (!$select.is('select')) {
+            return {};
+        }
         const $modalParent = $select.closest('.modal');
         const $dropdownParent = $modalParent.length ? $modalParent : window.jQuery(document.body);
         const placeholder = $select.data('placeholder')
@@ -26,14 +29,14 @@ document.addEventListener('DOMContentLoaded', function () {
         return options;
     };
 
-    window.initSelect2Fields = function (scope = document, selector = '.select2') {
+    window.initSelect2Fields = function (scope = document, selector = 'select.select2') {
         if (!(window.jQuery && window.jQuery.fn.select2)) {
             return;
         }
 
-        window.jQuery(scope).find(selector).each(function () {
+        window.jQuery(scope).find(selector).filter('select').each(function () {
             const $select = window.jQuery(this);
-            if ($select.data('select2')) {
+            if (!$select.is('select') || $select.data('select2')) {
                 return;
             }
 
@@ -41,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     };
 
-    window.initSelect2Fields(document, '.select2');
+    window.initSelect2Fields(document, 'select.select2');
 
     // ─── Sidebar: desktop toggle (collapse) ──────────────────────────
 

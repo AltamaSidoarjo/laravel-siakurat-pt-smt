@@ -209,6 +209,40 @@ class IndikatorKinerjaCrudTest extends TestCase
         $response->assertSee('cr_edit');
     }
 
+    public function test_edit_page_renders_existing_mapping_rows(): void
+    {
+        $user = User::factory()->create();
+        $coa1 = Coa::create(['kode' => '4', 'nama' => 'Pendapatan Operasional', 'status_aktif' => 0]);
+        $coa2 = Coa::create(['kode' => '6', 'nama' => 'Biaya Operasional', 'status_aktif' => 0]);
+
+        $indikator = IndikatorKinerja::create([
+            'kode' => 'kpi_mapped',
+            'nama' => 'KPI Mapped Test',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+        ]);
+
+        IndikatorKinerjaMappingCoa::create([
+            'indikator_id' => $indikator->id,
+            'coa_id' => $coa1->id,
+            'peran' => PeranCoa::DENOMINATOR,
+            'is_excluded' => false,
+        ]);
+        IndikatorKinerjaMappingCoa::create([
+            'indikator_id' => $indikator->id,
+            'coa_id' => $coa2->id,
+            'peran' => PeranCoa::NUMERATOR,
+            'is_excluded' => false,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.edit', $indikator->id));
+
+        $response->assertOk();
+        $response->assertSee('value="' . $coa1->id . '" selected', false);
+        $response->assertSee('value="' . $coa2->id . '" selected', false);
+    }
+
     public function test_can_update_indicator_and_sync_mapping_coa(): void
     {
         $user = User::factory()->create();

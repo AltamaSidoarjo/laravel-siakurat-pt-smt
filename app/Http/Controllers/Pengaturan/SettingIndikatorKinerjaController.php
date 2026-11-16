@@ -87,7 +87,13 @@ class SettingIndikatorKinerjaController extends Controller
 
     public function create(): View
     {
-        $coas = Coa::active()->orderBy('kode')->get();
+        $coas = Coa::query()
+            ->where(function ($query) {
+                $query->where('status_aktif', 1)
+                    ->orWhereNull('status_aktif');
+            })
+            ->orderBy('kode')
+            ->get(['id', 'kode', 'nama', 'status_aktif']);
         $variabelManuals = IndikatorKinerjaVariabelManual::orderBy('id')->get();
 
         return view('pengaturan.setting-indikator-kinerja.create', [
@@ -126,7 +132,19 @@ class SettingIndikatorKinerjaController extends Controller
     public function edit(IndikatorKinerja $indikator): View
     {
         $indikator->load(['mappingCoa.coa', 'variabelManual']);
-        $coas = Coa::active()->orderBy('kode')->get();
+        $existingCoaIds = $indikator->mappingCoa->pluck('coa_id')->filter()->all();
+
+        $coas = Coa::query()
+            ->where(function ($query) use ($existingCoaIds) {
+                $query->where('status_aktif', 1)
+                    ->orWhereNull('status_aktif');
+                if (! empty($existingCoaIds)) {
+                    $query->orWhereIn('id', $existingCoaIds);
+                }
+            })
+            ->orderBy('kode')
+            ->get(['id', 'kode', 'nama', 'status_aktif']);
+
         $variabelManuals = IndikatorKinerjaVariabelManual::orderBy('id')->get();
 
         return view('pengaturan.setting-indikator-kinerja.edit', [

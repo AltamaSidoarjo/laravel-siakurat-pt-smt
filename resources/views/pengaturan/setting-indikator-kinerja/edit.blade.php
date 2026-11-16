@@ -343,7 +343,7 @@
                                             <option value="">Pilih Akun COA...</option>
                                             @foreach ($coas as $coa)
                                                 <option value="{{ $coa->id }}" @selected((string)($mapping['coa_id'] ?? '') === (string)$coa->id)>
-                                                    {{ $coa->kode }} - {{ $coa->nama }}
+                                                    {{ $coa->kode }} - {{ $coa->nama }}{{ isset($coa->status_aktif) && (int)$coa->status_aktif === 0 ? ' (Nonaktif)' : '' }}
                                                 </option>
                                             @endforeach
                                         </select>
@@ -405,7 +405,7 @@
                 <option value="">Pilih Akun COA...</option>
                 @foreach ($coas as $coa)
                     <option value="{{ $coa->id }}">
-                        {{ $coa->kode }} - {{ $coa->nama }}
+                        {{ $coa->kode }} - {{ $coa->nama }}{{ isset($coa->status_aktif) && (int)$coa->status_aktif === 0 ? ' (Nonaktif)' : '' }}
                     </option>
                 @endforeach
             </select>
@@ -446,21 +446,27 @@
         const basisPenyebutSelect = document.getElementById('basis_penyebut');
         const variabelManualCol = document.getElementById('colVariabelManual');
 
-        function initSelect2(scope) {
-            if (window.jQuery && window.jQuery.fn.select2) {
-                window.jQuery(scope).find('.select2-coa').each(function () {
-                    const $select = window.jQuery(this);
-                    if ($select.data('select2')) {
-                        $select.select2('destroy');
-                    }
-                    $select.select2({
-                        theme: 'bootstrap-5',
-                        width: '100%',
-                        placeholder: 'Pilih Akun COA...',
-                        allowClear: true
-                    });
-                });
+        function initSelect2(scope = document) {
+            if (!(window.jQuery && window.jQuery.fn.select2)) {
+                return;
             }
+
+            window.jQuery(scope).find('.select2-coa').each(function () {
+                const $select = window.jQuery(this);
+                if ($select.data('select2')) {
+                    return;
+                }
+
+                const placeholder = $select.find('option[value=""]').first().text().trim() || 'Pilih Akun COA...';
+
+                $select.select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    dropdownParent: window.jQuery(document.body),
+                    placeholder: placeholder,
+                    allowClear: !$select.prop('required')
+                });
+            });
         }
 
         function reindexRows() {
@@ -513,6 +519,13 @@
 
                 const row = btnRemove.closest('tr.mapping-row');
                 if (row) {
+                    if (window.jQuery && window.jQuery.fn.select2) {
+                        window.jQuery(row).find('.select2-coa').each(function () {
+                            if (window.jQuery(this).data('select2')) {
+                                window.jQuery(this).select2('destroy');
+                            }
+                        });
+                    }
                     row.remove();
                     reindexRows();
                 }
