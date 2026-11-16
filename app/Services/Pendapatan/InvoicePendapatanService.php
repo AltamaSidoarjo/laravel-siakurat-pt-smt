@@ -91,18 +91,20 @@ class InvoicePendapatanService
         );
     }
 
-    public function getReceivableCoaOptions(): Collection
+    public function getCoaOptions(): Collection
     {
         return Coa::query()->selectableTransaction()
-            ->whereRaw('LOWER(tipe_coa) LIKE ?', ['%piutang%'])
             ->get(['id', 'kode', 'nama', 'tipe_coa']);
+    }
+
+    public function getReceivableCoaOptions(): Collection
+    {
+        return $this->getCoaOptions();
     }
 
     public function getRevenueCoaOptions(): Collection
     {
-        return Coa::query()->selectableTransaction()
-            ->whereRaw('LOWER(tipe_coa) = ?', ['pendapatan'])
-            ->get(['id', 'kode', 'nama', 'tipe_coa']);
+        return $this->getCoaOptions();
     }
 
     public function getPelaksanaOptions(?FakturPenjualan $invoice = null): Collection

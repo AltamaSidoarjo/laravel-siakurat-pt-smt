@@ -87,11 +87,18 @@ class InvoicePendapatanFormOptionsTest extends TestCase
             'status_aktif' => true,
             'is_postable' => false,
         ]);
-        Coa::query()->create([
+        $akunPendapatanLain = Coa::query()->create([
             'kode' => '4199',
             'nama' => 'Pendapatan Lain',
             'tipe_coa' => 'Pendapatan Lain',
             'status_aktif' => true,
+            'is_postable' => false,
+        ]);
+        Coa::query()->create([
+            'kode' => '9999',
+            'nama' => 'Akun Nonaktif',
+            'tipe_coa' => 'Beban',
+            'status_aktif' => false,
             'is_postable' => false,
         ]);
         $pelaksanaAktif = Pelaksana::query()->create([
@@ -105,9 +112,17 @@ class InvoicePendapatanFormOptionsTest extends TestCase
             'status_aktif' => false,
         ]);
 
+        $allActiveLeafCoaIds = [
+            $akunPiutang->id,
+            $akunPiutangUsaha->id,
+            $akunPendapatan->id,
+            $akunPendapatanLain->id,
+        ];
+
         $this->assertSame([$activePelanggan->id], $this->service->getPelangganOptions()->pluck('id')->all());
-        $this->assertSame([$akunPiutang->id, $akunPiutangUsaha->id], $this->service->getReceivableCoaOptions()->pluck('id')->all());
-        $this->assertSame([$akunPendapatan->id], $this->service->getRevenueCoaOptions()->pluck('id')->all());
+        $this->assertSame($allActiveLeafCoaIds, $this->service->getReceivableCoaOptions()->pluck('id')->all());
+        $this->assertSame($allActiveLeafCoaIds, $this->service->getRevenueCoaOptions()->pluck('id')->all());
+        $this->assertSame($allActiveLeafCoaIds, $this->service->getCoaOptions()->pluck('id')->all());
         $this->assertSame([$pelaksanaAktif->id], $this->service->getPelaksanaOptions()->pluck('id')->all());
     }
 

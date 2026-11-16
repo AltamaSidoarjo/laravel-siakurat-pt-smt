@@ -271,6 +271,105 @@ class InvoicePendapatanEditFieldsTest extends TestCase
         ]);
     }
 
+    public function test_store_accepts_any_coa_type_when_active_and_leaf(): void
+    {
+        $penjamin = Pelanggan::query()->create([
+            'kode_pelanggan' => 'P-TEST',
+            'nama_pelanggan' => 'Penjamin Test Non Filter',
+            'status_aktif' => true,
+        ]);
+        $kas = $this->createCoa('101001', 'Kas Utama', 'Kas/Bank');
+        $pendapatanLain = $this->createCoa('420001', 'Pendapatan Lain-lain', 'Pendapatan Lain');
+
+        $payload = [
+            'nomor_faktur' => 'INV-ALL-COA-001',
+            'tanggal_faktur' => '2026-09-20',
+            'pelanggan_id' => $penjamin->id,
+            'akun_piutang_id' => $kas->id,
+            'nama_pasien' => 'Pasien Non Filter',
+            'nomer_rekam_medis' => 'RM-999',
+            'nama_dokter' => 'Dr. Sp.A',
+            'nama_poli' => 'Poli Anak',
+            'keterangan' => 'Invoice dengan COA non piutang dan non pendapatan',
+            'rincian' => [
+                [
+                    'coa_id' => $pendapatanLain->id,
+                    'kuantitas' => 1,
+                    'harga' => 250_000,
+                    'catatan' => 'Item pendapatan lain',
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->withoutMiddleware(EnsureModuleAccess::class)
+            ->post(route('pendapatan.invoice.store'), $payload);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('faktur_penjualan', [
+            'nomor_faktur' => 'INV-ALL-COA-001',
+            'akun_piutang_id' => $kas->id,
+        ]);
+        $this->assertDatabaseHas('faktur_penjualan_rinci', [
+            'coa_id' => $pendapatanLain->id,
+            'harga' => 250_000,
+        ]);
+    }
+
+    public function test_store_rejects_inactive_or_parent_coa(): void
+    {
+        $penjamin = Pelanggan::query()->create([
+            'kode_pelanggan' => 'P-TEST2',
+            'nama_pelanggan' => 'Penjamin Test Invalid',
+            'status_aktif' => true,
+        ]);
+
+        $inactiveCoa = Coa::query()->create([
+            'kode' => '109999',
+            'nama' => 'Akun Nonaktif',
+            'tipe_coa' => 'Kas/Bank',
+            'status_aktif' => 0,
+            'is_postable' => false,
+        ]);
+
+        $parentCoa = Coa::query()->create([
+            'kode' => '400000',
+            'nama' => 'Header Pendapatan',
+            'tipe_coa' => 'Pendapatan',
+            'status_aktif' => 1,
+            'is_postable' => false,
+        ]);
+        Coa::query()->create([
+            'parent_coa' => $parentCoa->id,
+            'kode' => '400001',
+            'nama' => 'Sub Pendapatan',
+            'tipe_coa' => 'Pendapatan',
+            'status_aktif' => 1,
+            'is_postable' => true,
+        ]);
+
+        $payload = [
+            'nomor_faktur' => 'INV-INVALID-COA',
+            'tanggal_faktur' => '2026-09-20',
+            'pelanggan_id' => $penjamin->id,
+            'akun_piutang_id' => $inactiveCoa->id,
+            'nama_pasien' => 'Pasien Test',
+            'rincian' => [
+                [
+                    'coa_id' => $parentCoa->id,
+                    'kuantitas' => 1,
+                    'harga' => 100_000,
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->withoutMiddleware(EnsureModuleAccess::class)
+            ->post(route('pendapatan.invoice.store'), $payload);
+
+        $response->assertSessionHasErrors(['akun_piutang_id', 'rincian.0.coa_id']);
+    }
+
     private function createInvoice(array $attributes, Coa $pendapatan): FakturPenjualan
     {
         $invoice = new FakturPenjualan;
