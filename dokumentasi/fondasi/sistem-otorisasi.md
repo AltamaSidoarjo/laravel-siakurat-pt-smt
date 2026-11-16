@@ -116,6 +116,7 @@ sama dengan `kode` yang dipakai pada middleware `module.access` di `routes/web.p
 | `pengaturan.role-akses` | Role Akses | Pengaturan |
 | `pengaturan.konversi-file` | Konversi File | Pengaturan |
 | `pengaturan.layanan-informasi` | Layanan Informasi | Pengaturan |
+| `panduan.user-guide` | User Guide | Panduan |
 
 ## Aksi yang Dipakai per Modul (dari routes/web.php)
 
@@ -146,6 +147,7 @@ sama dengan `kode` yang dipakai pada middleware `module.access` di `routes/web.p
 | `pengaturan.role-akses` | ✔ | ✔ | ✔ | |
 | `pengaturan.konversi-file` | ✔ | ✔ | | |
 | `pengaturan.layanan-informasi` | ✔ | ✔ | ✔ | ✔ |
+| `panduan.user-guide` | ✔ | | | |
 
 > Catatan: pada Bridging, aksi `import` dan `hapus massal` masing-masing dipetakan ke izin
 > `update` dan `delete`.
