@@ -30,6 +30,7 @@
     $canPengaturanKonversiFile = $can('pengaturan.konversi-file');
     $canPengaturanLayananInformasi = $can('pengaturan.layanan-informasi');
     $canDashboardIndikatorKinerja = $can('dashboard.indikator-kinerja');
+    $canPanduanUserGuide = $can('panduan.user-guide');
 
     $canSeePengaturan = $canPengaturanMappingPendapatan
         || $canPengaturanMappingGeneral
@@ -396,6 +397,15 @@
                     @endif
                 </ul>
             </div>
+        </li>
+        @endif
+
+        @if ($canPanduanUserGuide)
+        <li class="sidebar-item">
+            <a class="sidebar-link {{ str_starts_with($path, '/panduan') ? 'active' : '' }}" href="{{ route('panduan.index') }}">
+                <i class="bi bi-book-half sidebar-icon"></i>
+                <span class="sidebar-label">User Guide</span>
+            </a>
         </li>
         @endif
 

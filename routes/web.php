@@ -27,6 +27,7 @@ use App\Http\Controllers\Pengaturan\PreferensiController;
 use App\Http\Controllers\Pengaturan\RoleAksesController;
 use App\Http\Controllers\Pengaturan\SettingIndikatorKinerjaController;
 use App\Http\Controllers\Pengaturan\SettingRbaController;
+use App\Http\Controllers\Panduan\UserGuideController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -420,5 +421,9 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module.access:pengaturan.setting-indikator-kinerja,delete')->group(function () {
             Route::delete('/setting-indikator-kinerja/{indikator}', [SettingIndikatorKinerjaController::class, 'destroy'])->name('setting-indikator-kinerja.destroy');
         });
+    });
+
+    Route::middleware('module.access:panduan.user-guide,view')->group(function () {
+        Route::get('/panduan', [UserGuideController::class, 'index'])->name('panduan.index');
     });
 });
