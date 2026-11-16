@@ -206,7 +206,9 @@
         </div>
     </div>
 </div>
+@endsection
 
+@push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const searchInput = document.getElementById('topic-search-input');
@@ -241,4 +243,4 @@
         });
     });
 </script>
-@endsection
+@endpush
