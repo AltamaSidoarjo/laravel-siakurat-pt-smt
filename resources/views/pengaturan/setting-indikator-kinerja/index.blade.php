@@ -225,8 +225,18 @@
                 Modul ini tidak terkunci pada 11 indikator awal. Superadmin dapat menambah indikator baru, mengubah rumus dan ambang batas target (RAG), memetakan akun COA sesuai bagan akun rumah sakit, serta mencatat data non-akuntansi bulanan (seperti surat verifikasi BAHV BPJS Kesehatan & SDM).
             </p>
         </div>
-        <button type="button" class="btn-close" id="btnDismissBanner" data-bs-dismiss="alert" aria-label="Close"></button>
+        <button type="button" class="btn-close" id="btnDismissBanner" aria-label="Close" title="Sembunyikan Panduan"></button>
     </div>
+    <script>
+        (function () {
+            try {
+                if (localStorage.getItem('setting_indikator_banner_dismissed') === 'true') {
+                    var el = document.getElementById('settingIndikatorBanner');
+                    if (el) el.classList.add('d-none');
+                }
+            } catch (e) {}
+        })();
+    </script>
 
     <!-- Ringkasan Master Indikator (Executive Strip) -->
     <div class="row g-3">
@@ -396,21 +406,21 @@
                                                 $coaNama = e($m->coa?->nama ?? '-');
                                                 $peranVal = $m->peran instanceof \App\Enums\IndikatorKinerja\PeranCoa ? $m->peran->value : (string) ($m->peran?->value ?? $m->peran);
                                                 if ($m->is_excluded || $peranVal === 'deduction') {
-                                                    $bHtml = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle me-1">[- Excl]</span>';
+                                                    $bHtml = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle">[- Excl]</span>';
                                                     $tClass = 'text-decoration-line-through text-muted';
                                                 } elseif ($peranVal === 'denominator') {
-                                                    $bHtml = '<span class="badge bg-info-subtle text-info border border-info-subtle me-1">[Denom]</span>';
+                                                    $bHtml = '<span class="badge bg-info-subtle text-info border border-info-subtle">[Denom]</span>';
                                                     $tClass = 'text-dark';
                                                 } else {
-                                                    $bHtml = '<span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1">[+ Num]</span>';
+                                                    $bHtml = '<span class="badge bg-primary-subtle text-primary border border-primary-subtle">[+ Num]</span>';
                                                     $tClass = 'text-dark';
                                                 }
-                                                $coaRows[] = '<li class="py-1 border-bottom border-light d-flex align-items-center justify-content-between gap-2">'
-                                                    . '<span class="'.$tClass.' font-monospace small">'.$coaKode.' - '.$coaNama.'</span>'
-                                                    . $bHtml
+                                                $coaRows[] = '<li class="py-1.5 px-2 border-bottom border-light d-flex align-items-center justify-content-between gap-3">'
+                                                    . '<span class="'.$tClass.' small" style="line-height: 1.4;"><strong class="font-monospace">'.$coaKode.'</strong> <span class="ms-1">'.$coaNama.'</span></span>'
+                                                    . '<span class="flex-shrink-0">'.$bHtml.'</span>'
                                                     . '</li>';
                                             }
-                                            $popoverCoaContent = '<div class="popover-coa-list" style="max-height: 200px; overflow-y: auto; min-width: 260px;">'
+                                            $popoverCoaContent = '<div class="popover-coa-list p-1" style="max-height: 220px; overflow-y: auto; min-width: 280px;">'
                                                 . '<ul class="list-unstyled mb-0 small">' . implode('', $coaRows) . '</ul>'
                                                 . '</div>';
                                         }
@@ -451,14 +461,16 @@
                                                 @endif
 
                                                 @if ($item->mappingCoa->count() > 0)
-                                                    <button type="button" class="btn btn-link p-0 text-secondary small font-monospace text-decoration-none border-bottom border-secondary border-opacity-25" 
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-light border py-0.5 px-2 text-secondary small text-decoration-none d-inline-flex align-items-center gap-1.5 shadow-xs" 
                                                             data-bs-toggle="popover" 
                                                             data-bs-trigger="focus" 
                                                             data-bs-placement="top" 
                                                             data-bs-html="true" 
-                                                            title="<i class='bi bi-diagram-3 me-1'></i> Pemetaan Akun: {{ e($item->nama) }}" 
+                                                            data-bs-title="Pemetaan Akun: {{ e($item->nama) }}" 
                                                             data-bs-content="{{ $popoverCoaContent }}">
-                                                        • {{ $item->mappingCoa->count() }} COA dipetakan
+                                                        <i class="bi bi-diagram-3 text-primary"></i>
+                                                        <span>{{ $item->mappingCoa->count() }} COA dipetakan</span>
                                                     </button>
                                                 @endif
                                             </div>
@@ -919,24 +931,40 @@
         // Banner Dismiss & Restore with LocalStorage
         const banner = document.getElementById('settingIndikatorBanner');
         const btnHelpGuide = document.getElementById('btnHelpGuide');
+        const btnDismiss = document.getElementById('btnDismissBanner');
 
-        if (banner && localStorage.getItem('setting_indikator_banner_dismissed') === 'true') {
+        function hideBanner() {
+            if (!banner) return;
             banner.classList.add('d-none');
+            try {
+                localStorage.setItem('setting_indikator_banner_dismissed', 'true');
+            } catch (e) {}
         }
 
-        const btnDismiss = document.getElementById('btnDismissBanner');
+        function showBanner() {
+            if (!banner) return;
+            banner.classList.remove('d-none');
+            banner.classList.add('show');
+            banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            try {
+                localStorage.removeItem('setting_indikator_banner_dismissed');
+            } catch (e) {}
+        }
+
         if (btnDismiss) {
-            btnDismiss.addEventListener('click', function () {
-                localStorage.setItem('setting_indikator_banner_dismissed', 'true');
+            btnDismiss.addEventListener('click', function (e) {
+                e.preventDefault();
+                hideBanner();
             });
         }
 
         if (btnHelpGuide) {
-            btnHelpGuide.addEventListener('click', function () {
-                if (banner) {
-                    banner.classList.remove('d-none');
-                    banner.classList.add('show');
-                    localStorage.removeItem('setting_indikator_banner_dismissed');
+            btnHelpGuide.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (banner && banner.classList.contains('d-none')) {
+                    showBanner();
+                } else {
+                    hideBanner();
                 }
             });
         }
