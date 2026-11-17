@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\IndikatorKinerja\SatuanIndikator;
 use App\Models\AccessModule;
+use App\Models\IndikatorKinerjaManualData;
 use App\Models\IndikatorKinerjaVariabelManual;
 use App\Models\Role;
 use App\Models\RolePermission;
@@ -308,5 +309,199 @@ class SettingIndikatorKinerjaTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.index'));
         $response->assertForbidden();
+    }
+
+    public function test_unauthorized_user_cannot_update_variabel_manual(): void
+    {
+        $viewerRole = Role::create(['kode' => 'viewer_only', 'nama' => 'Viewer Only']);
+        $user = User::factory()->create();
+        $user->role_id = $viewerRole->id;
+        $user->saveQuietly();
+
+        $variabel = IndikatorKinerjaVariabelManual::create([
+            'kode' => 'VAR_UNAUTH',
+            'nama' => 'Var Unauth',
+            'satuan' => SatuanIndikator::ORANG,
+        ]);
+
+        $response = $this->actingAs($user)->put(
+            route('pengaturan.setting-indikator-kinerja.update-variabel', $variabel->id),
+            [
+                'kode' => 'VAR_UNAUTH_EDITED',
+                'nama' => 'Edited Name',
+                'satuan' => SatuanIndikator::ORANG->value,
+            ]
+        );
+
+        $response->assertForbidden();
+    }
+
+    public function test_unauthorized_user_cannot_delete_variabel_manual(): void
+    {
+        $viewerRole = Role::create(['kode' => 'viewer_only_del', 'nama' => 'Viewer Only']);
+        $user = User::factory()->create();
+        $user->role_id = $viewerRole->id;
+        $user->saveQuietly();
+
+        $variabel = IndikatorKinerjaVariabelManual::create([
+            'kode' => 'VAR_UNAUTH_DEL',
+            'nama' => 'Var Unauth Del',
+            'satuan' => SatuanIndikator::ORANG,
+        ]);
+
+        $response = $this->actingAs($user)->delete(
+            route('pengaturan.setting-indikator-kinerja.destroy-variabel', $variabel->id)
+        );
+
+        $response->assertForbidden();
+    }
+
+    public function test_authorized_user_can_update_variabel_manual(): void
+    {
+        $user = User::factory()->create();
+        $variabel = IndikatorKinerjaVariabelManual::create([
+            'kode' => 'VAR_ORIGINAL',
+            'nama' => 'Original Name',
+            'satuan' => SatuanIndikator::PASIEN,
+            'deskripsi' => 'Original Desc',
+        ]);
+
+        $response = $this->actingAs($user)->put(
+            route('pengaturan.setting-indikator-kinerja.update-variabel', $variabel->id),
+            [
+                'kode' => 'VAR_UPDATED',
+                'nama' => 'Updated Name',
+                'satuan' => SatuanIndikator::ORANG->value,
+                'deskripsi' => 'Updated Desc',
+                'tahun' => 2026,
+            ]
+        );
+
+        $response->assertRedirect(route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'manual', 'tahun' => 2026]));
+        $this->assertDatabaseHas('indikator_kinerja_variabel_manual', [
+            'id' => $variabel->id,
+            'kode' => 'VAR_UPDATED',
+            'nama' => 'Updated Name',
+            'satuan' => SatuanIndikator::ORANG->value,
+            'deskripsi' => 'Updated Desc',
+        ]);
+    }
+
+    public function test_update_variabel_manual_validates_unique_code_ignoring_self(): void
+    {
+        $user = User::factory()->create();
+        $variabel = IndikatorKinerjaVariabelManual::create([
+            'kode' => 'VAR_SELF',
+            'nama' => 'Self Name',
+            'satuan' => SatuanIndikator::PASIEN,
+        ]);
+
+        $response = $this->actingAs($user)->put(
+            route('pengaturan.setting-indikator-kinerja.update-variabel', $variabel->id),
+            [
+                'kode' => 'VAR_SELF',
+                'nama' => 'Updated Self Name',
+                'satuan' => SatuanIndikator::PASIEN->value,
+            ]
+        );
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('indikator_kinerja_variabel_manual', [
+            'id' => $variabel->id,
+            'kode' => 'VAR_SELF',
+            'nama' => 'Updated Self Name',
+        ]);
+    }
+
+    public function test_update_variabel_manual_validation_fails_on_duplicate_code_of_other_variable(): void
+    {
+        $user = User::factory()->create();
+        $varA = IndikatorKinerjaVariabelManual::create([
+            'kode' => 'VAR_A',
+            'nama' => 'Var A',
+            'satuan' => SatuanIndikator::PASIEN,
+        ]);
+        $varB = IndikatorKinerjaVariabelManual::create([
+            'kode' => 'VAR_B',
+            'nama' => 'Var B',
+            'satuan' => SatuanIndikator::PASIEN,
+        ]);
+
+        $response = $this->actingAs($user)->put(
+            route('pengaturan.setting-indikator-kinerja.update-variabel', $varB->id),
+            [
+                'kode' => 'VAR_A',
+                'nama' => 'Var B Edited',
+                'satuan' => SatuanIndikator::PASIEN->value,
+            ]
+        );
+
+        $response->assertSessionHasErrors(['kode']);
+    }
+
+    public function test_update_variabel_manual_validation_fails_on_invalid_satuan(): void
+    {
+        $user = User::factory()->create();
+        $variabel = IndikatorKinerjaVariabelManual::create([
+            'kode' => 'VAR_SATUAN',
+            'nama' => 'Var Satuan',
+            'satuan' => SatuanIndikator::PASIEN,
+        ]);
+
+        $response = $this->actingAs($user)->put(
+            route('pengaturan.setting-indikator-kinerja.update-variabel', $variabel->id),
+            [
+                'kode' => 'VAR_SATUAN',
+                'nama' => 'Var Satuan',
+                'satuan' => 'INVALID_SATUAN_XYZ',
+            ]
+        );
+
+        $response->assertSessionHasErrors(['satuan']);
+    }
+
+    public function test_cannot_delete_variabel_manual_used_by_indikator_kinerja(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+
+        // Cari variabel yang digunakan oleh indikator
+        $variabel = IndikatorKinerjaVariabelManual::whereHas('indikatorKinerja')->firstOrFail();
+
+        $response = $this->actingAs($user)->delete(
+            route('pengaturan.setting-indikator-kinerja.destroy-variabel', $variabel->id)
+        );
+
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
+        $this->assertDatabaseHas('indikator_kinerja_variabel_manual', [
+            'id' => $variabel->id,
+        ]);
+    }
+
+    public function test_can_delete_unused_variabel_manual_and_its_monthly_data(): void
+    {
+        $user = User::factory()->create();
+        $variabel = IndikatorKinerjaVariabelManual::create([
+            'kode' => 'VAR_UNUSED',
+            'nama' => 'Unused Variable',
+            'satuan' => SatuanIndikator::PASIEN,
+        ]);
+
+        IndikatorKinerjaManualData::create([
+            'variabel_id' => $variabel->id,
+            'tahun' => 2026,
+            'bulan' => 1,
+            'nilai' => 10.0,
+        ]);
+
+        $response = $this->actingAs($user)->delete(
+            route('pengaturan.setting-indikator-kinerja.destroy-variabel', $variabel->id)
+        );
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+        $this->assertDatabaseMissing('indikator_kinerja_variabel_manual', ['id' => $variabel->id]);
+        $this->assertDatabaseMissing('indikator_kinerja_manual_data', ['variabel_id' => $variabel->id]);
     }
 }

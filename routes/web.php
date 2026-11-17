@@ -416,9 +416,11 @@ Route::middleware('auth')->group(function () {
             Route::get('/setting-indikator-kinerja/{indikator}/edit', [SettingIndikatorKinerjaController::class, 'edit'])->name('setting-indikator-kinerja.edit');
             Route::put('/setting-indikator-kinerja/{indikator}', [SettingIndikatorKinerjaController::class, 'update'])->name('setting-indikator-kinerja.update');
             Route::post('/setting-indikator-kinerja/simpan-manual-data', [SettingIndikatorKinerjaController::class, 'simpanManualData'])->name('setting-indikator-kinerja.simpan-manual-data');
+            Route::put('/setting-indikator-kinerja/variabel/{variabelManual}', [SettingIndikatorKinerjaController::class, 'updateVariabel'])->name('setting-indikator-kinerja.update-variabel');
         });
         Route::middleware('module.access:pengaturan.setting-indikator-kinerja,delete')->group(function () {
             Route::delete('/setting-indikator-kinerja/{indikator}', [SettingIndikatorKinerjaController::class, 'destroy'])->name('setting-indikator-kinerja.destroy');
+            Route::delete('/setting-indikator-kinerja/variabel/{variabelManual}', [SettingIndikatorKinerjaController::class, 'destroyVariabel'])->name('setting-indikator-kinerja.destroy-variabel');
         });
     });
 });

@@ -13,6 +13,7 @@ use App\Http\Requests\Pengaturan\SimpanManualDataRequest;
 use App\Http\Requests\Pengaturan\StoreIndikatorKinerjaRequest;
 use App\Http\Requests\Pengaturan\StoreVariabelManualRequest;
 use App\Http\Requests\Pengaturan\UpdateIndikatorKinerjaRequest;
+use App\Http\Requests\Pengaturan\UpdateVariabelManualRequest;
 use App\Models\Coa;
 use App\Models\IndikatorKinerja;
 use App\Models\IndikatorKinerjaManualData;
@@ -257,5 +258,38 @@ class SettingIndikatorKinerjaController extends Controller
         return redirect()
             ->route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'manual', 'tahun' => $tahun])
             ->with('success', 'Data bulanan indikator kinerja manual berhasil disimpan.');
+    }
+
+    public function updateVariabel(UpdateVariabelManualRequest $request, IndikatorKinerjaVariabelManual $variabelManual): RedirectResponse
+    {
+        $variabelManual->update($request->validated());
+
+        $tahun = (int) $request->input('tahun', $request->query('tahun', now()->year));
+
+        return redirect()
+            ->route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'manual', 'tahun' => $tahun])
+            ->with('success', "Variabel manual '{$variabelManual->nama}' berhasil diperbarui.");
+    }
+
+    public function destroyVariabel(Request $request, IndikatorKinerjaVariabelManual $variabelManual): RedirectResponse
+    {
+        if ($variabelManual->indikatorKinerja()->exists()) {
+            $listIndikator = $variabelManual->indikatorKinerja->pluck('nama')->join(', ');
+
+            return redirect()
+                ->back()
+                ->with('error', "Variabel manual '{$variabelManual->nama}' tidak dapat dihapus karena masih digunakan oleh indikator kinerja: {$listIndikator}.");
+        }
+
+        DB::transaction(function () use ($variabelManual): void {
+            $variabelManual->manualData()->delete();
+            $variabelManual->delete();
+        });
+
+        $tahun = (int) $request->input('tahun', $request->query('tahun', now()->year));
+
+        return redirect()
+            ->route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'manual', 'tahun' => $tahun])
+            ->with('success', "Variabel manual '{$variabelManual->nama}' berhasil dihapus.");
     }
 }
