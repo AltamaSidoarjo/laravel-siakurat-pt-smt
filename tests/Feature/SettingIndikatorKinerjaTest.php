@@ -504,4 +504,18 @@ class SettingIndikatorKinerjaTest extends TestCase
         $this->assertDatabaseMissing('indikator_kinerja_variabel_manual', ['id' => $variabel->id]);
         $this->assertDatabaseMissing('indikator_kinerja_manual_data', ['variabel_id' => $variabel->id]);
     }
+
+    public function test_tab_1_renders_segmented_rag_bar_and_formula_tokens(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.index'));
+        $response->assertOk()
+            ->assertSee('rag-bar-wrapper')
+            ->assertSee('settingIndikatorBanner')
+            ->assertSee('btnDismissBanner')
+            ->assertSee('data-bs-toggle="popover"', false)
+            ->assertDontSee('polaSelect');
+    }
 }

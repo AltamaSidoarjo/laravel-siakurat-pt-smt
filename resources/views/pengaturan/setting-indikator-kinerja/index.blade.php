@@ -54,6 +54,31 @@
         return '-';
     };
 
+    $formatShortBand = function ($min, $max, $satuan = '', $pola = null) {
+        $satuanStr = $satuan ? ($satuan === '%' ? '%' : ' '.$satuan) : '';
+        $formatNum = function ($val) {
+            return rtrim(rtrim(number_format((float) $val, 2, ',', '.'), '0'), ',');
+        };
+        if ($min !== null && $max !== null) {
+            $minF = $formatNum($min);
+            $maxF = $formatNum($max);
+            return ($min == $max) ? "= {$minF}{$satuanStr}" : "{$minF}–{$maxF}{$satuanStr}";
+        }
+        if ($min !== null) {
+            $minF = $formatNum($min);
+            return "≥ {$minF}{$satuanStr}";
+        }
+        if ($max !== null) {
+            $maxF = $formatNum($max);
+            return "≤ {$maxF}{$satuanStr}";
+        }
+        $polaVal = $pola instanceof \App\Enums\IndikatorKinerja\PolaEvaluasi ? $pola->value : (string) $pola;
+        if ($polaVal === 'TARGET_BAND') {
+            return 'Luar rentang';
+        }
+        return '-';
+    };
+
     $totalIndikator = $summaryCounts['total'] ?? $indikators->count();
     $aktifIndikator = $summaryCounts['aktif'] ?? $indikators->where('status_aktif', true)->count();
     $nonaktifIndikator = $summaryCounts['nonaktif'] ?? $indikators->where('status_aktif', false)->count();
@@ -81,12 +106,19 @@
                     </div>
                 </div>
 
-                @if (auth()->user()?->hasModuleAccess('dashboard.indikator-kinerja', 'view'))
-                    <a href="{{ route('dashboard.indikator-kinerja.index') }}" class="btn btn-sm btn-success fw-semibold d-inline-flex align-items-center gap-2 shadow-xs">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Buka Dashboard Eksekutif</span>
-                    </a>
-                @endif
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" id="btnHelpGuide" class="btn btn-sm btn-outline-primary fw-semibold d-inline-flex align-items-center gap-1 shadow-xs" title="Tampilkan Panduan Arsitektur">
+                        <i class="bi bi-question-circle"></i>
+                        <span>Panduan</span>
+                    </button>
+
+                    @if (auth()->user()?->hasModuleAccess('dashboard.indikator-kinerja', 'view'))
+                        <a href="{{ route('dashboard.indikator-kinerja.index') }}" class="btn btn-sm btn-success fw-semibold d-inline-flex align-items-center gap-2 shadow-xs">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Buka Dashboard Eksekutif</span>
+                        </a>
+                    @endif
+                </div>
             </div>
         </div>
     </div>
@@ -95,16 +127,17 @@
     @include('partials.validation-errors')
 
     <!-- Informative Banner: Arsitektur Ekstensibel -->
-    <div class="alert alert-primary bg-primary-subtle border-primary-subtle text-primary-emphasis d-flex align-items-start gap-3 p-3 shadow-xs mb-0 rounded-3">
+    <div id="settingIndikatorBanner" class="alert alert-primary bg-primary-subtle border-primary-subtle text-primary-emphasis d-flex align-items-start gap-3 p-3 shadow-xs mb-0 rounded-3 alert-dismissible fade show" role="alert">
         <div class="p-2 bg-white rounded-3 shadow-xs text-primary flex-shrink-0 mt-0.5">
             <i class="bi bi-info-circle-fill fs-5"></i>
         </div>
-        <div class="flex-grow-1">
+        <div class="flex-grow-1 pe-3">
             <h6 class="fw-bold mb-1 text-primary-emphasis">Arsitektur Pengaturan Dinamis & Ekstensibel</h6>
             <p class="small mb-0 opacity-90" style="line-height: 1.5;">
                 Modul ini tidak terkunci pada 11 indikator awal. Superadmin dapat menambah indikator baru, mengubah rumus dan ambang batas target (RAG), memetakan akun COA sesuai bagan akun rumah sakit, serta mencatat data non-akuntansi bulanan (seperti surat verifikasi BAHV BPJS Kesehatan & SDM).
             </p>
         </div>
+        <button type="button" class="btn-close" id="btnDismissBanner" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 
     <!-- Ringkasan Master Indikator (Executive Strip) -->
@@ -201,12 +234,12 @@
                 <!-- TAB 1: MANAJEMEN INDIKATOR & TARGET RAG        -->
                 <!-- ============================================== -->
                 <div class="tab-pane fade show active">
-                    <!-- Toolbar Filter Pencarian & Pola Evaluasi -->
+                    <!-- Toolbar Filter Pencarian -->
                     <div class="bg-light p-3 rounded-3 border mb-3">
                         <form method="GET" action="{{ route('pengaturan.setting-indikator-kinerja.index') }}" class="row g-2 align-items-end">
                             <input type="hidden" name="tab" value="indikator">
 
-                            <div class="col-12 col-md-5">
+                            <div class="col-12 col-md-8 col-lg-9">
                                 <label for="qInput" class="form-label small fw-semibold text-muted mb-1">Cari Indikator</label>
                                 <div class="input-group input-group-sm">
                                     <span class="input-group-text bg-white text-muted border-end-0">
@@ -216,19 +249,7 @@
                                 </div>
                             </div>
 
-                            <div class="col-12 col-md-4">
-                                <label for="polaSelect" class="form-label small fw-semibold text-muted mb-1">Pola Evaluasi Target</label>
-                                <select class="form-select form-select-sm" id="polaSelect" name="pola">
-                                    <option value="ALL" @selected(($pola ?? 'ALL') === 'ALL')>Semua Pola Evaluasi</option>
-                                    @foreach ($polaEvaluasiOptions ?? [] as $polaOpt)
-                                        <option value="{{ $polaOpt->value }}" @selected(($pola ?? '') === $polaOpt->value)>
-                                            {{ $polaOpt->label() }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-
-                            <div class="col-12 col-md-3 d-flex gap-2 justify-content-md-end">
+                            <div class="col-12 col-md-4 col-lg-3 d-flex gap-2 justify-content-md-end">
                                 <button type="submit" class="btn btn-sm btn-primary fw-semibold px-3">
                                     <i class="bi bi-filter me-1"></i> Filter
                                 </button>
@@ -255,7 +276,7 @@
                                     <th class="py-2.5 px-3" style="min-width: 200px;">Nama Indikator</th>
                                     <th class="py-2.5 px-3" style="min-width: 240px;">Definisi Operasional / Formula</th>
                                     <th class="py-2.5 px-3 text-center" style="width: 120px;">Pola & Satuan</th>
-                                    <th class="py-2.5 px-3" style="min-width: 260px;">Ambang Batas Target (RAG)</th>
+                                    <th class="py-2.5 px-3" style="min-width: 240px;">Ambang Batas Target (RAG)</th>
                                     <th class="py-2.5 px-3 text-center" style="width: 90px;">Status</th>
                                     <th class="py-2.5 px-3 text-center" style="width: 90px;">Aksi</th>
                                 </tr>
@@ -267,10 +288,57 @@
                                         $targetHijau = $formatBand($item->target_hijau_min, $item->target_hijau_max, $satuanVal, $item->pola_evaluasi);
                                         $targetKuning = $formatBand($item->target_kuning_min, $item->target_kuning_max, $satuanVal, $item->pola_evaluasi);
                                         $targetMerah = $formatBand($item->target_merah_min, $item->target_merah_max, $satuanVal, $item->pola_evaluasi);
+                                        $targetHijauShort = $formatShortBand($item->target_hijau_min, $item->target_hijau_max, $satuanVal, $item->pola_evaluasi);
+                                        $targetKuningShort = $formatShortBand($item->target_kuning_min, $item->target_kuning_max, $satuanVal, $item->pola_evaluasi);
+                                        $targetMerahShort = $formatShortBand($item->target_merah_min, $item->target_merah_max, $satuanVal, $item->pola_evaluasi);
                                         $polaLabel = $item->pola_evaluasi ? $item->pola_evaluasi->label() : '-';
+                                        $polaEvaluasiVal = $item->pola_evaluasi instanceof \App\Enums\IndikatorKinerja\PolaEvaluasi
+                                            ? $item->pola_evaluasi->value
+                                            : (string) ($item->pola_evaluasi?->value ?? $item->pola_evaluasi);
                                         $tipeVal = $item->tipe_kalkulasi instanceof \App\Enums\IndikatorKinerja\TipeKalkulasi
                                             ? $item->tipe_kalkulasi->value
                                             : (string) ($item->tipe_kalkulasi?->value ?? $item->tipe_kalkulasi);
+
+                                        // Persiapan Popover COA
+                                        $popoverCoaContent = '';
+                                        if ($item->mappingCoa->isNotEmpty()) {
+                                            $coaRows = [];
+                                            foreach ($item->mappingCoa as $m) {
+                                                $coaKode = e($m->coa?->kode ?? '-');
+                                                $coaNama = e($m->coa?->nama ?? '-');
+                                                $peranVal = $m->peran instanceof \App\Enums\IndikatorKinerja\PeranCoa ? $m->peran->value : (string) ($m->peran?->value ?? $m->peran);
+                                                if ($m->is_excluded || $peranVal === 'deduction') {
+                                                    $bHtml = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle me-1">[- Excl]</span>';
+                                                    $tClass = 'text-decoration-line-through text-muted';
+                                                } elseif ($peranVal === 'denominator') {
+                                                    $bHtml = '<span class="badge bg-info-subtle text-info border border-info-subtle me-1">[Denom]</span>';
+                                                    $tClass = 'text-dark';
+                                                } else {
+                                                    $bHtml = '<span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1">[+ Num]</span>';
+                                                    $tClass = 'text-dark';
+                                                }
+                                                $coaRows[] = '<li class="py-1 border-bottom border-light d-flex align-items-center justify-content-between gap-2">'
+                                                    . '<span class="'.$tClass.' font-monospace small">'.$coaKode.' - '.$coaNama.'</span>'
+                                                    . $bHtml
+                                                    . '</li>';
+                                            }
+                                            $popoverCoaContent = '<div class="popover-coa-list" style="max-height: 200px; overflow-y: auto; min-width: 260px;">'
+                                                . '<ul class="list-unstyled mb-0 small">' . implode('', $coaRows) . '</ul>'
+                                                . '</div>';
+                                        }
+
+                                        // Basis labels
+                                        $pembilangLabel = match ($item->basis_pembilang?->value ?? '') {
+                                            'COA' => 'Buku Besar',
+                                            'SURPLUS' => 'Surplus Defisit',
+                                            default => $item->basis_pembilang?->label() ?? 'Pembilang',
+                                        };
+                                        $penyebutLabel = match ($item->basis_penyebut?->value ?? '') {
+                                            'COA' => 'Buku Besar',
+                                            'RBA' => 'Target RBA',
+                                            'MANUAL' => $item->variabelManual ? 'Variabel: '.$item->variabelManual->nama : 'Variabel Manual',
+                                            default => $item->basis_penyebut?->label() ?? 'Penyebut',
+                                        };
                                     @endphp
                                     <tr>
                                         <td class="text-center align-middle fw-bold text-muted">{{ $item->urutan }}</td>
@@ -295,19 +363,49 @@
                                                 @endif
 
                                                 @if ($item->mappingCoa->count() > 0)
-                                                    <span class="text-secondary small font-monospace">• {{ $item->mappingCoa->count() }} COA dipetakan</span>
+                                                    <button type="button" class="btn btn-link p-0 text-secondary small font-monospace text-decoration-none border-bottom border-secondary border-opacity-25" 
+                                                            data-bs-toggle="popover" 
+                                                            data-bs-trigger="focus" 
+                                                            data-bs-placement="top" 
+                                                            data-bs-html="true" 
+                                                            title="<i class='bi bi-diagram-3 me-1'></i> Pemetaan Akun: {{ e($item->nama) }}" 
+                                                            data-bs-content="{{ $popoverCoaContent }}">
+                                                        • {{ $item->mappingCoa->count() }} COA dipetakan
+                                                    </button>
                                                 @endif
                                             </div>
                                         </td>
                                         <td class="align-middle text-muted small">
-                                            <div class="text-truncate" style="max-width: 280px;" title="{{ $item->definisi_operasional }}">
+                                            <div class="d-flex flex-wrap align-items-center gap-1 mb-1">
+                                                @if ($tipeVal === 'MANUAL')
+                                                    <a href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'manual', 'tahun' => $tahun, 'focus_var' => $item->variabelManual?->id]) }}" 
+                                                       class="badge bg-warning-subtle text-dark border text-decoration-none" 
+                                                       title="Klik untuk entri data manual di Tab 2">
+                                                        <i class="bi bi-pencil-square me-1"></i>Manual: {{ $item->variabelManual?->nama ?? 'Data Manual' }} <i class="bi bi-arrow-right-short"></i>
+                                                    </a>
+                                                @else
+                                                    <span class="badge bg-primary-subtle text-primary border">{{ $pembilangLabel }}</span>
+                                                    <span class="text-muted fw-bold mx-1">÷</span>
+                                                    @if ($item->basis_penyebut?->value === 'MANUAL' && $item->variabelManual)
+                                                        <a href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'manual', 'tahun' => $tahun, 'focus_var' => $item->variabelManual->id]) }}" 
+                                                           class="badge bg-info-subtle text-info-emphasis border text-decoration-none" 
+                                                           title="Klik untuk entri data manual di Tab 2">
+                                                            <i class="bi bi-pencil-square me-1"></i>{{ $penyebutLabel }} <i class="bi bi-arrow-right-short"></i>
+                                                        </a>
+                                                    @else
+                                                        <span class="badge bg-info-subtle text-info-emphasis border">{{ $penyebutLabel }}</span>
+                                                    @endif
+
+                                                    @if ($satuanVal === '%')
+                                                        <span class="badge bg-secondary-subtle text-secondary border ms-1">× 100%</span>
+                                                    @elseif (strtolower($satuanVal) === 'hari')
+                                                        <span class="badge bg-secondary-subtle text-secondary border ms-1">× 365 Hari</span>
+                                                    @endif
+                                                @endif
+                                            </div>
+                                            <div class="text-truncate text-muted" style="max-width: 280px;" title="{{ $item->definisi_operasional }}">
                                                 {{ $item->definisi_operasional ?: 'Formula kalkulasi berdasarkan konfigurasi indikator.' }}
                                             </div>
-                                            @if ($item->variabelManual)
-                                                <div class="small text-info-emphasis mt-1">
-                                                    <i class="bi bi-link-45deg me-0.5"></i> Variabel: <strong>{{ $item->variabelManual->nama }}</strong>
-                                                </div>
-                                            @endif
                                         </td>
                                         <td class="text-center align-middle">
                                             <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 fw-semibold d-block mb-1">
@@ -318,16 +416,49 @@
                                             </span>
                                         </td>
                                         <td class="align-middle">
-                                            <div class="d-flex flex-column gap-1 small" style="min-width: 260px;">
-                                                <span class="badge bg-success-subtle text-success border border-success-subtle text-start py-1 px-2" title="Target Hijau">
-                                                    🟢 <strong>Hijau:</strong> {{ $targetHijau }}
-                                                </span>
-                                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle text-start py-1 px-2" title="Target Kuning">
-                                                    🟡 <strong>Kuning:</strong> {{ $targetKuning }}
-                                                </span>
-                                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle text-start py-1 px-2" title="Target Merah">
-                                                    🔴 <strong>Merah:</strong> {{ $targetMerah }}
-                                                </span>
+                                            <div class="rag-bar-wrapper" style="min-width: 220px;">
+                                                <div class="d-flex rounded-2 overflow-hidden border" style="height: 24px; font-size: 0.72rem; font-weight: 600;">
+                                                    @if ($polaEvaluasiVal === 'LOWER_IS_BETTER')
+                                                        <div class="flex-fill d-flex align-items-center justify-content-center bg-success-subtle text-success border-end" 
+                                                             data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Zona Hijau (Optimal):</strong> {{ $targetHijau }}">
+                                                            <span class="text-truncate px-1">🟢 {{ $targetHijauShort }}</span>
+                                                        </div>
+                                                        <div class="flex-fill d-flex align-items-center justify-content-center bg-warning-subtle text-warning-emphasis border-end" 
+                                                             data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Zona Kuning (Waspada):</strong> {{ $targetKuning }}">
+                                                            <span class="text-truncate px-1">🟡 {{ $targetKuningShort }}</span>
+                                                        </div>
+                                                        <div class="flex-fill d-flex align-items-center justify-content-center bg-danger-subtle text-danger" 
+                                                             data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Zona Merah (Kritis):</strong> {{ $targetMerah }}">
+                                                            <span class="text-truncate px-1">🔴 {{ $targetMerahShort }}</span>
+                                                        </div>
+                                                    @elseif ($polaEvaluasiVal === 'TARGET_BAND')
+                                                        <div class="flex-fill d-flex align-items-center justify-content-center bg-danger-subtle text-danger border-end" 
+                                                             data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Zona Merah (Luar Rentang):</strong> {{ $targetMerah }}">
+                                                            <span class="text-truncate px-1">🔴 {{ $targetMerahShort }}</span>
+                                                        </div>
+                                                        <div class="flex-fill d-flex align-items-center justify-content-center bg-success-subtle text-success border-end" 
+                                                             data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Zona Hijau (Target Optimal):</strong> {{ $targetHijau }}">
+                                                            <span class="text-truncate px-1">🟢 {{ $targetHijauShort }}</span>
+                                                        </div>
+                                                        <div class="flex-fill d-flex align-items-center justify-content-center bg-warning-subtle text-warning-emphasis" 
+                                                             data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Zona Kuning (Peringatan):</strong> {{ $targetKuning }}">
+                                                            <span class="text-truncate px-1">🟡 {{ $targetKuningShort }}</span>
+                                                        </div>
+                                                    @else
+                                                        <div class="flex-fill d-flex align-items-center justify-content-center bg-danger-subtle text-danger border-end" 
+                                                             data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Zona Merah (Kritis):</strong> {{ $targetMerah }}">
+                                                            <span class="text-truncate px-1">🔴 {{ $targetMerahShort }}</span>
+                                                        </div>
+                                                        <div class="flex-fill d-flex align-items-center justify-content-center bg-warning-subtle text-warning-emphasis border-end" 
+                                                             data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Zona Kuning (Waspada):</strong> {{ $targetKuning }}">
+                                                            <span class="text-truncate px-1">🟡 {{ $targetKuningShort }}</span>
+                                                        </div>
+                                                        <div class="flex-fill d-flex align-items-center justify-content-center bg-success-subtle text-success" 
+                                                             data-bs-toggle="tooltip" data-bs-html="true" title="<strong>Zona Hijau (Optimal):</strong> {{ $targetHijau }}">
+                                                            <span class="text-truncate px-1">🟢 {{ $targetHijauShort }}</span>
+                                                        </div>
+                                                    @endif
+                                                </div>
                                             </div>
                                         </td>
                                         <td class="text-center align-middle">
@@ -562,6 +693,41 @@
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // Initialize Bootstrap Popovers
+        document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (el) {
+            new bootstrap.Popover(el, { sanitize: false });
+        });
+
+        // Initialize Bootstrap Tooltips
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+            new bootstrap.Tooltip(el);
+        });
+
+        // Banner Dismiss & Restore with LocalStorage
+        const banner = document.getElementById('settingIndikatorBanner');
+        const btnHelpGuide = document.getElementById('btnHelpGuide');
+
+        if (banner && localStorage.getItem('setting_indikator_banner_dismissed') === 'true') {
+            banner.classList.add('d-none');
+        }
+
+        const btnDismiss = document.getElementById('btnDismissBanner');
+        if (btnDismiss) {
+            btnDismiss.addEventListener('click', function () {
+                localStorage.setItem('setting_indikator_banner_dismissed', 'true');
+            });
+        }
+
+        if (btnHelpGuide) {
+            btnHelpGuide.addEventListener('click', function () {
+                if (banner) {
+                    banner.classList.remove('d-none');
+                    banner.classList.add('show');
+                    localStorage.removeItem('setting_indikator_banner_dismissed');
+                }
+            });
+        }
+
         function recalculateRowAverage(rowId) {
             const inputs = document.querySelectorAll('.matrix-input[data-row="' + rowId + '"]');
             let sum = 0;
