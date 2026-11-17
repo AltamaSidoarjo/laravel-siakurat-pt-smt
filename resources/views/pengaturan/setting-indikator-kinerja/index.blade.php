@@ -40,59 +40,105 @@
         border-collapse: separate;
         border-spacing: 0;
     }
-    /* Sticky Header Vertikal */
-    .matrix-table thead tr:first-child th {
-        position: sticky;
-        top: 0;
-        z-index: 3;
-        background-color: #f8fafc;
-    }
-    .matrix-table thead tr:nth-child(2) th {
-        position: sticky;
-        top: 37px;
-        z-index: 3;
-        background-color: #f8fafc;
-    }
-    /* Sticky Kolom Horizontal */
-    .sticky-col-no {
+    /* Sticky Kolom Horizontal (Tbody & Thead) */
+    .matrix-table .sticky-col-no {
         position: sticky;
         left: 0;
         width: 45px;
         min-width: 45px;
         max-width: 45px;
         z-index: 2;
-        background-color: #ffffff;
     }
-    .sticky-col-kode {
+    .matrix-table .sticky-col-kode {
         position: sticky;
         left: 45px;
         width: 130px;
         min-width: 130px;
         max-width: 130px;
         z-index: 2;
-        background-color: #ffffff;
     }
-    .sticky-col-nama {
+    .matrix-table .sticky-col-nama {
         position: sticky;
         left: 175px;
         min-width: 240px;
         z-index: 2;
-        background-color: #ffffff;
-        box-shadow: 4px 0 6px -2px rgba(0,0,0,0.06);
+        box-shadow: 4px 0 6px -2px rgba(0, 0, 0, 0.08);
+        border-right: 1px solid #cbd5e1 !important;
     }
+
+    /* Solid Opaque Background for Sticky Cells in Tbody */
+    .matrix-table tbody td.sticky-col-no,
+    .matrix-table tbody td.sticky-col-kode,
+    .matrix-table tbody td.sticky-col-nama {
+        background-color: #ffffff !important;
+        --bs-table-bg: #ffffff !important;
+        --bs-table-accent-bg: #ffffff !important;
+    }
+
+    /* Hover & Active States for Sticky Cells */
+    .matrix-table tbody tr:hover > td.sticky-col-no,
+    .matrix-table tbody tr:hover > td.sticky-col-kode,
+    .matrix-table tbody tr:hover > td.sticky-col-nama {
+        background-color: #f8fafc !important;
+        --bs-table-bg: #f8fafc !important;
+        --bs-table-accent-bg: #f8fafc !important;
+    }
+    .matrix-table tbody tr.cell-active-row > td.sticky-col-no,
+    .matrix-table tbody tr.cell-active-row > td.sticky-col-kode,
+    .matrix-table tbody tr.cell-active-row > td.sticky-col-nama {
+        background-color: #f1f5f9 !important;
+        --bs-table-bg: #f1f5f9 !important;
+        --bs-table-accent-bg: #f1f5f9 !important;
+    }
+
+    /* Sticky Header Vertikal */
+    .matrix-table thead tr:first-child th {
+        position: sticky;
+        top: 0;
+        z-index: 4;
+        background-color: #f8fafc !important;
+        --bs-table-bg: #f8fafc !important;
+        --bs-table-accent-bg: #f8fafc !important;
+    }
+    .matrix-table thead tr:first-child th.bg-primary-subtle {
+        background-color: var(--bs-primary-bg-subtle) !important;
+        --bs-table-bg: var(--bs-primary-bg-subtle) !important;
+        --bs-table-accent-bg: var(--bs-primary-bg-subtle) !important;
+    }
+    .matrix-table thead tr:nth-child(2) th {
+        position: sticky;
+        top: 35px;
+        z-index: 3;
+        background-color: #f8fafc !important;
+        --bs-table-bg: #f8fafc !important;
+        --bs-table-accent-bg: #f8fafc !important;
+    }
+    .matrix-table thead tr:nth-child(2) th.bg-primary-subtle {
+        background-color: var(--bs-primary-bg-subtle) !important;
+        --bs-table-bg: var(--bs-primary-bg-subtle) !important;
+        --bs-table-accent-bg: var(--bs-primary-bg-subtle) !important;
+    }
+
     /* Corner Intersection Cells (Header Kolom 1, 2, 3 pada thead) */
     .matrix-table thead th.sticky-col-no,
     .matrix-table thead th.sticky-col-kode,
     .matrix-table thead th.sticky-col-nama {
-        z-index: 5 !important;
+        z-index: 10 !important;
         background-color: #f8fafc !important;
+        --bs-table-bg: #f8fafc !important;
+        --bs-table-accent-bg: #f8fafc !important;
     }
+
     /* Active Cell / Crosshair Highlight */
     tr.cell-active-row > td {
         background-color: #f1f5f9 !important;
+        --bs-table-bg: #f1f5f9 !important;
+        --bs-table-accent-bg: #f1f5f9 !important;
     }
     th.cell-active-col, td.cell-active-col {
         background-color: #f0fdf4 !important;
+        --bs-table-bg: #f0fdf4 !important;
+        --bs-table-accent-bg: #f0fdf4 !important;
     }
     /* Resizable Handle Bar */
     .table-resize-handle {
@@ -703,7 +749,7 @@
                                             <th rowspan="2" class="py-2.5 px-3 bg-light text-secondary sticky-col-kode" style="width: 130px;">Kode</th>
                                             <th rowspan="2" class="py-2.5 px-3 bg-light text-secondary sticky-col-nama" style="min-width: 240px;">Nama Variabel</th>
                                             <th rowspan="2" class="py-2.5 px-2 bg-light text-secondary" style="width: 85px;">Satuan</th>
-                                            <th colspan="12" class="bg-primary-subtle text-primary py-1.5 fw-bold text-uppercase border-bottom" style="letter-spacing: 0.5px;">Bulan Transaksi (Tahun {{ $tahun }})</th>
+                                            <th colspan="12" class="bg-primary-subtle text-primary py-1.5 fw-bold text-uppercase border-bottom" style="letter-spacing: 0.5px; height: 35px;">Bulan Transaksi (Tahun {{ $tahun }})</th>
                                             <th rowspan="2" class="py-2.5 px-3 bg-light text-secondary" style="width: 110px;">Rata-rata</th>
                                             <th rowspan="2" class="py-2.5 px-2 bg-light text-secondary text-center" style="width: 90px;">Aksi</th>
                                         </tr>
