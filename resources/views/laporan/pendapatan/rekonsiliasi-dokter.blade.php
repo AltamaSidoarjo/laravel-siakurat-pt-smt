@@ -397,8 +397,12 @@
                             'X-Requested-With': 'XMLHttpRequest'
                         }
                     })
-                    .then(response => {
-                        if (!response.ok) throw new Error('Gagal memuat data');
+                    .then(async response => {
+                        if (!response.ok) {
+                            const errJson = await response.json().catch(() => null);
+                            const errMsg = errJson?.message || 'Gagal memuat data (HTTP ' + response.status + ')';
+                            throw new Error(errMsg);
+                        }
                         return response.json();
                     })
                     .then(res => {

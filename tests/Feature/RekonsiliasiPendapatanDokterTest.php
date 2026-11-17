@@ -91,6 +91,73 @@ class RekonsiliasiPendapatanDokterTest extends TestCase
         $this->assertStringContainsString('pendapatan/invoice', $item['link_url']);
     }
 
+    public function test_load_detail_transaksi_tanpa_dokter_supports_jurnal_umum_and_kasbank(): void
+    {
+        DB::table('jurnal_umum')->insert([
+            'id' => 10,
+            'nomer' => 'JU-001',
+            'tanggal' => '2026-09-12',
+            'keterangan' => 'Penyesuaian pendapatan jasa',
+        ]);
+
+        DB::table('jurnal_umum_rinci')->insert([
+            'id' => 20,
+            'jurnal_umum_id' => 10,
+            'coa_id' => 11,
+            'pelaksana_id' => null,
+            'debit' => 0,
+            'kredit' => 10000,
+            'catatan' => 'Jurnal penyesuaian tanpa dokter',
+        ]);
+
+        DB::table('kasbank_pembayaran')->insert([
+            'id' => 30,
+            'nomer' => 'KBP-001',
+            'tanggal' => '2026-09-15',
+            'keterangan' => 'Biaya penyesuaian kas',
+            'total' => 2000,
+        ]);
+
+        DB::table('kasbank_pembayaran_rinci')->insert([
+            'id' => 40,
+            'kasbank_pembayaran_id' => 30,
+            'coa_id' => 11,
+            'pelaksana_id' => null,
+            'nominal' => 2000,
+            'catatan' => 'Potongan kas tanpa dokter',
+        ]);
+
+        $response = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.rekonsiliasi-dokter.detail', [
+                'startDate' => '2026-09-01',
+                'endDate' => '2026-09-30',
+                'coaId' => 11,
+            ]));
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+
+        $details = collect($response->json('data'));
+        $this->assertCount(3, $details);
+
+        $juItem = $details->firstWhere('sumber', 'Jurnal Umum');
+        $this->assertNotNull($juItem);
+        $this->assertSame('JU-001', $juItem['nomor_ref']);
+        $this->assertSame('Jurnal penyesuaian tanpa dokter', $juItem['catatan']);
+        $this->assertSame(10000.0, (float) $juItem['nominal']);
+        $this->assertSame('Buka Jurnal', $juItem['link_label']);
+        $this->assertSame(route('bukubesar.jurnal-umum.edit', 10), $juItem['link_url']);
+
+        $kbItem = $details->firstWhere('sumber', 'Kas & Bank Pembayaran');
+        $this->assertNotNull($kbItem);
+        $this->assertSame('KBP-001', $kbItem['nomor_ref']);
+        $this->assertSame('Potongan kas tanpa dokter', $kbItem['catatan']);
+        $this->assertSame(-2000.0, (float) $kbItem['nominal']);
+        $this->assertSame('Buka Kas/Bank', $kbItem['link_label']);
+        $this->assertSame(route('kasbank.pembayaran.edit', 30), $kbItem['link_url']);
+    }
+
     public function test_export_excel_and_csv_streamed_responses(): void
     {
         $excelResponse = $this
@@ -214,7 +281,7 @@ class RekonsiliasiPendapatanDokterTest extends TestCase
                 $table->unsignedBigInteger('pelaksana_id')->nullable();
                 $table->decimal('debit', 15, 2)->default(0);
                 $table->decimal('kredit', 15, 2)->default(0);
-                $table->text('keterangan')->nullable();
+                $table->text('catatan')->nullable();
                 $table->timestamps();
             });
         }

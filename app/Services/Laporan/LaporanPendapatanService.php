@@ -1976,7 +1976,7 @@ class LaporanPendapatanService
                     DB::raw("'-' as nama_poli"),
                     DB::raw("'-' as nama_penjamin"),
                     DB::raw("NULL as kode_proyek"),
-                    DB::raw("COALESCE(jur.keterangan, ju.keterangan, '-') as catatan"),
+                    DB::raw("COALESCE(NULLIF(TRIM(jur.catatan), ''), ju.keterangan, '-') as catatan"),
                     DB::raw('(COALESCE(jur.kredit, 0) - COALESCE(jur.debit, 0)) as nominal'),
                 ])
                 ->orderBy('ju.tanggal')
@@ -1998,7 +1998,7 @@ class LaporanPendapatanService
                     'status_simrs' => 'Jurnal Manual Tanpa Pelaksana',
                     'catatan' => (string) $row->catatan,
                     'nominal' => (float) $row->nominal,
-                    'link_url' => route('jurnal-umum.edit', $row->source_id),
+                    'link_url' => route('bukubesar.jurnal-umum.edit', $row->source_id),
                     'link_label' => 'Buka Jurnal',
                 ]);
             }
@@ -2022,7 +2022,7 @@ class LaporanPendapatanService
                     DB::raw("'-' as nama_poli"),
                     DB::raw("'-' as nama_penjamin"),
                     DB::raw("NULL as kode_proyek"),
-                    DB::raw("COALESCE(kbpr.catatan, kbp.keterangan, '-') as catatan"),
+                    DB::raw("COALESCE(NULLIF(TRIM(kbpr.catatan), ''), kbp.keterangan, '-') as catatan"),
                     DB::raw('(0 - COALESCE(kbpr.nominal, 0)) as nominal'),
                 ])
                 ->orderBy('kbp.tanggal')
