@@ -41,7 +41,9 @@ Modul ini dikendalikan oleh middleware `module.access:pengaturan.setting-indikat
 | `GET` | `/pengaturan/setting-indikator-kinerja/{indikator}/edit` | `pengaturan.setting-indikator-kinerja.edit` | `edit(IndikatorKinerja $indikator)` | update |
 | `PUT` | `/pengaturan/setting-indikator-kinerja/{indikator}` | `pengaturan.setting-indikator-kinerja.update` | `update(UpdateIndikatorKinerjaRequest $request, IndikatorKinerja $indikator)` | update |
 | `POST` | `/pengaturan/setting-indikator-kinerja/simpan-manual-data` | `pengaturan.setting-indikator-kinerja.simpan-manual-data` | `simpanManualData(SimpanManualDataRequest $request)` | update |
+| `PUT` | `/pengaturan/setting-indikator-kinerja/variabel/{variabelManual}` | `pengaturan.setting-indikator-kinerja.update-variabel` | `updateVariabel(UpdateVariabelManualRequest $request, IndikatorKinerjaVariabelManual $variabelManual)` | update |
 | `DELETE` | `/pengaturan/setting-indikator-kinerja/{indikator}` | `pengaturan.setting-indikator-kinerja.destroy` | `destroy(IndikatorKinerja $indikator)` | delete |
+| `DELETE` | `/pengaturan/setting-indikator-kinerja/variabel/{variabelManual}` | `pengaturan.setting-indikator-kinerja.destroy-variabel` | `destroyVariabel(Request $request, IndikatorKinerjaVariabelManual $variabelManual)` | delete |
 
 ---
 
@@ -51,7 +53,7 @@ Endpoint `GET /pengaturan/setting-indikator-kinerja` menerima parameter query be
 - `tab`: Pilihan tab antarmuka (`indikator` untuk Manajemen Indikator & Target RAG, `manual` untuk Entri Data Manual Bulanan, default: `indikator`).
 - `tahun`: Tahun anggaran untuk matriks entri data manual (integer 2000–2100, default: tahun berjalan).
 - `q`: Kata kunci pencarian kode, nama, atau formula indikator pada Tab 1 (opsional).
-- `pola`: Filter pola evaluasi target (`ALL`, `HIGHER_IS_BETTER`, `LOWER_IS_BETTER`, `TARGET_BAND`, default: `ALL`).
+- `focus_var`: ID variabel manual untuk penyorotan otomatis (*deep-linking*) dan scroll langsung ke baris matriks terkait pada Tab 2 (opsional).
 
 ---
 
@@ -83,7 +85,14 @@ Memvalidasi penambahan master variabel manual:
 - `satuan`: Wajib, nilai valid dari enum `SatuanIndikator`.
 - `deskripsi`: Opsional, string maksimal 1000 karakter.
 
-### 3. `SimpanManualDataRequest`
+### 3. `UpdateVariabelManualRequest`
+Memvalidasi pembaruan master variabel manual:
+- `kode`: Wajib, string, maksimal 50 karakter, unik pada tabel `indikator_kinerja_variabel_manual` dengan pengecualian ID variabel manual yang sedang diedit (`Rule::unique()->ignore($variabelId)`).
+- `nama`: Wajib, string, maksimal 100 karakter.
+- `satuan`: Wajib, nilai valid dari enum `SatuanIndikator`.
+- `deskripsi`: Opsional, string maksimal 1000 karakter.
+
+### 4. `SimpanManualDataRequest`
 Memvalidasi simpan matriks nilai bulanan variabel manual:
 - `tahun`: Wajib, integer antara 2000 s.d. 2100.
 - `data`: Wajib, array terindeks ID variabel `[variabel_id => [bulan => nilai]]`.
@@ -181,6 +190,48 @@ flowchart TD
 
 ---
 
+## Alur 3: Siklus CRUD Master Variabel Manual & Proteksi Integritas
+
+Alur ini mengelola pembaruan master variabel manual dan penghapusan variabel manual dengan proteksi integritas relasi foreign key.
+
+### Flowchart
+
+```mermaid
+flowchart TD
+    A["User klik Hapus / Edit Variabel"] --> B{"Aksi?"}
+    B -- Edit --> C["Buka Modal Edit -> Submit PUT update-variabel"]
+    C --> D["UpdateVariabelManualRequest (Validasi Unik Kecuali Diri Sendiri)"]
+    D --> E["Update record IndikatorKinerjaVariabelManual"]
+    E --> F["Redirect ke Tab 2 + Flash Success"]
+    B -- Hapus --> G{"Apakah variabel digunakan oleh indikator kinerja?"}
+    G -- Ya --> H["Tolak penghapusan -> Flash Message Error (Integritas Terjaga)"]
+    G -- Tidak --> I["Mulai DB::transaction"]
+    I --> J["Hapus seluruh riwayat manualData variabel terkait"]
+    J --> K["Hapus record IndikatorKinerjaVariabelManual"]
+    K --> L["Commit DB::transaction -> Redirect ke Tab 2 + Flash Success"]
+```
+
+### Algoritma
+
+1. **Pembaruan Variabel**:
+   - Pengguna menekan tombol Edit pada baris variabel di Tab 2, membuka modal edit `#modalEditVariabel`.
+   - Mengubah `kode`, `nama`, `satuan`, atau `deskripsi`, lalu submit ke endpoint `update-variabel`.
+   - `UpdateVariabelManualRequest` memvalidasi atribut termasuk validasi unik `kode` dengan mengabaikan ID variabel bersangkutan.
+   - Variabel diperbarui dan sistem redirect ke Tab 2 dengan flash message notifikasi sukses.
+2. **Penghapusan Variabel & Proteksi Integritas**:
+   - Pengguna menekan tombol Hapus pada baris variabel.
+   - Pada view Blade, jika variabel terikat pada indikator (`indikatorKinerja()->exists()`), tombol berstatus disabled dengan tooltip nama-nama indikator yang menggunakannya.
+   - Controller melakukan verifikasi defensif `$variabelManual->indikatorKinerja()->exists()`. Jika ya, request langsung ditolak dengan pesan error.
+   - Jika aman, controller menjalankan `DB::transaction` untuk menghapus seluruh relasi riwayat bulanan di `indikator_kinerja_manual_data`, lalu menghapus record variabel manual.
+   - Sistem redirect ke Tab 2 dengan flash message notifikasi sukses.
+
+### Fungsi yang Dipanggil
+
+- `SettingIndikatorKinerjaController::updateVariabel()`
+- `SettingIndikatorKinerjaController::destroyVariabel()`
+
+---
+
 ## Catatan Penting Bisnis
 
 1. **Integritas Referensial**:
@@ -199,3 +250,8 @@ flowchart TD
 6. **Ergonomi Layout Form (Operate Mode)**:
    - Form `create` dan `edit` menerapkan arsitektur 2 kolom responsif: kolom kiri memuat pengaturan utama (Identitas Dasar, Sumber Data Formula kontekstual, Matriks Ambang Batas RAG 3 kolom tanpa kartu bersarang, dan Tabel Pemetaan Akun COA), sedangkan kolom kanan memuat panel sticky *Live Preview Kartu KPI*, pengaturan keaktifan, urutan prioritas, dan tombol aksi publikasi cepat.
    - Tipe kalkulasi `MANUAL` secara otomatis menyederhanakan alur dengan menyembunyikan pemetaan akun COA dan mengarahkan pengguna ke variabel manual yang relevan.
+7. **Proteksi Integritas Variabel Manual**: Tombol hapus variabel berstatus disabled pada antarmuka jika variabel digunakan oleh indikator kinerja, dan controller secara defensif menolak request penghapusan via `indikatorKinerja()->exists()`.
+8. **Ergonomi Spreadsheet Tab 2 (Contained Scrollable Viewport & 2D Sticky Panes)**: Kontainer tabel matriks memiliki tinggi fleksibel yang dapat diubah ukurannya (*resizable drag handle*) dengan toleransi 220px s.d. 80vh dan tersimpan otomatis di `localStorage`. Header kolom dan kolom No, Kode, Nama Variabel bersifat sticky.
+9. **Navigasi Keyboard ala Excel**: Pengguna dapat berpindah sel menggunakan tombol panah (*Arrow keys*) dan *Enter* tanpa mengubah nilai numerik sel, dilengkapi *crosshair highlight* baris dan kolom aktif.
+10. **Transparansi Visual RAG & COA Popover (Tab 1)**: Ambang batas target ditampilkan via horizontal segmented range bar yang ramping, dan rincian pemetaan akun COA (`[+ Num]`, `[Denom]`, `[- Excl]`) dapat diinspeksi langsung melalui popover interaktif tanpa berpindah halaman.
+11. **Cross-Tab Synergy & Deep Linking**: Mengklik badge variabel manual di Tab 1 mengarahkan pengguna langsung ke baris variabel terkait di Tab 2 dengan animasi flash highlight, dan baris variabel di Tab 2 menampilkan impact badges indikator yang mengonsumsinya.
