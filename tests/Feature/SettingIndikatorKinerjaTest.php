@@ -518,4 +518,23 @@ class SettingIndikatorKinerjaTest extends TestCase
             ->assertSee('data-bs-toggle="popover"', false)
             ->assertDontSee('polaSelect');
     }
+
+    public function test_tab_2_renders_contained_viewport_action_buttons_and_edit_modal(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.index', [
+            'tab' => 'manual',
+            'tahun' => 2026,
+        ]));
+
+        $response->assertOk()
+            ->assertSee('matrixScrollContainer')
+            ->assertSee('matrixResizeHandle')
+            ->assertSee('modalEditVariabel')
+            ->assertSee('data-col-idx="1"', false)
+            ->assertSee('btn-edit-variabel')
+            ->assertSee('btn-delete-variabel');
+    }
 }

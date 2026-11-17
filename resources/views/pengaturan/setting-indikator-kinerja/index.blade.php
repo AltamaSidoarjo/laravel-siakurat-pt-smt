@@ -28,6 +28,94 @@
         background: #0d6efd !important;
         color: #ffffff !important;
     }
+
+    /* Tab 2: 2D Sticky Panes & Resizable Matrix Viewport */
+    .matrix-scroll-container {
+        overflow: auto;
+        max-height: 80vh;
+        min-height: 220px;
+        position: relative;
+    }
+    .matrix-table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    /* Sticky Header Vertikal */
+    .matrix-table thead tr:first-child th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background-color: #f8fafc;
+    }
+    .matrix-table thead tr:nth-child(2) th {
+        position: sticky;
+        top: 37px;
+        z-index: 3;
+        background-color: #f8fafc;
+    }
+    /* Sticky Kolom Horizontal */
+    .sticky-col-no {
+        position: sticky;
+        left: 0;
+        width: 45px;
+        min-width: 45px;
+        max-width: 45px;
+        z-index: 2;
+        background-color: #ffffff;
+    }
+    .sticky-col-kode {
+        position: sticky;
+        left: 45px;
+        width: 130px;
+        min-width: 130px;
+        max-width: 130px;
+        z-index: 2;
+        background-color: #ffffff;
+    }
+    .sticky-col-nama {
+        position: sticky;
+        left: 175px;
+        min-width: 240px;
+        z-index: 2;
+        background-color: #ffffff;
+        box-shadow: 4px 0 6px -2px rgba(0,0,0,0.06);
+    }
+    /* Corner Intersection Cells (Header Kolom 1, 2, 3 pada thead) */
+    .matrix-table thead th.sticky-col-no,
+    .matrix-table thead th.sticky-col-kode,
+    .matrix-table thead th.sticky-col-nama {
+        z-index: 5 !important;
+        background-color: #f8fafc !important;
+    }
+    /* Active Cell / Crosshair Highlight */
+    tr.cell-active-row > td {
+        background-color: #f1f5f9 !important;
+    }
+    th.cell-active-col, td.cell-active-col {
+        background-color: #f0fdf4 !important;
+    }
+    /* Resizable Handle Bar */
+    .table-resize-handle {
+        cursor: row-resize;
+        user-select: none;
+        transition: background-color 0.15s ease;
+    }
+    .table-resize-handle:hover {
+        background-color: #e2e8f0;
+    }
+    /* Flash Highlight Animation */
+    @keyframes flashHighlight {
+        0% { background-color: #fef08a; }
+        70% { background-color: #fef9c3; }
+        100% { background-color: inherit; }
+    }
+    .row-flash-highlight > td {
+        animation: flashHighlight 2s ease-out;
+    }
+    body.matrix-resizing {
+        cursor: row-resize !important;
+        user-select: none !important;
+    }
 </style>
 @endpush
 
@@ -537,92 +625,166 @@
                         @csrf
                         <input type="hidden" name="tahun" value="{{ $tahun }}">
 
-                        <div class="table-responsive border rounded-3 mb-3 custom-scrollbar">
-                            <table class="table table-sm table-bordered table-hover align-middle mb-0 text-sm" style="min-width: 1300px;">
-                                <thead class="table-light text-center align-middle border-bottom">
-                                    <tr>
-                                        <th rowspan="2" class="py-2.5 px-2 bg-light text-secondary" style="width: 40px;">No</th>
-                                        <th rowspan="2" class="py-2.5 px-3 bg-light text-secondary" style="width: 140px;">Kode</th>
-                                        <th rowspan="2" class="py-2.5 px-3 bg-light text-secondary" style="min-width: 220px;">Nama Variabel</th>
-                                        <th rowspan="2" class="py-2.5 px-2 bg-light text-secondary" style="width: 90px;">Satuan</th>
-                                        <th colspan="12" class="bg-primary-subtle text-primary py-1.5 fw-bold text-uppercase border-bottom" style="letter-spacing: 0.5px;">Bulan Transaksi (Tahun {{ $tahun }})</th>
-                                        <th rowspan="2" class="py-2.5 px-3 bg-light text-secondary" style="width: 120px;">Rata-rata Tahunan</th>
-                                    </tr>
-                                    <tr class="small text-secondary bg-light">
-                                        <th class="py-1 px-1" style="min-width: 85px;">Jan</th>
-                                        <th class="py-1 px-1" style="min-width: 85px;">Feb</th>
-                                        <th class="py-1 px-1" style="min-width: 85px;">Mar</th>
-                                        <th class="py-1 px-1" style="min-width: 85px;">Apr</th>
-                                        <th class="py-1 px-1" style="min-width: 85px;">Mei</th>
-                                        <th class="py-1 px-1" style="min-width: 85px;">Jun</th>
-                                        <th class="py-1 px-1" style="min-width: 85px;">Jul</th>
-                                        <th class="py-1 px-1" style="min-width: 85px;">Agu</th>
-                                        <th class="py-1 px-1" style="min-width: 85px;">Sep</th>
-                                        <th class="py-1 px-1" style="min-width: 85px;">Okt</th>
-                                        <th class="py-1 px-1" style="min-width: 85px;">Nov</th>
-                                        <th class="py-1 px-1" style="min-width: 85px;">Des</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse ($variabelManuals as $v)
-                                        @php
-                                            $dataMap = $v->manualData->keyBy('bulan');
-                                            $sum = 0;
-                                            $count = 0;
-                                            for ($m = 1; $m <= 12; $m++) {
-                                                $rec = $dataMap->get($m);
-                                                if ($rec && $rec->nilai !== null) {
-                                                    $sum += (float) $rec->nilai;
-                                                    $count++;
-                                                }
-                                            }
-                                            $initialAvg = $count > 0 ? ($sum / $count) : null;
-                                        @endphp
-                                        <tr data-var-id="{{ $v->id }}">
-                                            <td class="text-center align-middle text-muted fw-bold">{{ $loop->iteration }}</td>
-                                            <td class="text-center align-middle">
-                                                <span class="badge bg-light text-dark border font-monospace px-2 py-1">{{ $v->kode }}</span>
-                                            </td>
-                                            <td class="align-middle">
-                                                <div class="fw-bold text-dark">{{ $v->nama }}</div>
-                                                @if ($v->deskripsi)
-                                                    <small class="text-muted d-block text-truncate" style="max-width: 250px;" title="{{ $v->deskripsi }}">{{ $v->deskripsi }}</small>
-                                                @endif
-                                            </td>
-                                            <td class="text-center align-middle">
-                                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 fw-semibold">
-                                                    {{ $v->satuan?->value ?? ($v->satuan ?? '-') }}
-                                                </span>
-                                            </td>
-                                            @for ($b = 1; $b <= 12; $b++)
-                                                @php
-                                                    $rec = $dataMap->get($b);
-                                                    $val = $rec ? $rec->nilai : null;
-                                                @endphp
-                                                <td class="p-1">
-                                                    <input type="number" 
-                                                           step="any" 
-                                                           name="data[{{ $v->id }}][{{ $b }}]" 
-                                                           value="{{ $val !== null ? (float) $val : '' }}" 
-                                                           class="form-control form-control-sm text-end matrix-input p-1" 
-                                                           data-row="{{ $v->id }}"
-                                                           placeholder="-">
-                                                </td>
-                                            @endfor
-                                            <td class="text-end fw-bold font-monospace bg-light p-2" id="avg-{{ $v->id }}">
-                                                {{ $initialAvg !== null ? number_format($initialAvg, 2, ',', '.') : '-' }}
-                                            </td>
-                                        </tr>
-                                    @empty
+                        <div class="matrix-wrapper mb-3">
+                            <div id="matrixScrollContainer" class="table-responsive border rounded-top custom-scrollbar matrix-scroll-container" style="height: 520px;">
+                                <table class="table table-sm table-bordered table-hover align-middle mb-0 text-sm matrix-table" style="min-width: 1300px;">
+                                    <thead class="table-light text-center align-middle border-bottom">
                                         <tr>
-                                            <td colspan="17" class="text-center py-5 text-muted">
-                                                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
-                                                Belum ada variabel manual yang didaftarkan. Klik tombol <strong>+ Tambah Variabel Baru</strong> di atas untuk menambahkan variabel seperti BAHV BPJS atau SDM.
-                                            </td>
+                                            <th rowspan="2" class="py-2.5 px-2 bg-light text-secondary sticky-col-no" style="width: 45px;">No</th>
+                                            <th rowspan="2" class="py-2.5 px-3 bg-light text-secondary sticky-col-kode" style="width: 130px;">Kode</th>
+                                            <th rowspan="2" class="py-2.5 px-3 bg-light text-secondary sticky-col-nama" style="min-width: 240px;">Nama Variabel</th>
+                                            <th rowspan="2" class="py-2.5 px-2 bg-light text-secondary" style="width: 85px;">Satuan</th>
+                                            <th colspan="12" class="bg-primary-subtle text-primary py-1.5 fw-bold text-uppercase border-bottom" style="letter-spacing: 0.5px;">Bulan Transaksi (Tahun {{ $tahun }})</th>
+                                            <th rowspan="2" class="py-2.5 px-3 bg-light text-secondary" style="width: 110px;">Rata-rata</th>
+                                            <th rowspan="2" class="py-2.5 px-2 bg-light text-secondary text-center" style="width: 90px;">Aksi</th>
                                         </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
+                                        <tr class="small text-secondary bg-light">
+                                            @php
+                                                $namaBulan = [1 => 'Jan', 2 => 'Feb', 3 => 'Mar', 4 => 'Apr', 5 => 'Mei', 6 => 'Jun', 7 => 'Jul', 8 => 'Agu', 9 => 'Sep', 10 => 'Okt', 11 => 'Nov', 12 => 'Des'];
+                                                $isCurrentYear = ($tahun === (int) now()->year);
+                                                $currentMonth = (int) now()->month;
+                                            @endphp
+                                            @foreach ($namaBulan as $mNum => $mNama)
+                                                @php
+                                                    $isThisMonth = $isCurrentYear && ($mNum === $currentMonth);
+                                                @endphp
+                                                <th class="py-1 px-1 col-month-{{ $mNum }} {{ $isThisMonth ? 'bg-primary-subtle text-primary border-primary border-start border-end' : '' }}" style="min-width: 85px;">
+                                                    <div>{{ $mNama }}</div>
+                                                    @if ($isThisMonth)
+                                                        <span class="badge bg-primary text-white" style="font-size: 0.65rem;">Bulan Ini</span>
+                                                    @endif
+                                                </th>
+                                            @endforeach
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse ($variabelManuals as $v)
+                                            @php
+                                                $rowIdx = $loop->index;
+                                                $dataMap = $v->manualData->keyBy('bulan');
+                                                $sum = 0;
+                                                $count = 0;
+                                                for ($m = 1; $m <= 12; $m++) {
+                                                    $rec = $dataMap->get($m);
+                                                    if ($rec && $rec->nilai !== null) {
+                                                        $sum += (float) $rec->nilai;
+                                                        $count++;
+                                                    }
+                                                }
+                                                $initialAvg = $count > 0 ? ($sum / $count) : null;
+                                            @endphp
+                                            <tr id="var-row-{{ $v->id }}" data-var-id="{{ $v->id }}">
+                                                <td class="text-center align-middle text-muted fw-bold sticky-col-no">{{ $loop->iteration }}</td>
+                                                <td class="text-center align-middle sticky-col-kode">
+                                                    <span class="badge bg-light text-dark border font-monospace px-2 py-1">{{ $v->kode }}</span>
+                                                </td>
+                                                <td class="align-middle sticky-col-nama">
+                                                    <div class="d-flex align-items-center justify-content-between gap-2">
+                                                        <span class="fw-bold text-dark">{{ $v->nama }}</span>
+                                                        @if ($count === 12)
+                                                            <span class="badge bg-success-subtle text-success border border-success-subtle font-monospace" style="font-size: 0.7rem;">12/12 Bulan</span>
+                                                        @else
+                                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle font-monospace" style="font-size: 0.7rem;">{{ $count }}/12 Bulan</span>
+                                                        @endif
+                                                    </div>
+                                                    @if ($v->deskripsi)
+                                                        <small class="text-muted d-block text-truncate mt-0.5" style="max-width: 240px;" title="{{ $v->deskripsi }}">{{ $v->deskripsi }}</small>
+                                                    @endif
+                                                    <div class="mt-1 d-flex flex-wrap align-items-center gap-1">
+                                                        @forelse ($v->indikatorKinerja as $ind)
+                                                            <a href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator', 'q' => $ind->kode]) }}" 
+                                                               class="badge bg-light text-primary border text-decoration-none small" 
+                                                               title="Lihat indikator {{ $ind->nama }} di Tab 1">
+                                                                <i class="bi bi-speedometer2 me-1"></i>{{ $ind->nama }}
+                                                            </a>
+                                                        @empty
+                                                            <span class="badge bg-light text-muted border small">Belum dipetakan ke indikator</span>
+                                                        @endforelse
+                                                    </div>
+                                                </td>
+                                                <td class="text-center align-middle">
+                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 fw-semibold">
+                                                        {{ $v->satuan?->value ?? ($v->satuan ?? '-') }}
+                                                    </span>
+                                                </td>
+                                                @for ($b = 1; $b <= 12; $b++)
+                                                    @php
+                                                        $rec = $dataMap->get($b);
+                                                        $val = $rec ? $rec->nilai : null;
+                                                        $isThisColMonth = $isCurrentYear && ($b === $currentMonth);
+                                                    @endphp
+                                                    <td class="p-1 col-month-{{ $b }} {{ $isThisColMonth ? 'bg-primary-subtle bg-opacity-25 border-primary border-start border-end' : '' }}">
+                                                        <input type="number" 
+                                                               step="any" 
+                                                               name="data[{{ $v->id }}][{{ $b }}]" 
+                                                               value="{{ $val !== null ? (float) $val : '' }}" 
+                                                               class="form-control form-control-sm text-end matrix-input p-1" 
+                                                               data-row-id="{{ $v->id }}"
+                                                               data-row="{{ $v->id }}"
+                                                               data-row-idx="{{ $rowIdx }}" 
+                                                               data-col-idx="{{ $b }}"
+                                                               placeholder="-">
+                                                    </td>
+                                                @endfor
+                                                <td class="text-end fw-bold font-monospace bg-light p-2" id="avg-{{ $v->id }}">
+                                                    {{ $initialAvg !== null ? number_format($initialAvg, 2, ',', '.') : '-' }}
+                                                </td>
+                                                <td class="text-center align-middle text-nowrap p-1">
+                                                    @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'update'))
+                                                        <button type="button" 
+                                                                class="btn btn-sm btn-outline-primary py-0.5 px-2 btn-edit-variabel" 
+                                                                title="Edit Variabel Manual"
+                                                                data-id="{{ $v->id }}"
+                                                                data-kode="{{ $v->kode }}"
+                                                                data-nama="{{ $v->nama }}"
+                                                                data-satuan="{{ $v->satuan?->value ?? (string) $v->satuan }}"
+                                                                data-deskripsi="{{ $v->deskripsi }}">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </button>
+                                                    @endif
+                                                    @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'delete'))
+                                                        @if ($v->indikatorKinerja->isNotEmpty())
+                                                            @php
+                                                                $usedInList = $v->indikatorKinerja->pluck('nama')->join(', ');
+                                                            @endphp
+                                                            <button type="button" 
+                                                                    class="btn btn-sm btn-outline-secondary py-0.5 px-2 ms-1 btn-delete-variabel disabled" 
+                                                                    disabled 
+                                                                    data-bs-toggle="tooltip" 
+                                                                    title="Tidak dapat dihapus karena masih digunakan oleh indikator: {{ $usedInList }}">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        @else
+                                                            <form action="{{ route('pengaturan.setting-indikator-kinerja.destroy-variabel', $v->id) }}" 
+                                                                  method="POST" 
+                                                                  class="d-inline"
+                                                                  onsubmit="return confirm('Apakah Anda yakin ingin menghapus variabel manual \'{{ e($v->nama) }}\' beserta seluruh riwayat datanya?');">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <input type="hidden" name="tahun" value="{{ $tahun }}">
+                                                                <button type="submit" class="btn btn-sm btn-outline-danger py-0.5 px-2 ms-1 btn-delete-variabel" title="Hapus Variabel">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            </form>
+                                                        @endif
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="17" class="text-center py-5 text-muted">
+                                                    <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                                    Belum ada variabel manual yang didaftarkan. Klik tombol <strong>+ Tambah Variabel Baru</strong> di atas untuk menambahkan variabel seperti BAHV BPJS atau SDM.
+                                                </td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                            <!-- Resizable Drag Handle Bar -->
+                            <div id="matrixResizeHandle" class="table-resize-handle text-center py-1 bg-light border-bottom border-start border-end rounded-bottom user-select-none" style="cursor: row-resize;" title="Tarik ke atas atau ke bawah untuk mengatur tinggi tabel">
+                                <i class="bi bi-grip-horizontal text-muted fs-6"></i>
+                            </div>
                         </div>
 
                         @if ($variabelManuals->isNotEmpty() && auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'update'))
@@ -688,6 +850,57 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Edit Variabel Manual -->
+<div class="modal fade" id="modalEditVariabel" tabindex="-1" aria-labelledby="modalEditVariabelLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow border-0 overflow-hidden">
+            <form id="formEditVariabel" method="POST" action="">
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="tahun" value="{{ $tahun }}">
+                <div class="modal-header bg-light border-bottom px-4 py-3">
+                    <h5 class="modal-title fw-bold text-dark fs-6" id="modalEditVariabelLabel">
+                        <i class="bi bi-pencil-square me-1.5 text-primary"></i> Edit Variabel Manual
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label for="editVarKode" class="form-label small fw-semibold">Kode Variabel <span class="text-danger">*</span></label>
+                        <input type="text" name="kode" id="editVarKode" class="form-control form-control-sm font-monospace text-uppercase" required placeholder="Contoh: JML_PASIEN_BPJS">
+                        <div class="form-text small">Kode unik huruf kapital & underscore untuk identifikasi formula.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editVarNama" class="form-label small fw-semibold">Nama Variabel <span class="text-danger">*</span></label>
+                        <input type="text" name="nama" id="editVarNama" class="form-control form-control-sm" required placeholder="Contoh: Jumlah Pasien BPJS Rawat Inap">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editVarSatuan" class="form-label small fw-semibold">Satuan <span class="text-danger">*</span></label>
+                        <select name="satuan" id="editVarSatuan" class="form-select form-select-sm" required>
+                            <option value="">-- Pilih Satuan --</option>
+                            @foreach ($satuanOptions as $satuan)
+                                <option value="{{ $satuan->value }}">
+                                    {{ $satuan->label() }} ({{ $satuan->value }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label for="editVarDeskripsi" class="form-label small fw-semibold">Deskripsi / Catatan Operasional</label>
+                        <textarea name="deskripsi" id="editVarDeskripsi" rows="3" class="form-control form-control-sm" placeholder="Penjelasan singkat mengenai sumber data fisik..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light px-4 py-2 border-top">
+                    <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-sm btn-primary fw-bold px-3">
+                        <i class="bi bi-check-circle me-1"></i> Perbarui Variabel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -726,6 +939,136 @@
                     localStorage.removeItem('setting_indikator_banner_dismissed');
                 }
             });
+        }
+
+        // Tab 2: Resizable Matrix Container with LocalStorage persistence
+        const matrixContainer = document.getElementById('matrixScrollContainer');
+        const matrixResizer = document.getElementById('matrixResizeHandle');
+
+        if (matrixContainer && matrixResizer) {
+            const savedHeight = localStorage.getItem('setting_indikator_matrix_height');
+            if (savedHeight) {
+                matrixContainer.style.height = savedHeight;
+            }
+
+            let startY = 0;
+            let startHeight = 0;
+
+            const onMouseMove = function (e) {
+                const dy = e.clientY - startY;
+                const minH = 220;
+                const maxH = Math.floor(window.innerHeight * 0.8);
+                let newHeight = startHeight + dy;
+                if (newHeight < minH) newHeight = minH;
+                if (newHeight > maxH) newHeight = maxH;
+                matrixContainer.style.height = newHeight + 'px';
+            };
+
+            const onMouseUp = function () {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                document.body.classList.remove('matrix-resizing');
+                localStorage.setItem('setting_indikator_matrix_height', matrixContainer.style.height);
+            };
+
+            matrixResizer.addEventListener('mousedown', function (e) {
+                startY = e.clientY;
+                startHeight = parseInt(window.getComputedStyle(matrixContainer).height, 10);
+                document.body.classList.add('matrix-resizing');
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+                e.preventDefault();
+            });
+        }
+
+        // Tab 2: Excel-like Keyboard Nav & Crosshair Highlight
+        const matrixInputs = document.querySelectorAll('.matrix-input');
+        matrixInputs.forEach(function (inp) {
+            inp.addEventListener('keydown', function (e) {
+                const rowIdx = parseInt(this.getAttribute('data-row-idx'), 10);
+                const colIdx = parseInt(this.getAttribute('data-col-idx'), 10);
+                let targetInput = null;
+
+                if (e.key === 'ArrowRight') {
+                    if (colIdx < 12) {
+                        targetInput = document.querySelector(`.matrix-input[data-row-idx="${rowIdx}"][data-col-idx="${colIdx + 1}"]`);
+                    }
+                } else if (e.key === 'ArrowLeft') {
+                    if (colIdx > 1) {
+                        targetInput = document.querySelector(`.matrix-input[data-row-idx="${rowIdx}"][data-col-idx="${colIdx - 1}"]`);
+                    }
+                } else if (e.key === 'ArrowDown' || e.key === 'Enter') {
+                    targetInput = document.querySelector(`.matrix-input[data-row-idx="${rowIdx + 1}"][data-col-idx="${colIdx}"]`);
+                } else if (e.key === 'ArrowUp') {
+                    if (rowIdx > 0) {
+                        targetInput = document.querySelector(`.matrix-input[data-row-idx="${rowIdx - 1}"][data-col-idx="${colIdx}"]`);
+                    }
+                }
+
+                if (targetInput) {
+                    e.preventDefault();
+                    targetInput.focus();
+                    targetInput.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                }
+            });
+
+            // Crosshair highlight
+            inp.addEventListener('focus', function () {
+                const row = this.closest('tr');
+                if (row) row.classList.add('cell-active-row');
+                const colIdx = this.getAttribute('data-col-idx');
+                document.querySelectorAll(`.col-month-${colIdx}`).forEach(function (c) {
+                    c.classList.add('cell-active-col');
+                });
+            });
+
+            inp.addEventListener('blur', function () {
+                const row = this.closest('tr');
+                if (row) row.classList.remove('cell-active-row');
+                const colIdx = this.getAttribute('data-col-idx');
+                document.querySelectorAll(`.col-month-${colIdx}`).forEach(function (c) {
+                    c.classList.remove('cell-active-col');
+                });
+            });
+        });
+
+        // Tab 2: Edit Variabel Manual Modal Handler
+        const modalEditEl = document.getElementById('modalEditVariabel');
+        if (modalEditEl) {
+            const modalEdit = new bootstrap.Modal(modalEditEl);
+            document.querySelectorAll('.btn-edit-variabel').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const id = this.getAttribute('data-id');
+                    const kode = this.getAttribute('data-kode');
+                    const nama = this.getAttribute('data-nama');
+                    const satuan = this.getAttribute('data-satuan');
+                    const deskripsi = this.getAttribute('data-deskripsi') || '';
+
+                    const form = document.getElementById('formEditVariabel');
+                    form.action = '{{ url('/pengaturan/setting-indikator-kinerja/variabel') }}/' + id;
+
+                    document.getElementById('editVarKode').value = kode;
+                    document.getElementById('editVarNama').value = nama;
+                    document.getElementById('editVarSatuan').value = satuan;
+                    document.getElementById('editVarDeskripsi').value = deskripsi;
+
+                    modalEdit.show();
+                });
+            });
+        }
+
+        // Tab 2: Deep-link Focus & Flash Highlight
+        const urlParams = new URLSearchParams(window.location.search);
+        const focusVar = urlParams.get('focus_var');
+        if (focusVar) {
+            const targetRow = document.getElementById('var-row-' + focusVar);
+            if (targetRow) {
+                targetRow.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                targetRow.classList.add('row-flash-highlight');
+                setTimeout(function () {
+                    targetRow.classList.remove('row-flash-highlight');
+                }, 2000);
+            }
         }
 
         function recalculateRowAverage(rowId) {
