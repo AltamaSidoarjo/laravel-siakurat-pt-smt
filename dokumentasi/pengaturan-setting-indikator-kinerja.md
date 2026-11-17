@@ -196,3 +196,6 @@ flowchart TD
 5. **Ketersediaan Opsi Akun COA pada Form Create & Edit**:
    - Query opsi akun COA memuat seluruh akun aktif (`status_aktif = 1` maupun `status_aktif IS NULL` untuk kompatibilitas data warisan), baik akun header/induk maupun akun leaf/detail karena formula indikator mendukung agregasi hierarki akun.
    - Pada form edit, seluruh akun yang sudah terpetakan pada indikator terkait dipastikan selalu diikutsertakan dalam dropdown (`orWhereIn('id', $existingCoaIds)`) agar status pilihan akun tetap terpilih secara konsisten meskipun akun tersebut berstatus nonaktif. Akun nonaktif diberi penanda `(Nonaktif)` pada label opsi.
+6. **Ergonomi Layout Form (Operate Mode)**:
+   - Form `create` dan `edit` menerapkan arsitektur 2 kolom responsif: kolom kiri memuat pengaturan utama (Identitas Dasar, Sumber Data Formula kontekstual, Matriks Ambang Batas RAG 3 kolom tanpa kartu bersarang, dan Tabel Pemetaan Akun COA), sedangkan kolom kanan memuat panel sticky *Live Preview Kartu KPI*, pengaturan keaktifan, urutan prioritas, dan tombol aksi publikasi cepat.
+   - Tipe kalkulasi `MANUAL` secara otomatis menyederhanakan alur dengan menyembunyikan pemetaan akun COA dan mengarahkan pengguna ke variabel manual yang relevan.
