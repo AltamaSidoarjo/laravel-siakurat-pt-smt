@@ -989,6 +989,12 @@
                 const colIdx = parseInt(this.getAttribute('data-col-idx'), 10);
                 let targetInput = null;
 
+                if (['ArrowUp', 'ArrowDown', 'Enter'].includes(e.key)) {
+                    e.preventDefault();
+                } else if ((e.key === 'ArrowRight' && colIdx < 12) || (e.key === 'ArrowLeft' && colIdx > 1)) {
+                    e.preventDefault();
+                }
+
                 if (e.key === 'ArrowRight') {
                     if (colIdx < 12) {
                         targetInput = document.querySelector(`.matrix-input[data-row-idx="${rowIdx}"][data-col-idx="${colIdx + 1}"]`);
@@ -1006,7 +1012,6 @@
                 }
 
                 if (targetInput) {
-                    e.preventDefault();
                     targetInput.focus();
                     targetInput.scrollIntoView({ block: 'nearest', inline: 'nearest' });
                 }

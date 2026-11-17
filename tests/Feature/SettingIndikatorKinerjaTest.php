@@ -537,4 +537,18 @@ class SettingIndikatorKinerjaTest extends TestCase
             ->assertSee('btn-edit-variabel')
             ->assertSee('btn-delete-variabel');
     }
+
+    public function test_tab_2_matrix_input_navigation_prevents_accidental_form_submission_and_increments(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.index', [
+            'tab' => 'manual',
+            'tahun' => 2026,
+        ]));
+
+        $response->assertOk()
+            ->assertSee("['ArrowUp', 'ArrowDown', 'Enter'].includes(e.key)", false);
+    }
 }
