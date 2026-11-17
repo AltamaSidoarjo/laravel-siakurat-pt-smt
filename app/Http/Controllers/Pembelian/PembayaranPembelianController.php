@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Pembelian;
 
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\StreamsCsvExport;
+use App\Http\Requests\Pembelian\ImportPembayaranPembelianRequest;
 use App\Http\Requests\Pembelian\StorePembayaranPembelianRequest;
 use App\Http\Requests\Pembelian\UpdatePembayaranPembelianRequest;
 use App\Models\PembayaranPembelian;
+use App\Services\Pembelian\PembayaranPembelianImportException;
+use App\Services\Pembelian\PembayaranPembelianImportService;
 use App\Services\Pembelian\PembayaranPembelianService;
 use App\Services\PreferensiPerusahaanService;
 use Carbon\Carbon;
@@ -15,7 +18,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 use Yajra\DataTables\Facades\DataTables;
 
 class PembayaranPembelianController extends Controller
@@ -24,6 +29,7 @@ class PembayaranPembelianController extends Controller
     public function __construct(
         private readonly PembayaranPembelianService $pembayaranPembelianService,
         private readonly PreferensiPerusahaanService $preferensiPerusahaanService,
+        private readonly PembayaranPembelianImportService $pembayaranPembelianImportService,
     ) {
     }
 
@@ -61,6 +67,49 @@ class PembayaranPembelianController extends Controller
     {
         $data = $request->validate(['startDate' => ['required', 'date_format:Y-m-d'], 'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate']]);
         return $this->streamCsvExport($request, $this->pembayaranPembelianService->getIndexQuery($data['startDate'], $data['endDate']), 'pembayaran-pembelian', ['Nomor', 'Tanggal', 'Supplier', 'Akun Bank', 'Jumlah Pembayaran', 'Potongan Admin', 'Keterangan'], fn (PembayaranPembelian $item) => [(string) $item->nomer_pembayaran, optional($item->tanggal)->format('Y-m-d'), trim(($item->supplier?->kode_supplier ?? '').' - '.($item->supplier?->nama_supplier ?? '')), trim(($item->akunBank?->kode ?? '').' - '.($item->akunBank?->nama ?? '')), $this->csvNumber($item->total_bayar), $this->csvNumber($item->potongan_admin), (string) $item->keterangan]);
+    }
+
+    public function importForm(): View
+    {
+        return view('pembelian.pembayaran.import', [
+            'page' => 'app',
+            'phpUploadMaxFileSize' => ini_get('upload_max_filesize') ?: 'tidak diketahui',
+            'phpPostMaxSize' => ini_get('post_max_size') ?: 'tidak diketahui',
+        ]);
+    }
+
+    public function importTemplate(): BinaryFileResponse
+    {
+        $template = $this->pembayaranPembelianImportService->buildTemplate();
+
+        return response()
+            ->download(
+                $template['output_path'],
+                $template['download_name'],
+                ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+            )
+            ->deleteFileAfterSend(true);
+    }
+
+    public function import(ImportPembayaranPembelianRequest $request): RedirectResponse
+    {
+        $actor = auth()->user()?->name ?? auth()->user()?->email ?? 'system';
+
+        try {
+            $result = DB::transaction(
+                fn () => $this->pembayaranPembelianImportService->importFromXlsx($request->file('file'), $actor)
+            );
+        } catch (PembayaranPembelianImportException $exception) {
+            return back()->withErrors(['file' => $exception->errors()]);
+        } catch (Throwable $throwable) {
+            report($throwable);
+
+            return back()->withErrors(['file' => 'File gagal diproses. Pastikan file sesuai template.']);
+        }
+
+        return redirect()
+            ->route('pembelian.pembayaran.index')
+            ->with('success', sprintf('Import berhasil. %d pembayaran dibuat (%s).', $result['created'], implode(', ', $result['nomer'])));
     }
 
     public function create(): View

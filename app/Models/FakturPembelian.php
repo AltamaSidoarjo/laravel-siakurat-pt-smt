@@ -17,6 +17,7 @@ class FakturPembelian extends Model
 
     protected $fillable = [
         'supplier_id',
+        'akun_hutang_id',
         'nomer_faktur',
         'tanggal_faktur',
         'keterangan',
@@ -35,6 +36,7 @@ class FakturPembelian extends Model
 
     protected $casts = [
         'supplier_id' => 'integer',
+        'akun_hutang_id' => 'integer',
         'tanggal_faktur' => 'date',
         'nilai_ppn' => 'decimal:2',
         'biaya_kirim' => 'decimal:2',
@@ -49,6 +51,11 @@ class FakturPembelian extends Model
     public function supplier()
     {
         return $this->belongsTo(Supplier::class, 'supplier_id');
+    }
+
+    public function akunHutang()
+    {
+        return $this->belongsTo(Coa::class, 'akun_hutang_id');
     }
 
     public function rincian()

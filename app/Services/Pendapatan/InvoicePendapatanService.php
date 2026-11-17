@@ -91,20 +91,20 @@ class InvoicePendapatanService
         );
     }
 
-    public function getReceivableCoaOptions(): Collection
+    public function getCoaOptions(): Collection
     {
         return Coa::query()->selectableTransaction()
-            ->where('is_postable', true)
-            ->whereRaw('LOWER(tipe_coa) LIKE ?', ['%piutang%'])
             ->get(['id', 'kode', 'nama', 'tipe_coa']);
+    }
+
+    public function getReceivableCoaOptions(): Collection
+    {
+        return $this->getCoaOptions();
     }
 
     public function getRevenueCoaOptions(): Collection
     {
-        return Coa::query()->selectableTransaction()
-            ->where('is_postable', true)
-            ->whereRaw('LOWER(tipe_coa) = ?', ['pendapatan'])
-            ->get(['id', 'kode', 'nama', 'tipe_coa']);
+        return $this->getCoaOptions();
     }
 
     public function getPelaksanaOptions(?FakturPenjualan $invoice = null): Collection
@@ -179,18 +179,18 @@ class InvoicePendapatanService
             $invoice->grandtotal = $grandtotal;
             $invoice->updated_by = $actor;
 
-            if (! $imported) {
-                $pelanggan = Pelanggan::query()->findOrFail((int) $data['pelanggan_id']);
-                $invoice->pelanggan_id = $pelanggan->id;
-                $invoice->nomor_faktur = $data['nomor_faktur'];
-                $invoice->nama_pasien = $data['nama_pasien'];
-                $invoice->nomer_rekam_medis = $data['nomer_rekam_medis'] ?? null;
-                $invoice->nama_dokter = $data['nama_dokter'] ?? null;
-                $invoice->nama_poli = $data['nama_poli'] ?? null;
+            $pelanggan = Pelanggan::query()->findOrFail((int) $data['pelanggan_id']);
+            $invoice->pelanggan_id = $pelanggan->id;
+            $invoice->nomor_faktur = $data['nomor_faktur'];
+            $invoice->nama_pasien = $data['nama_pasien'];
+            $invoice->nomer_rekam_medis = $data['nomer_rekam_medis'] ?? null;
+            $invoice->nama_dokter = $data['nama_dokter'] ?? null;
+            $invoice->nama_poli = $data['nama_poli'] ?? null;
+            if (! $imported || ! $invoice->tanggal_registrasi) {
                 $invoice->tanggal_registrasi = $data['tanggal_faktur'];
-                $invoice->kode_penjamin = $pelanggan->kode_pelanggan;
-                $invoice->nama_penjamin = $pelanggan->nama_pelanggan;
             }
+            $invoice->kode_penjamin = $pelanggan->kode_pelanggan;
+            $invoice->nama_penjamin = $pelanggan->nama_pelanggan;
 
             $invoice->save();
             $invoice->rincian()->delete();
@@ -199,7 +199,7 @@ class InvoicePendapatanService
 
             if ($imported) {
                 SimrsImportPendapatan::query()->where('import_ke', self::SOURCE)
-                    ->where('nomer_billing', $invoice->nomer_rawat ?: $invoice->nomor_faktur)
+                    ->where('nomer_billing', $invoice->nomer_rawat ?: $invoice->getOriginal('nomor_faktur'))
                     ->update(['total_tagihan' => $grandtotal]);
             }
 
@@ -251,6 +251,8 @@ class InvoicePendapatanService
 
         $this->bukuBesarService->deleteBySource(self::SOURCE, (int) $invoice->id);
         $tanggal = $invoice->tanggal_faktur->format('Y-m-d');
+        $keteranganBukuBesar = filled($invoice->keterangan) ? (string) $invoice->keterangan : null;
+
         $payload = [[
             'coa_id' => (int) $invoice->akun_piutang_id,
             'sumber_id' => (int) $invoice->id,
@@ -260,7 +262,7 @@ class InvoicePendapatanService
             'sumber_transaksi' => self::SOURCE,
             'nominal' => (float) $invoice->grandtotal,
             'tipe_mutasi' => 'D',
-            'keterangan' => 'Akun piutang pendapatan',
+            'keterangan' => $keteranganBukuBesar ?? 'Akun piutang pendapatan',
             'created_at' => now(),
             'updated_at' => now(),
         ]];
@@ -276,7 +278,7 @@ class InvoicePendapatanService
                 'sumber_transaksi' => self::SOURCE,
                 'nominal' => abs($subtotal),
                 'tipe_mutasi' => $subtotal < 0 ? 'D' : 'K',
-                'keterangan' => $detail['catatan'] ?? null,
+                'keterangan' => $keteranganBukuBesar ?? ($detail['catatan'] ?? null),
                 'created_at' => now(),
                 'updated_at' => now(),
             ];

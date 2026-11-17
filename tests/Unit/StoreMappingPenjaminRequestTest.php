@@ -32,10 +32,12 @@ class StoreMappingPenjaminRequestTest extends TestCase
 
         Schema::create('mapping_penjamin_piutang', function (Blueprint $table): void {
             $table->increments('id');
-            $table->string('penjamin_id')->unique();
+            $table->string('penjamin_id');
             $table->string('nama_penjamin');
+            $table->string('jenis_layanan')->default('rawat_jalan');
             $table->unsignedInteger('coa_id');
             $table->timestamps();
+            $table->unique(['penjamin_id', 'jenis_layanan']);
         });
     }
 
@@ -70,6 +72,7 @@ class StoreMappingPenjaminRequestTest extends TestCase
     {
         $request = StoreMappingPenjaminRequest::create('/', 'POST', [
             'penjamin_id' => '002',
+            'jenis_layanan' => 'rawat_jalan',
             'coa_id' => $coa->id,
         ]);
         $validator = Validator::make($request->all(), $request->rules());

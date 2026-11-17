@@ -42,6 +42,10 @@
                                                 <i class="bi bi-funnel me-1"></i> Filter
                                             </button>
                                             <button type="button" class="btn btn-outline-success text-nowrap" data-bs-toggle="modal" data-bs-target="#exportCsvModal"><i class="bi bi-filetype-csv me-1"></i>Export CSV</button>
+                                            @if (auth()->user()?->hasModuleAccess('pembelian.invoice', 'create'))
+                                                <a href="{{ route('pembelian.invoice.import.form') }}" class="btn btn-outline-success text-nowrap"><i class="bi bi-upload me-1"></i>Import</a>
+                                                <a href="{{ route('pembelian.invoice.create') }}" class="btn btn-success text-nowrap"><i class="bi bi-plus-circle-fill me-1"></i>Tambah</a>
+                                            @endif
                                         </div>
                                     </div>
                                 </form>
@@ -58,8 +62,6 @@
                                                 <th>Tanggal faktur</th>
                                                 <th>Tgl jth tempo</th>
                                                 <th>Supplier</th>
-                                                <th>Kode bangsal</th>
-                                                <th>Kategori faktur</th>
                                                 <th>Grandtotal</th>
                                                 <th>Sudah terbayar</th>
                                                 <th>Status</th>
@@ -121,14 +123,6 @@
                     {
                         data: 'nama_supplier',
                         name: 'supplier.nama_supplier'
-                    },
-                    {
-                        data: 'kode_bangsal',
-                        name: 'kode_bangsal'
-                    },
-                    {
-                        data: 'kategori_faktur',
-                        name: 'kategori_faktur'
                     },
                     {
                         data: 'grandtotal_display',

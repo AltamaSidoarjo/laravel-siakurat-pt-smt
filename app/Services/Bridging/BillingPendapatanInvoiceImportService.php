@@ -52,7 +52,7 @@ class BillingPendapatanInvoiceImportService
         $mappingPenjamin = MappingPenjaminPiutang::query()
             ->with(['coa' => fn ($query) => $query->withCount('children')])
             ->get()
-            ->keyBy(fn (MappingPenjaminPiutang $mapping) => (string) $mapping->penjamin_id);
+            ->keyBy(fn (MappingPenjaminPiutang $mapping) => $mapping->jenis_layanan.'|'.$mapping->penjamin_id);
 
         $hasil = [];
 
@@ -87,11 +87,24 @@ class BillingPendapatanInvoiceImportService
                 continue;
             }
             $billing['penjamin_id'] = (string) $penjaminApiItem['id'];
-            $mappingPiutang = $mappingPenjamin->get($billing['penjamin_id']);
+            $jenisLayananMapping = match ((string) ($billing['status_lanjut'] ?? '')) {
+                'Rawat Jalan' => 'rawat_jalan',
+                'Rawat Inap' => 'rawat_inap',
+                'IGD' => 'igd',
+                default => null,
+            };
+            if ($jenisLayananMapping === null) {
+                $hasil[] = $this->failedResult($billing, 'Jenis layanan tidak dikenali untuk mapping akun piutang.');
+
+                continue;
+            }
+
+            $mappingPiutang = $mappingPenjamin->get($jenisLayananMapping.'|'.$billing['penjamin_id']);
             if ($mappingPiutang === null) {
                 $hasil[] = $this->failedResult(
                     $billing,
-                    'Mapping akun piutang untuk penjamin '.$penjaminApiItem['nama'].' belum disetting.',
+                    'Mapping akun piutang untuk penjamin '.$penjaminApiItem['nama'].' layanan '
+                        .$billing['status_lanjut'].' belum disetting.',
                 );
 
                 continue;
@@ -359,14 +372,13 @@ class BillingPendapatanInvoiceImportService
             $coa = $coaDitemukan->get($kode)->first();
 
             return (int) $coa->status_aktif !== 1
-                || ! (bool) $coa->is_postable
                 || (int) $coa->children_count > 0
                 || ! str_contains(Str::lower((string) $coa->tipe_coa), 'pendapatan');
         });
 
         if ($invalid->isNotEmpty()) {
             throw new RuntimeException(
-                'COA pendapatan tidak aktif, tidak postable, bukan akun leaf, atau bukan tipe pendapatan: '
+                'COA pendapatan tidak aktif, bukan akun leaf, atau bukan tipe pendapatan: '
                 .$invalid->implode(', ').'.',
             );
         }

@@ -171,6 +171,186 @@ class LaporanPendapatanController extends Controller
         );
     }
 
+    public function aktivitasDokter(Request $request): View
+    {
+        [$startDate, $endDate] = $this->resolveDateRange($request);
+        $pelaksanaId = $request->integer('pelaksanaId') ?: null;
+
+        $reportData = $this->laporanPendapatanService->getAktivitasDokterData(
+            $startDate,
+            $endDate,
+            $pelaksanaId
+        );
+
+        return view('laporan.pendapatan.aktivitas-dokter', [
+            'page' => 'app',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'pelaksanaId' => $pelaksanaId,
+            'pelaksanaOptions' => $this->laporanPendapatanService->getPelaksanaOptions(),
+            'reportData' => $reportData,
+        ]);
+    }
+
+    public function exportAktivitasDokterPdf(Request $request): Response
+    {
+        $validated = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+            'pelaksanaId' => ['nullable', 'integer', 'exists:pelaksana,id'],
+        ]);
+
+        $fileName = sprintf(
+            'aktivitas-dokter-%s-%s.pdf',
+            str_replace('-', '', $validated['startDate']),
+            str_replace('-', '', $validated['endDate'])
+        );
+
+        $pdf = $this->laporanPendapatanService->renderAktivitasDokterPdf(
+            $validated['startDate'],
+            $validated['endDate'],
+            isset($validated['pelaksanaId']) ? (int) $validated['pelaksanaId'] : null
+        );
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => sprintf('inline; filename="%s"', $fileName),
+        ]);
+    }
+
+    public function exportAktivitasDokterExcel(Request $request): StreamedResponse
+    {
+        $validated = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+            'pelaksanaId' => ['nullable', 'integer', 'exists:pelaksana,id'],
+        ]);
+
+        $fileName = sprintf(
+            'aktivitas-dokter-%s-%s.xlsx',
+            str_replace('-', '', $validated['startDate']),
+            str_replace('-', '', $validated['endDate'])
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPendapatanService->streamAktivitasDokterExcel(
+                $validated['startDate'],
+                $validated['endDate'],
+                isset($validated['pelaksanaId']) ? (int) $validated['pelaksanaId'] : null
+            ),
+            $fileName,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        );
+    }
+
+    public function rekonsiliasiDokter(Request $request): View
+    {
+        [$startDate, $endDate] = $this->resolveDateRange($request);
+        $coaId = $request->integer('coaId') ?: null;
+        $hanyaBerselisih = $request->has('filter_applied')
+            ? $request->boolean('hanyaBerselisih')
+            : true;
+
+        $reportData = $this->laporanPendapatanService->getRekonsiliasiDokterData(
+            $startDate,
+            $endDate,
+            $coaId,
+            $hanyaBerselisih
+        );
+
+        return view('laporan.pendapatan.rekonsiliasi-dokter', [
+            'page' => 'app',
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'coaId' => $coaId,
+            'hanyaBerselisih' => $hanyaBerselisih,
+            'coaOptions' => $this->laporanPendapatanService->getCoaPendapatanOptions(),
+            'reportData' => $reportData,
+        ]);
+    }
+
+    public function loadRekonsiliasiDokterDetail(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+            'coaId' => ['required', 'integer', 'exists:coa,id'],
+        ]);
+
+        $details = $this->laporanPendapatanService->getDetailTransaksiTanpaDokter(
+            $validated['startDate'],
+            $validated['endDate'],
+            (int) $validated['coaId']
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => $details,
+        ]);
+    }
+
+    public function exportRekonsiliasiDokterExcel(Request $request): StreamedResponse
+    {
+        $validated = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+            'coaId' => ['nullable', 'integer', 'exists:coa,id'],
+            'hanyaBerselisih' => ['nullable'],
+        ]);
+
+        $hanyaBerselisih = $request->has('filter_applied')
+            ? $request->boolean('hanyaBerselisih')
+            : true;
+
+        $fileName = sprintf(
+            'rekonsiliasi-pendapatan-dokter-%s-%s.xlsx',
+            str_replace('-', '', $validated['startDate']),
+            str_replace('-', '', $validated['endDate'])
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPendapatanService->streamRekonsiliasiDokterExcel(
+                $validated['startDate'],
+                $validated['endDate'],
+                isset($validated['coaId']) ? (int) $validated['coaId'] : null,
+                $hanyaBerselisih
+            ),
+            $fileName,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+        );
+    }
+
+    public function exportRekonsiliasiDokterCsv(Request $request): StreamedResponse
+    {
+        $validated = $request->validate([
+            'startDate' => ['required', 'date_format:Y-m-d'],
+            'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
+            'coaId' => ['nullable', 'integer', 'exists:coa,id'],
+            'hanyaBerselisih' => ['nullable'],
+        ]);
+
+        $hanyaBerselisih = $request->has('filter_applied')
+            ? $request->boolean('hanyaBerselisih')
+            : true;
+
+        $fileName = sprintf(
+            'rekonsiliasi-pendapatan-dokter-%s-%s.csv',
+            str_replace('-', '', $validated['startDate']),
+            str_replace('-', '', $validated['endDate'])
+        );
+
+        return response()->streamDownload(
+            fn () => $this->laporanPendapatanService->streamRekonsiliasiDokterCsv(
+                $validated['startDate'],
+                $validated['endDate'],
+                isset($validated['coaId']) ? (int) $validated['coaId'] : null,
+                $hanyaBerselisih
+            ),
+            $fileName,
+            ['Content-Type' => 'text/csv; charset=UTF-8']
+        );
+    }
+
     public function loadKunjungan(Request $request): JsonResponse
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);

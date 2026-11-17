@@ -6,17 +6,22 @@ use App\Http\Controllers\Bridging\BridgingPendapatanController;
 use App\Http\Controllers\Bridging\BridgingPendapatanObatController;
 use App\Http\Controllers\Bukubesar\CoaController;
 use App\Http\Controllers\Bukubesar\JurnalUmumController;
+use App\Http\Controllers\Bukubesar\JurnalUmumTemplateController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Kasbank\BukuBankController;
 use App\Http\Controllers\Kasbank\KasbankPembayaranController;
+use App\Http\Controllers\Kasbank\KasbankPembayaranTemplateController;
 use App\Http\Controllers\Kasbank\KasbankPenerimaanController;
+use App\Http\Controllers\Kasbank\KasbankPenerimaanTemplateController;
 use App\Http\Controllers\Laporan\LaporanKeuanganController;
+use App\Http\Controllers\Laporan\LaporanPembelianController;
 use App\Http\Controllers\Laporan\LaporanPendapatanController;
 use App\Http\Controllers\Pembelian\InvoicePembelianController;
 use App\Http\Controllers\Pembelian\PembayaranPembelianController;
 use App\Http\Controllers\Pendapatan\InvoicePendapatanController;
 use App\Http\Controllers\Pendapatan\PenerimaanPendapatanController;
 use App\Http\Controllers\Pengaturan\KonversiFileController;
+use App\Http\Controllers\Pengaturan\LayananInformasiController;
 use App\Http\Controllers\Pengaturan\MappingGeneralController;
 use App\Http\Controllers\Pengaturan\MappingPendapatanController;
 use App\Http\Controllers\Pengaturan\MappingPenjaminController;
@@ -25,6 +30,7 @@ use App\Http\Controllers\Pengaturan\PenggunaController;
 use App\Http\Controllers\Pengaturan\PreferensiController;
 use App\Http\Controllers\Pengaturan\RoleAksesController;
 use App\Http\Controllers\Pengaturan\SettingRbaController;
+use App\Http\Controllers\Pengaturan\SupplierController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -56,17 +62,32 @@ Route::middleware('auth')->group(function () {
             Route::get('/jurnal-umum/load-data', [JurnalUmumController::class, 'loadData'])->name('jurnal-umum.load-data');
             Route::get('/jurnal-umum/export-csv', [JurnalUmumController::class, 'exportCsv'])->name('jurnal-umum.export-csv');
             Route::get('/jurnal-umum/{jurnalUmum}/print', [JurnalUmumController::class, 'print'])->name('jurnal-umum.print');
+
+            Route::get('/jurnal-umum-template', [JurnalUmumTemplateController::class, 'index'])->name('jurnal-umum-template.index');
+            Route::get('/jurnal-umum-template/load-data', [JurnalUmumTemplateController::class, 'loadData'])->name('jurnal-umum-template.load-data');
+            Route::get('/jurnal-umum-template/{jurnalUmumTemplate}/detail', [JurnalUmumTemplateController::class, 'detail'])->name('jurnal-umum-template.detail');
         });
         Route::middleware('module.access:bukubesar.jurnal-umum,create')->group(function () {
+            Route::get('/jurnal-umum/import', [JurnalUmumController::class, 'importForm'])->name('jurnal-umum.import.form');
+            Route::get('/jurnal-umum/import/template', [JurnalUmumController::class, 'importTemplate'])->name('jurnal-umum.import.template');
+            Route::post('/jurnal-umum/import', [JurnalUmumController::class, 'import'])->name('jurnal-umum.import.store');
             Route::get('/jurnal-umum/create', [JurnalUmumController::class, 'create'])->name('jurnal-umum.create');
             Route::post('/jurnal-umum', [JurnalUmumController::class, 'store'])->name('jurnal-umum.store');
+
+            Route::get('/jurnal-umum-template/create', [JurnalUmumTemplateController::class, 'create'])->name('jurnal-umum-template.create');
+            Route::post('/jurnal-umum-template', [JurnalUmumTemplateController::class, 'store'])->name('jurnal-umum-template.store');
         });
         Route::middleware('module.access:bukubesar.jurnal-umum,update')->group(function () {
             Route::get('/jurnal-umum/{jurnalUmum}/edit', [JurnalUmumController::class, 'edit'])->name('jurnal-umum.edit');
             Route::put('/jurnal-umum/{jurnalUmum}', [JurnalUmumController::class, 'update'])->name('jurnal-umum.update');
+
+            Route::get('/jurnal-umum-template/{jurnalUmumTemplate}/edit', [JurnalUmumTemplateController::class, 'edit'])->name('jurnal-umum-template.edit');
+            Route::put('/jurnal-umum-template/{jurnalUmumTemplate}', [JurnalUmumTemplateController::class, 'update'])->name('jurnal-umum-template.update');
         });
         Route::middleware('module.access:bukubesar.jurnal-umum,delete')->group(function () {
             Route::delete('/jurnal-umum/{jurnalUmum}', [JurnalUmumController::class, 'destroy'])->name('jurnal-umum.destroy');
+
+            Route::delete('/jurnal-umum-template/{jurnalUmumTemplate}', [JurnalUmumTemplateController::class, 'destroy'])->name('jurnal-umum-template.destroy');
         });
 
         Route::middleware('module.access:bukubesar.coa,view')->group(function () {
@@ -95,17 +116,29 @@ Route::middleware('auth')->group(function () {
             Route::get('/penerimaan/load-data', [KasbankPenerimaanController::class, 'loadData'])->name('penerimaan.load-data');
             Route::get('/penerimaan/export-csv', [KasbankPenerimaanController::class, 'exportCsv'])->name('penerimaan.export-csv');
             Route::get('/penerimaan/{kasbankPenerimaan}/print', [KasbankPenerimaanController::class, 'print'])->name('penerimaan.print');
+
+            Route::get('/penerimaan-template', [KasbankPenerimaanTemplateController::class, 'index'])->name('penerimaan-template.index');
+            Route::get('/penerimaan-template/load-data', [KasbankPenerimaanTemplateController::class, 'loadData'])->name('penerimaan-template.load-data');
+            Route::get('/penerimaan-template/{kasbankPenerimaanTemplate}/detail', [KasbankPenerimaanTemplateController::class, 'detail'])->name('penerimaan-template.detail');
         });
         Route::middleware('module.access:kasbank.penerimaan,create')->group(function () {
             Route::get('/penerimaan/create', [KasbankPenerimaanController::class, 'create'])->name('penerimaan.create');
             Route::post('/penerimaan', [KasbankPenerimaanController::class, 'store'])->name('penerimaan.store');
+
+            Route::get('/penerimaan-template/create', [KasbankPenerimaanTemplateController::class, 'create'])->name('penerimaan-template.create');
+            Route::post('/penerimaan-template', [KasbankPenerimaanTemplateController::class, 'store'])->name('penerimaan-template.store');
         });
         Route::middleware('module.access:kasbank.penerimaan,update')->group(function () {
             Route::get('/penerimaan/{kasbankPenerimaan}/edit', [KasbankPenerimaanController::class, 'edit'])->name('penerimaan.edit');
             Route::put('/penerimaan/{kasbankPenerimaan}', [KasbankPenerimaanController::class, 'update'])->name('penerimaan.update');
+
+            Route::get('/penerimaan-template/{kasbankPenerimaanTemplate}/edit', [KasbankPenerimaanTemplateController::class, 'edit'])->name('penerimaan-template.edit');
+            Route::put('/penerimaan-template/{kasbankPenerimaanTemplate}', [KasbankPenerimaanTemplateController::class, 'update'])->name('penerimaan-template.update');
         });
         Route::middleware('module.access:kasbank.penerimaan,delete')->group(function () {
             Route::delete('/penerimaan/{kasbankPenerimaan}', [KasbankPenerimaanController::class, 'destroy'])->name('penerimaan.destroy');
+
+            Route::delete('/penerimaan-template/{kasbankPenerimaanTemplate}', [KasbankPenerimaanTemplateController::class, 'destroy'])->name('penerimaan-template.destroy');
         });
 
         Route::middleware('module.access:kasbank.pembayaran,view')->group(function () {
@@ -113,17 +146,29 @@ Route::middleware('auth')->group(function () {
             Route::get('/pembayaran/load-data', [KasbankPembayaranController::class, 'loadData'])->name('pembayaran.load-data');
             Route::get('/pembayaran/export-csv', [KasbankPembayaranController::class, 'exportCsv'])->name('pembayaran.export-csv');
             Route::get('/pembayaran/{kasbankPembayaran}/print', [KasbankPembayaranController::class, 'print'])->name('pembayaran.print');
+
+            Route::get('/pembayaran-template', [KasbankPembayaranTemplateController::class, 'index'])->name('pembayaran-template.index');
+            Route::get('/pembayaran-template/load-data', [KasbankPembayaranTemplateController::class, 'loadData'])->name('pembayaran-template.load-data');
+            Route::get('/pembayaran-template/{kasbankPembayaranTemplate}/detail', [KasbankPembayaranTemplateController::class, 'detail'])->name('pembayaran-template.detail');
         });
         Route::middleware('module.access:kasbank.pembayaran,create')->group(function () {
             Route::get('/pembayaran/create', [KasbankPembayaranController::class, 'create'])->name('pembayaran.create');
             Route::post('/pembayaran', [KasbankPembayaranController::class, 'store'])->name('pembayaran.store');
+
+            Route::get('/pembayaran-template/create', [KasbankPembayaranTemplateController::class, 'create'])->name('pembayaran-template.create');
+            Route::post('/pembayaran-template', [KasbankPembayaranTemplateController::class, 'store'])->name('pembayaran-template.store');
         });
         Route::middleware('module.access:kasbank.pembayaran,update')->group(function () {
             Route::get('/pembayaran/{kasbankPembayaran}/edit', [KasbankPembayaranController::class, 'edit'])->name('pembayaran.edit');
             Route::put('/pembayaran/{kasbankPembayaran}', [KasbankPembayaranController::class, 'update'])->name('pembayaran.update');
+
+            Route::get('/pembayaran-template/{kasbankPembayaranTemplate}/edit', [KasbankPembayaranTemplateController::class, 'edit'])->name('pembayaran-template.edit');
+            Route::put('/pembayaran-template/{kasbankPembayaranTemplate}', [KasbankPembayaranTemplateController::class, 'update'])->name('pembayaran-template.update');
         });
         Route::middleware('module.access:kasbank.pembayaran,delete')->group(function () {
             Route::delete('/pembayaran/{kasbankPembayaran}', [KasbankPembayaranController::class, 'destroy'])->name('pembayaran.destroy');
+
+            Route::delete('/pembayaran-template/{kasbankPembayaranTemplate}', [KasbankPembayaranTemplateController::class, 'destroy'])->name('pembayaran-template.destroy');
         });
     });
 
@@ -215,12 +260,26 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::prefix('pembelian')->name('pembelian.')->group(function () {
+        Route::middleware('module.access:pembelian.invoice,create')->group(function () {
+            Route::get('/invoice/import', [InvoicePembelianController::class, 'importForm'])->name('invoice.import.form');
+            Route::get('/invoice/import/template', [InvoicePembelianController::class, 'importTemplate'])->name('invoice.import.template');
+            Route::post('/invoice/import', [InvoicePembelianController::class, 'import'])->name('invoice.import.store');
+            Route::get('/invoice/create', [InvoicePembelianController::class, 'create'])->name('invoice.create');
+            Route::post('/invoice', [InvoicePembelianController::class, 'store'])->name('invoice.store');
+        });
         Route::middleware('module.access:pembelian.invoice,view')->group(function () {
             Route::get('/invoice', [InvoicePembelianController::class, 'index'])->name('invoice.index');
             Route::get('/invoice/load-data', [InvoicePembelianController::class, 'loadData'])->name('invoice.load-data');
             Route::get('/invoice/export-csv', [InvoicePembelianController::class, 'exportCsv'])->name('invoice.export-csv');
             Route::get('/invoice/{fakturPembelian}/print', [InvoicePembelianController::class, 'print'])->name('invoice.print');
             Route::get('/invoice/{fakturPembelian}', [InvoicePembelianController::class, 'read'])->name('invoice.read');
+        });
+        Route::middleware('module.access:pembelian.invoice,update')->group(function () {
+            Route::get('/invoice/{fakturPembelian}/edit', [InvoicePembelianController::class, 'edit'])->name('invoice.edit');
+            Route::put('/invoice/{fakturPembelian}', [InvoicePembelianController::class, 'update'])->name('invoice.update');
+        });
+        Route::middleware('module.access:pembelian.invoice,delete')->group(function () {
+            Route::delete('/invoice/{fakturPembelian}', [InvoicePembelianController::class, 'destroy'])->name('invoice.destroy');
         });
 
         Route::middleware('module.access:pembelian.pembayaran,view')->group(function () {
@@ -231,6 +290,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/pembayaran/api/invoice-by-supplier', [PembayaranPembelianController::class, 'apiGetInvBySupplier'])->name('pembayaran.api.invoice-by-supplier');
         });
         Route::middleware('module.access:pembelian.pembayaran,create')->group(function () {
+            Route::get('/pembayaran/import', [PembayaranPembelianController::class, 'importForm'])->name('pembayaran.import.form');
+            Route::get('/pembayaran/import/template', [PembayaranPembelianController::class, 'importTemplate'])->name('pembayaran.import.template');
+            Route::post('/pembayaran/import', [PembayaranPembelianController::class, 'import'])->name('pembayaran.import.store');
             Route::get('/pembayaran/create', [PembayaranPembelianController::class, 'create'])->name('pembayaran.create');
             Route::post('/pembayaran', [PembayaranPembelianController::class, 'store'])->name('pembayaran.store');
         });
@@ -253,6 +315,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/keuangan/laba-rugi-detil', [LaporanKeuanganController::class, 'labaRugiDetil'])->name('keuangan.laba-rugi-detil');
             Route::get('/keuangan/laba-rugi-standard', [LaporanKeuanganController::class, 'labaRugiStandard'])->name('keuangan.laba-rugi-standard');
             Route::get('/keuangan/laba-rugi-per-parent-coa', [LaporanKeuanganController::class, 'labaRugiPerParentCoa'])->name('keuangan.laba-rugi-per-parent-coa');
+            Route::get('/keuangan/laba-rugi-komparasi-bulanan', [LaporanKeuanganController::class, 'labaRugiKomparasiBulanan'])->name('keuangan.laba-rugi-komparasi-bulanan');
             Route::get('/keuangan/neraca-standard', [LaporanKeuanganController::class, 'neracaStandard'])->name('keuangan.neraca-standard');
             Route::get('/keuangan/neraca-per-parent-coa', [LaporanKeuanganController::class, 'neracaPerParentCoa'])->name('keuangan.neraca-per-parent-coa');
             Route::get('/keuangan/bukubesar', [LaporanKeuanganController::class, 'bukubesar'])->name('keuangan.bukubesar');
@@ -272,6 +335,13 @@ Route::middleware('auth')->group(function () {
             Route::get('/pendapatan/dokter/load-data', [LaporanPendapatanController::class, 'loadDokter'])->name('pendapatan.dokter.load-data');
             Route::get('/pendapatan/dokter/export-excel', [LaporanPendapatanController::class, 'exportDokterExcel'])->name('pendapatan.dokter.export-excel');
             Route::get('/pendapatan/dokter/export-pdf', [LaporanPendapatanController::class, 'exportDokterPdf'])->name('pendapatan.dokter.export-pdf');
+            Route::get('/pendapatan/aktivitas-dokter', [LaporanPendapatanController::class, 'aktivitasDokter'])->name('pendapatan.aktivitas-dokter');
+            Route::get('/pendapatan/aktivitas-dokter/export-pdf', [LaporanPendapatanController::class, 'exportAktivitasDokterPdf'])->name('pendapatan.aktivitas-dokter.export-pdf');
+            Route::get('/pendapatan/aktivitas-dokter/export-excel', [LaporanPendapatanController::class, 'exportAktivitasDokterExcel'])->name('pendapatan.aktivitas-dokter.export-excel');
+            Route::get('/pendapatan/rekonsiliasi-dokter', [LaporanPendapatanController::class, 'rekonsiliasiDokter'])->name('pendapatan.rekonsiliasi-dokter');
+            Route::get('/pendapatan/rekonsiliasi-dokter/detail', [LaporanPendapatanController::class, 'loadRekonsiliasiDokterDetail'])->name('pendapatan.rekonsiliasi-dokter.detail');
+            Route::get('/pendapatan/rekonsiliasi-dokter/export-excel', [LaporanPendapatanController::class, 'exportRekonsiliasiDokterExcel'])->name('pendapatan.rekonsiliasi-dokter.export-excel');
+            Route::get('/pendapatan/rekonsiliasi-dokter/export-csv', [LaporanPendapatanController::class, 'exportRekonsiliasiDokterCsv'])->name('pendapatan.rekonsiliasi-dokter.export-csv');
             Route::get('/pendapatan/penjualan-obat', [LaporanPendapatanController::class, 'penjualanObat'])->name('pendapatan.penjualan-obat');
             Route::get('/pendapatan/penjualan-obat/load-data', [LaporanPendapatanController::class, 'loadPenjualanObat'])->name('pendapatan.penjualan-obat.load-data');
             Route::get('/pendapatan/penjualan-obat/export-csv', [LaporanPendapatanController::class, 'exportPenjualanObatCsv'])->name('pendapatan.penjualan-obat.export-csv');
@@ -283,6 +353,18 @@ Route::middleware('auth')->group(function () {
             Route::get('/pendapatan/rangkuman-buku-pembantu-piutang/export-csv', [LaporanPendapatanController::class, 'exportRangkumanBukuPembantuPiutangCsv'])->name('pendapatan.rangkuman-buku-pembantu-piutang.export-csv');
             Route::get('/pendapatan/buku-pembantu-piutang-mutasi', [LaporanPendapatanController::class, 'bukuPembantuPiutangMutasi'])->name('pendapatan.buku-pembantu-piutang-mutasi');
             Route::get('/pendapatan/buku-pembantu-piutang-mutasi/export-csv', [LaporanPendapatanController::class, 'exportBukuPembantuPiutangMutasiCsv'])->name('pendapatan.buku-pembantu-piutang-mutasi.export-csv');
+        });
+
+        Route::middleware('module.access:laporan.pembelian,view')->group(function () {
+            Route::get('/pembelian', [LaporanPembelianController::class, 'index'])->name('pembelian.index');
+            Route::get('/pembelian/buku-pembantu-hutang', [LaporanPembelianController::class, 'bukuPembantuHutang'])->name('pembelian.buku-pembantu-hutang');
+            Route::get('/pembelian/buku-pembantu-hutang/search-supplier', [LaporanPembelianController::class, 'searchBukuPembantuHutangSupplier'])->name('pembelian.buku-pembantu-hutang.search-supplier');
+            Route::get('/pembelian/buku-pembantu-hutang/search-coa', [LaporanPembelianController::class, 'searchBukuPembantuHutangCoa'])->name('pembelian.buku-pembantu-hutang.search-coa');
+            Route::get('/pembelian/buku-pembantu-hutang/export-csv', [LaporanPembelianController::class, 'exportBukuPembantuHutangCsv'])->name('pembelian.buku-pembantu-hutang.export-csv');
+            Route::get('/pembelian/rangkuman-buku-pembantu-hutang', [LaporanPembelianController::class, 'rangkumanBukuPembantuHutang'])->name('pembelian.rangkuman-buku-pembantu-hutang');
+            Route::get('/pembelian/rangkuman-buku-pembantu-hutang/export-csv', [LaporanPembelianController::class, 'exportRangkumanBukuPembantuHutangCsv'])->name('pembelian.rangkuman-buku-pembantu-hutang.export-csv');
+            Route::get('/pembelian/buku-pembantu-hutang-mutasi', [LaporanPembelianController::class, 'bukuPembantuHutangMutasi'])->name('pembelian.buku-pembantu-hutang-mutasi');
+            Route::get('/pembelian/buku-pembantu-hutang-mutasi/export-csv', [LaporanPembelianController::class, 'exportBukuPembantuHutangMutasiCsv'])->name('pembelian.buku-pembantu-hutang-mutasi.export-csv');
         });
     });
 
@@ -300,6 +382,36 @@ Route::middleware('auth')->group(function () {
         });
         Route::middleware('module.access:pengaturan.master-pelaksana,delete')->group(function () {
             Route::delete('/pelaksana/{pelaksana}', [PelaksanaController::class, 'destroy'])->name('pelaksana.destroy');
+        });
+
+        Route::middleware('module.access:pengaturan.supplier,view')->group(function () {
+            Route::get('/supplier', [SupplierController::class, 'index'])->name('supplier.index');
+        });
+        Route::middleware('module.access:pengaturan.supplier,create')->group(function () {
+            Route::get('/supplier/create', [SupplierController::class, 'create'])->name('supplier.create');
+            Route::post('/supplier', [SupplierController::class, 'store'])->name('supplier.store');
+        });
+        Route::middleware('module.access:pengaturan.supplier,update')->group(function () {
+            Route::get('/supplier/{supplier}/edit', [SupplierController::class, 'edit'])->name('supplier.edit');
+            Route::put('/supplier/{supplier}', [SupplierController::class, 'update'])->name('supplier.update');
+        });
+        Route::middleware('module.access:pengaturan.supplier,delete')->group(function () {
+            Route::delete('/supplier/{supplier}', [SupplierController::class, 'destroy'])->name('supplier.destroy');
+        });
+
+        Route::middleware('module.access:pengaturan.layanan-informasi,view')->group(function () {
+            Route::get('/layanan-informasi', [LayananInformasiController::class, 'index'])->name('layanan-informasi.index');
+        });
+        Route::middleware('module.access:pengaturan.layanan-informasi,create')->group(function () {
+            Route::get('/layanan-informasi/create', [LayananInformasiController::class, 'create'])->name('layanan-informasi.create');
+            Route::post('/layanan-informasi', [LayananInformasiController::class, 'store'])->name('layanan-informasi.store');
+        });
+        Route::middleware('module.access:pengaturan.layanan-informasi,update')->group(function () {
+            Route::get('/layanan-informasi/{layananInformasi}/edit', [LayananInformasiController::class, 'edit'])->name('layanan-informasi.edit');
+            Route::put('/layanan-informasi/{layananInformasi}', [LayananInformasiController::class, 'update'])->name('layanan-informasi.update');
+        });
+        Route::middleware('module.access:pengaturan.layanan-informasi,delete')->group(function () {
+            Route::delete('/layanan-informasi/{layananInformasi}', [LayananInformasiController::class, 'destroy'])->name('layanan-informasi.destroy');
         });
 
         Route::middleware('module.access:pengaturan.mapping-pendapatan,view')->group(function () {
@@ -324,6 +436,7 @@ Route::middleware('auth')->group(function () {
 
         Route::middleware('module.access:pengaturan.mapping-penjamin,view')->group(function () {
             Route::get('/mapping-penjamin', [MappingPenjaminController::class, 'index'])->name('mapping-penjamin.index');
+            Route::get('/mapping-penjamin/load-data', [MappingPenjaminController::class, 'loadData'])->name('mapping-penjamin.load-data');
         });
         Route::middleware('module.access:pengaturan.mapping-penjamin,create')->group(function () {
             Route::get('/mapping-penjamin/create', [MappingPenjaminController::class, 'create'])->name('mapping-penjamin.create');

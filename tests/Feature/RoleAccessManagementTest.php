@@ -92,10 +92,12 @@ class RoleAccessManagementTest extends TestCase
 
         Schema::create('mapping_penjamin_piutang', function (Blueprint $table) {
             $table->increments('id');
-            $table->string('penjamin_id')->unique();
+            $table->string('penjamin_id');
             $table->string('nama_penjamin');
+            $table->string('jenis_layanan')->default('rawat_jalan');
             $table->unsignedInteger('coa_id');
             $table->timestamps();
+            $table->unique(['penjamin_id', 'jenis_layanan']);
         });
 
         $timestamp = now();

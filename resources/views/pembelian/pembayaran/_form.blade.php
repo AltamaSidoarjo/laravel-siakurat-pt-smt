@@ -77,7 +77,7 @@
                     Tanggal<span class="text-danger">*</span>
                 </label>
                 <div class="col">
-                    <input type="date" name="tanggal" id="input_tanggal" class="form-control" value="{{ old('tanggal', isset($pembayaranPembelian) ? optional($pembayaranPembelian->tanggal)->format('Y-m-d') : '') }}" required>
+                    <input type="date" name="tanggal" id="input_tanggal" class="form-control" value="{{ old('tanggal', isset($pembayaranPembelian) ? optional($pembayaranPembelian->tanggal)->format('Y-m-d') : date('Y-m-d')) }}" required>
                 </div>
             </div>
 

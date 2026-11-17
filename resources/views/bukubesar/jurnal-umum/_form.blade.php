@@ -1,19 +1,54 @@
 @php
     $isEdit = isset($jurnalUmum);
+    $pelaksanaOptions = $pelaksanaOptions ?? collect();
     $rincian = old('rincian', $isEdit ? $jurnalUmum->rincian->map(fn ($item) => [
         'coa_id' => $item->coa_id,
+        'pelaksana_id' => $item->pelaksana_id,
         'debit' => (int) $item->debit,
         'kredit' => (int) $item->kredit,
         'catatan' => $item->catatan,
-    ])->toArray() : [[
+    ])->toArray() : ($initialRincian ?? [[
         'coa_id' => '',
+        'pelaksana_id' => '',
         'debit' => 0,
         'kredit' => 0,
         'catatan' => '',
-    ]]);
+    ]]));
 @endphp
 
 <div class="d-flex flex-column gap-3">
+    @if (! $isEdit && isset($templateOptions) && $templateOptions->isNotEmpty())
+        <div class="card border-success border-opacity-50 shadow-sm bg-success-subtle bg-opacity-25">
+            <div class="card-body py-2 px-3">
+                <div class="row align-items-center g-2">
+                    <div class="col-12 col-md-auto">
+                        <span class="fw-bold text-dark">
+                            <i class="bi bi-file-earmark-text-fill text-success me-1"></i> Gunakan Template Jurnal:
+                        </span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <select id="select_template_jurnal" class="form-select form-select-sm">
+                            <option value="">-- Pilih Template --</option>
+                            @foreach ($templateOptions as $tpl)
+                                <option value="{{ $tpl->id }}" @selected(($selectedTemplate->id ?? null) === $tpl->id)>
+                                    {{ $tpl->nama }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-auto d-flex gap-2">
+                        <button type="button" id="btn_apply_template" class="btn btn-sm btn-success fw-bold">
+                            <i class="bi bi-box-arrow-in-down me-1"></i> Terapkan Template
+                        </button>
+                        <a href="{{ route('bukubesar.jurnal-umum-template.index') }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Buka master template">
+                            <i class="bi bi-gear-fill me-1"></i> Kelola Template
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="card border-light shadow-sm">
         <div class="card-header fw-bold bg-success-subtle text-success">
             Header
@@ -33,7 +68,7 @@
                     Tanggal<span class="text-danger">*</span>
                 </label>
                 <div class="col">
-                    <input type="date" name="tanggal" id="input_tanggal" class="form-control" value="{{ old('tanggal', isset($jurnalUmum) ? optional($jurnalUmum->tanggal)->format('Y-m-d') : '') }}" required>
+                    <input type="date" name="tanggal" id="input_tanggal" class="form-control" value="{{ old('tanggal', isset($jurnalUmum) ? optional($jurnalUmum->tanggal)->format('Y-m-d') : date('Y-m-d')) }}" required>
                 </div>
             </div>
 
@@ -42,7 +77,7 @@
                     Keterangan
                 </label>
                 <div class="col">
-                    <textarea name="keterangan" id="input_keterangan" class="form-control" rows="3">{{ old('keterangan', $jurnalUmum->keterangan ?? '') }}</textarea>
+                    <textarea name="keterangan" id="input_keterangan" class="form-control" rows="3">{{ old('keterangan', $jurnalUmum->keterangan ?? ($initialKeterangan ?? '')) }}</textarea>
                 </div>
             </div>
         </div>
@@ -58,6 +93,7 @@
                     <thead>
                         <tr>
                             <th class="text-center align-middle" style="min-width: 250px;">Akun<span class="text-danger">*</span></th>
+                            <th class="text-center align-middle" style="min-width: 220px;">Pelaksana</th>
                             <th class="text-center align-middle" style="min-width: 160px;">Debit<span class="text-danger">*</span></th>
                             <th class="text-center align-middle" style="min-width: 160px;">Kredit<span class="text-danger">*</span></th>
                             <th class="text-center align-middle" style="min-width: 200px;">Catatan</th>
@@ -73,6 +109,16 @@
                                         @foreach ($coaOptions as $coa)
                                             <option value="{{ $coa->id }}" @selected((string) ($item['coa_id'] ?? '') === (string) $coa->id)>
                                                 {{ $coa->kode }} - {{ $coa->nama }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td class="align-middle">
+                                    <select name="rincian[{{ $index }}][pelaksana_id]" class="form-select select2-pelaksana">
+                                        <option value="">Tanpa Pelaksana</option>
+                                        @foreach ($pelaksanaOptions as $pelaksana)
+                                            <option value="{{ $pelaksana->id }}" @selected((string) ($item['pelaksana_id'] ?? '') === (string) $pelaksana->id)>
+                                                {{ $pelaksana->nama_pelaksana }}@if (! $pelaksana->status_aktif) (Nonaktif)@endif
                                             </option>
                                         @endforeach
                                     </select>
@@ -96,7 +142,7 @@
                     </tbody>
                     <tfoot>
                         <tr>
-                            <th class="text-end align-middle">Total</th>
+                            <th colspan="2" class="text-end align-middle">Total</th>
                             <td>
                                 <input type="text" name="debit" id="input_total_debit" class="form-control text-end" value="{{ number_format((float) old('debit', $jurnalUmum->debit ?? 0), 0, ',', '.') }}" readonly>
                             </td>

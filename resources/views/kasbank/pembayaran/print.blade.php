@@ -163,13 +163,15 @@
 
         <table class="table-print mt-2">
             <colgroup>
-                <col style="width:40%">
-                <col style="width:40%">
-                <col style="width:20%">
+                <col style="width:35%">
+                <col style="width:23%">
+                <col style="width:24%">
+                <col style="width:18%">
             </colgroup>
             <thead>
                 <tr>
                     <th>Akun</th>
+                    <th>Pelaksana</th>
                     <th>Keterangan</th>
                     <th>Nominal</th>
                 </tr>
@@ -178,18 +180,19 @@
                 @forelse ($kasbankPembayaran->rincian as $item)
                     <tr>
                         <td class="wrap-text">{{ $item->coa?->kode }} - {{ $item->coa?->nama }}</td>
+                        <td class="wrap-text">{{ $item->pelaksana?->nama_pelaksana ?? '-' }}</td>
                         <td class="wrap-text">{{ $item->catatan }}</td>
                         <td class="num">{{ $formatRupiah($item->nominal) }}</td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="3" class="wrap-text text-center">Belum ada rincian ditambahkan</td>
+                        <td colspan="4" class="wrap-text text-center">Belum ada rincian ditambahkan</td>
                     </tr>
                 @endforelse
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="2" class="num" style="font-weight:700;">Jumlah</td>
+                    <td colspan="3" class="num" style="font-weight:700;">Jumlah</td>
                     <td class="num" style="font-weight:700;">{{ $formatRupiah($kasbankPembayaran->total) }}</td>
                 </tr>
             </tfoot>

@@ -22,6 +22,7 @@ class AccessModuleRegistry
             ['kode' => 'pembelian.pembayaran', 'nama' => 'Pembayaran Pembelian', 'group_nama' => 'Pembelian', 'urutan' => 120],
             ['kode' => 'laporan.keuangan', 'nama' => 'Laporan Keuangan', 'group_nama' => 'Laporan', 'urutan' => 130],
             ['kode' => 'laporan.pendapatan', 'nama' => 'Laporan Pendapatan', 'group_nama' => 'Laporan', 'urutan' => 140],
+            ['kode' => 'laporan.pembelian', 'nama' => 'Laporan Pembelian', 'group_nama' => 'Laporan', 'urutan' => 145],
             ['kode' => 'pengaturan.mapping-pendapatan', 'nama' => 'Mapping Pendapatan', 'group_nama' => 'Pengaturan', 'urutan' => 150],
             ['kode' => 'pengaturan.mapping-penjamin', 'nama' => 'Mapping Penjamin', 'group_nama' => 'Pengaturan', 'urutan' => 155],
             ['kode' => 'pengaturan.mapping-general', 'nama' => 'Mapping General', 'group_nama' => 'Pengaturan', 'urutan' => 160],
@@ -31,6 +32,8 @@ class AccessModuleRegistry
             ['kode' => 'pengaturan.role-akses', 'nama' => 'Role Akses', 'group_nama' => 'Pengaturan', 'urutan' => 200],
             ['kode' => 'pengaturan.konversi-file', 'nama' => 'Konversi File', 'group_nama' => 'Pengaturan', 'urutan' => 210],
             ['kode' => 'pengaturan.master-pelaksana', 'nama' => 'Master Pelaksana', 'group_nama' => 'Pengaturan', 'urutan' => 220],
+            ['kode' => 'pengaturan.supplier', 'nama' => 'Master Supplier', 'group_nama' => 'Pengaturan', 'urutan' => 225],
+            ['kode' => 'pengaturan.layanan-informasi', 'nama' => 'Layanan Informasi', 'group_nama' => 'Pengaturan', 'urutan' => 228],
         ];
     }
 }

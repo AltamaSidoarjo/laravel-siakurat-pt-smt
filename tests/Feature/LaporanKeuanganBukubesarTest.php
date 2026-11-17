@@ -930,4 +930,164 @@ class LaporanKeuanganBukubesarTest extends TestCase
         $this->assertSame(1, $matchingRows->first()['root_order']);
         $this->assertSame(105152.0, $total);
     }
+
+    public function test_resolve_transaction_url_maps_known_sources(): void
+    {
+        $service = app(LaporanKeuanganService::class);
+
+        $this->assertSame(
+            route('bukubesar.jurnal-umum.edit', ['jurnalUmum' => 10]),
+            $service->resolveTransactionUrl('Jurnal Umum', 10)
+        );
+        $this->assertSame(
+            route('pendapatan.invoice.edit', ['fakturPenjualan' => 20]),
+            $service->resolveTransactionUrl('Invoice Pendapatan', 20)
+        );
+        $this->assertSame(
+            route('kasbank.penerimaan.edit', ['kasbankPenerimaan' => 30]),
+            $service->resolveTransactionUrl('Kasbank Penerimaan', 30)
+        );
+        $this->assertSame(
+            route('kasbank.pembayaran.edit', ['kasbankPembayaran' => 40]),
+            $service->resolveTransactionUrl('Kasbank Pembayaran', 40)
+        );
+        $this->assertSame(
+            route('pendapatan.penerimaan.edit', ['penerimaanPenjualan' => 50]),
+            $service->resolveTransactionUrl('Penerimaan Pendapatan', 50)
+        );
+        $this->assertSame(
+            route('pembelian.pembayaran.edit', ['pembayaranPembelian' => 60]),
+            $service->resolveTransactionUrl('Pembayaran Pembelian', 60)
+        );
+        $this->assertSame(
+            route('pembelian.invoice.read', ['fakturPembelian' => 70]),
+            $service->resolveTransactionUrl('Invoice Pembelian', 70)
+        );
+        $this->assertNull($service->resolveTransactionUrl('SALDO AWAL', null));
+        $this->assertNull($service->resolveTransactionUrl('Invoice Pendapatan', null));
+        $this->assertNull($service->resolveTransactionUrl(null, 10));
+        $this->assertNull($service->resolveTransactionUrl('Sumber Lain', 10));
+    }
+
+    public function test_bukubesar_includes_url_and_sumber_id_in_rows(): void
+    {
+        $coa = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Pendapatan',
+            'kode' => '410.01',
+            'nama' => 'Pendapatan Operasional',
+            'is_postable' => true,
+        ]);
+
+        BukuBesar::query()->create([
+            'coa_id' => $coa->id,
+            'sumber_id' => 99,
+            'tanggal' => '2026-10-05',
+            'nomer' => 'INV-99',
+            'sumber_transaksi' => 'Invoice Pendapatan',
+            'nominal' => 250000,
+            'tipe_mutasi' => 'K',
+            'keterangan' => 'Billing Rawat Jalan',
+        ]);
+
+        $service = app(LaporanKeuanganService::class);
+        $result = $service->getBukubesar('2026-10-01', '2026-10-13', [$coa->id]);
+
+        $data = collect($result['data'])->firstWhere('coa_id', $coa->id);
+        $this->assertNotNull($data);
+        $row = collect($data['rows'])->firstWhere('nomer', 'INV-99');
+        $this->assertNotNull($row);
+        $this->assertSame(99, $row['sumber_id']);
+        $this->assertSame(route('pendapatan.invoice.edit', ['fakturPenjualan' => 99]), $row['url']);
+    }
+
+    public function test_bukubesar_view_renders_clickable_transaction_number(): void
+    {
+        $view = $this->view('laporan.keuangan.bukubesar', [
+            'logoRsUrl' => '',
+            'namaRumahSakit' => 'RS Test',
+            'page' => 'app',
+            'startDate' => '2026-10-01',
+            'endDate' => '2026-10-13',
+            'selectedCoaIds' => [491],
+            'coaOptions' => collect(),
+            'rowsByCoa' => collect([
+                [
+                    'coa_id' => 491,
+                    'kode_coa' => '431121002',
+                    'nama_coa' => 'Js Periksa',
+                    'rows' => collect([
+                        [
+                            'urutan' => 0,
+                            'tanggal' => '2026-10-01',
+                            'nomer' => '',
+                            'sumber_transaksi' => 'SALDO AWAL',
+                            'sumber_id' => null,
+                            'url' => null,
+                            'keterangan' => 'Saldo awal periode',
+                            'debit' => 0,
+                            'kredit' => 0,
+                            'saldo_berjalan' => 0,
+                        ],
+                        [
+                            'urutan' => 1,
+                            'tanggal' => '2026-10-05',
+                            'nomer' => '1798135',
+                            'sumber_transaksi' => 'Invoice Pendapatan',
+                            'sumber_id' => 123,
+                            'url' => 'http://siakurat_rsa_bojonegoro.test/pendapatan/invoice/123/edit',
+                            'keterangan' => 'Billing Pasien',
+                            'debit' => 0,
+                            'kredit' => 50000,
+                            'saldo_berjalan' => 50000,
+                        ],
+                    ]),
+                ],
+            ]),
+        ]);
+
+        $view->assertSee('href="http://siakurat_rsa_bojonegoro.test/pendapatan/invoice/123/edit"', false);
+        $view->assertSee('target="_blank"', false);
+        $view->assertSee('1798135', false);
+    }
+
+    public function test_load_rincian_transaksi_bukubesar_renders_nomer_as_link(): void
+    {
+        $coa = Coa::query()->create([
+            'status_aktif' => 1,
+            'parent_coa' => null,
+            'tipe_coa' => 'Pendapatan',
+            'kode' => '410.01',
+            'nama' => 'Pendapatan Operasional',
+            'is_postable' => true,
+        ]);
+
+        BukuBesar::query()->create([
+            'coa_id' => $coa->id,
+            'sumber_id' => 88,
+            'tanggal' => '2026-10-06',
+            'nomer' => 'INV-88',
+            'sumber_transaksi' => 'Invoice Pendapatan',
+            'nominal' => 150000,
+            'tipe_mutasi' => 'K',
+            'keterangan' => 'Billing Pelanggan',
+        ]);
+
+        $request = \Illuminate\Http\Request::create('/laporan/keuangan/rincian-transaksi-bukubesar/load-data', 'GET', [
+            'startDate' => '2026-10-01',
+            'endDate' => '2026-10-13',
+        ]);
+
+        $controller = app(\App\Http\Controllers\Laporan\LaporanKeuanganController::class);
+        $response = $controller->loadRincianTransaksiBukubesar($request);
+        $data = $response->getData(true);
+
+        $this->assertNotEmpty($data['data']);
+        $row = $data['data'][0];
+        $expectedUrl = route('pendapatan.invoice.edit', ['fakturPenjualan' => 88]);
+        $this->assertStringContainsString('href="'.$expectedUrl.'"', $row['nomer']);
+        $this->assertStringContainsString('target="_blank"', $row['nomer']);
+        $this->assertStringContainsString('INV-88', $row['nomer']);
+    }
 }

@@ -14,11 +14,13 @@ return new class extends Migration
 
         Schema::create('mapping_penjamin_piutang', function (Blueprint $table): void {
             $table->id();
-            $table->string('penjamin_id', 100)->unique();
+            $table->string('penjamin_id', 100);
             $table->string('nama_penjamin');
+            $table->string('jenis_layanan', 20)->default('rawat_jalan');
             $table->unsignedBigInteger('coa_id');
             $table->timestamps();
 
+            $table->unique(['penjamin_id', 'jenis_layanan'], 'mapping_penjamin_layanan_unique');
             $table->foreign('coa_id')->references('id')->on('coa')->restrictOnDelete();
         });
     }

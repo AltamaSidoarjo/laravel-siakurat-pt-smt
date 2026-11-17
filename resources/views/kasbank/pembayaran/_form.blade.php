@@ -1,17 +1,52 @@
 @php
     $isEdit = isset($kasbankPembayaran);
+    $pelaksanaList = $pelaksanaOptions ?? collect();
     $rincian = old('rincian', $isEdit ? $kasbankPembayaran->rincian->map(fn ($item) => [
         'coa_id' => $item->coa_id,
+        'pelaksana_id' => $item->pelaksana_id,
         'nominal' => (int) $item->nominal,
         'catatan' => $item->catatan,
-    ])->toArray() : [[
+    ])->toArray() : ($initialRincian ?? [[
         'coa_id' => '',
+        'pelaksana_id' => '',
         'nominal' => 0,
         'catatan' => '',
-    ]]);
+    ]]));
 @endphp
 
 <div class="d-flex flex-column gap-3">
+    @if (! $isEdit && isset($templateOptions) && $templateOptions->isNotEmpty())
+        <div class="card border-success border-opacity-50 shadow-sm bg-success-subtle bg-opacity-25">
+            <div class="card-body py-2 px-3">
+                <div class="row align-items-center g-2">
+                    <div class="col-12 col-md-auto">
+                        <span class="fw-bold text-dark">
+                            <i class="bi bi-file-earmark-text-fill text-success me-1"></i> Gunakan Template Pembayaran:
+                        </span>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <select id="select_template_pembayaran" class="form-select form-select-sm">
+                            <option value="">-- Pilih Template --</option>
+                            @foreach ($templateOptions as $tpl)
+                                <option value="{{ $tpl->id }}" @selected(($selectedTemplate->id ?? null) === $tpl->id)>
+                                    {{ $tpl->nama }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-auto d-flex gap-2">
+                        <button type="button" id="btn_apply_template" class="btn btn-sm btn-success fw-bold">
+                            <i class="bi bi-box-arrow-in-down me-1"></i> Terapkan Template
+                        </button>
+                        <a href="{{ route('kasbank.pembayaran-template.index') }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Buka master template">
+                            <i class="bi bi-gear-fill me-1"></i> Kelola Template
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="card border-light shadow-sm">
         <div class="card-header fw-bold bg-success-subtle text-success">
             Header
@@ -34,7 +69,7 @@
                     <select name="coa_id" id="select_coa" class="form-select select2-coa" required>
                         <option value="">Pilih Akun</option>
                         @foreach ($coaOptions as $coa)
-                            <option value="{{ $coa->id }}" @selected((string) old('coa_id', $kasbankPembayaran->coa_id ?? '') === (string) $coa->id)>
+                            <option value="{{ $coa->id }}" @selected((string) old('coa_id', $kasbankPembayaran->coa_id ?? ($initialCoaId ?? '')) === (string) $coa->id)>
                                 {{ $coa->kode }} - {{ $coa->nama }}
                             </option>
                         @endforeach
@@ -47,7 +82,7 @@
                     Tanggal<span class="text-danger">*</span>
                 </label>
                 <div class="col">
-                    <input type="date" name="tanggal" id="input_tanggal" class="form-control" value="{{ old('tanggal', isset($kasbankPembayaran) ? optional($kasbankPembayaran->tanggal)->format('Y-m-d') : '') }}" required>
+                    <input type="date" name="tanggal" id="input_tanggal" class="form-control" value="{{ old('tanggal', isset($kasbankPembayaran) ? optional($kasbankPembayaran->tanggal)->format('Y-m-d') : date('Y-m-d')) }}" required>
                 </div>
             </div>
 
@@ -56,7 +91,7 @@
                     Keterangan
                 </label>
                 <div class="col">
-                    <textarea name="keterangan" id="input_keterangan" class="form-control" rows="3">{{ old('keterangan', $kasbankPembayaran->keterangan ?? '') }}</textarea>
+                    <textarea name="keterangan" id="input_keterangan" class="form-control" rows="3">{{ old('keterangan', $kasbankPembayaran->keterangan ?? ($initialKeterangan ?? '')) }}</textarea>
                 </div>
             </div>
         </div>
@@ -71,8 +106,9 @@
                 <table id="table_data_detail" class="table table-sm table-bordered">
                     <thead>
                         <tr>
-                            <th class="text-center align-middle" style="min-width: 250px;">Akun<span class="text-danger">*</span></th>
-                            <th class="text-center align-middle" style="min-width: 200px;">Nominal<span class="text-danger">*</span></th>
+                            <th class="text-center align-middle" style="min-width: 230px;">Akun<span class="text-danger">*</span></th>
+                            <th class="text-center align-middle" style="min-width: 200px;">Pelaksana / Dokter</th>
+                            <th class="text-center align-middle" style="min-width: 170px;">Nominal<span class="text-danger">*</span></th>
                             <th class="text-center align-middle" style="min-width: 200px;">Catatan</th>
                             <th class="text-center align-middle" style="width: 50px;">#</th>
                         </tr>
@@ -86,6 +122,16 @@
                                         @foreach ($coaOptions as $coa)
                                             <option value="{{ $coa->id }}" @selected((string) ($item['coa_id'] ?? '') === (string) $coa->id)>
                                                 {{ $coa->kode }} - {{ $coa->nama }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </td>
+                                <td class="align-middle">
+                                    <select name="rincian[{{ $index }}][pelaksana_id]" class="form-select select2-pelaksana">
+                                        <option value="">Pilih Pelaksana (Opsional)</option>
+                                        @foreach ($pelaksanaList as $pelaksana)
+                                            <option value="{{ $pelaksana->id }}" @selected((string) ($item['pelaksana_id'] ?? '') === (string) $pelaksana->id)>
+                                                {{ $pelaksana->nama_pelaksana }}
                                             </option>
                                         @endforeach
                                     </select>
@@ -110,6 +156,7 @@
                             <td>
                                 <input type="text" name="total" id="input_total" class="form-control text-end" value="{{ number_format((float) old('total', $kasbankPembayaran->total ?? 0), 0, ',', '.') }}" readonly>
                             </td>
+                            <td></td>
                             <td></td>
                         </tr>
                     </tfoot>

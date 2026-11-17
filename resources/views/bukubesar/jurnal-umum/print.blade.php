@@ -164,14 +164,16 @@
 
         <table class="table-print mt-2">
             <colgroup>
-                <col style="width:42%">
-                <col style="width:28%">
-                <col style="width:15%">
-                <col style="width:15%">
+                <col style="width:32%">
+                <col style="width:20%">
+                <col style="width:22%">
+                <col style="width:13%">
+                <col style="width:13%">
             </colgroup>
             <thead>
                 <tr>
                     <th>Akun</th>
+                    <th>Pelaksana</th>
                     <th>Catatan</th>
                     <th>Debit</th>
                     <th>Kredit</th>
@@ -181,19 +183,20 @@
                 @forelse ($jurnalUmum->rincian as $item)
                     <tr>
                         <td class="wrap-text">{{ $item->coa?->kode }} - {{ $item->coa?->nama }}</td>
+                        <td class="wrap-text">{{ $item->pelaksana?->nama_pelaksana ?? '-' }}</td>
                         <td class="wrap-text">{{ $item->catatan }}</td>
                         <td class="num">{{ $formatRupiah($item->debit) }}</td>
                         <td class="num">{{ $formatRupiah($item->kredit) }}</td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="wrap-text text-center">Belum ada rincian ditambahkan</td>
+                        <td colspan="5" class="wrap-text text-center">Belum ada rincian ditambahkan</td>
                     </tr>
                 @endforelse
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="2" class="num" style="font-weight:700;">Total</td>
+                    <td colspan="3" class="num" style="font-weight:700;">Total</td>
                     <td class="num" style="font-weight:700;">{{ $formatRupiah($jurnalUmum->debit) }}</td>
                     <td class="num" style="font-weight:700;">{{ $formatRupiah($jurnalUmum->kredit) }}</td>
                 </tr>

@@ -37,9 +37,9 @@
                                 <input type="date" id="endDate" name="endDate" class="form-control" value="{{ $endDate }}">
                             </div>
                             <div class="col-md-3">
-                                <label for="pelaksanaId" class="form-label">Dokter</label>
+                                <label for="pelaksanaId" class="form-label">Dokter / Pelaksana</label>
                                 <select id="pelaksanaId" name="pelaksanaId" class="form-select select2">
-                                    <option value="">Semua dokter</option>
+                                    <option value="">Semua dokter / pelaksana</option>
                                     @foreach ($pelaksanaOptions as $pelaksana)
                                         <option value="{{ $pelaksana->id }}" @selected((string) $pelaksanaId === (string) $pelaksana->id)>
                                             {{ $pelaksana->nama_pelaksana }}
@@ -89,7 +89,7 @@
             @endif
 
             <div class="alert alert-info mb-0">
-                Pendapatan dihitung dari subtotal rincian invoice yang memiliki pelaksana dokter. Jumlah billing adalah jumlah invoice unik.
+                Pendapatan dihitung dari subtotal rincian invoice yang memiliki pelaksana. Jumlah billing adalah jumlah invoice unik.
             </div>
 
             <div class="card border-light shadow-sm">
@@ -98,7 +98,7 @@
                         <table class="table table-sm table-striped table-bordered table-hover" id="datatable">
                             <thead>
                                 <tr>
-                                    <th>Dokter</th>
+                                    <th>Dokter / Pelaksana</th>
                                     <th>Tanggal</th>
                                     <th>Kode Akun</th>
                                     <th>Sumber Pendapatan</th>
@@ -115,7 +115,7 @@
                             <div class="alert alert-secondary fw-bold mb-0">Total Billing Unik: <span id="totalBillingValue">0</span></div>
                         </div>
                         <div class="col-md-6">
-                            <div class="alert alert-success fw-bold mb-0">Total Pendapatan Dokter: <span id="grandTotalValue">Rp 0</span></div>
+                            <div class="alert alert-success fw-bold mb-0">Total Pendapatan: <span id="grandTotalValue">Rp 0</span></div>
                         </div>
                     </div>
                 </div>
@@ -145,10 +145,10 @@
                 order: [[0, 'asc'], [1, 'asc'], [2, 'asc']],
                 pageLength: 25,
                 columns: [
-                    { data: 'dokter', name: 'p.nama_pelaksana' },
-                    { data: 'tanggal', name: 'fp.tanggal_faktur' },
-                    { data: 'kode_akun', name: 'c.kode' },
-                    { data: 'layanan', name: 'c.nama' },
+                    { data: 'dokter', name: 'dokter' },
+                    { data: 'tanggal', name: 'tanggal' },
+                    { data: 'kode_akun', name: 'kode_akun' },
+                    { data: 'layanan', name: 'layanan' },
                     { data: 'jumlah_billing', name: 'jumlah_billing', className: 'text-end', orderable: false },
                     {
                         data: 'total_pendapatan',
@@ -158,7 +158,7 @@
                         render: function (value) { return 'Rp ' + value; }
                     }
                 ],
-                language: { emptyTable: 'Belum ada pendapatan dokter pada rentang ini.' }
+                language: { emptyTable: 'Belum ada pendapatan pelaksana pada rentang ini.' }
             });
 
             table.on('xhr', function (event, settings, json) {

@@ -21,7 +21,7 @@
         <div class="card-body">
             <div class="row align-items-center mb-2">
                 <label for="nomor_faktur" class="col-12 col-sm-2 col-form-label fw-bold">Nomor<span class="text-danger">*</span></label>
-                <div class="col"><input type="text" id="nomor_faktur" name="nomor_faktur" class="form-control" value="{{ old('nomor_faktur', $invoicePendapatan->nomor_faktur ?? '') }}" required @readonly($isImported)></div>
+                <div class="col"><input type="text" id="nomor_faktur" name="nomor_faktur" class="form-control" value="{{ old('nomor_faktur', $invoicePendapatan->nomor_faktur ?? '') }}" required></div>
             </div>
             <div class="row align-items-center mb-2">
                 <label for="tanggal_faktur" class="col-12 col-sm-2 col-form-label fw-bold">Tanggal<span class="text-danger">*</span></label>
@@ -30,15 +30,17 @@
             <div class="row align-items-center mb-2">
                 <label for="pelanggan_id" class="col-12 col-sm-2 col-form-label fw-bold">Penjamin<span class="text-danger">*</span></label>
                 <div class="col">
-                    <select id="pelanggan_id" name="pelanggan_id" class="form-select select2 select2-header" required @disabled($isImported)>
+                    <select id="pelanggan_id" name="pelanggan_id" class="form-select select2 select2-header" required>
                         <option value="">Pilih Penjamin</option>
+                        @if (isset($invoicePendapatan?->pelanggan) && ! collect($pelangganOptions)->contains(fn ($p) => (string) data_get($p, 'id') === (string) $invoicePendapatan->pelanggan_id))
+                            <option value="{{ $invoicePendapatan->pelanggan_id }}" selected>{{ $invoicePendapatan->pelanggan->nama_pelanggan }}</option>
+                        @endif
                         @foreach ($pelangganOptions as $pelanggan)
                             @php($pelangganId = data_get($pelanggan, 'id'))
                             @php($pelangganNama = data_get($pelanggan, 'nama', data_get($pelanggan, 'nama_pelanggan')))
                             <option value="{{ $pelangganId }}" @selected((string) old('pelanggan_id', $invoicePendapatan->pelanggan_id ?? '') === (string) $pelangganId)>{{ $pelangganNama }}</option>
                         @endforeach
                     </select>
-                    @if ($isImported)<input type="hidden" name="pelanggan_id" value="{{ $invoicePendapatan->pelanggan_id }}">@endif
                 </div>
             </div>
             <div class="row align-items-center mb-2">
@@ -51,7 +53,7 @@
             @foreach ([['nama_pasien', 'Nama Pasien', true], ['nomer_rekam_medis', 'No. RM', false]] as [$field, $label, $required])
                 <div class="row align-items-center mb-2">
                     <label for="{{ $field }}" class="col-12 col-sm-2 col-form-label fw-bold">{{ $label }}@if($required)<span class="text-danger">*</span>@endif</label>
-                    <div class="col"><input type="text" id="{{ $field }}" name="{{ $field }}" class="form-control" value="{{ old($field, $invoicePendapatan->{$field} ?? '') }}" @required($required) @readonly($isImported)></div>
+                    <div class="col"><input type="text" id="{{ $field }}" name="{{ $field }}" class="form-control" value="{{ old($field, $invoicePendapatan->{$field} ?? '') }}" @required($required)></div>
                 </div>
             @endforeach
             @foreach ([['nama_dokter', 'Dokter', $dokterOptions], ['nama_poli', 'Poli', $poliOptions]] as [$field, $label, $options])
@@ -59,7 +61,7 @@
                 <div class="row align-items-center mb-2">
                     <label for="{{ $field }}" class="col-12 col-sm-2 col-form-label fw-bold">{{ $label }}</label>
                     <div class="col">
-                        <select id="{{ $field }}" name="{{ $field }}" class="form-select select2" @disabled($isImported)>
+                        <select id="{{ $field }}" name="{{ $field }}" class="form-select select2">
                             <option value="">Pilih {{ $label }}</option>
                             @if (filled($selectedValue) && ! $options->contains('nama', $selectedValue))
                                 <option value="{{ $selectedValue }}" selected>{{ $selectedValue }}</option>
@@ -68,7 +70,6 @@
                                 <option value="{{ $option['nama'] }}" @selected($selectedValue === $option['nama'])>{{ $option['nama'] }}</option>
                             @endforeach
                         </select>
-                        @if ($isImported)<input type="hidden" name="{{ $field }}" value="{{ $selectedValue }}">@endif
                     </div>
                 </div>
             @endforeach

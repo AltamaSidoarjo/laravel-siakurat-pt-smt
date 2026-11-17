@@ -303,13 +303,12 @@ class BillingPendapatanJournalImportService
             $coa = $coaDitemukan->get($kode)->first();
 
             return (int) $coa->status_aktif !== 1
-                || ! (bool) $coa->is_postable
                 || (int) $coa->children_count > 0;
         });
 
         if ($invalid->isNotEmpty()) {
             throw new RuntimeException(
-                'COA tidak aktif, tidak postable, atau bukan akun leaf: '.$invalid->implode(', ').'.',
+                'COA tidak aktif atau bukan akun leaf: '.$invalid->implode(', ').'.',
             );
         }
 

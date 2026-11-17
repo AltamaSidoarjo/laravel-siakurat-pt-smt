@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Supplier extends Model
@@ -37,5 +38,24 @@ class Supplier extends Model
     public function pembayaranPembelians()
     {
         return $this->hasMany(PembayaranPembelian::class, 'supplier_id');
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('status_aktif', true);
+    }
+
+    public function scopeSearch(Builder $query, ?string $search): Builder
+    {
+        $search = trim((string) $search);
+
+        return $query->when($search !== '', function (Builder $query) use ($search): void {
+            $query->where(function (Builder $query) use ($search): void {
+                $query->where('kode_supplier', 'like', '%'.$search.'%')
+                    ->orWhere('nama_supplier', 'like', '%'.$search.'%')
+                    ->orWhere('kategori_supplier', 'like', '%'.$search.'%')
+                    ->orWhere('email_supplier', 'like', '%'.$search.'%');
+            });
+        });
     }
 }

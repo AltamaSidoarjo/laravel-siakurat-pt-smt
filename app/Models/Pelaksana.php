@@ -24,6 +24,16 @@ class Pelaksana extends Model
         return $this->hasMany(FakturPenjualanRinci::class, 'pelaksana_id');
     }
 
+    public function rincianJurnalUmum()
+    {
+        return $this->hasMany(JurnalUmumRinci::class, 'pelaksana_id');
+    }
+
+    public function rincianKasbankPembayaran()
+    {
+        return $this->hasMany(KasbankPembayaranRinci::class, 'pelaksana_id');
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status_aktif', true);

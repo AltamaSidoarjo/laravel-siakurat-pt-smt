@@ -50,9 +50,27 @@ class LaporanKeuanganController extends Controller
                     ? $row->tanggal->format('Y-m-d')
                     : (string) $row->tanggal;
             })
+            ->editColumn('nomer', function ($row) {
+                $nomer = (string) ($row->nomer ?? '');
+                if ($nomer === '') {
+                    return '-';
+                }
+
+                $url = $this->laporanKeuanganService->resolveTransactionUrl(
+                    $row->sumber_transaksi,
+                    ! empty($row->sumber_id) ? (int) $row->sumber_id : null
+                );
+
+                if (! empty($url)) {
+                    return '<a href="'.e($url).'" target="_blank" rel="noopener noreferrer" class="text-decoration-underline text-primary fw-semibold" title="Buka transaksi di tab baru">'.e($nomer).'</a>';
+                }
+
+                return e($nomer);
+            })
             ->addColumn('coa', fn ($row) => trim(($row->kode_coa ?? '-').' - '.($row->nama_coa ?? '-')))
             ->addColumn('debit', fn ($row) => $row->tipe_mutasi === 'D' ? number_format((float) $row->nominal, 0, ',', '.') : '-')
             ->addColumn('kredit', fn ($row) => $row->tipe_mutasi === 'K' ? number_format((float) $row->nominal, 0, ',', '.') : '-')
+            ->rawColumns(['nomer'])
             ->toJson();
     }
 
@@ -126,6 +144,32 @@ class LaporanKeuanganController extends Controller
                 'parentCoa' => $data['parent'],
                 'rows' => $data['rows'],
             ],
+        ));
+    }
+
+    public function labaRugiKomparasiBulanan(Request $request): View
+    {
+        $startDate = $request->date('startDate')?->format('Y-m-d') ?? now()->startOfYear()->format('Y-m-d');
+        $endDate = $request->date('endDate')?->format('Y-m-d') ?? now()->format('Y-m-d');
+
+        $data = $this->laporanKeuanganService->getLabaRugiKomparasiBulanan($startDate, $endDate);
+
+        return view('laporan.keuangan.laba-rugi-komparasi-bulanan', array_merge(
+            $this->laporanKeuanganService->getIdentitasLaporan(),
+            [
+                'page' => 'app',
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+                'months' => $data['months'],
+                'sections' => $data['sections'],
+                'summary' => $data['summary'] ?? [],
+                'summary_rows' => $data['summary_rows'] ?? [],
+                'labaKotor' => $data['laba_kotor'] ?? [],
+                'labaOperasional' => $data['laba_operasional'] ?? [],
+                'totalPendapatanBebanLain' => $data['total_pendapatan_beban_lain'] ?? [],
+                'labaBersih' => $data['laba_bersih'] ?? [],
+            ],
+            $data,
         ));
     }
 

@@ -58,6 +58,13 @@
                     'icon' => 'bi-card-list',
                     'description' => 'Laporan laba rugi dengan rincian pendapatan dan beban secara mendalam.'
                 ],
+                [
+                    'label' => 'Laba Rugi Komparasi Bulanan',
+                    'route' => route('laporan.keuangan.laba-rugi-komparasi-bulanan'),
+                    'state' => 'active',
+                    'icon' => 'bi-calendar3-range',
+                    'description' => 'Laporan komparasi laba rugi bulanan format Jurnal.id beserta persentase perubahannya.'
+                ],
             ],
         ],
         [

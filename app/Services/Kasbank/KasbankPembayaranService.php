@@ -4,10 +4,12 @@ namespace App\Services\Kasbank;
 
 use App\Models\Coa;
 use App\Models\KasbankPembayaran;
+use App\Models\Pelaksana;
 use App\Services\Bukubesar\BukuBesarService;
 use App\Services\LogAktifitasService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Schema;
 
 class KasbankPembayaranService
 {
@@ -24,6 +26,17 @@ class KasbankPembayaranService
             ->get(['id', 'kode', 'nama']);
     }
 
+    public function getPelaksanaOptions(): Collection
+    {
+        if (! Schema::hasTable('pelaksana')) {
+            return new Collection();
+        }
+
+        return Pelaksana::query()
+            ->orderBy('nama_pelaksana')
+            ->get(['id', 'nama_pelaksana', 'no_proyek']);
+    }
+
     public function getIndexQuery(string $startDate, string $endDate): Builder
     {
         return KasbankPembayaran::query()
@@ -31,6 +44,22 @@ class KasbankPembayaranService
             ->betweenDates($startDate, $endDate)
             ->orderByDesc('tanggal')
             ->orderByDesc('id');
+    }
+
+    /**
+     * @return array{total_count: int, total_nominal: float}
+     */
+    public function getSummary(string $startDate, string $endDate): array
+    {
+        $aggregate = KasbankPembayaran::query()
+            ->betweenDates($startDate, $endDate)
+            ->selectRaw('COUNT(*) as total_count, COALESCE(SUM(total), 0) as total_nominal')
+            ->first();
+
+        return [
+            'total_count' => (int) ($aggregate?->total_count ?? 0),
+            'total_nominal' => (float) ($aggregate?->total_nominal ?? 0),
+        ];
     }
 
     public function create(array $data): KasbankPembayaran
@@ -65,7 +94,7 @@ class KasbankPembayaranService
             'rincian' => $rincianPayload,
         ]);
 
-        return $kasbankPembayaran->load(['coa', 'rincian.coa']);
+        return $kasbankPembayaran->load(['coa', 'rincian.coa', 'rincian.pelaksana']);
     }
 
     public function update(KasbankPembayaran $kasbankPembayaran, array $data): KasbankPembayaran
@@ -76,7 +105,7 @@ class KasbankPembayaranService
             'coa_id' => $kasbankPembayaran->coa_id,
             'keterangan' => $kasbankPembayaran->keterangan,
             'total' => $kasbankPembayaran->total,
-            'rincian' => $kasbankPembayaran->rincian->map->only(['coa_id', 'nominal', 'catatan'])->all(),
+            'rincian' => $kasbankPembayaran->rincian->map->only(['coa_id', 'pelaksana_id', 'nominal', 'catatan'])->all(),
         ];
 
         $kasbankPembayaran->update([
@@ -110,7 +139,7 @@ class KasbankPembayaranService
             'rincian' => $rincianPayload,
         ]);
 
-        return $kasbankPembayaran->load(['coa', 'rincian.coa']);
+        return $kasbankPembayaran->load(['coa', 'rincian.coa', 'rincian.pelaksana']);
     }
 
     public function delete(KasbankPembayaran $kasbankPembayaran): void
@@ -130,13 +159,25 @@ class KasbankPembayaranService
 
     public function mapRincianPayload(array $rincian): array
     {
+        $hasPelaksanaColumn = Schema::hasColumn('kasbank_pembayaran_rinci', 'pelaksana_id');
+
         return collect($rincian)
             ->filter(fn ($row) => ! empty($row['coa_id']))
-            ->map(fn ($row) => [
-                'coa_id' => $row['coa_id'],
-                'nominal' => $row['nominal'] ?? 0,
-                'catatan' => $row['catatan'] ?? null,
-            ])
+            ->map(function ($row) use ($hasPelaksanaColumn): array {
+                $mapped = [
+                    'coa_id' => $row['coa_id'],
+                    'nominal' => $row['nominal'] ?? 0,
+                    'catatan' => $row['catatan'] ?? null,
+                ];
+
+                if ($hasPelaksanaColumn) {
+                    $mapped['pelaksana_id'] = filled($row['pelaksana_id'] ?? null)
+                        ? (int) $row['pelaksana_id']
+                        : null;
+                }
+
+                return $mapped;
+            })
             ->values()
             ->all();
     }

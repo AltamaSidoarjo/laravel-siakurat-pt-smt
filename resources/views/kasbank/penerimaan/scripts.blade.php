@@ -84,7 +84,7 @@
             totalInput.value = formatIdInteger(total);
         }
 
-        function addRow() {
+        function addRow(data = null) {
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td class="align-middle">
@@ -94,10 +94,10 @@
                     </select>
                 </td>
                 <td class="align-middle">
-                    <input type="text" name="rincian[${detailIndex}][nominal]" value="0" class="form-control text-end input-nominal" required>
+                    <input type="text" name="rincian[${detailIndex}][nominal]" value="${data ? formatIdInteger(data.nominal) : '0'}" class="form-control text-end input-nominal" required>
                 </td>
                 <td class="align-middle">
-                    <input type="text" name="rincian[${detailIndex}][catatan]" class="form-control input-catatan">
+                    <input type="text" name="rincian[${detailIndex}][catatan]" value="${data && data.catatan ? data.catatan : ''}" class="form-control input-catatan">
                 </td>
                 <td class="text-center align-middle">
                     <button type="button" class="btn btn-sm btn-light text-danger btn-delete-detail">
@@ -107,6 +107,14 @@
             `;
 
             tableBody.appendChild(row);
+
+            if (data && data.coa_id) {
+                const selectEl = row.querySelector('.select2-coa');
+                if (selectEl) {
+                    selectEl.value = data.coa_id;
+                }
+            }
+
             detailIndex += 1;
 
             row.querySelectorAll('.input-nominal').forEach((input) => {
@@ -118,7 +126,87 @@
             updateTotal();
         }
 
-        document.getElementById('btn_add_detail')?.addEventListener('click', addRow);
+        document.getElementById('btn_add_detail')?.addEventListener('click', () => addRow());
+
+        const applyTemplateBtn = document.getElementById('btn_apply_template');
+        const selectTemplateEl = document.getElementById('select_template_penerimaan');
+
+        if (applyTemplateBtn && selectTemplateEl) {
+            applyTemplateBtn.addEventListener('click', function () {
+                const templateId = selectTemplateEl.value;
+                if (!templateId) {
+                    alert('Silakan pilih template penerimaan terlebih dahulu.');
+                    return;
+                }
+
+                const existingRows = tableBody.querySelectorAll('tr');
+                if (existingRows.length > 0) {
+                    let hasInput = false;
+                    existingRows.forEach((r) => {
+                        if (r.querySelector('.select2-coa')?.value || parseIdInteger(r.querySelector('.input-nominal')?.value) > 0) {
+                            hasInput = true;
+                        }
+                    });
+
+                    if (hasInput && !confirm('Menerapkan template akan mengganti rincian akun yang saat ini terisi. Lanjutkan?')) {
+                        return;
+                    }
+                }
+
+                const originalBtnText = applyTemplateBtn.innerHTML;
+                applyTemplateBtn.disabled = true;
+                applyTemplateBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Memuat...';
+
+                fetch(`{{ url('/kasbank/penerimaan-template') }}/${templateId}/detail`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error('Gagal memuat detail template.');
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    const selectCoa = document.getElementById('select_coa');
+                    if (selectCoa && data.coa_id) {
+                        selectCoa.value = data.coa_id;
+                        if (window.jQuery && window.jQuery(selectCoa).data('select2')) {
+                            window.jQuery(selectCoa).trigger('change');
+                        }
+                    }
+
+                    const inputKeterangan = document.getElementById('input_keterangan');
+                    if (inputKeterangan && (!inputKeterangan.value || inputKeterangan.value.trim() === '') && data.keterangan) {
+                        inputKeterangan.value = data.keterangan;
+                    }
+
+                    tableBody.innerHTML = '';
+                    detailIndex = 0;
+
+                    if (Array.isArray(data.rincian) && data.rincian.length > 0) {
+                        data.rincian.forEach((item) => {
+                            addRow(item);
+                        });
+                    } else {
+                        addRow();
+                    }
+
+                    reindexRows();
+                    updateTotal();
+                })
+                .catch((err) => {
+                    console.error(err);
+                    alert('Terjadi kesalahan saat memuat data template: ' + err.message);
+                })
+                .finally(() => {
+                    applyTemplateBtn.disabled = false;
+                    applyTemplateBtn.innerHTML = originalBtnText;
+                });
+            });
+        }
 
         tableBody.addEventListener('click', function (event) {
             const deleteButton = event.target.closest('.btn-delete-detail');

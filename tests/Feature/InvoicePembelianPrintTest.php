@@ -35,6 +35,7 @@ class InvoicePembelianPrintTest extends TestCase
         Schema::create('faktur_pembelian', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('supplier_id')->nullable();
+            $table->unsignedBigInteger('akun_hutang_id')->nullable();
             $table->string('nomer_faktur');
             $table->date('tanggal_faktur')->nullable();
             $table->text('keterangan')->nullable();
@@ -55,6 +56,7 @@ class InvoicePembelianPrintTest extends TestCase
         Schema::create('faktur_pembelian_rinci', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('faktur_pembelian_id');
+            $table->unsignedBigInteger('coa_id')->nullable();
             $table->decimal('kuantitas', 15, 2)->default(0);
             $table->decimal('diskon_rupiah', 15, 2)->default(0);
             $table->decimal('subtotal', 15, 2)->default(0);

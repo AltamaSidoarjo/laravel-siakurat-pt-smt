@@ -85,9 +85,15 @@
                     <ul class="dropdown-menu">
                         @if ($canBukubesarJurnalUmum)
                             <li>
-                                <a class="dropdown-item {{ str_starts_with($path, '/bukubesar/jurnal-umum') ? 'active fw-bold bg-success-subtle text-success' : '' }}"
+                                <a class="dropdown-item {{ (str_starts_with($path, '/bukubesar/jurnal-umum') && ! str_starts_with($path, '/bukubesar/jurnal-umum-template')) ? 'active fw-bold bg-success-subtle text-success' : '' }}"
                                     href="{{ route('bukubesar.jurnal-umum.index') }}">
                                     Jurnal Umum
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {{ str_starts_with($path, '/bukubesar/jurnal-umum-template') ? 'active fw-bold bg-success-subtle text-success' : '' }}"
+                                    href="{{ route('bukubesar.jurnal-umum-template.index') }}">
+                                    Template Jurnal Umum
                                 </a>
                             </li>
                         @endif
@@ -114,9 +120,15 @@
                     <ul class="dropdown-menu">
                         @if ($canKasbankPenerimaan)
                             <li>
-                                <a class="dropdown-item {{ str_starts_with($path, '/kasbank/penerimaan') ? 'active fw-bold bg-success-subtle text-success' : '' }}"
+                                <a class="dropdown-item {{ (str_starts_with($path, '/kasbank/penerimaan') && ! str_starts_with($path, '/kasbank/penerimaan-template')) ? 'active fw-bold bg-success-subtle text-success' : '' }}"
                                     href="{{ route('kasbank.penerimaan.index') }}">
                                     Penerimaan
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {{ str_starts_with($path, '/kasbank/penerimaan-template') ? 'active fw-bold bg-success-subtle text-success' : '' }}"
+                                    href="{{ route('kasbank.penerimaan-template.index') }}">
+                                    Template Penerimaan
                                 </a>
                             </li>
                         @endif
@@ -125,9 +137,15 @@
                         @endif
                         @if ($canKasbankPembayaran)
                             <li>
-                                <a class="dropdown-item {{ str_starts_with($path, '/kasbank/pembayaran') ? 'active fw-bold bg-success-subtle text-success' : '' }}"
+                                <a class="dropdown-item {{ (str_starts_with($path, '/kasbank/pembayaran') && ! str_starts_with($path, '/kasbank/pembayaran-template')) ? 'active fw-bold bg-success-subtle text-success' : '' }}"
                                     href="{{ route('kasbank.pembayaran.index') }}">
                                     Pembayaran
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item {{ str_starts_with($path, '/kasbank/pembayaran-template') ? 'active fw-bold bg-success-subtle text-success' : '' }}"
+                                    href="{{ route('kasbank.pembayaran-template.index') }}">
+                                    Template Pembayaran
                                 </a>
                             </li>
                         @endif

@@ -54,7 +54,7 @@ class PelaksanaController extends Controller
     {
         if (! $this->service->delete($pelaksana)) {
             return redirect()->route('pengaturan.pelaksana.index')
-                ->with('error', 'Pelaksana sudah digunakan pada rincian invoice. Nonaktifkan pelaksana sebagai gantinya.');
+                ->with('error', 'Pelaksana sudah digunakan pada rincian transaksi. Nonaktifkan pelaksana sebagai gantinya.');
         }
 
         return redirect()->route('pengaturan.pelaksana.index')->with('success', 'Pelaksana berhasil dihapus.');

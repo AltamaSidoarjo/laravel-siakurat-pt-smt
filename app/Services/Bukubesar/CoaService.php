@@ -165,7 +165,7 @@ class CoaService
             'kode' => $data['kode'],
             'nama' => $data['nama'],
             'deskripsi' => ($data['deskripsi'] ?? null) ?: null,
-            'is_postable' => false,
+            'is_postable' => 1,
         ]);
 
         $this->logService->log('COA', 'create', null, $coa->only($this->loggableFields()));

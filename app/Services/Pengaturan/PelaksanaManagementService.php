@@ -5,6 +5,7 @@ namespace App\Services\Pengaturan;
 use App\Models\Pelaksana;
 use App\Services\LogAktifitasService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Schema;
 
 class PelaksanaManagementService
 {
@@ -47,7 +48,13 @@ class PelaksanaManagementService
 
     public function delete(Pelaksana $pelaksana): bool
     {
-        if ($pelaksana->rincianFakturPenjualan()->exists()) {
+        if ($pelaksana->rincianFakturPenjualan()->exists()
+            || (Schema::hasTable('jurnal_umum_rinci')
+                && Schema::hasColumn('jurnal_umum_rinci', 'pelaksana_id')
+                && $pelaksana->rincianJurnalUmum()->exists())
+            || (Schema::hasTable('kasbank_pembayaran_rinci')
+                && Schema::hasColumn('kasbank_pembayaran_rinci', 'pelaksana_id')
+                && $pelaksana->rincianKasbankPembayaran()->exists())) {
             return false;
         }
 

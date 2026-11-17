@@ -37,7 +37,13 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Akun Kas/Bank <small class="text-muted">(kosong = semua)</small></label>
-                                <select name="coaIds[]" id="coaSelect" class="form-select" multiple>
+                                <select
+                                    name="coaIds[]"
+                                    id="coaSelect"
+                                    class="form-select select2"
+                                    data-placeholder="Semua akun Kas/Bank"
+                                    multiple
+                                >
                                     @foreach ($coaOptions as $coa)
                                         <option value="{{ $coa->id }}" @selected(in_array($coa->id, $selectedCoaIds, true))>
                                             [{{ $coa->kode }}] {{ $coa->nama }}{{ (int) $coa->status_aktif !== 1 ? ' (Nonaktif)' : '' }}
@@ -147,15 +153,6 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            if (window.jQuery && window.jQuery.fn.select2) {
-                window.jQuery('#coaSelect').select2({
-                    theme: 'bootstrap-5',
-                    placeholder: 'Semua akun Kas/Bank',
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
-
             const search = document.getElementById('globalSearch');
             search?.addEventListener('input', function () {
                 const keyword = search.value.toLowerCase().trim();

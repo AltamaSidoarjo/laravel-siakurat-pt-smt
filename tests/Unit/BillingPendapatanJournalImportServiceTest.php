@@ -183,7 +183,7 @@ class BillingPendapatanJournalImportServiceTest extends TestCase
 
     public function test_non_postable_and_unknown_coa_types_are_rejected(): void
     {
-        $this->createCoa('INVALID-01', 'Kasbank', false);
+        $this->createCoa('INVALID-01', 'Kasbank', true, 0);
         $this->createCoa('UNKNOWN-01', 'Tipe Khusus');
         $this->createCoa('410.01', 'Pendapatan');
 
@@ -204,7 +204,7 @@ class BillingPendapatanJournalImportServiceTest extends TestCase
         $result = $this->import(['ext-1', 'ext-2']);
 
         $this->assertFalse($result[0]['berhasil']);
-        $this->assertStringContainsString('tidak aktif, tidak postable, atau bukan akun leaf', $result[0]['alasan_gagal']);
+        $this->assertStringContainsString('tidak aktif atau bukan akun leaf', $result[0]['alasan_gagal']);
         $this->assertFalse($result[1]['berhasil']);
         $this->assertStringContainsString('tidak dikenali', $result[1]['alasan_gagal']);
         $this->assertNoImportWrites();
@@ -309,10 +309,10 @@ class BillingPendapatanJournalImportServiceTest extends TestCase
         ];
     }
 
-    private function createCoa(string $kode, string $tipe, bool $isPostable = true): Coa
+    private function createCoa(string $kode, string $tipe, bool $isPostable = true, int $statusAktif = 1): Coa
     {
         return Coa::query()->create([
-            'status_aktif' => 1,
+            'status_aktif' => $statusAktif,
             'parent_coa' => null,
             'tipe_coa' => $tipe,
             'kode' => $kode,
