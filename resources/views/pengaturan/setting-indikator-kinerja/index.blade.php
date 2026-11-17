@@ -116,6 +116,45 @@
         cursor: row-resize !important;
         user-select: none !important;
     }
+
+    /* Custom Popover Pemetaan COA */
+    .popover.popover-coa-custom {
+        --bs-popover-max-width: 420px;
+        --bs-popover-border-color: #cbd5e1;
+        --bs-popover-header-bg: #f8fafc;
+        --bs-popover-header-color: #0f172a;
+        --bs-popover-body-padding-x: 0;
+        --bs-popover-body-padding-y: 0;
+        border-radius: 0.625rem;
+        border: 1px solid #cbd5e1;
+        box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.14), 0 8px 10px -6px rgba(15, 23, 42, 0.08) !important;
+    }
+    .popover-coa-custom .popover-header {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        padding: 0.625rem 0.875rem;
+        border-bottom: 1px solid #e2e8f0;
+        background-color: #f8fafc;
+        color: #1e293b;
+        margin: 0;
+        border-top-left-radius: calc(0.625rem - 1px);
+        border-top-right-radius: calc(0.625rem - 1px);
+    }
+    .popover-coa-custom .popover-body {
+        padding: 0 !important;
+        background-color: #ffffff;
+        border-bottom-left-radius: calc(0.625rem - 1px);
+        border-bottom-right-radius: calc(0.625rem - 1px);
+    }
+    .popover-coa-item {
+        transition: background-color 0.15s ease;
+    }
+    .popover-coa-item:hover {
+        background-color: #f8fafc;
+    }
+    .popover-coa-item:last-child {
+        border-bottom: 0 !important;
+    }
 </style>
 @endpush
 
@@ -398,30 +437,48 @@
                                             : (string) ($item->tipe_kalkulasi?->value ?? $item->tipe_kalkulasi);
 
                                         // Persiapan Popover COA
+                                        $popoverTitle = '';
                                         $popoverCoaContent = '';
                                         if ($item->mappingCoa->isNotEmpty()) {
+                                            $popoverTitle = '<div class="d-flex align-items-center gap-1.5">'
+                                                . '<i class="bi bi-diagram-3 text-primary"></i>'
+                                                . '<span>Pemetaan Akun: <strong class="text-dark">'.e($item->nama).'</strong></span>'
+                                                . '</div>';
+
                                             $coaRows = [];
                                             foreach ($item->mappingCoa as $m) {
                                                 $coaKode = e($m->coa?->kode ?? '-');
                                                 $coaNama = e($m->coa?->nama ?? '-');
                                                 $peranVal = $m->peran instanceof \App\Enums\IndikatorKinerja\PeranCoa ? $m->peran->value : (string) ($m->peran?->value ?? $m->peran);
-                                                if ($m->is_excluded || $peranVal === 'deduction') {
-                                                    $bHtml = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle">[- Excl]</span>';
+                                                
+                                                if ($m->is_excluded) {
+                                                    $bHtml = '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Dikecualikan</span>';
                                                     $tClass = 'text-decoration-line-through text-muted';
+                                                } elseif ($peranVal === 'deduction') {
+                                                    $bHtml = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle">- Pengurang</span>';
+                                                    $tClass = 'text-dark';
+                                                } elseif ($peranVal === 'addition') {
+                                                    $bHtml = '<span class="badge bg-success-subtle text-success border border-success-subtle">+ Penambah</span>';
+                                                    $tClass = 'text-dark';
                                                 } elseif ($peranVal === 'denominator') {
-                                                    $bHtml = '<span class="badge bg-info-subtle text-info border border-info-subtle">[Denom]</span>';
+                                                    $bHtml = '<span class="badge bg-info-subtle text-info border border-info-subtle">Penyebut</span>';
                                                     $tClass = 'text-dark';
                                                 } else {
-                                                    $bHtml = '<span class="badge bg-primary-subtle text-primary border border-primary-subtle">[+ Num]</span>';
+                                                    $bHtml = '<span class="badge bg-primary-subtle text-primary border border-primary-subtle">Pembilang</span>';
                                                     $tClass = 'text-dark';
                                                 }
-                                                $coaRows[] = '<li class="py-1.5 px-2 border-bottom border-light d-flex align-items-center justify-content-between gap-3">'
-                                                    . '<span class="'.$tClass.' small" style="line-height: 1.4;"><strong class="font-monospace">'.$coaKode.'</strong> <span class="ms-1">'.$coaNama.'</span></span>'
+
+                                                $coaRows[] = '<li class="popover-coa-item d-flex align-items-center justify-content-between gap-3 px-3 py-2 border-bottom border-light">'
+                                                    . '<div class="d-flex align-items-center gap-2 overflow-hidden me-2">'
+                                                    . '<span class="badge bg-light text-dark border font-monospace px-1.5 py-0.5 flex-shrink-0">'.$coaKode.'</span>'
+                                                    . '<span class="'.$tClass.' small fw-medium text-break">'.$coaNama.'</span>'
+                                                    . '</div>'
                                                     . '<span class="flex-shrink-0">'.$bHtml.'</span>'
                                                     . '</li>';
                                             }
-                                            $popoverCoaContent = '<div class="popover-coa-list p-1" style="max-height: 220px; overflow-y: auto; min-width: 280px;">'
-                                                . '<ul class="list-unstyled mb-0 small">' . implode('', $coaRows) . '</ul>'
+
+                                            $popoverCoaContent = '<div class="popover-coa-list custom-scrollbar" style="max-height: 240px; overflow-y: auto;">'
+                                                . '<ul class="list-unstyled mb-0">' . implode('', $coaRows) . '</ul>'
                                                 . '</div>';
                                         }
 
@@ -464,10 +521,10 @@
                                                     <button type="button" 
                                                             class="btn btn-sm btn-light border py-0.5 px-2 text-secondary small text-decoration-none d-inline-flex align-items-center gap-1.5 shadow-xs" 
                                                             data-bs-toggle="popover" 
-                                                            data-bs-trigger="focus" 
                                                             data-bs-placement="top" 
                                                             data-bs-html="true" 
-                                                            data-bs-title="Pemetaan Akun: {{ e($item->nama) }}" 
+                                                            data-bs-custom-class="popover-coa-custom" 
+                                                            data-bs-title="{{ $popoverTitle }}" 
                                                             data-bs-content="{{ $popoverCoaContent }}">
                                                         <i class="bi bi-diagram-3 text-primary"></i>
                                                         <span>{{ $item->mappingCoa->count() }} COA dipetakan</span>
@@ -919,8 +976,30 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         // Initialize Bootstrap Popovers
-        document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (el) {
-            new bootstrap.Popover(el, { sanitize: false });
+        const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+        const popoverList = popoverTriggerList.map(function (el) {
+            return new bootstrap.Popover(el, {
+                sanitize: false,
+                trigger: 'click'
+            });
+        });
+
+        // Close popovers on click outside
+        document.addEventListener('click', function (e) {
+            const isPopoverTrigger = e.target.closest('[data-bs-toggle="popover"]');
+            const isInsidePopover = e.target.closest('.popover');
+
+            if (!isPopoverTrigger && !isInsidePopover) {
+                popoverList.forEach(function (p) {
+                    p.hide();
+                });
+            } else if (isPopoverTrigger) {
+                popoverList.forEach(function (p) {
+                    if (p._element !== isPopoverTrigger) {
+                        p.hide();
+                    }
+                });
+            }
         });
 
         // Initialize Bootstrap Tooltips
