@@ -29,6 +29,43 @@
         color: #ffffff !important;
     }
 
+    /* Tab 1: Sticky Aksi Column */
+    .table-tab1 {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .table-tab1 thead th.sticky-col-action-tab1 {
+        position: sticky;
+        right: 0;
+        width: 95px;
+        min-width: 95px;
+        max-width: 95px;
+        z-index: 4;
+        background-color: #f8fafc !important;
+        --bs-table-bg: #f8fafc !important;
+        --bs-table-accent-bg: #f8fafc !important;
+        box-shadow: -4px 0 6px -2px rgba(0, 0, 0, 0.08);
+        border-left: 1px solid #cbd5e1 !important;
+    }
+    .table-tab1 tbody td.sticky-col-action-tab1 {
+        position: sticky;
+        right: 0;
+        width: 95px;
+        min-width: 95px;
+        max-width: 95px;
+        z-index: 2;
+        background-color: #ffffff !important;
+        --bs-table-bg: #ffffff !important;
+        --bs-table-accent-bg: #ffffff !important;
+        box-shadow: -4px 0 6px -2px rgba(0, 0, 0, 0.08);
+        border-left: 1px solid #cbd5e1 !important;
+    }
+    .table-tab1 tbody tr:hover > td.sticky-col-action-tab1 {
+        background-color: #f8fafc !important;
+        --bs-table-bg: #f8fafc !important;
+        --bs-table-accent-bg: #f8fafc !important;
+    }
+
     /* Tab 2: 2D Sticky Panes & Resizable Matrix Viewport */
     .matrix-scroll-container {
         overflow: auto;
@@ -65,11 +102,22 @@
         box-shadow: 4px 0 6px -2px rgba(0, 0, 0, 0.08);
         border-right: 1px solid #cbd5e1 !important;
     }
+    .matrix-table .sticky-col-action {
+        position: sticky;
+        right: 0;
+        width: 90px;
+        min-width: 90px;
+        max-width: 90px;
+        z-index: 2;
+        box-shadow: -4px 0 6px -2px rgba(0, 0, 0, 0.08);
+        border-left: 1px solid #cbd5e1 !important;
+    }
 
     /* Solid Opaque Background for Sticky Cells in Tbody */
     .matrix-table tbody td.sticky-col-no,
     .matrix-table tbody td.sticky-col-kode,
-    .matrix-table tbody td.sticky-col-nama {
+    .matrix-table tbody td.sticky-col-nama,
+    .matrix-table tbody td.sticky-col-action {
         background-color: #ffffff !important;
         --bs-table-bg: #ffffff !important;
         --bs-table-accent-bg: #ffffff !important;
@@ -78,14 +126,16 @@
     /* Hover & Active States for Sticky Cells */
     .matrix-table tbody tr:hover > td.sticky-col-no,
     .matrix-table tbody tr:hover > td.sticky-col-kode,
-    .matrix-table tbody tr:hover > td.sticky-col-nama {
+    .matrix-table tbody tr:hover > td.sticky-col-nama,
+    .matrix-table tbody tr:hover > td.sticky-col-action {
         background-color: #f8fafc !important;
         --bs-table-bg: #f8fafc !important;
         --bs-table-accent-bg: #f8fafc !important;
     }
     .matrix-table tbody tr.cell-active-row > td.sticky-col-no,
     .matrix-table tbody tr.cell-active-row > td.sticky-col-kode,
-    .matrix-table tbody tr.cell-active-row > td.sticky-col-nama {
+    .matrix-table tbody tr.cell-active-row > td.sticky-col-nama,
+    .matrix-table tbody tr.cell-active-row > td.sticky-col-action {
         background-color: #f1f5f9 !important;
         --bs-table-bg: #f1f5f9 !important;
         --bs-table-accent-bg: #f1f5f9 !important;
@@ -119,10 +169,11 @@
         --bs-table-accent-bg: var(--bs-primary-bg-subtle) !important;
     }
 
-    /* Corner Intersection Cells (Header Kolom 1, 2, 3 pada thead) */
+    /* Corner Intersection Cells (Header Kolom 1, 2, 3 & Aksi pada thead) */
     .matrix-table thead th.sticky-col-no,
     .matrix-table thead th.sticky-col-kode,
-    .matrix-table thead th.sticky-col-nama {
+    .matrix-table thead th.sticky-col-nama,
+    .matrix-table thead th.sticky-col-action {
         z-index: 10 !important;
         background-color: #f8fafc !important;
         --bs-table-bg: #f8fafc !important;
@@ -451,7 +502,7 @@
 
                     <!-- Table Master Indikator -->
                     <div class="table-responsive border rounded-3 custom-scrollbar">
-                        <table class="table table-hover align-middle mb-0 text-sm">
+                        <table class="table table-hover align-middle mb-0 text-sm table-tab1">
                             <thead class="table-light border-bottom">
                                 <tr class="text-nowrap small text-uppercase tracking-wider text-secondary">
                                     <th class="py-2.5 px-3 text-center" style="width: 50px;">Urutan</th>
@@ -461,7 +512,7 @@
                                     <th class="py-2.5 px-3 text-center" style="width: 120px;">Pola & Satuan</th>
                                     <th class="py-2.5 px-3" style="min-width: 240px;">Ambang Batas Target (RAG)</th>
                                     <th class="py-2.5 px-3 text-center" style="width: 90px;">Status</th>
-                                    <th class="py-2.5 px-3 text-center" style="width: 90px;">Aksi</th>
+                                    <th class="py-2.5 px-3 text-center sticky-col-action-tab1" style="width: 95px;">Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -675,7 +726,7 @@
                                                 </span>
                                             @endif
                                         </td>
-                                        <td class="text-center align-middle text-nowrap">
+                                        <td class="text-center align-middle text-nowrap sticky-col-action-tab1">
                                             @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'update'))
                                                 <a href="{{ route('pengaturan.setting-indikator-kinerja.edit', $item->id) }}" class="btn btn-sm btn-outline-primary py-0.5 px-2" title="Edit Indikator & Mapping COA">
                                                     <i class="bi bi-pencil"></i>
@@ -751,7 +802,7 @@
                                             <th rowspan="2" class="py-2.5 px-2 bg-light text-secondary" style="width: 85px;">Satuan</th>
                                             <th colspan="12" class="bg-primary-subtle text-primary py-1.5 fw-bold text-uppercase border-bottom" style="letter-spacing: 0.5px; height: 35px;">Bulan Transaksi (Tahun {{ $tahun }})</th>
                                             <th rowspan="2" class="py-2.5 px-3 bg-light text-secondary" style="width: 110px;">Rata-rata</th>
-                                            <th rowspan="2" class="py-2.5 px-2 bg-light text-secondary text-center" style="width: 90px;">Aksi</th>
+                                            <th rowspan="2" class="py-2.5 px-2 bg-light text-secondary text-center sticky-col-action" style="width: 90px;">Aksi</th>
                                         </tr>
                                         <tr class="small text-secondary bg-light">
                                             @php
@@ -844,7 +895,7 @@
                                                 <td class="text-end fw-bold font-monospace bg-light p-2" id="avg-{{ $v->id }}">
                                                     {{ $initialAvg !== null ? number_format($initialAvg, 2, ',', '.') : '-' }}
                                                 </td>
-                                                <td class="text-center align-middle text-nowrap p-1">
+                                                <td class="text-center align-middle text-nowrap p-1 sticky-col-action">
                                                     @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'update'))
                                                         <button type="button" 
                                                                 class="btn btn-sm btn-outline-primary py-0.5 px-2 btn-edit-variabel" 

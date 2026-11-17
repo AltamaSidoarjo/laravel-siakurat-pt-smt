@@ -516,6 +516,7 @@ class SettingIndikatorKinerjaTest extends TestCase
             ->assertSee('settingIndikatorBanner')
             ->assertSee('btnDismissBanner')
             ->assertSee('data-bs-toggle="popover"', false)
+            ->assertSee('sticky-col-action-tab1')
             ->assertDontSee('polaSelect');
     }
 
@@ -534,6 +535,7 @@ class SettingIndikatorKinerjaTest extends TestCase
             ->assertSee('matrixResizeHandle')
             ->assertSee('modalEditVariabel')
             ->assertSee('data-col-idx="1"', false)
+            ->assertSee('sticky-col-action')
             ->assertSee('btn-edit-variabel')
             ->assertSee('btn-delete-variabel');
     }
