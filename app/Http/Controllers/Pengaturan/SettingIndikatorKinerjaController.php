@@ -38,7 +38,6 @@ class SettingIndikatorKinerjaController extends Controller
         }
 
         $q = trim((string) $request->query('q', ''));
-        $pola = trim((string) $request->query('pola', 'ALL'));
 
         $summaryCounts = [
             'total' => IndikatorKinerja::count(),
@@ -49,10 +48,6 @@ class SettingIndikatorKinerjaController extends Controller
         $indikatorQuery = IndikatorKinerja::query()
             ->with(['variabelManual', 'mappingCoa.coa'])
             ->orderBy('urutan');
-
-        if ($pola !== 'ALL' && $pola !== '') {
-            $indikatorQuery->where('pola_evaluasi', $pola);
-        }
 
         if ($q !== '') {
             $needle = '%'.$q.'%';
@@ -66,23 +61,23 @@ class SettingIndikatorKinerjaController extends Controller
         $indikators = $indikatorQuery->get();
 
         $variabelManuals = IndikatorKinerjaVariabelManual::query()
-            ->with(['manualData' => fn ($q) => $q->where('tahun', $tahun)])
+            ->with([
+                'manualData' => fn ($q) => $q->where('tahun', $tahun),
+                'indikatorKinerja:id,variabel_manual_id,kode,nama',
+            ])
             ->orderBy('id')
             ->get();
 
         $satuanOptions = SatuanIndikator::cases();
-        $polaEvaluasiOptions = PolaEvaluasi::cases();
 
         return view('pengaturan.setting-indikator-kinerja.index', [
             'tab' => $tab,
             'tahun' => $tahun,
             'q' => $q,
-            'pola' => $pola,
             'summaryCounts' => $summaryCounts,
             'indikators' => $indikators,
             'variabelManuals' => $variabelManuals,
             'satuanOptions' => $satuanOptions,
-            'polaEvaluasiOptions' => $polaEvaluasiOptions,
         ]);
     }
 

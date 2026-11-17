@@ -176,7 +176,7 @@ class SettingIndikatorKinerjaTest extends TestCase
             ->assertDontSee('Bridging SIMRS Otomatis');
     }
 
-    public function test_user_can_filter_indicators_by_search_query_and_pola_evaluasi(): void
+    public function test_user_can_filter_indicators_by_search_query(): void
     {
         $this->seed(IndikatorKinerjaSeeder::class);
         $user = User::factory()->create();
@@ -186,9 +186,9 @@ class SettingIndikatorKinerjaTest extends TestCase
         $responseSearch->assertOk()
             ->assertSee('EBITDA');
 
-        // Filter by pola evaluasi HIGHER_IS_BETTER
-        $responsePola = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.index', ['pola' => 'HIGHER_IS_BETTER']));
-        $responsePola->assertOk();
+        // Search by code
+        $responseKode = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.index', ['q' => 'IK-01']));
+        $responseKode->assertOk();
     }
 
     public function test_user_can_view_manual_tab_with_year_filter(): void

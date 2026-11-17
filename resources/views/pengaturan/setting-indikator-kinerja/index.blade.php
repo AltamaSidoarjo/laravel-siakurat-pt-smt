@@ -220,7 +220,7 @@
                                 <label for="polaSelect" class="form-label small fw-semibold text-muted mb-1">Pola Evaluasi Target</label>
                                 <select class="form-select form-select-sm" id="polaSelect" name="pola">
                                     <option value="ALL" @selected(($pola ?? 'ALL') === 'ALL')>Semua Pola Evaluasi</option>
-                                    @foreach ($polaEvaluasiOptions as $polaOpt)
+                                    @foreach ($polaEvaluasiOptions ?? [] as $polaOpt)
                                         <option value="{{ $polaOpt->value }}" @selected(($pola ?? '') === $polaOpt->value)>
                                             {{ $polaOpt->label() }}
                                         </option>
