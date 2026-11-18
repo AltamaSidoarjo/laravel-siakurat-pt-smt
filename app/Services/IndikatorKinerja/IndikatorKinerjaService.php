@@ -19,6 +19,30 @@ use Illuminate\Support\Collection;
 
 class IndikatorKinerjaService
 {
+    public const KELOMPOK_AKTIVA = [
+        'Kasbank',
+        'Akun Piutang',
+        'Piutang Usaha',
+        'Persediaan',
+        'Aktiva Lancar lainnya',
+        'Aset Lancar lainnya',
+        'Akumulasi Penyusutan',
+        'Aset Tetap',
+        'Aktiva Lainnya',
+    ];
+
+    public const KELOMPOK_PASIVA = [
+        'Akun Hutang',
+        'Utang Usaha',
+        'Hutang Jangka Panjang',
+        'Hutang Lancar lainnya',
+        'Liabilitas Jangka Pendek',
+    ];
+
+    public const KELOMPOK_EKUITAS = [
+        'Ekuitas',
+    ];
+
     /**
      * @var Collection<int, Coa>|null
      */
@@ -93,7 +117,7 @@ class IndikatorKinerjaService
             if ($indikator->tipe_kalkulasi === TipeKalkulasi::TURNOVER) {
                 $pembilang = $this->ambilSaldoNeracaCoa($leafIds, $endDate);
             } else {
-                $pembilang = $this->ambilMutasiCoa($leafIds, $startDate, $endDate);
+                $pembilang = $this->ambilNilaiCoa($leafIds, $startDate, $endDate);
             }
         } elseif ($indikator->basis_pembilang === BasisPembilang::SURPLUS) {
             $pembilang = $this->ambilSurplusPeriode($startDate, $endDate);
@@ -104,13 +128,13 @@ class IndikatorKinerjaService
             $addMappings = $mappings->where('peran', PeranCoa::ADDITION)->where('is_excluded', false);
             if ($addMappings->isNotEmpty()) {
                 $addLeafIds = $this->kumpulkanLeafDescendantCoaIds($addMappings->pluck('coa_id')->all());
-                $pembilang += $this->ambilMutasiCoa($addLeafIds, $startDate, $endDate);
+                $pembilang += $this->ambilNilaiCoa($addLeafIds, $startDate, $endDate);
             }
 
             $dedMappings = $mappings->where('peran', PeranCoa::DEDUCTION)->where('is_excluded', false);
             if ($dedMappings->isNotEmpty()) {
                 $dedLeafIds = $this->kumpulkanLeafDescendantCoaIds($dedMappings->pluck('coa_id')->all());
-                $pembilang -= $this->ambilMutasiCoa($dedLeafIds, $startDate, $endDate);
+                $pembilang -= $this->ambilNilaiCoa($dedLeafIds, $startDate, $endDate);
             }
         }
 
@@ -121,7 +145,7 @@ class IndikatorKinerjaService
             $denomCoaIds = $denomMappings->pluck('coa_id')->all();
             $denomExcludedIds = $denomExcluded->pluck('coa_id')->all();
             $denomLeafIds = $this->kumpulkanLeafDescendantCoaIds($denomCoaIds, $denomExcludedIds);
-            $penyebut = $this->ambilMutasiCoa($denomLeafIds, $startDate, $endDate);
+            $penyebut = $this->ambilNilaiCoa($denomLeafIds, $startDate, $endDate);
         } elseif ($indikator->basis_penyebut === BasisPenyebut::RBA) {
             $leafIds = $this->kumpulkanLeafDescendantCoaIds($numCoaIds, $numExcludedIds);
             $rbaLeaf = $this->ambilRbaCoa($leafIds, $startDate, $endDate);
@@ -472,7 +496,51 @@ class IndikatorKinerjaService
     }
 
     /**
-     * Ambil saldo neraca kumulatif (Debet - Kredit) sampai dengan tanggal akhir periode.
+     * Klasifikasi tipe akun COA ke kelompok Neraca (AKTIVA, PASIVA, EKUITAS) atau Laba Rugi (PENDAPATAN, BEBAN).
+     */
+    public function klasifikasiTipeCoa(?string $tipeCoa): string
+    {
+        $tipe = trim((string) $tipeCoa);
+        if (in_array($tipe, self::KELOMPOK_AKTIVA, true)) {
+            return 'AKTIVA';
+        }
+        if (in_array($tipe, self::KELOMPOK_PASIVA, true)) {
+            return 'PASIVA';
+        }
+        if (in_array($tipe, self::KELOMPOK_EKUITAS, true)) {
+            return 'EKUITAS';
+        }
+        if (in_array($tipe, ['Pendapatan', 'Pendapatan lain'], true)) {
+            return 'PENDAPATAN';
+        }
+        if (in_array($tipe, ['Beban Pokok Penjualan', 'Beban', 'Beban lain'], true)) {
+            return 'BEBAN';
+        }
+
+        $lower = strtolower($tipe);
+        if (str_contains($lower, 'pendapatan')) {
+            return 'PENDAPATAN';
+        }
+        if (str_contains($lower, 'beban') || str_contains($lower, 'biaya')) {
+            return 'BEBAN';
+        }
+        if (str_contains($lower, 'hutang') || str_contains($lower, 'utang') || str_contains($lower, 'liabilitas')) {
+            return 'PASIVA';
+        }
+        if (str_contains($lower, 'ekuitas') || str_contains($lower, 'modal')) {
+            return 'EKUITAS';
+        }
+        if (str_contains($lower, 'kas') || str_contains($lower, 'bank') || str_contains($lower, 'piutang') || str_contains($lower, 'persediaan') || str_contains($lower, 'aset') || str_contains($lower, 'aktiva')) {
+            return 'AKTIVA';
+        }
+
+        return 'BEBAN';
+    }
+
+    /**
+     * Ambil saldo neraca kumulatif sampai dengan tanggal akhir periode.
+     * Menggunakan saldo normal debet untuk Aktiva (Debet - Kredit)
+     * dan saldo normal kredit untuk Pasiva & Ekuitas (Kredit - Debet).
      *
      * @param  array<int, int>  $coaIds
      */
@@ -482,13 +550,78 @@ class IndikatorKinerjaService
             return 0.0;
         }
 
-        $saldo = BukuBesar::query()
+        $coas = Coa::query()->whereIn('id', $coaIds)->get(['id', 'tipe_coa'])->keyBy('id');
+        if ($coas->isEmpty()) {
+            return 0.0;
+        }
+
+        $balances = BukuBesar::query()
+            ->selectRaw('
+                coa_id,
+                SUM(CASE WHEN tipe_mutasi = "D" THEN nominal ELSE 0 END) as debit,
+                SUM(CASE WHEN tipe_mutasi = "K" THEN nominal ELSE 0 END) as kredit
+            ')
             ->whereIn('coa_id', $coaIds)
             ->where('tanggal', '<=', $perDate)
-            ->selectRaw('SUM(CASE WHEN tipe_mutasi = "D" THEN nominal ELSE -nominal END) as saldo')
-            ->value('saldo');
+            ->groupBy('coa_id')
+            ->get();
 
-        return (float) ($saldo ?? 0.0);
+        $total = 0.0;
+        foreach ($balances as $b) {
+            $coa = $coas->get($b->coa_id);
+            $klasifikasi = $this->klasifikasiTipeCoa($coa?->tipe_coa);
+            $debit = (float) $b->debit;
+            $kredit = (float) $b->kredit;
+
+            if (in_array($klasifikasi, ['PASIVA', 'EKUITAS'], true)) {
+                $total += ($kredit - $debit);
+            } else {
+                $total += ($debit - $kredit);
+            }
+        }
+
+        return (float) $total;
+    }
+
+    /**
+     * Ambil nilai gabungan COA berdasarkan sifat akun:
+     * - Akun Neraca (Aktiva, Pasiva, Ekuitas) diambil sebagai Saldo Neraca kumulatif per endDate.
+     * - Akun Laba Rugi (Pendapatan, Beban) diambil sebagai Mutasi transaksi antara startDate dan endDate.
+     *
+     * @param  array<int, int>  $coaIds
+     */
+    public function ambilNilaiCoa(array $coaIds, string $startDate, string $endDate): float
+    {
+        if (empty($coaIds)) {
+            return 0.0;
+        }
+
+        $coas = Coa::query()->whereIn('id', $coaIds)->get(['id', 'tipe_coa']);
+        if ($coas->isEmpty()) {
+            return 0.0;
+        }
+
+        $neracaIds = [];
+        $mutasiIds = [];
+
+        foreach ($coas as $coa) {
+            $klasifikasi = $this->klasifikasiTipeCoa($coa->tipe_coa);
+            if (in_array($klasifikasi, ['AKTIVA', 'PASIVA', 'EKUITAS'], true)) {
+                $neracaIds[] = (int) $coa->id;
+            } else {
+                $mutasiIds[] = (int) $coa->id;
+            }
+        }
+
+        $total = 0.0;
+        if (! empty($neracaIds)) {
+            $total += $this->ambilSaldoNeracaCoa($neracaIds, $endDate);
+        }
+        if (! empty($mutasiIds)) {
+            $total += $this->ambilMutasiCoa($mutasiIds, $startDate, $endDate);
+        }
+
+        return (float) $total;
     }
 
     /**

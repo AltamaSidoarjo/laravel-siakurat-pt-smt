@@ -593,4 +593,313 @@ class IndikatorKinerjaServiceTest extends TestCase
         $this->assertEquals(1, $summary['total']);
         $this->assertEquals(1, $summary['netral']); // no data -> netral
     }
+
+    public function test_current_ratio_calculation_with_balance_sheet_accounts(): void
+    {
+        $coaAsetLancar = Coa::create([
+            'kode' => '11',
+            'nama' => 'Aset Lancar',
+            'tipe_coa' => 'Aset Lancar lainnya',
+            'status_aktif' => 1,
+            'is_postable' => 1,
+        ]);
+
+        $coaKewajibanLancar = Coa::create([
+            'kode' => '21',
+            'nama' => 'Kewajiban Lancar',
+            'tipe_coa' => 'Liabilitas Jangka Pendek',
+            'status_aktif' => 1,
+            'is_postable' => 1,
+        ]);
+
+        // Aset Lancar: 50jt in 2025 (prior period) + 100jt in Jan 2026 = 150jt ending balance
+        BukuBesar::create([
+            'coa_id' => $coaAsetLancar->id,
+            'tanggal' => '2025-12-31',
+            'tipe_mutasi' => 'D',
+            'nominal' => 50000000,
+        ]);
+        BukuBesar::create([
+            'coa_id' => $coaAsetLancar->id,
+            'tanggal' => '2026-01-15',
+            'tipe_mutasi' => 'D',
+            'nominal' => 100000000,
+        ]);
+
+        // Kewajiban Lancar: 30jt in 2025 + 70jt in Jan 2026 = 100jt ending balance (Kredit normal)
+        BukuBesar::create([
+            'coa_id' => $coaKewajibanLancar->id,
+            'tanggal' => '2025-12-31',
+            'tipe_mutasi' => 'K',
+            'nominal' => 30000000,
+        ]);
+        BukuBesar::create([
+            'coa_id' => $coaKewajibanLancar->id,
+            'tanggal' => '2026-01-20',
+            'tipe_mutasi' => 'K',
+            'nominal' => 70000000,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'kode' => 'current_ratio',
+            'nama' => 'Current Ratio',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'basis_pembilang' => BasisPembilang::COA,
+            'basis_penyebut' => BasisPenyebut::COA,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'target_hijau_min' => 150.0,
+            'status_aktif' => true,
+        ]);
+
+        IndikatorKinerjaMappingCoa::create([
+            'indikator_id' => $indikator->id,
+            'coa_id' => $coaAsetLancar->id,
+            'peran' => PeranCoa::NUMERATOR,
+            'is_excluded' => false,
+        ]);
+
+        IndikatorKinerjaMappingCoa::create([
+            'indikator_id' => $indikator->id,
+            'coa_id' => $coaKewajibanLancar->id,
+            'peran' => PeranCoa::DENOMINATOR,
+            'is_excluded' => false,
+        ]);
+
+        // Evaluasi Jan 1 to Jan 31: 150jt / 100jt * 100% = 150.0%
+        $eval = $this->service->evaluasiIndikator($indikator, '2026-01-01', '2026-01-31');
+
+        $this->assertEquals(150000000.0, $eval['pembilang']);
+        $this->assertEquals(100000000.0, $eval['penyebut']);
+        $this->assertEquals(150.0, $eval['nilai']);
+        $this->assertEquals(StatusEvaluasi::HIJAU, $eval['status']);
+    }
+
+    public function test_roe_calculation_with_surplus_and_equity_balance(): void
+    {
+        $coaPendapatan = Coa::create([
+            'kode' => '400',
+            'nama' => 'Pendapatan Usaha',
+            'tipe_coa' => 'Pendapatan',
+            'status_aktif' => 1,
+            'is_postable' => 1,
+        ]);
+
+        $coaBeban = Coa::create([
+            'kode' => '500',
+            'nama' => 'Beban Operasional',
+            'tipe_coa' => 'Beban',
+            'status_aktif' => 1,
+            'is_postable' => 1,
+        ]);
+
+        $coaEkuitas = Coa::create([
+            'kode' => '300',
+            'nama' => 'Modal Sendiri',
+            'tipe_coa' => 'Ekuitas',
+            'status_aktif' => 1,
+            'is_postable' => 1,
+        ]);
+
+        // Surplus Jan 2026 = 500jt - 400jt = 100jt
+        BukuBesar::create([
+            'coa_id' => $coaPendapatan->id,
+            'tanggal' => '2026-01-10',
+            'tipe_mutasi' => 'K',
+            'nominal' => 500000000,
+        ]);
+        BukuBesar::create([
+            'coa_id' => $coaBeban->id,
+            'tanggal' => '2026-01-15',
+            'tipe_mutasi' => 'D',
+            'nominal' => 400000000,
+        ]);
+
+        // Ekuitas = 1.000.000.000 (posted in 2025, no mutation in Jan 2026)
+        BukuBesar::create([
+            'coa_id' => $coaEkuitas->id,
+            'tanggal' => '2025-12-01',
+            'tipe_mutasi' => 'K',
+            'nominal' => 1000000000,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'kode' => 'roe',
+            'nama' => 'ROE',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'basis_pembilang' => BasisPembilang::SURPLUS,
+            'basis_penyebut' => BasisPenyebut::COA,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'target_hijau_min' => 10.0,
+            'status_aktif' => true,
+        ]);
+
+        IndikatorKinerjaMappingCoa::create([
+            'indikator_id' => $indikator->id,
+            'coa_id' => $coaEkuitas->id,
+            'peran' => PeranCoa::DENOMINATOR,
+            'is_excluded' => false,
+        ]);
+
+        // Surplus (100jt) / Ekuitas (1M) * 100% = 10.0%
+        $eval = $this->service->evaluasiIndikator($indikator, '2026-01-01', '2026-01-31');
+
+        $this->assertEquals(100000000.0, $eval['pembilang']);
+        $this->assertEquals(1000000000.0, $eval['penyebut']);
+        $this->assertEquals(10.0, $eval['nilai']);
+        $this->assertEquals(StatusEvaluasi::HIJAU, $eval['status']);
+    }
+
+    public function test_capital_employed_denominator_summation(): void
+    {
+        $coaPendapatan = Coa::create([
+            'kode' => '400',
+            'nama' => 'Pendapatan Usaha',
+            'tipe_coa' => 'Pendapatan',
+            'status_aktif' => 1,
+            'is_postable' => 1,
+        ]);
+
+        $coaEkuitas = Coa::create([
+            'kode' => '300',
+            'nama' => 'Modal Sendiri',
+            'tipe_coa' => 'Ekuitas',
+            'status_aktif' => 1,
+            'is_postable' => 1,
+        ]);
+
+        $coaHutangJangkaPanjang = Coa::create([
+            'kode' => '220',
+            'nama' => 'Hutang Jangka Panjang',
+            'tipe_coa' => 'Hutang Jangka Panjang',
+            'status_aktif' => 1,
+            'is_postable' => 1,
+        ]);
+
+        // Pendapatan in Jan 2026 = 200.000.000
+        BukuBesar::create([
+            'coa_id' => $coaPendapatan->id,
+            'tanggal' => '2026-01-15',
+            'tipe_mutasi' => 'K',
+            'nominal' => 200000000,
+        ]);
+
+        // Modal = 600.000.000, Hutang JP = 400.000.000 -> Capital Employed = 1.000.000.000
+        BukuBesar::create([
+            'coa_id' => $coaEkuitas->id,
+            'tanggal' => '2025-10-01',
+            'tipe_mutasi' => 'K',
+            'nominal' => 600000000,
+        ]);
+        BukuBesar::create([
+            'coa_id' => $coaHutangJangkaPanjang->id,
+            'tanggal' => '2025-11-01',
+            'tipe_mutasi' => 'K',
+            'nominal' => 400000000,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'kode' => 'tato',
+            'nama' => 'TATO',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'basis_pembilang' => BasisPembilang::COA,
+            'basis_penyebut' => BasisPenyebut::COA,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'target_hijau_min' => 20.0,
+            'status_aktif' => true,
+        ]);
+
+        IndikatorKinerjaMappingCoa::create([
+            'indikator_id' => $indikator->id,
+            'coa_id' => $coaPendapatan->id,
+            'peran' => PeranCoa::NUMERATOR,
+            'is_excluded' => false,
+        ]);
+
+        IndikatorKinerjaMappingCoa::create([
+            'indikator_id' => $indikator->id,
+            'coa_id' => $coaEkuitas->id,
+            'peran' => PeranCoa::DENOMINATOR,
+            'is_excluded' => false,
+        ]);
+
+        IndikatorKinerjaMappingCoa::create([
+            'indikator_id' => $indikator->id,
+            'coa_id' => $coaHutangJangkaPanjang->id,
+            'peran' => PeranCoa::DENOMINATOR,
+            'is_excluded' => false,
+        ]);
+
+        // Pendapatan (200jt) / Capital Employed (1M) * 100% = 20.0%
+        $eval = $this->service->evaluasiIndikator($indikator, '2026-01-01', '2026-01-31');
+
+        $this->assertEquals(200000000.0, $eval['pembilang']);
+        $this->assertEquals(1000000000.0, $eval['penyebut']);
+        $this->assertEquals(20.0, $eval['nilai']);
+        $this->assertEquals(StatusEvaluasi::HIJAU, $eval['status']);
+    }
+
+    public function test_contra_asset_reduces_total_asset_balance(): void
+    {
+        $coaAsetTetap = Coa::create([
+            'kode' => '12',
+            'nama' => 'Aset Tetap',
+            'tipe_coa' => 'Aset Tetap',
+            'status_aktif' => 1,
+            'is_postable' => 1,
+        ]);
+
+        $coaAkumPenyusutan = Coa::create([
+            'kode' => '129',
+            'nama' => 'Akumulasi Penyusutan',
+            'tipe_coa' => 'Akumulasi Penyusutan',
+            'status_aktif' => 1,
+            'is_postable' => 1,
+        ]);
+
+        BukuBesar::create([
+            'coa_id' => $coaAsetTetap->id,
+            'tanggal' => '2025-05-01',
+            'tipe_mutasi' => 'D',
+            'nominal' => 100000000,
+        ]);
+
+        BukuBesar::create([
+            'coa_id' => $coaAkumPenyusutan->id,
+            'tanggal' => '2025-12-31',
+            'tipe_mutasi' => 'K',
+            'nominal' => 20000000,
+        ]);
+
+        $indikator = IndikatorKinerja::create([
+            'kode' => 'net_asset',
+            'nama' => 'Net Asset',
+            'satuan' => SatuanIndikator::RUPIAH,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'basis_pembilang' => BasisPembilang::COA,
+            'basis_penyebut' => BasisPenyebut::NONE,
+            'status_aktif' => true,
+        ]);
+
+        IndikatorKinerjaMappingCoa::create([
+            'indikator_id' => $indikator->id,
+            'coa_id' => $coaAsetTetap->id,
+            'peran' => PeranCoa::NUMERATOR,
+            'is_excluded' => false,
+        ]);
+
+        IndikatorKinerjaMappingCoa::create([
+            'indikator_id' => $indikator->id,
+            'coa_id' => $coaAkumPenyusutan->id,
+            'peran' => PeranCoa::NUMERATOR,
+            'is_excluded' => false,
+        ]);
+
+        // Net Asset = 100jt (Debet) - 20jt (Kredit) = 80jt
+        $eval = $this->service->evaluasiIndikator($indikator, '2026-01-01', '2026-01-31');
+
+        $this->assertEquals(80000000.0, $eval['pembilang']);
+    }
 }

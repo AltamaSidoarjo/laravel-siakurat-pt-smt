@@ -85,8 +85,8 @@ flowchart TD
 4. Untuk setiap indikator:
    - Menghitung jumlah hari riil (`$hariRiil = start->diff(end)->days + 1`).
    - Mengambil seluruh leaf descendant COA IDs dengan fungsi memoized `kumpulkanLeafDescendantCoaIds()` untuk numerator dan denominator (termasuk filter akun eksklusi `is_excluded`).
-   - Menghitung nilai pembilang: saldo per tanggal akhir jika bertipe `TURNOVER`, mutasi debet/kredit jika bertipe umum, atau surplus/defisit berjalan jika berbasis `SURPLUS`, ditambah mapping `ADDITION` dan dikurangi `DEDUCTION`.
-   - Menghitung nilai penyebut: saldo neraca, mutasi COA, nilai target RBA proporsional (`ambilRbaCoa()`), atau nilai variabel manual operasional terdekat (`ambilNilaiManualTerakhir()`). Untuk indikator bertipe `TURNOVER`, pembagian dilakukan terhadap rata-rata harian (dikali jumlah hari riil periode).
+   - Menghitung nilai pembilang: jika bertipe `TURNOVER`, mengambil saldo kumulatif per tanggal akhir via `ambilSaldoNeracaCoa()`. Jika berbasis `COA`, menggunakan fungsi cerdas `ambilNilaiCoa()` (akun Neraca ditarik saldo kumulatif per tanggal akhir dengan normalisasi kredit, akun Laba Rugi ditarik mutasi transaksi periode berjalan). Jika berbasis `SURPLUS`, mengambil laba bersih via `ambilSurplusPeriode()`, ditambah mapping `ADDITION` dan dikurangi `DEDUCTION` via `ambilNilaiCoa()`.
+   - Menghitung nilai penyebut: jika berbasis `COA`, ditarik via `ambilNilaiCoa()` (mendukung saldo neraca, mutasi, serta agregasi multi-akun seperti Capital Employed = Ekuitas + Kewajiban Jangka Panjang), atau target RBA proporsional (`ambilRbaCoa()`), atau nilai variabel manual operasional terdekat (`ambilNilaiManualTerakhir()`). Untuk indikator bertipe `TURNOVER`, pembagian dilakukan terhadap rata-rata harian (dikali jumlah hari riil periode).
    - Menghitung rasio melalui `safeDivide($pembilang, $penyebut)`. Jika penyebut bernilai nol atau null, nilai diset `null` dan status dievaluasi sebagai `NETRAL`.
    - Melakukan evaluasi ambang batas target melalui `evaluasiStatus()` berdasarkan `pola_evaluasi` (`HIGHER_IS_BETTER`, `LOWER_IS_BETTER`, `TARGET_BAND`) dan rentang target warna (`HIJAU`, `KUNING`, `MERAH`, `NETRAL`), dengan pembulatan 2 desimal untuk mencegah celah nilai pecahan (*fractional gap*).
 5. Controller mengagregasikan `ringkasanStatus` secara in-memory dari koleksi evaluasi lengkap tanpa query database tambahan untuk menjaga keakuratan strip kartu ringkasan eksekutif dan persentase ketercapaian.
@@ -101,8 +101,10 @@ flowchart TD
 - `IndikatorKinerjaService::evaluasiSemua()`
 - `IndikatorKinerjaService::evaluasiIndikator()`
 - `IndikatorKinerjaService::kumpulkanLeafDescendantCoaIds()`
-- `IndikatorKinerjaService::ambilMutasiCoa()`
+- `IndikatorKinerjaService::ambilNilaiCoa()`
 - `IndikatorKinerjaService::ambilSaldoNeracaCoa()`
+- `IndikatorKinerjaService::ambilMutasiCoa()`
+- `IndikatorKinerjaService::klasifikasiTipeCoa()`
 - `IndikatorKinerjaService::ambilRbaCoa()`
 - `IndikatorKinerjaService::ambilSurplusPeriode()`
 - `IndikatorKinerjaService::ambilNilaiManualTerakhir()`

@@ -255,3 +255,8 @@ flowchart TD
 9. **Navigasi Keyboard ala Excel**: Pengguna dapat berpindah sel menggunakan tombol panah (*Arrow keys*) dan *Enter* tanpa mengubah nilai numerik sel, dilengkapi *crosshair highlight* baris dan kolom aktif.
 10. **Transparansi Visual RAG & COA Popover (Tab 1)**: Ambang batas target ditampilkan via horizontal segmented range bar yang ramping, dan rincian pemetaan akun COA (`[+ Num]`, `[Denom]`, `[- Excl]`) dapat diinspeksi langsung melalui popover interaktif tanpa berpindah halaman.
 11. **Cross-Tab Synergy & Deep Linking**: Mengklik badge variabel manual di Tab 1 mengarahkan pengguna langsung ke baris variabel terkait di Tab 2 dengan animasi flash highlight, dan baris variabel di Tab 2 menampilkan impact badges indikator yang mengonsumsinya.
+12. **Resolusi Cerdas Akun COA (Saldo Neraca Kumulatif vs Mutasi Laba Rugi)**:
+    - Sistem secara otomatis mengidentifikasi sifat akuntansi dari tiap akun COA yang dipetakan berdasarkan `tipe_coa`:
+      - **Akun Neraca** (*Aktiva*, *Pasiva/Kewajiban*, *Ekuitas*): Diambil sebagai **Saldo Kumulatif per tanggal akhir periode (`endDate`)**, dengan normalisasi saldo kredit untuk Pasiva dan Ekuitas sehingga menghasilkan nilai rasio positif. Kontra-aset (seperti Akumulasi Penyusutan) secara alami mengurangi nilai total aset.
+      - **Akun Laba Rugi** (*Pendapatan*, *Beban*): Diambil sebagai **Mutasi Transaksi periode berjalan (`startDate` s.d. `endDate`)**.
+    - Hal ini memungkinkan konfigurasi indikator rasio likuiditas, solvabilitas, dan profitabilitas eksekutif (*Current Ratio*, *Cash Ratio*, *ROE*, *TMSTA*, *ROI*, *TATO*) langsung melalui pemetaan COA standar tanpa perlu perubahan skema atau variabel manual.
