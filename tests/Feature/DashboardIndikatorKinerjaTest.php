@@ -279,4 +279,33 @@ class DashboardIndikatorKinerjaTest extends TestCase
         $response = $this->actingAs($user)->get(route('dashboard.indikator-kinerja.index'));
         $response->assertForbidden();
     }
+
+    public function test_dashboard_renders_formula_badges_on_cards_and_table(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+        $this->assignRolePermission($user);
+
+        $response = $this->actingAs($user)->get(route('dashboard.indikator-kinerja.index'));
+        $response->assertOk()
+            ->assertSee('Saldo COA')
+            ->assertSee('Target RBA')
+            ->assertSee('× 100%');
+    }
+
+    public function test_dashboard_elements_contain_explicit_formula_data_attributes(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+        $this->assignRolePermission($user);
+
+        $response = $this->actingAs($user)->get(route('dashboard.indikator-kinerja.index'));
+        $response->assertOk()
+            ->assertSee('data-pembilang-formatted', false)
+            ->assertSee('data-penyebut-formatted', false)
+            ->assertSee('data-pembilang-label', false)
+            ->assertSee('data-penyebut-label', false)
+            ->assertSee('data-pengali-label', false)
+            ->assertSee('data-tipe', false);
+    }
 }
