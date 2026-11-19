@@ -67,7 +67,7 @@
             return '-';
         }
         $num = (float) $nilai;
-        $decimals = (fmod($num, 1.0) !== 0.0) ? 2 : 0;
+        $decimals = (abs($num - round($num)) > 0.00001) ? 2 : 0;
         $formatted = number_format($num, $decimals, ',', '.');
 
         $basisVal = $basis instanceof \BackedEnum ? $basis->value : (string) $basis;
@@ -759,6 +759,13 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    function escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     // 1. View Switcher Logic (Card Grid vs Detailed Table)
     const btnToggleCards = document.getElementById('btnToggleCards');
     const btnToggleTable = document.getElementById('btnToggleTable');
@@ -841,6 +848,16 @@ document.addEventListener('DOMContentLoaded', function () {
             const penyebutLabel = data.penyebutLabel || 'Penyebut';
             const pengaliLabel = data.pengaliLabel || '';
             const nilai = data.nilai || '-';
+            const catatan = data.catatan || '';
+
+            // Safe escaped variables for DOM insertion
+            const safePembilangFormatted = escapeHtml(pembilangFormatted);
+            const safePenyebutFormatted = escapeHtml(penyebutFormatted);
+            const safePembilangLabel = escapeHtml(pembilangLabel);
+            const safePenyebutLabel = escapeHtml(penyebutLabel);
+            const safePengaliLabel = escapeHtml(pengaliLabel);
+            const safeNilai = escapeHtml(nilai);
+            const safeCatatan = escapeHtml(catatan);
 
             let resultBadgeClass = 'bg-secondary-subtle text-secondary border border-secondary-subtle';
             if (badgeClass === 'success') {
@@ -855,15 +872,19 @@ document.addEventListener('DOMContentLoaded', function () {
             const legendEl = document.getElementById('modalFormulaLegendContainer');
 
             if (tipe.includes('MANUAL')) {
+                const catatanHtml = safeCatatan
+                    ? `<div class="mt-2 pt-2 border-top text-muted small" style="font-size: 0.76rem;"><i class="bi bi-clock-history me-1 text-warning"></i>Periode entri data: <strong>${safeCatatan}</strong></div>`
+                    : '';
+
                 equationEl.innerHTML = `
                     <div class="d-flex align-items-center flex-wrap justify-content-center gap-2.5 py-1">
                         <span class="text-muted fw-semibold small text-uppercase">Nilai Entri Manual:</span>
                         <span class="badge bg-warning-subtle text-dark border border-warning-subtle font-monospace px-3 py-2 fs-6 fw-bold">
-                            <i class="bi bi-pencil-square me-1"></i>${penyebutLabel}: ${nilai}
+                            <i class="bi bi-pencil-square me-1"></i>${safePenyebutLabel}: ${safeNilai}
                         </span>
                         <span class="mx-1 text-muted fw-bold">=</span>
                         <span class="badge ${resultBadgeClass} px-3 py-2 fs-6 font-monospace fw-bold shadow-xs" id="modalIndicatorNilai">
-                            ${nilai}
+                            ${safeNilai}
                         </span>
                     </div>
                 `;
@@ -871,25 +892,26 @@ document.addEventListener('DOMContentLoaded', function () {
                 legendEl.innerHTML = `
                     <div class="d-flex align-items-center gap-2 text-muted">
                         <i class="bi bi-info-circle-fill text-warning flex-shrink-0"></i>
-                        <span>Data bersumber dari entri manual non-akuntansi (<strong>${penyebutLabel}</strong>) pada periode evaluasi terkait.</span>
+                        <span>Data bersumber dari entri manual non-akuntansi (<strong>${safePenyebutLabel}</strong>).</span>
                     </div>
+                    ${catatanHtml}
                 `;
             } else if (satuan === 'Juta/org/bln') {
                 equationEl.innerHTML = `
                     <div class="d-flex align-items-center flex-nowrap justify-content-center gap-2 py-1">
                         <div class="d-inline-flex flex-column align-items-center text-center px-1">
-                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${pembilangLabel}">
-                                ${pembilangFormatted}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${safePembilangLabel}">
+                                ${safePembilangFormatted}
                             </span>
                             <div class="w-100 my-1" style="height: 2px; background-color: #94a3b8; min-width: 90px;"></div>
-                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${penyebutLabel}">
-                                ${penyebutFormatted}
+                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${safePenyebutLabel}">
+                                ${safePenyebutFormatted}
                             </span>
                         </div>
                         <span class="fw-bold text-secondary font-monospace small">÷ Bln ÷ 1 Jt</span>
                         <span class="fw-bold text-dark fs-5 mx-1">=</span>
                         <span class="badge ${resultBadgeClass} px-3 py-2 fs-6 font-monospace fw-bold shadow-xs" id="modalIndicatorNilai">
-                            ${nilai}
+                            ${safeNilai}
                         </span>
                     </div>
                 `;
@@ -900,8 +922,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             <div class="d-flex align-items-start gap-2">
                                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-1.5 py-0.5 mt-0.5 flex-shrink-0">Pembilang</span>
                                 <div>
-                                    <strong class="text-dark d-block">${pembilangLabel}</strong>
-                                    <span class="text-muted small font-monospace">${pembilangFormatted}</span>
+                                    <strong class="text-dark d-block">${safePembilangLabel}</strong>
+                                    <span class="text-muted small font-monospace">${safePembilangFormatted}</span>
                                 </div>
                             </div>
                         </div>
@@ -909,8 +931,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             <div class="d-flex align-items-start gap-2">
                                 <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle font-monospace px-1.5 py-0.5 mt-0.5 flex-shrink-0">Penyebut</span>
                                 <div>
-                                    <strong class="text-dark d-block">${penyebutLabel}</strong>
-                                    <span class="text-muted small font-monospace">${penyebutFormatted}</span>
+                                    <strong class="text-dark d-block">${safePenyebutLabel}</strong>
+                                    <span class="text-muted small font-monospace">${safePenyebutFormatted}</span>
                                 </div>
                             </div>
                         </div>
@@ -919,33 +941,34 @@ document.addEventListener('DOMContentLoaded', function () {
                         <i class="bi bi-info-circle me-1 text-primary"></i>Dihitung sebagai rata-rata pendapatan bulanan dibagi jumlah SDM non-organik dalam satuan juta rupiah.
                     </div>
                 `;
-            } else if (tipe.includes('TURNOVER')) {
-                const pengaliHtml = pengaliLabel
-                    ? `<span class="fw-bold text-secondary font-monospace px-1" style="font-size: 0.9rem;">${pengaliLabel}</span>`
+            } else {
+                const isTurnover = tipe.includes('TURNOVER');
+                const pengaliHtml = safePengaliLabel
+                    ? `<span class="fw-bold text-secondary font-monospace px-1" style="font-size: 0.9rem;">${safePengaliLabel}</span>`
                     : '';
 
                 equationEl.innerHTML = `
                     <div class="d-flex align-items-center flex-nowrap justify-content-center gap-2 py-1">
                         <div class="d-inline-flex flex-column align-items-center text-center px-1">
-                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${pembilangLabel}">
-                                ${pembilangFormatted}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${safePembilangLabel}">
+                                ${safePembilangFormatted}
                             </span>
                             <div class="w-100 my-1" style="height: 2px; background-color: #94a3b8; min-width: 90px;"></div>
-                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${penyebutLabel}">
-                                ${penyebutFormatted}
+                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${safePenyebutLabel}">
+                                ${safePenyebutFormatted}
                             </span>
                         </div>
                         ${pengaliHtml}
                         <span class="fw-bold text-dark fs-5 mx-1">=</span>
                         <span class="badge ${resultBadgeClass} px-3 py-2 fs-6 font-monospace fw-bold shadow-xs" id="modalIndicatorNilai">
-                            ${nilai}
+                            ${safeNilai}
                         </span>
                     </div>
                 `;
 
                 const hariRiil = data.hariRiil || '';
-                const hariNote = hariRiil
-                    ? `<div class="mt-2 pt-2 border-top text-muted small" style="font-size: 0.76rem;"><i class="bi bi-calendar3 me-1 text-primary"></i>Faktor pengali perputaran menggunakan jumlah hari riil periode evaluasi: <strong>${hariRiil} Hari</strong>.</div>`
+                const hariNote = (isTurnover && hariRiil)
+                    ? `<div class="mt-2 pt-2 border-top text-muted small" style="font-size: 0.76rem;"><i class="bi bi-calendar3 me-1 text-primary"></i>Faktor pengali perputaran menggunakan jumlah hari riil periode evaluasi: <strong>${escapeHtml(hariRiil)} Hari</strong>.</div>`
                     : '';
 
                 legendEl.innerHTML = `
@@ -954,8 +977,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             <div class="d-flex align-items-start gap-2">
                                 <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-1.5 py-0.5 mt-0.5 flex-shrink-0">Pembilang</span>
                                 <div>
-                                    <strong class="text-dark d-block">${pembilangLabel}</strong>
-                                    <span class="text-muted small font-monospace">${pembilangFormatted}</span>
+                                    <strong class="text-dark d-block">${safePembilangLabel}</strong>
+                                    <span class="text-muted small font-monospace">${safePembilangFormatted}</span>
                                 </div>
                             </div>
                         </div>
@@ -963,59 +986,13 @@ document.addEventListener('DOMContentLoaded', function () {
                             <div class="d-flex align-items-start gap-2">
                                 <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle font-monospace px-1.5 py-0.5 mt-0.5 flex-shrink-0">Penyebut</span>
                                 <div>
-                                    <strong class="text-dark d-block">${penyebutLabel}</strong>
-                                    <span class="text-muted small font-monospace">${penyebutFormatted}</span>
+                                    <strong class="text-dark d-block">${safePenyebutLabel}</strong>
+                                    <span class="text-muted small font-monospace">${safePenyebutFormatted}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                     ${hariNote}
-                `;
-            } else {
-                const pengaliHtml = pengaliLabel
-                    ? `<span class="fw-bold text-secondary font-monospace px-1" style="font-size: 0.9rem;">${pengaliLabel}</span>`
-                    : '';
-
-                equationEl.innerHTML = `
-                    <div class="d-flex align-items-center flex-nowrap justify-content-center gap-2 py-1">
-                        <div class="d-inline-flex flex-column align-items-center text-center px-1">
-                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${pembilangLabel}">
-                                ${pembilangFormatted}
-                            </span>
-                            <div class="w-100 my-1" style="height: 2px; background-color: #94a3b8; min-width: 90px;"></div>
-                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${penyebutLabel}">
-                                ${penyebutFormatted}
-                            </span>
-                        </div>
-                        ${pengaliHtml}
-                        <span class="fw-bold text-dark fs-5 mx-1">=</span>
-                        <span class="badge ${resultBadgeClass} px-3 py-2 fs-6 font-monospace fw-bold shadow-xs" id="modalIndicatorNilai">
-                            ${nilai}
-                        </span>
-                    </div>
-                `;
-
-                legendEl.innerHTML = `
-                    <div class="row g-2">
-                        <div class="col-12 col-md-6">
-                            <div class="d-flex align-items-start gap-2">
-                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-1.5 py-0.5 mt-0.5 flex-shrink-0">Pembilang</span>
-                                <div>
-                                    <strong class="text-dark d-block">${pembilangLabel}</strong>
-                                    <span class="text-muted small font-monospace">${pembilangFormatted}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <div class="d-flex align-items-start gap-2">
-                                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle font-monospace px-1.5 py-0.5 mt-0.5 flex-shrink-0">Penyebut</span>
-                                <div>
-                                    <strong class="text-dark d-block">${penyebutLabel}</strong>
-                                    <span class="text-muted small font-monospace">${penyebutFormatted}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 `;
             }
 

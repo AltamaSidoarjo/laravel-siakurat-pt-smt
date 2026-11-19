@@ -290,7 +290,9 @@ class DashboardIndikatorKinerjaTest extends TestCase
         $response->assertOk()
             ->assertSee('Saldo COA')
             ->assertSee('Target RBA')
-            ->assertSee('× 100%');
+            ->assertSee('× 100%')
+            ->assertSee('Manual:')
+            ->assertSee('Hari');
     }
 
     public function test_dashboard_elements_contain_explicit_formula_data_attributes(): void
@@ -306,6 +308,7 @@ class DashboardIndikatorKinerjaTest extends TestCase
             ->assertSee('data-pembilang-label', false)
             ->assertSee('data-penyebut-label', false)
             ->assertSee('data-pengali-label', false)
+            ->assertSee('data-catatan', false)
             ->assertSee('data-tipe', false);
     }
 
@@ -320,5 +323,17 @@ class DashboardIndikatorKinerjaTest extends TestCase
             ->assertSee('id="modalFormulaBox"', false)
             ->assertSee('id="modalFormulaEquationContainer"', false)
             ->assertSee('id="modalFormulaLegendContainer"', false);
+    }
+
+    public function test_dashboard_script_includes_html_sanitization_and_manual_catatan(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+        $this->assignRolePermission($user);
+
+        $response = $this->actingAs($user)->get(route('dashboard.indikator-kinerja.index'));
+        $response->assertOk()
+            ->assertSee('function escapeHtml', false)
+            ->assertSee('safeCatatan', false);
     }
 }
