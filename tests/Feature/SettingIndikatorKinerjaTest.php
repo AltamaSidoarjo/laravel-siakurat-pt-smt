@@ -581,4 +581,23 @@ class SettingIndikatorKinerjaTest extends TestCase
             ->assertSee('Lower is Better')
             ->assertSee('Target Band');
     }
+
+    public function test_create_and_edit_pages_render_panduan_glosarium_button_and_modal(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+        $indikator = \App\Models\IndikatorKinerja::firstOrFail();
+
+        // 1. Create page
+        $createRes = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.create'));
+        $createRes->assertOk()
+            ->assertSee('btnOpenModalPanduan')
+            ->assertSee('modalPanduanSetting');
+
+        // 2. Edit page
+        $editRes = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.edit', $indikator));
+        $editRes->assertOk()
+            ->assertSee('btnOpenModalPanduan')
+            ->assertSee('modalPanduanSetting');
+    }
 }

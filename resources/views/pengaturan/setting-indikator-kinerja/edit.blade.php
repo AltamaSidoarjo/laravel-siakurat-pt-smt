@@ -98,6 +98,10 @@
                 </div>
 
                 <div class="d-none d-md-flex align-items-center gap-2">
+                    <button type="button" id="btnOpenModalPanduan" class="btn btn-outline-success px-3 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs" data-bs-toggle="modal" data-bs-target="#modalPanduanSetting" title="Buka Panduan &amp; Glosarium Indikator Kinerja">
+                        <i class="bi bi-book-half"></i>
+                        <span>Panduan &amp; Glosarium</span>
+                    </button>
                     <a href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']) }}" class="btn btn-outline-secondary px-3 fw-semibold">
                         Batal
                     </a>
@@ -703,6 +707,8 @@
         </td>
     </tr>
 </template>
+
+@include('pengaturan.setting-indikator-kinerja.partials.modal-panduan')
 @endsection
 
 @push('scripts')
