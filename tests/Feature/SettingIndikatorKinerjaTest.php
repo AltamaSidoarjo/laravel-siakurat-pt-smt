@@ -553,4 +553,30 @@ class SettingIndikatorKinerjaTest extends TestCase
         $response->assertOk()
             ->assertSee("['ArrowUp', 'ArrowDown', 'Enter'].includes(e.key)", false);
     }
+
+    public function test_panduan_glosarium_modal_partial_renders_all_tabs_and_case_studies(): void
+    {
+        $view = $this->view('pengaturan.setting-indikator-kinerja.partials.modal-panduan');
+
+        $view->assertSee('modalPanduanSetting')
+            ->assertSee('Panduan Konfigurasi Indikator Kinerja & Glosarium COA')
+            ->assertSee('Logika Formula & Input')
+            ->assertSee('Glosarium COA & 4 Kasus RS')
+            ->assertSee('Target Ambang Batas (RAG)')
+            ->assertSee('RASIO')
+            ->assertSee('TURNOVER')
+            ->assertSee('MANUAL')
+            ->assertSee('Numerator')
+            ->assertSee('Denominator')
+            ->assertSee('Addition')
+            ->assertSee('Deduction')
+            ->assertSee('Exclusion')
+            ->assertSee('Beban Pegawai')
+            ->assertSee('EBITDA')
+            ->assertSee('Perputaran Persediaan')
+            ->assertSee('Produktivitas SDM')
+            ->assertSee('Higher is Better')
+            ->assertSee('Lower is Better')
+            ->assertSee('Target Band');
+    }
 }
