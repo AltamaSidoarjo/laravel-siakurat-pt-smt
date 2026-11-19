@@ -41,7 +41,7 @@ class StoreIndikatorKinerjaRequest extends FormRequest
             'basis_penyebut' => ['nullable', Rule::enum(BasisPenyebut::class)],
             'variabel_manual_id' => ['nullable', 'integer', 'exists:indikator_kinerja_variabel_manual,id'],
             'definisi_operasional' => ['nullable', 'string'],
-            'urutan' => ['nullable', 'integer', 'min:0'],
+            'urutan' => ['nullable', 'integer', 'min:1'],
             'status_aktif' => ['nullable', 'boolean'],
             'pola_evaluasi' => ['required', Rule::enum(PolaEvaluasi::class)],
             'target_hijau_min' => ['nullable', 'numeric'],

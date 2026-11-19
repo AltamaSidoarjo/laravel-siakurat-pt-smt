@@ -69,7 +69,7 @@ Memvalidasi formulir tambah dan edit indikator kinerja:
 - `basis_penyebut`: Opsional, enum `BasisPenyebut` (`COA`, `RBA`, `MANUAL`, `NONE`).
 - `variabel_manual_id`: Opsional, integer, harus ada di tabel `indikator_kinerja_variabel_manual,id`.
 - `definisi_operasional`: Opsional, teks bebas.
-- `urutan`: Opsional, integer $\ge 0$.
+- `urutan`: Opsional, integer $\ge 1$ (urutan prioritas tampilan kartu indikator di dashboard).
 - `status_aktif`: Boolean (otomatis dinormalisasi di `prepareForValidation`).
 - `pola_evaluasi`: Wajib, enum `PolaEvaluasi` (`HIGHER_IS_BETTER`, `LOWER_IS_BETTER`, `TARGET_BAND`).
 - `target_hijau_min`, `target_hijau_max`, `target_kuning_min`, `target_kuning_max`, `target_merah_min`, `target_merah_max`: Opsional, nilai numerik ambang batas.
@@ -103,7 +103,7 @@ Memvalidasi simpan matriks nilai bulanan variabel manual:
 
 ## Alur 1: Create / Edit Indikator Kinerja & Sinkronisasi COA
 
-Alur ini memproses pembuatan indikator baru atau pembaruan konfigurasi indikator yang sudah ada beserta relasi pemetaan akun COA-nya.
+Alur ini memproses pembuatan indikator baru atau pembaruan konfigurasi indikator yang sudah ada beserta relasi pemetaan akun COA-nya dan manajemen urutan prioritas otomatis.
 
 ### Flowchart
 
@@ -112,28 +112,39 @@ flowchart TD
     A["User kirim form Create / Edit Indikator"] --> B["StoreIndikatorKinerjaRequest / UpdateIndikatorKinerjaRequest"]
     B --> C["Controller: store() atau update()"]
     C --> D["Mulai DB::transaction"]
-    D --> E["Simpan data master IndikatorKinerja"]
-    E --> F["Hapus pemetaan lama: $indikator->mappingCoa()->delete()"]
-    F --> G{"Ada baris pemetaan baru?"}
-    G -- Ya --> H["Loop baris mappings -> create() ke indikator_kinerja_mapping_coa"]
-    G -- Tidak --> I["Lewati pembuatan mapping"]
-    H --> J["Commit transaksi DB"]
-    I --> J
-    J --> K["Redirect ke pengaturan.setting-indikator-kinerja.index?tab=indikator + Flash Success"]
+    D --> E{"Aksi Create atau Update?"}
+    E -- Create --> F1["Panggil shiftUrutanForCreate()<br/>Urutan >= target bergeser +1"]
+    E -- Update --> F2["Panggil shiftUrutanForUpdate()<br/>Indikator lain bergeser dinamis (+1 / -1)"]
+    F1 --> G["Simpan data master IndikatorKinerja"]
+    F2 --> G
+    G --> H["Hapus pemetaan lama: $indikator->mappingCoa()->delete()"]
+    H --> I{"Ada baris pemetaan baru?"}
+    I -- Ya --> J["Loop baris mappings -> create() ke indikator_kinerja_mapping_coa"]
+    I -- Tidak --> K["Lewati pembuatan mapping"]
+    J --> L["Commit transaksi DB"]
+    K --> L
+    L --> M["Redirect ke pengaturan.setting-indikator-kinerja.index?tab=indikator + Flash Success"]
 ```
 
 ### Algoritma
 
-1. Request diterima dan divalidasi oleh `StoreIndikatorKinerjaRequest` atau `UpdateIndikatorKinerjaRequest`.
-2. Controller membungkus seluruh operasi dalam `DB::transaction`.
-3. Memisahkan data indikator utama dari payload pemetaan COA (`$request->safe()->except('mappings')`).
-4. Jika `urutan` tidak diisi pada aksi create, sistem otomatis menetapkan `urutan` tertinggi + 1.
-5. Record `IndikatorKinerja` dibuat atau diperbarui.
-6. Metode privat `syncMappings()` dipanggil:
+1. Form create secara otomatis menghitung dan menampilkan nilai default `urutan` prioritas berdasarkan urutan indikator terakhir (`max('urutan') + 1`, atau `1` bila belum ada indikator).
+2. Request diterima dan divalidasi oleh `StoreIndikatorKinerjaRequest` atau `UpdateIndikatorKinerjaRequest`.
+3. Controller membungkus seluruh operasi dalam `DB::transaction`.
+4. Memisahkan data indikator utama dari payload pemetaan COA (`$request->safe()->except('mappings')`).
+5. **Pergeseran Urutan Prioritas**:
+   - **Pada Create (`store`)**: Jika `urutan` tidak diisi, otomatis diset ke `max('urutan') + 1`. Metode privat `shiftUrutanForCreate()` dipanggil: seluruh indikator yang memiliki `urutan >= target` digeser ke bawah (+1) untuk memberi ruang dan mencegah urutan ganda.
+   - **Pada Edit (`update`)**: Metode privat `shiftUrutanForUpdate()` dipanggil:
+     - Jika dipindahkan ke urutan lebih kecil (`newUrutan < oldUrutan`), indikator antara `newUrutan` dan `oldUrutan - 1` bergeser ke bawah (+1).
+     - Jika dipindahkan ke urutan lebih besar (`newUrutan > oldUrutan`), indikator antara `oldUrutan + 1` dan `newUrutan` bergeser ke atas (-1).
+     - Jika urutan sama namun terdapat duplikasi dengan record lain, indikator lain bergeser (+1).
+   - **Pada Hapus (`destroy`)**: Setelah indikator dihapus, indikator dengan `urutan > target` digeser ke atas (-1) agar urutan tetap berkesinambungan tanpa celah (*gap*).
+6. Record `IndikatorKinerja` dibuat atau diperbarui.
+7. Metode privat `syncMappings()` dipanggil:
    - Menghapus semua relasi COA lama via `$indikator->mappingCoa()->delete()`.
    - Melakukan iterasi pada array `$mappings`, menyaring baris yang memiliki `coa_id`, dan menyimpannya sebagai record baru dengan atribut `coa_id`, `peran`, dan `is_excluded`.
-7. Transaksi database di-commit.
-8. Pengguna dialihkan kembali ke daftar indikator dengan flash pesan notifikasi sukses.
+8. Transaksi database di-commit.
+9. Pengguna dialihkan kembali ke daftar indikator dengan flash pesan notifikasi sukses.
 
 ### Fungsi yang Dipanggil
 
@@ -141,6 +152,8 @@ flowchart TD
 - `SettingIndikatorKinerjaController::store()`
 - `SettingIndikatorKinerjaController::edit()`
 - `SettingIndikatorKinerjaController::update()`
+- `SettingIndikatorKinerjaController::shiftUrutanForCreate()`
+- `SettingIndikatorKinerjaController::shiftUrutanForUpdate()`
 - `SettingIndikatorKinerjaController::syncMappings()`
 - `SettingIndikatorKinerjaController::destroy()`
 

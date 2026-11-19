@@ -581,7 +581,7 @@
                             <!-- Urutan Tampilan -->
                             <div>
                                 <label for="urutan" class="form-label fw-semibold text-dark mb-1">Urutan Prioritas</label>
-                                <input type="number" name="urutan" id="urutan" class="form-control" value="{{ old('urutan', 1) }}" min="0">
+                                <input type="number" name="urutan" id="urutan" class="form-control" value="{{ old('urutan', $nextUrutan ?? 1) }}" min="1">
                                 <div class="form-text small">Urutan posisi kartu saat ditampilkan pada dashboard eksekutif.</div>
                             </div>
 

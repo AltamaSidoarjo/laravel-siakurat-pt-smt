@@ -239,8 +239,8 @@ class IndikatorKinerjaCrudTest extends TestCase
         $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.edit', $indikator->id));
 
         $response->assertOk();
-        $response->assertSee('value="' . $coa1->id . '" selected', false);
-        $response->assertSee('value="' . $coa2->id . '" selected', false);
+        $response->assertSee('value="'.$coa1->id.'" selected', false);
+        $response->assertSee('value="'.$coa2->id.'" selected', false);
     }
 
     public function test_can_update_indicator_and_sync_mapping_coa(): void
@@ -404,5 +404,215 @@ class IndikatorKinerjaCrudTest extends TestCase
 
         $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.create'))->assertForbidden();
         $this->actingAs($user)->post(route('pengaturan.setting-indikator-kinerja.store'), [])->assertForbidden();
+    }
+
+    public function test_create_page_shows_next_available_urutan_based_on_last_indicator(): void
+    {
+        $user = User::factory()->create();
+
+        IndikatorKinerja::create([
+            'kode' => 'ik_1',
+            'nama' => 'IK 1',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'urutan' => 1,
+        ]);
+        IndikatorKinerja::create([
+            'kode' => 'ik_2',
+            'nama' => 'IK 2',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'urutan' => 2,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.create'));
+
+        $response->assertOk();
+        $response->assertSee('name="urutan" id="urutan" class="form-control" value="3"', false);
+    }
+
+    public function test_creating_indicator_with_existing_urutan_shifts_other_indicators(): void
+    {
+        $user = User::factory()->create();
+
+        $ik1 = IndikatorKinerja::create([
+            'kode' => 'ik_1',
+            'nama' => 'IK 1',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'urutan' => 1,
+        ]);
+        $ik2 = IndikatorKinerja::create([
+            'kode' => 'ik_2',
+            'nama' => 'IK 2',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'urutan' => 2,
+        ]);
+
+        // Insert new indicator with urutan 1
+        $response = $this->actingAs($user)->post(route('pengaturan.setting-indikator-kinerja.store'), [
+            'kode' => 'ik_new',
+            'nama' => 'IK New',
+            'satuan' => SatuanIndikator::PERSEN->value,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO->value,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER->value,
+            'urutan' => 1,
+        ]);
+
+        $response->assertRedirect(route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']));
+
+        $newIk = IndikatorKinerja::where('kode', 'ik_new')->firstOrFail();
+        $this->assertSame(1, $newIk->urutan);
+
+        $ik1->refresh();
+        $ik2->refresh();
+        $this->assertSame(2, $ik1->urutan);
+        $this->assertSame(3, $ik2->urutan);
+    }
+
+    public function test_updating_indicator_to_lower_urutan_shifts_other_indicators_down(): void
+    {
+        $user = User::factory()->create();
+
+        $ik1 = IndikatorKinerja::create([
+            'kode' => 'ik_1',
+            'nama' => 'IK 1',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'urutan' => 1,
+        ]);
+        $ik2 = IndikatorKinerja::create([
+            'kode' => 'ik_2',
+            'nama' => 'IK 2',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'urutan' => 2,
+        ]);
+        $ik3 = IndikatorKinerja::create([
+            'kode' => 'ik_3',
+            'nama' => 'IK 3',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'urutan' => 3,
+        ]);
+
+        // Move ik3 from 3 to 1
+        $response = $this->actingAs($user)->put(route('pengaturan.setting-indikator-kinerja.update', $ik3->id), [
+            'kode' => 'ik_3',
+            'nama' => 'IK 3 Updated',
+            'satuan' => SatuanIndikator::PERSEN->value,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO->value,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER->value,
+            'urutan' => 1,
+        ]);
+
+        $response->assertRedirect(route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']));
+
+        $ik3->refresh();
+        $ik1->refresh();
+        $ik2->refresh();
+
+        $this->assertSame(1, $ik3->urutan);
+        $this->assertSame(2, $ik1->urutan);
+        $this->assertSame(3, $ik2->urutan);
+    }
+
+    public function test_updating_indicator_to_higher_urutan_shifts_other_indicators_up(): void
+    {
+        $user = User::factory()->create();
+
+        $ik1 = IndikatorKinerja::create([
+            'kode' => 'ik_1',
+            'nama' => 'IK 1',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'urutan' => 1,
+        ]);
+        $ik2 = IndikatorKinerja::create([
+            'kode' => 'ik_2',
+            'nama' => 'IK 2',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'urutan' => 2,
+        ]);
+        $ik3 = IndikatorKinerja::create([
+            'kode' => 'ik_3',
+            'nama' => 'IK 3',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'urutan' => 3,
+        ]);
+
+        // Move ik1 from 1 to 3
+        $response = $this->actingAs($user)->put(route('pengaturan.setting-indikator-kinerja.update', $ik1->id), [
+            'kode' => 'ik_1',
+            'nama' => 'IK 1 Updated',
+            'satuan' => SatuanIndikator::PERSEN->value,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO->value,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER->value,
+            'urutan' => 3,
+        ]);
+
+        $response->assertRedirect(route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']));
+
+        $ik1->refresh();
+        $ik2->refresh();
+        $ik3->refresh();
+
+        $this->assertSame(1, $ik2->urutan);
+        $this->assertSame(2, $ik3->urutan);
+        $this->assertSame(3, $ik1->urutan);
+    }
+
+    public function test_deleting_indicator_shifts_subsequent_indicators_up(): void
+    {
+        $user = User::factory()->create();
+
+        $ik1 = IndikatorKinerja::create([
+            'kode' => 'ik_1',
+            'nama' => 'IK 1',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'urutan' => 1,
+        ]);
+        $ik2 = IndikatorKinerja::create([
+            'kode' => 'ik_2',
+            'nama' => 'IK 2',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'urutan' => 2,
+        ]);
+        $ik3 = IndikatorKinerja::create([
+            'kode' => 'ik_3',
+            'nama' => 'IK 3',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+            'urutan' => 3,
+        ]);
+
+        $response = $this->actingAs($user)->delete(route('pengaturan.setting-indikator-kinerja.destroy', $ik2->id));
+
+        $response->assertRedirect(route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']));
+
+        $this->assertDatabaseMissing('indikator_kinerja', ['id' => $ik2->id]);
+        $ik1->refresh();
+        $ik3->refresh();
+
+        $this->assertSame(1, $ik1->urutan);
+        $this->assertSame(2, $ik3->urutan);
     }
 }

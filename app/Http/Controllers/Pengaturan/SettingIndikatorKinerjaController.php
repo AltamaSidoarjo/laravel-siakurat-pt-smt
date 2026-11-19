@@ -91,6 +91,7 @@ class SettingIndikatorKinerjaController extends Controller
             ->orderBy('kode')
             ->get(['id', 'kode', 'nama', 'status_aktif']);
         $variabelManuals = IndikatorKinerjaVariabelManual::orderBy('id')->get();
+        $nextUrutan = ((int) IndikatorKinerja::max('urutan')) + 1;
 
         return view('pengaturan.setting-indikator-kinerja.create', [
             'coas' => $coas,
@@ -101,6 +102,7 @@ class SettingIndikatorKinerjaController extends Controller
             'basisPenyebutOptions' => BasisPenyebut::cases(),
             'polaEvaluasiOptions' => PolaEvaluasi::cases(),
             'peranCoaOptions' => PeranCoa::cases(),
+            'nextUrutan' => $nextUrutan,
         ]);
     }
 
@@ -111,6 +113,10 @@ class SettingIndikatorKinerjaController extends Controller
             if (! isset($data['urutan']) || $data['urutan'] === null) {
                 $data['urutan'] = ((int) IndikatorKinerja::max('urutan')) + 1;
             }
+
+            $newUrutan = (int) $data['urutan'];
+            $this->shiftUrutanForCreate($newUrutan);
+            $data['urutan'] = $newUrutan;
 
             $indikator = IndikatorKinerja::create($data);
 
@@ -161,8 +167,12 @@ class SettingIndikatorKinerjaController extends Controller
         DB::transaction(function () use ($request, $indikator): void {
             $data = $request->safe()->except('mappings');
             if (! isset($data['urutan']) || $data['urutan'] === null) {
-                $data['urutan'] = $indikator->urutan ?? 0;
+                $data['urutan'] = $indikator->urutan ?? (((int) IndikatorKinerja::max('urutan')) + 1);
             }
+
+            $newUrutan = (int) $data['urutan'];
+            $this->shiftUrutanForUpdate($indikator, $newUrutan);
+            $data['urutan'] = $newUrutan;
 
             $indikator->update($data);
 
@@ -175,6 +185,50 @@ class SettingIndikatorKinerjaController extends Controller
         return redirect()
             ->route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator'])
             ->with('success', 'Indikator kinerja berhasil diperbarui.');
+    }
+
+    private function shiftUrutanForCreate(int $newUrutan): void
+    {
+        if ($newUrutan <= 0) {
+            return;
+        }
+
+        IndikatorKinerja::where('urutan', '>=', $newUrutan)->increment('urutan');
+    }
+
+    private function shiftUrutanForUpdate(IndikatorKinerja $indikator, int $newUrutan): void
+    {
+        if ($newUrutan <= 0) {
+            return;
+        }
+
+        $oldUrutan = $indikator->urutan !== null ? (int) $indikator->urutan : null;
+
+        if ($oldUrutan === null || $oldUrutan <= 0) {
+            IndikatorKinerja::where('id', '!=', $indikator->id)
+                ->where('urutan', '>=', $newUrutan)
+                ->increment('urutan');
+
+            return;
+        }
+
+        if ($newUrutan < $oldUrutan) {
+            IndikatorKinerja::where('id', '!=', $indikator->id)
+                ->where('urutan', '>=', $newUrutan)
+                ->where('urutan', '<', $oldUrutan)
+                ->increment('urutan');
+        } elseif ($newUrutan > $oldUrutan) {
+            IndikatorKinerja::where('id', '!=', $indikator->id)
+                ->where('urutan', '>', $oldUrutan)
+                ->where('urutan', '<=', $newUrutan)
+                ->decrement('urutan');
+        } else {
+            if (IndikatorKinerja::where('id', '!=', $indikator->id)->where('urutan', $newUrutan)->exists()) {
+                IndikatorKinerja::where('id', '!=', $indikator->id)
+                    ->where('urutan', '>=', $newUrutan)
+                    ->increment('urutan');
+            }
+        }
     }
 
     /**
@@ -198,7 +252,12 @@ class SettingIndikatorKinerjaController extends Controller
     public function destroy(IndikatorKinerja $indikator): RedirectResponse
     {
         DB::transaction(function () use ($indikator): void {
+            $oldUrutan = $indikator->urutan !== null ? (int) $indikator->urutan : null;
             $indikator->delete();
+
+            if ($oldUrutan !== null && $oldUrutan > 0) {
+                IndikatorKinerja::where('urutan', '>', $oldUrutan)->decrement('urutan');
+            }
         });
 
         return redirect()
