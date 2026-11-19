@@ -25,6 +25,7 @@ Implementasi utama modul ini berada di:
 - `resources/views/pengaturan/setting-indikator-kinerja/index.blade.php`
 - `resources/views/pengaturan/setting-indikator-kinerja/create.blade.php`
 - `resources/views/pengaturan/setting-indikator-kinerja/edit.blade.php`
+- `resources/views/pengaturan/setting-indikator-kinerja/partials/stepper.blade.php`
 
 ---
 
@@ -281,6 +282,15 @@ flowchart TD
       - **Akun Neraca** (*Aktiva*, *Pasiva/Kewajiban*, *Ekuitas*): Diambil sebagai **Saldo Kumulatif per tanggal akhir periode (`endDate`)**, dengan normalisasi saldo kredit untuk Pasiva dan Ekuitas sehingga menghasilkan nilai rasio positif. Kontra-aset (seperti Akumulasi Penyusutan) secara alami mengurangi nilai total aset.
       - **Akun Laba Rugi** (*Pendapatan*, *Beban*): Diambil sebagai **Mutasi Transaksi periode berjalan (`startDate` s.d. `endDate`)**.
     - Hal ini memungkinkan konfigurasi indikator rasio likuiditas, solvabilitas, dan profitabilitas eksekutif (*Current Ratio*, *Cash Ratio*, *ROE*, *TMSTA*, *ROI*, *TATO*) langsung melalui pemetaan COA standar tanpa perlu perubahan skema atau variabel manual.
+13. **Sticky Stepper Navigasi pada Form Create & Edit (`partials/stepper.blade.php`)**:
+    - Kolom kiri form (`col-lg-8`) dilengkapi komponen navigasi *sticky stepper* (`position: sticky; top: 1rem; z-index: 9;`) tepat sebelum kartu Identitas Dasar.
+    - Menampilkan 3 langkah terstruktur:
+      1. **Identitas Dasar** (*Formula & Satuan*) $\rightarrow$ Menuju `#sectionIdentitas`
+      2. **Target Evaluasi** (*Ambang Batas RAG*) $\rightarrow$ Menuju `#sectionTargetRag`
+      3. **Pemetaan Akun** (*Mapping COA*) $\rightarrow$ Menuju `#sectionMappingCoa`
+    - Menggunakan palet tema hijau utama aplikasi (`#027e3f` / `#166534` dengan background `#f0fdf4` dan border `#bbf7d0`).
+    - Menyediakan interaktivitas klik untuk *smooth scroll* dengan kompensasi offset (`scroll-margin-top: 6.5rem`) serta deteksi posisi viewport real-time melalui `IntersectionObserver` (*auto-highlight on scroll*).
+    - Desain responsif dengan container scroll horizontal (`overflow-x-auto`) pada perangkat mobile tanpa mematahkan lebar container kartu.
 
 ---
 
