@@ -62,12 +62,74 @@
         return '-';
     };
 
+    $formatNominalExplisit = function ($nilai, $satuan = '', $basis = null) {
+        if ($nilai === null) {
+            return '-';
+        }
+        $num = (float) $nilai;
+        $decimals = (fmod($num, 1.0) !== 0.0) ? 2 : 0;
+        $formatted = number_format($num, $decimals, ',', '.');
+
+        $basisVal = $basis instanceof \BackedEnum ? $basis->value : (string) $basis;
+        $satuanStr = $satuan instanceof \BackedEnum ? $satuan->value : (string) $satuan;
+
+        if ($basisVal === 'COA' || $basisVal === 'SURPLUS' || $basisVal === 'RBA') {
+            return 'Rp ' . $formatted;
+        }
+        if ($satuanStr === 'Rp' || $satuanStr === 'Juta Rp') {
+            return 'Rp ' . $formatted;
+        }
+        if ($satuanStr === 'Orang' || $satuanStr === 'Pasien' || $satuanStr === 'TT' || $satuanStr === 'Dokumen') {
+            return $formatted . ' ' . $satuanStr;
+        }
+        if ($basisVal === 'MANUAL') {
+            return $formatted;
+        }
+
+        return 'Rp ' . $formatted;
+    };
+
+    $getBasisLabel = function ($basis, $variabelManual = null, $peran = 'pembilang') {
+        $basisVal = $basis instanceof \BackedEnum ? $basis->value : (string) $basis;
+        if ($peran === 'pembilang') {
+            return match ($basisVal) {
+                'COA' => 'Saldo COA',
+                'SURPLUS' => 'Surplus Defisit',
+                'NONE' => 'Non-Akuntansi',
+                default => 'Saldo COA',
+            };
+        }
+
+        return match ($basisVal) {
+            'COA' => 'Saldo COA',
+            'RBA' => 'Target RBA',
+            'MANUAL' => $variabelManual ? 'Manual: '.$variabelManual->nama : 'Variabel Manual',
+            'NONE' => 'Non-Akuntansi',
+            default => 'Penyebut',
+        };
+    };
+
+    $getPengaliLabel = function ($tipe, $satuan, $daysCount) {
+        $tipeVal = $tipe instanceof \BackedEnum ? $tipe->value : (string) $tipe;
+        $satuanVal = $satuan instanceof \BackedEnum ? $satuan->value : (string) $satuan;
+
+        if ($tipeVal === 'TURNOVER' || strtolower($satuanVal) === 'hari') {
+            return "× {$daysCount} Hari";
+        }
+        if ($satuanVal === '%') {
+            return '× 100%';
+        }
+
+        return '';
+    };
+
     $totalCount = $ringkasanStatus['total'] ?? 0;
     $pctHijau = $totalCount > 0 ? round((($ringkasanStatus['hijau'] ?? 0) / $totalCount) * 100) : 0;
     $pctKuning = $totalCount > 0 ? round((($ringkasanStatus['kuning'] ?? 0) / $totalCount) * 100) : 0;
     $pctMerah = $totalCount > 0 ? round((($ringkasanStatus['merah'] ?? 0) / $totalCount) * 100) : 0;
 
     $daysCount = \Carbon\Carbon::parse($startDate)->diffInDays(\Carbon\Carbon::parse($endDate)) + 1;
+    $periodeText = \Carbon\Carbon::parse($startDate)->format('d M Y') . ' s.d. ' . \Carbon\Carbon::parse($endDate)->format('d M Y') . " ({$daysCount} Hari)";
 @endphp
 
 @section('content')
@@ -301,6 +363,15 @@
                                 $targetMerahText = $formatBand($ind->target_merah_min, $ind->target_merah_max, $satuanStr, $ind->pola_evaluasi);
                                 $polaLabel = $ind->pola_evaluasi ? $ind->pola_evaluasi->label() : '-';
                                 $tipeKalkulasiLabel = $ind->tipe_kalkulasi ? $ind->tipe_kalkulasi->label() : '-';
+                                $tipeVal = $ind->tipe_kalkulasi instanceof \BackedEnum ? $ind->tipe_kalkulasi->value : (string) ($ind->tipe_kalkulasi?->value ?? $ind->tipe_kalkulasi);
+
+                                $pembilangVal = $item['pembilang'];
+                                $penyebutVal = $item['penyebut'];
+                                $pembilangFormatted = $formatNominalExplisit($pembilangVal, $satuanStr, $ind->basis_pembilang);
+                                $penyebutFormatted = $formatNominalExplisit($penyebutVal, $satuanStr, $ind->basis_penyebut);
+                                $pembilangLabel = $getBasisLabel($ind->basis_pembilang, null, 'pembilang');
+                                $penyebutLabel = $getBasisLabel($ind->basis_penyebut, $ind->variabelManual, 'penyebut');
+                                $pengaliLabel = $getPengaliLabel($ind->tipe_kalkulasi, $satuanStr, $daysCount);
 
                                 // Color accents matching RAG
                                 $borderAccent = match($badgeClass) {
@@ -328,7 +399,18 @@
                                      data-status-badge="{{ $badgeClass }}"
                                      data-definisi="{{ $ind->definisi_operasional }}"
                                      data-pola="{{ $polaLabel }}"
-                                     data-tipe="{{ $tipeKalkulasiLabel }}"
+                                     data-tipe="{{ $tipeVal }}"
+                                     data-tipe-label="{{ $tipeKalkulasiLabel }}"
+                                     data-pembilang-val="{{ $pembilangVal }}"
+                                     data-pembilang-formatted="{{ $pembilangFormatted }}"
+                                     data-penyebut-val="{{ $penyebutVal }}"
+                                     data-penyebut-formatted="{{ $penyebutFormatted }}"
+                                     data-pembilang-label="{{ $pembilangLabel }}"
+                                     data-penyebut-label="{{ $penyebutLabel }}"
+                                     data-pengali-label="{{ $pengaliLabel }}"
+                                     data-periode-text="{{ $periodeText }}"
+                                     data-hari-riil="{{ $daysCount }}"
+                                     data-catatan="{{ $item['catatan'] ?? '' }}"
                                      data-target-hijau="{{ $targetHijauText }}"
                                      data-target-kuning="{{ $targetKuningText }}"
                                      data-target-merah="{{ $targetMerahText }}">
@@ -353,9 +435,25 @@
                                         </h6>
 
                                         <!-- Formula / Operational Definition -->
-                                        <div class="text-muted small kpi-line-clamp-2 mb-3" style="min-height: 38px;" title="{{ $ind->definisi_operasional }}">
+                                        <div class="text-muted small kpi-line-clamp-2 mb-2" style="min-height: 38px;" title="{{ $ind->definisi_operasional }}">
                                             <i class="bi bi-info-circle me-1 text-muted"></i>
                                             {{ $ind->definisi_operasional ?: 'Formula kalkulasi berdasarkan konfigurasi indikator.' }}
+                                        </div>
+
+                                        <!-- Visualisasi Formula Badge -->
+                                        <div class="d-flex align-items-center flex-wrap gap-1 mb-3 py-1 px-2 bg-light rounded border border-light-subtle font-monospace" style="font-size: 0.72rem;">
+                                            @if ($tipeVal === 'MANUAL')
+                                                <span class="badge bg-warning-subtle text-dark border border-warning-subtle">
+                                                    <i class="bi bi-pencil-square me-1"></i>Manual: {{ $ind->variabelManual?->nama ?? 'Data Manual' }}
+                                                </span>
+                                            @else
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ $pembilangLabel }}</span>
+                                                <span class="text-muted fw-bold">÷</span>
+                                                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">{{ $penyebutLabel }}</span>
+                                                @if ($pengaliLabel)
+                                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">{{ $pengaliLabel }}</span>
+                                                @endif
+                                            @endif
                                         </div>
 
                                         <!-- Realization Value & Target Benchmark Pill -->
@@ -420,6 +518,15 @@
                                         $targetMerahText = $formatBand($ind->target_merah_min, $ind->target_merah_max, $satuanStr, $ind->pola_evaluasi);
                                         $polaLabel = $ind->pola_evaluasi ? $ind->pola_evaluasi->label() : '-';
                                         $tipeKalkulasiLabel = $ind->tipe_kalkulasi ? $ind->tipe_kalkulasi->label() : '-';
+                                        $tipeVal = $ind->tipe_kalkulasi instanceof \BackedEnum ? $ind->tipe_kalkulasi->value : (string) ($ind->tipe_kalkulasi?->value ?? $ind->tipe_kalkulasi);
+
+                                        $pembilangVal = $item['pembilang'];
+                                        $penyebutVal = $item['penyebut'];
+                                        $pembilangFormatted = $formatNominalExplisit($pembilangVal, $satuanStr, $ind->basis_pembilang);
+                                        $penyebutFormatted = $formatNominalExplisit($penyebutVal, $satuanStr, $ind->basis_penyebut);
+                                        $pembilangLabel = $getBasisLabel($ind->basis_pembilang, null, 'pembilang');
+                                        $penyebutLabel = $getBasisLabel($ind->basis_penyebut, $ind->variabelManual, 'penyebut');
+                                        $pengaliLabel = $getPengaliLabel($ind->tipe_kalkulasi, $satuanStr, $daysCount);
 
                                         $bgSubtle = match($badgeClass) {
                                             'success' => 'bg-success-subtle text-success border-success-subtle',
@@ -435,6 +542,20 @@
                                             <div class="small text-muted font-monospace">#{{ $ind->urutan }} • {{ $item['kode'] }}</div>
                                         </td>
                                         <td class="align-middle text-muted small">
+                                            <div class="d-flex align-items-center flex-wrap gap-1 mb-1 font-monospace" style="font-size: 0.72rem;">
+                                                @if ($tipeVal === 'MANUAL')
+                                                    <span class="badge bg-warning-subtle text-dark border border-warning-subtle py-0.5 px-1.5">
+                                                        <i class="bi bi-pencil-square me-1"></i>Manual: {{ $ind->variabelManual?->nama ?? 'Data Manual' }}
+                                                    </span>
+                                                @else
+                                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0.5 px-1.5">{{ $pembilangLabel }}</span>
+                                                    <span class="text-muted fw-bold">÷</span>
+                                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle py-0.5 px-1.5">{{ $penyebutLabel }}</span>
+                                                    @if ($pengaliLabel)
+                                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle py-0.5 px-1.5">{{ $pengaliLabel }}</span>
+                                                    @endif
+                                                @endif
+                                            </div>
                                             <div class="text-truncate" style="max-width: 320px;" title="{{ $ind->definisi_operasional }}">
                                                 {{ $ind->definisi_operasional ?: '-' }}
                                             </div>
@@ -473,7 +594,18 @@
                                                 data-status-badge="{{ $badgeClass }}"
                                                 data-definisi="{{ $ind->definisi_operasional }}"
                                                 data-pola="{{ $polaLabel }}"
-                                                data-tipe="{{ $tipeKalkulasiLabel }}"
+                                                data-tipe="{{ $tipeVal }}"
+                                                data-tipe-label="{{ $tipeKalkulasiLabel }}"
+                                                data-pembilang-val="{{ $pembilangVal }}"
+                                                data-pembilang-formatted="{{ $pembilangFormatted }}"
+                                                data-penyebut-val="{{ $penyebutVal }}"
+                                                data-penyebut-formatted="{{ $penyebutFormatted }}"
+                                                data-pembilang-label="{{ $pembilangLabel }}"
+                                                data-penyebut-label="{{ $penyebutLabel }}"
+                                                data-pengali-label="{{ $pengaliLabel }}"
+                                                data-periode-text="{{ $periodeText }}"
+                                                data-hari-riil="{{ $daysCount }}"
+                                                data-catatan="{{ $item['catatan'] ?? '' }}"
                                                 data-target-hijau="{{ $targetHijauText }}"
                                                 data-target-kuning="{{ $targetKuningText }}"
                                                 data-target-merah="{{ $targetMerahText }}"
