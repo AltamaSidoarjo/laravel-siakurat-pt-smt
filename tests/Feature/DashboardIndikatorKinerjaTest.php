@@ -308,4 +308,17 @@ class DashboardIndikatorKinerjaTest extends TestCase
             ->assertSee('data-pengali-label', false)
             ->assertSee('data-tipe', false);
     }
+
+    public function test_dashboard_modal_detail_contains_explicit_formula_containers(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+        $this->assignRolePermission($user);
+
+        $response = $this->actingAs($user)->get(route('dashboard.indikator-kinerja.index'));
+        $response->assertOk()
+            ->assertSee('id="modalFormulaBox"', false)
+            ->assertSee('id="modalFormulaEquationContainer"', false)
+            ->assertSee('id="modalFormulaLegendContainer"', false);
+    }
 }

@@ -647,23 +647,36 @@
             </div>
 
             <div class="modal-body p-4 space-y-4">
-                <!-- Section 1: Summary Box (Formula & Nilai Saat Ini) -->
-                <div class="bg-light p-3 rounded-3 border mb-4">
-                    <div class="row g-3">
-                        <div class="col-md-7 border-end-md">
-                            <span class="text-muted small fw-semibold text-uppercase d-block mb-1">Definisi Operasional / Formula:</span>
-                            <div class="fw-semibold text-dark small" id="modalIndicatorDefinisi" style="line-height: 1.6;">
-                                -
-                            </div>
+                <!-- Section 1: Explicit Formula Box (Variasi C) -->
+                <div class="bg-light p-3 p-md-4 rounded-3 border mb-4" id="modalFormulaBox">
+                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3 pb-2 border-bottom">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fs-6 fw-bold text-dark d-flex align-items-center gap-1.5">
+                                <i class="bi bi-calculator text-primary"></i>
+                                <span>Formula Kalkulasi Riil Periode</span>
+                            </span>
+                            <span class="badge bg-secondary-subtle text-secondary border font-monospace small" id="modalIndicatorTipe">-</span>
                         </div>
-                        <div class="col-md-5 ps-md-4">
-                            <span class="text-muted small fw-semibold text-uppercase d-block mb-1">Capaian Periode Ini:</span>
-                            <div class="d-flex align-items-baseline gap-2">
-                                <span class="fs-3 fw-bolder text-dark tracking-tight" id="modalIndicatorNilai">-</span>
-                            </div>
-                            <div class="small text-muted mt-1">
-                                Tipe: <span class="fw-semibold text-dark" id="modalIndicatorTipe">-</span>
-                            </div>
+                        <span class="badge bg-white text-dark border font-monospace py-1.5 px-2.5 shadow-xs" id="modalFormulaPeriodeText">
+                            -
+                        </span>
+                    </div>
+
+                    <!-- Equation Math Container -->
+                    <div class="d-flex align-items-center justify-content-center p-3 bg-white rounded-3 border shadow-xs mb-3 overflow-x-auto" id="modalFormulaEquationContainer">
+                        <!-- Rendered dynamically by JavaScript -->
+                    </div>
+
+                    <!-- Legend Box -->
+                    <div class="small p-2.5 bg-white rounded-2 border border-light-subtle mb-3" id="modalFormulaLegendContainer">
+                        <!-- Rendered dynamically by JavaScript -->
+                    </div>
+
+                    <!-- Operational Definition Footer -->
+                    <div class="pt-2 border-top">
+                        <span class="text-muted small fw-semibold text-uppercase d-block mb-1" style="font-size: 0.7rem;">Definisi Operasional:</span>
+                        <div class="text-secondary small fst-italic" id="modalIndicatorDefinisi" style="line-height: 1.5;">
+                            -
                         </div>
                     </div>
                 </div>
@@ -806,9 +819,9 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('modalDetailTrenLabel').textContent = data.nama;
             document.getElementById('modalIndicatorNumber').textContent = data.urutan || '#';
             document.getElementById('modalIndicatorKode').textContent = data.kode;
-            document.getElementById('modalIndicatorNilai').textContent = data.nilai;
             document.getElementById('modalIndicatorDefinisi').textContent = data.definisi || 'Tidak ada definisi operasional tercatat.';
-            document.getElementById('modalIndicatorTipe').textContent = data.tipe || '-';
+            document.getElementById('modalIndicatorTipe').textContent = data.tipeLabel || data.tipe || '-';
+            document.getElementById('modalFormulaPeriodeText').textContent = data.periodeText || '-';
             document.getElementById('modalTargetHijau').textContent = data.targetHijau || '-';
             document.getElementById('modalTargetKuning').textContent = data.targetKuning || '-';
             document.getElementById('modalTargetMerah').textContent = data.targetMerah || '-';
@@ -818,6 +831,193 @@ document.addEventListener('DOMContentLoaded', function () {
             const isWarning = badgeClass === 'warning';
             badgeEl.className = 'badge px-3 py-1.5 rounded-pill fw-semibold shadow-xs bg-' + badgeClass + (isWarning ? ' text-dark' : ' text-white');
             badgeEl.textContent = data.statusLabel || '-';
+
+            // Dynamic Formula Rendering (Variasi C - Pecahan Matematika Ber-Badge)
+            const tipe = (data.tipe || '').toUpperCase();
+            const satuan = data.satuan || '';
+            const pembilangFormatted = data.pembilangFormatted || '-';
+            const penyebutFormatted = data.penyebutFormatted || '-';
+            const pembilangLabel = data.pembilangLabel || 'Pembilang';
+            const penyebutLabel = data.penyebutLabel || 'Penyebut';
+            const pengaliLabel = data.pengaliLabel || '';
+            const nilai = data.nilai || '-';
+
+            let resultBadgeClass = 'bg-secondary-subtle text-secondary border border-secondary-subtle';
+            if (badgeClass === 'success') {
+                resultBadgeClass = 'bg-success-subtle text-success border border-success-subtle';
+            } else if (badgeClass === 'warning') {
+                resultBadgeClass = 'bg-warning-subtle text-warning-emphasis border border-warning-subtle';
+            } else if (badgeClass === 'danger') {
+                resultBadgeClass = 'bg-danger-subtle text-danger border border-danger-subtle';
+            }
+
+            const equationEl = document.getElementById('modalFormulaEquationContainer');
+            const legendEl = document.getElementById('modalFormulaLegendContainer');
+
+            if (tipe.includes('MANUAL')) {
+                equationEl.innerHTML = `
+                    <div class="d-flex align-items-center flex-wrap justify-content-center gap-2.5 py-1">
+                        <span class="text-muted fw-semibold small text-uppercase">Nilai Entri Manual:</span>
+                        <span class="badge bg-warning-subtle text-dark border border-warning-subtle font-monospace px-3 py-2 fs-6 fw-bold">
+                            <i class="bi bi-pencil-square me-1"></i>${penyebutLabel}: ${nilai}
+                        </span>
+                        <span class="mx-1 text-muted fw-bold">=</span>
+                        <span class="badge ${resultBadgeClass} px-3 py-2 fs-6 font-monospace fw-bold shadow-xs" id="modalIndicatorNilai">
+                            ${nilai}
+                        </span>
+                    </div>
+                `;
+
+                legendEl.innerHTML = `
+                    <div class="d-flex align-items-center gap-2 text-muted">
+                        <i class="bi bi-info-circle-fill text-warning flex-shrink-0"></i>
+                        <span>Data bersumber dari entri manual non-akuntansi (<strong>${penyebutLabel}</strong>) pada periode evaluasi terkait.</span>
+                    </div>
+                `;
+            } else if (satuan === 'Juta/org/bln') {
+                equationEl.innerHTML = `
+                    <div class="d-flex align-items-center flex-nowrap justify-content-center gap-2 py-1">
+                        <div class="d-inline-flex flex-column align-items-center text-center px-1">
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${pembilangLabel}">
+                                ${pembilangFormatted}
+                            </span>
+                            <div class="w-100 my-1" style="height: 2px; background-color: #94a3b8; min-width: 90px;"></div>
+                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${penyebutLabel}">
+                                ${penyebutFormatted}
+                            </span>
+                        </div>
+                        <span class="fw-bold text-secondary font-monospace small">÷ Bln ÷ 1 Jt</span>
+                        <span class="fw-bold text-dark fs-5 mx-1">=</span>
+                        <span class="badge ${resultBadgeClass} px-3 py-2 fs-6 font-monospace fw-bold shadow-xs" id="modalIndicatorNilai">
+                            ${nilai}
+                        </span>
+                    </div>
+                `;
+
+                legendEl.innerHTML = `
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <div class="d-flex align-items-start gap-2">
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-1.5 py-0.5 mt-0.5 flex-shrink-0">Pembilang</span>
+                                <div>
+                                    <strong class="text-dark d-block">${pembilangLabel}</strong>
+                                    <span class="text-muted small font-monospace">${pembilangFormatted}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="d-flex align-items-start gap-2">
+                                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle font-monospace px-1.5 py-0.5 mt-0.5 flex-shrink-0">Penyebut</span>
+                                <div>
+                                    <strong class="text-dark d-block">${penyebutLabel}</strong>
+                                    <span class="text-muted small font-monospace">${penyebutFormatted}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-2 pt-2 border-top text-muted small" style="font-size: 0.76rem;">
+                        <i class="bi bi-info-circle me-1 text-primary"></i>Dihitung sebagai rata-rata pendapatan bulanan dibagi jumlah SDM non-organik dalam satuan juta rupiah.
+                    </div>
+                `;
+            } else if (tipe.includes('TURNOVER')) {
+                const pengaliHtml = pengaliLabel
+                    ? `<span class="fw-bold text-secondary font-monospace px-1" style="font-size: 0.9rem;">${pengaliLabel}</span>`
+                    : '';
+
+                equationEl.innerHTML = `
+                    <div class="d-flex align-items-center flex-nowrap justify-content-center gap-2 py-1">
+                        <div class="d-inline-flex flex-column align-items-center text-center px-1">
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${pembilangLabel}">
+                                ${pembilangFormatted}
+                            </span>
+                            <div class="w-100 my-1" style="height: 2px; background-color: #94a3b8; min-width: 90px;"></div>
+                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${penyebutLabel}">
+                                ${penyebutFormatted}
+                            </span>
+                        </div>
+                        ${pengaliHtml}
+                        <span class="fw-bold text-dark fs-5 mx-1">=</span>
+                        <span class="badge ${resultBadgeClass} px-3 py-2 fs-6 font-monospace fw-bold shadow-xs" id="modalIndicatorNilai">
+                            ${nilai}
+                        </span>
+                    </div>
+                `;
+
+                const hariRiil = data.hariRiil || '';
+                const hariNote = hariRiil
+                    ? `<div class="mt-2 pt-2 border-top text-muted small" style="font-size: 0.76rem;"><i class="bi bi-calendar3 me-1 text-primary"></i>Faktor pengali perputaran menggunakan jumlah hari riil periode evaluasi: <strong>${hariRiil} Hari</strong>.</div>`
+                    : '';
+
+                legendEl.innerHTML = `
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <div class="d-flex align-items-start gap-2">
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-1.5 py-0.5 mt-0.5 flex-shrink-0">Pembilang</span>
+                                <div>
+                                    <strong class="text-dark d-block">${pembilangLabel}</strong>
+                                    <span class="text-muted small font-monospace">${pembilangFormatted}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="d-flex align-items-start gap-2">
+                                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle font-monospace px-1.5 py-0.5 mt-0.5 flex-shrink-0">Penyebut</span>
+                                <div>
+                                    <strong class="text-dark d-block">${penyebutLabel}</strong>
+                                    <span class="text-muted small font-monospace">${penyebutFormatted}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    ${hariNote}
+                `;
+            } else {
+                const pengaliHtml = pengaliLabel
+                    ? `<span class="fw-bold text-secondary font-monospace px-1" style="font-size: 0.9rem;">${pengaliLabel}</span>`
+                    : '';
+
+                equationEl.innerHTML = `
+                    <div class="d-flex align-items-center flex-nowrap justify-content-center gap-2 py-1">
+                        <div class="d-inline-flex flex-column align-items-center text-center px-1">
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${pembilangLabel}">
+                                ${pembilangFormatted}
+                            </span>
+                            <div class="w-100 my-1" style="height: 2px; background-color: #94a3b8; min-width: 90px;"></div>
+                            <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle fw-bold font-monospace px-2.5 py-1.5" style="font-size: 0.85rem;" title="${penyebutLabel}">
+                                ${penyebutFormatted}
+                            </span>
+                        </div>
+                        ${pengaliHtml}
+                        <span class="fw-bold text-dark fs-5 mx-1">=</span>
+                        <span class="badge ${resultBadgeClass} px-3 py-2 fs-6 font-monospace fw-bold shadow-xs" id="modalIndicatorNilai">
+                            ${nilai}
+                        </span>
+                    </div>
+                `;
+
+                legendEl.innerHTML = `
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <div class="d-flex align-items-start gap-2">
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace px-1.5 py-0.5 mt-0.5 flex-shrink-0">Pembilang</span>
+                                <div>
+                                    <strong class="text-dark d-block">${pembilangLabel}</strong>
+                                    <span class="text-muted small font-monospace">${pembilangFormatted}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="d-flex align-items-start gap-2">
+                                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle font-monospace px-1.5 py-0.5 mt-0.5 flex-shrink-0">Penyebut</span>
+                                <div>
+                                    <strong class="text-dark d-block">${penyebutLabel}</strong>
+                                    <span class="text-muted small font-monospace">${penyebutFormatted}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
 
             modalBs?.show();
 
