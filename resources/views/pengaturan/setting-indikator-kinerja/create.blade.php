@@ -103,8 +103,11 @@
             <!-- Kolom Utama Form (Kiri / Col-lg-8) -->
             <div class="col-lg-8 col-xl-8 d-flex flex-column gap-4">
 
+                {{-- Sticky Stepper Navigation --}}
+                @include('pengaturan.setting-indikator-kinerja.partials.stepper')
+
                 <!-- 1. IDENTITAS DASAR & FORMULA -->
-                <div class="card border-0 shadow-sm bg-white">
+                <div class="card border-0 shadow-sm bg-white" id="sectionIdentitas">
                     <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-primary-subtle text-primary p-2 rounded-2">
@@ -256,7 +259,7 @@
                 </div>
 
                 <!-- 2. PARAMETER AMBANG BATAS TARGET (RAG) -->
-                <div class="card border-0 shadow-sm bg-white">
+                <div class="card border-0 shadow-sm bg-white" id="sectionTargetRag">
                     <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-success-subtle text-success p-2 rounded-2">
