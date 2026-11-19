@@ -600,4 +600,15 @@ class SettingIndikatorKinerjaTest extends TestCase
             ->assertSee('btnOpenModalPanduan')
             ->assertSee('modalPanduanSetting');
     }
+
+    public function test_modal_panduan_does_not_contain_raw_latex_math_syntax(): void
+    {
+        $view = $this->view('pengaturan.setting-indikator-kinerja.partials.modal-panduan');
+
+        $view->assertDontSee('$\ge$', false)
+            ->assertDontSee('$\le$', false)
+            ->assertDontSee('\frac', false)
+            ->assertSee('≥')
+            ->assertSee('≤');
+    }
 }

@@ -246,7 +246,7 @@
                                             <span class="fw-bold text-dark small">Pembilang</span>
                                         </div>
                                         <p class="small text-muted mb-0">
-                                            Akun utama di posisi atas pecahan ($A$ dalam $\frac{A}{B}$). Nilai saldo akun ini menjadi dasar utama perhitungan.
+                                            Akun utama di posisi atas pecahan (A dalam pembagian A ÷ B). Nilai saldo akun ini menjadi dasar utama perhitungan.
                                         </p>
                                     </div>
                                 </div>
@@ -257,7 +257,7 @@
                                             <span class="fw-bold text-dark small">Penyebut</span>
                                         </div>
                                         <p class="small text-muted mb-0">
-                                            Akun pembanding di posisi bawah pecahan ($B$ dalam $\frac{A}{B}$). Menjadi angka pembagi nilai pembilang.
+                                            Akun pembanding di posisi bawah pecahan (B dalam pembagian A ÷ B). Menjadi angka pembagi nilai pembilang.
                                         </p>
                                     </div>
                                 </div>
@@ -268,7 +268,7 @@
                                             <span class="fw-bold text-dark small">Penambah (+)</span>
                                         </div>
                                         <p class="small text-muted mb-0">
-                                            Akun yang nilainya ditambahkan ke pembilang ($+$). Sangat lazim untuk <em>add-back</em> beban non-kas (seperti depresiasi).
+                                            Akun yang nilainya ditambahkan ke pembilang (+). Sangat lazim untuk <em>add-back</em> beban non-kas (seperti depresiasi).
                                         </p>
                                     </div>
                                 </div>
@@ -279,7 +279,7 @@
                                             <span class="fw-bold text-dark small">Pengurang (-)</span>
                                         </div>
                                         <p class="small text-muted mb-0">
-                                            Akun yang nilainya dikurangkan dari pembilang ($-$). Digunakan untuk mengeliminasi pos non-operasional dari hasil kalkulasi.
+                                            Akun yang nilainya dikurangkan dari pembilang (-). Digunakan untuk mengeliminasi pos non-operasional dari hasil kalkulasi.
                                         </p>
                                     </div>
                                 </div>
@@ -409,7 +409,7 @@
                                             <div class="d-flex flex-column gap-2 small">
                                                 <div class="d-flex align-items-center justify-content-between p-2 rounded bg-success-subtle border border-success-subtle">
                                                     <span class="fw-bold text-success">🟢 Hijau (Optimal)</span>
-                                                    <span>Nilai $\ge$ Target Min</span>
+                                                    <span>Nilai ≥ Target Min</span>
                                                 </div>
                                                 <div class="d-flex align-items-center justify-content-between p-2 rounded bg-warning-subtle border border-warning-subtle">
                                                     <span class="fw-bold text-warning-emphasis">🟡 Kuning (Waspada)</span>
@@ -417,7 +417,7 @@
                                                 </div>
                                                 <div class="d-flex align-items-center justify-content-between p-2 rounded bg-danger-subtle border border-danger-subtle">
                                                     <span class="fw-bold text-danger">🔴 Merah (Kritis)</span>
-                                                    <span>Nilai $<$ Ambang Kuning</span>
+                                                    <span>Nilai &lt; Ambang Kuning</span>
                                                 </div>
                                             </div>
                                             <div class="small text-muted mt-3">
@@ -439,7 +439,7 @@
                                             <div class="d-flex flex-column gap-2 small">
                                                 <div class="d-flex align-items-center justify-content-between p-2 rounded bg-success-subtle border border-success-subtle">
                                                     <span class="fw-bold text-success">🟢 Hijau (Optimal)</span>
-                                                    <span>Nilai $\le$ Target Maks</span>
+                                                    <span>Nilai ≤ Target Maks</span>
                                                 </div>
                                                 <div class="d-flex align-items-center justify-content-between p-2 rounded bg-warning-subtle border border-warning-subtle">
                                                     <span class="fw-bold text-warning-emphasis">🟡 Kuning (Waspada)</span>
@@ -447,7 +447,7 @@
                                                 </div>
                                                 <div class="d-flex align-items-center justify-content-between p-2 rounded bg-danger-subtle border border-danger-subtle">
                                                     <span class="fw-bold text-danger">🔴 Merah (Kritis)</span>
-                                                    <span>Nilai $>$ Ambang Merah</span>
+                                                    <span>Nilai &gt; Ambang Merah</span>
                                                 </div>
                                             </div>
                                             <div class="small text-muted mt-3">
@@ -469,7 +469,7 @@
                                             <div class="d-flex flex-column gap-2 small">
                                                 <div class="d-flex align-items-center justify-content-between p-2 rounded bg-success-subtle border border-success-subtle">
                                                     <span class="fw-bold text-success">🟢 Hijau (Optimal)</span>
-                                                    <span>Target Min $\le$ Nilai $\le$ Target Maks</span>
+                                                    <span>Target Min ≤ Nilai ≤ Target Maks</span>
                                                 </div>
                                                 <div class="d-flex align-items-center justify-content-between p-2 rounded bg-warning-subtle border border-warning-subtle">
                                                     <span class="fw-bold text-warning-emphasis">🟡 Kuning (Waspada)</span>
