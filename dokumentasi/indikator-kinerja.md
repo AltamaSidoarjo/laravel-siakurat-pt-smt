@@ -49,7 +49,7 @@ Seluruh endpoint di bawah ini diproteksi oleh middleware `auth` dan `module.acce
 
 ## Alur 1: Evaluasi & Tampilan Dashboard Eksekutif
 
-Alur ini memuat seluruh data indikator kinerja aktif, menghitung nilai riil pembilang dan penyebut, mengevaluasi status warna target, dan menampilkan kartu metrik serta ringkasan eksekutif. Tersedia 2 mode tampilan antarmuka: **Kartu Eksekutif** (Card Grid dengan interaktivitas klik seluruh kartu) dan **Tabel Rinci** (dengan header gelap eksekutif dan pil status RAG).
+Alur ini memuat seluruh data indikator kinerja aktif, menghitung nilai riil pembilang dan penyebut, mengevaluasi status warna target, dan menampilkan kartu metrik serta ringkasan eksekutif. Tersedia 2 mode tampilan antarmuka: **Kartu Eksekutif** (Card Grid dengan baris formula badge terstruktur, teks definisi operasional naratif, dan interaktivitas klik seluruh kartu) dan **Tabel Rinci** (dengan kolom definisi operasional yang memuat visualisasi formula badge di atas teks naratif).
 
 ### Flowchart
 
@@ -92,7 +92,7 @@ flowchart TD
 5. Controller mengagregasikan `ringkasanStatus` secara in-memory dari koleksi evaluasi lengkap tanpa query database tambahan untuk menjaga keakuratan strip kartu ringkasan eksekutif dan persentase ketercapaian.
 6. Bila parameter `status` ditentukan (tidak sama dengan `ALL`), controller menyaring koleksi indikator berdasarkan status evaluasi RAG.
 7. Bila parameter `q` diberikan, controller menyaring koleksi indikator berdasarkan kecocokan substring pada `kode` atau `nama` (case-insensitive).
-8. Mengembalikan view `dashboard.indikator-kinerja.index` yang berisi widget ringkasan persentase eksekutif, toolbar filter server-side, view switcher (Kartu Eksekutif & Tabel Rinci), serta modal interaktif drill-down tren grafis 12 bulan.
+8. Mengembalikan view `dashboard.indikator-kinerja.index` yang berisi widget ringkasan persentase eksekutif, toolbar filter server-side, view switcher (Kartu Eksekutif & Tabel Rinci dengan formula badge terstruktur), serta modal interaktif drill-down tren grafis 12 bulan yang menyajikan formula pecahan matematika ber-badge nilai riil (Variasi C).
 
 ### Fungsi yang Dipanggil
 
@@ -143,7 +143,15 @@ flowchart TD
    - Mengevaluasi indikator pada potongan waktu 1 bulan tersebut melalui `evaluasiIndikator()`.
    - Mengumpulkan data poin bulanan: nomor bulan, nama bulan singkat (Jan, Feb, ...), nilai riil hasil kalkulasi, badge status evaluasi, serta nominal pembilang dan penyebut.
 5. Controller mengembalikan respons JSON berupa struktur tren bulanan beserta metadata indikator (kode, nama, satuan, batas target).
-6. Script front-end menghancurkan instance Chart.js sebelumnya (jika ada) dan menggambar grafik garis interaktif yang menampilkan tren performa beserta garis ambang batas target.
+6. Script front-end merender modal detail & tren yang memuat 3 seksi utama:
+   - **Seksi 1: Formula Kalkulasi Riil Periode (Variasi C — Pecahan Matematika Ber-Badge)**:
+     - Header seksi: Judul `📐 Formula Kalkulasi Riil Periode`, badge tipe kalkulasi (`#modalIndicatorTipe`), dan badge rentang tanggal evaluasi riil (`#modalFormulaPeriodeText`, misal `01 Nov 2026 s.d. 19 Nov 2026 (19 Hari)`).
+     - Kontainer Persamaan Matematika Pecahan (`#modalFormulaEquationContainer`): Menampilkan pembilang ber-badge biru lembut (`bg-primary-subtle text-primary`), garis pembagi horizontal, penyebut ber-badge cyan lembut (`bg-info-subtle text-info-emphasis`), faktor pengali (misal `× 100%` atau `× {hariRiil} Hari`), tanda `=`, dan nilai capaian akhir ber-badge status RAG evaluasi (`#modalIndicatorNilai`). Untuk tipe `MANUAL`, menampilkan badge entri nilai non-akuntansi tanpa garis pecahan. Untuk satuan `JUTA_PER_ORG_BLN`, menampilkan formulasi rata-rata per bulan per orang SDM non-organik.
+     - Legenda Komponen Nilai (`#modalFormulaLegendContainer`): Menjelaskan arti dan nominal riil komponen pembilang (sumber COA/Surplus) dan penyebut (COA/Target RBA/Variabel Manual), serta faktor pengali hari riil.
+     - Definisi Operasional (`#modalIndicatorDefinisi`): Keterangan naratif acuan baku indikator kinerja.
+   - **Seksi 2: Panduan Ambang Batas Target (RAG)**: Kotak panduan batas target Hijau (`#modalTargetHijau`), Kuning (`#modalTargetKuning`), dan Merah (`#modalTargetMerah`).
+   - **Seksi 3: Tren Historis Realisasi Bulanan**: Grafik garis interaktif 12 bulan Chart.js (`#trenChartCanvas`) dengan filter tahun anggaran (`#selectTahunTren`).
+7. Script front-end menghancurkan instance Chart.js sebelumnya (jika ada) dan menggambar grafik garis interaktif yang menampilkan tren performa beserta garis ambang batas target.
 
 ### Fungsi yang Dipanggil
 
