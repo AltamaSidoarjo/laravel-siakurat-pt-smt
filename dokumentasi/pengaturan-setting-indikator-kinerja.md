@@ -273,3 +273,132 @@ flowchart TD
       - **Akun Neraca** (*Aktiva*, *Pasiva/Kewajiban*, *Ekuitas*): Diambil sebagai **Saldo Kumulatif per tanggal akhir periode (`endDate`)**, dengan normalisasi saldo kredit untuk Pasiva dan Ekuitas sehingga menghasilkan nilai rasio positif. Kontra-aset (seperti Akumulasi Penyusutan) secara alami mengurangi nilai total aset.
       - **Akun Laba Rugi** (*Pendapatan*, *Beban*): Diambil sebagai **Mutasi Transaksi periode berjalan (`startDate` s.d. `endDate`)**.
     - Hal ini memungkinkan konfigurasi indikator rasio likuiditas, solvabilitas, dan profitabilitas eksekutif (*Current Ratio*, *Cash Ratio*, *ROE*, *TMSTA*, *ROI*, *TATO*) langsung melalui pemetaan COA standar tanpa perlu perubahan skema atau variabel manual.
+
+---
+
+## Pembahasan Arsitektur: Dukungan Multi-Variabel Manual (>1 Variabel)
+
+### 1. Refleksi Kondisi Saat Ini vs Kebutuhan Riil Rumah Sakit
+
+#### Kondisi Arsitektur Saat Ini
+Saat ini, model `IndikatorKinerja` dirancang dengan asumsi **paling banyak 1 variabel manual** per indikator:
+1. **Skema Database**: Kolom tunggal `variabel_manual_id` bertipe *Foreign Key* opsional (`1-to-1 / belongsTo`).
+2. **Keterbatasan Peran**:
+   - `BasisPembilang` hanya mengenal `COA`, `SURPLUS`, dan `NONE` (belum ada opsi `MANUAL`).
+   - `BasisPenyebut` memiliki opsi `MANUAL`, namun hanya menampung 1 ID variabel (seperti pada *Produktifitas Karyawan* = Pendapatan COA / `sdm_non_organik`).
+   - `TipeKalkulasi::MANUAL` mengambil nilai mentah langsung dari 1 variabel (seperti pada *Kualitas Klaim JKN* = `bahv_jkn`).
+
+#### Mengapa Kebutuhan >1 Variabel Manual Pasti Akan Terjadi?
+Di rumah sakit (standar Kemenkes / SPM / KARS), banyak KPI standar yang membutuhkan **kombinasi variabel non-akuntansi**:
+1. **Rasio Manual vs Manual**:
+   - **BOR (*Bed Occupancy Rate*)**: $\frac{\text{Hari Perawatan (Manual A)}}{\text{Jumlah TT (Manual B)} \times \text{Hari Periode}} \times 100\%$
+   - **BTO (*Bed Turn Over*)**: $\frac{\text{Jumlah Pasien Keluar (Manual A)}}{\text{Jumlah Tempat Tidur (Manual B)}}$
+   - **Rasio Perawat per Tempat Tidur**: $\frac{\text{Jumlah Perawat (Manual A)}}{\text{Jumlah Tempat Tidur (Manual B)}}$
+2. **Agregasi / Penjumlahan Beberapa Variabel Manual**:
+   - **Produktivitas SDM Menyeluruh**: $\frac{\text{Total Pendapatan (COA)}}{\text{SDM Organik (Manual A)} + \text{SDM Non-Organik (Manual B)}}$
+   - **Total Kapasitas Layanan**: Penjumlahan manual dari beberapa unit (misal: TT ICU + TT Isolasi + TT Reguler).
+
+---
+
+### 2. Tiga Pilihan Pendekatan Solusi (Architectural Options)
+
+Berikut adalah spektrum solusi arsitektural yang dapat dipertimbangkan:
+
+| Aspek | Opsi A: Tabel Mapping Variabel (`indikator_kinerja_mapping_variabel`) | Opsi B: Variabel Komposit / Turunan (*Computed Variable*) | Opsi C: Dynamic Expression Engine (*Formula String*) |
+| :--- | :--- | :--- | :--- |
+| **Konsep Utama** | Meniru pola `IndikatorKinerjaMappingCoa` dengan tabel perantara relasi *many-to-many*. | Variabel manual baru yang nilainya dihitung dari penjumlahan/operasi variabel manual lain. | Kolom teks formula matematika bebas, misal: `([VAR:A] + [VAR:B]) / [VAR:C]`. |
+| **Kelebihan** | • **Konsistensi arsitektur 100%** dengan modul pemetaan COA yang sudah terbukti solid di SiAkurat.<br>• UI ramah pengguna (dropdown peran tanpa perlu ketik rumus).<br>• Bebas risiko *code injection*. | • Variabel gabungan (misal `total_sdm`) bersifat *reusable* untuk berbagai indikator.<br>• Skema `indikator_kinerja` tidak perlu diubah drastis. | • Fleksibilitas matematika tak terbatas (bisa perkalian kurung, pembagian bertingkat, dll). |
+| **Keterbatasan** | Terbatas pada operasi linier ($+$, $-$, rasio $/$) antar pembilang dan penyebut. | Kurang fleksibel jika indikator butuh operasi manual di pembilang dan penyebut sekaligus (Manual / Manual). | • Kompleksitas tinggi (butuh parser string / AST matematika).<br>• Rawan kesalahan ketik oleh staf akuntansi RS. |
+| **Kompleksitas Implementasi** | **Rendah – Menengah** (Pola sudah ada di repo) | **Menengah** | **Tinggi** |
+
+---
+
+### 3. Analisis Mendalam Tiap Pendekatan
+
+#### Opsi A: Tabel Mapping Variabel (`indikator_kinerja_mapping_variabel`)
+
+Pendekatan ini memigrasikan relasi `1-to-1` menjadi relasi `many-to-many` melalui tabel pivot eksplisit, analog dengan implementasi pemetaan COA yang sudah berjalan stabil di SiAkurat.
+
+```mermaid
+erDiagram
+    indikator_kinerja ||--o{ indikator_kinerja_mapping_variabel : "memiliki banyak"
+    indikator_kinerja_variabel_manual ||--o{ indikator_kinerja_mapping_variabel : "dipetakan ke"
+    
+    indikator_kinerja {
+        bigint id PK
+        string kode
+        string nama
+        enum tipe_kalkulasi
+        enum basis_pembilang
+        enum basis_penyebut
+    }
+    
+    indikator_kinerja_mapping_variabel {
+        bigint id PK
+        bigint indikator_kinerja_id FK
+        bigint variabel_manual_id FK
+        enum peran "NUMERATOR, DENOMINATOR, ADDITION, DEDUCTION"
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    indikator_kinerja_variabel_manual {
+        bigint id PK
+        string kode
+        string nama
+        string satuan
+    }
+```
+
+- **Mekanisme Kerja**:
+  - `BasisPembilang` ditambahkan enum `MANUAL`.
+  - Pembilang mengambil agregasi $\sum$ seluruh variabel dengan peran `NUMERATOR` (atau `ADDITION` / `DEDUCTION`).
+  - Penyebut mengambil agregasi $\sum$ seluruh variabel dengan peran `DENOMINATOR`.
+  - Pada formulir UI, ditambahkan tabel repeater dinamis kedua: **Pemetaan Variabel Manual** (serupa dengan tabel pemetaan COA yang sudah ada).
+- **Kesesuaian dengan SiAkurat**: Sangat tinggi, karena pengembang dan pengguna sudah familiar dengan pola pemetaan multi-item dengan dropdown peran.
+
+#### Opsi B: Variabel Komposit / Turunan (*Computed Variable*)
+
+Pendekatan ini mempertahankan tabel `indikator_kinerja` tetap memiliki 1 foreign key `variabel_manual_id`, namun memperluas entitas `indikator_kinerja_variabel_manual` agar dapat bertipe *Computed* (turunan dari variabel manual lain).
+
+```mermaid
+flowchart LR
+    A["Variabel Manual: SDM Organik (Raw)"] --> C["Variabel Komposit: Total SDM (Computed: A + B)"]
+    B["Variabel Manual: SDM Non-Organik (Raw)"] --> C
+    C --> D["Indikator: Produktivitas SDM (Pendapatan COA / Total SDM)"]
+```
+
+- **Mekanisme Kerja**:
+  - Master variabel manual memiliki kolom `tipe` (`RAW` vs `COMPUTED`).
+  - Disediakan tabel relasi komposisi `variabel_manual_komposisi` (`parent_id`, `child_id`, `operator`).
+  - Saat `ambilNilaiManualTerakhir()` dipanggil, jika bertipe *Computed*, service menghitung penjumlahan rekursif dari variabel anak.
+- **Kesesuaian**: Bagus untuk kasus agregasi SDM atau kapasitas TT, namun tidak menyelesaikan masalah indikator dengan rasio Manual di pembilang dan Manual di penyebut (seperti BOR atau BTO) kecuali kolom `basis_pembilang` dan skema pembilang ikut dirombak.
+
+#### Opsi C: Dynamic Expression Engine (*Formula String*)
+
+Pendekatan ini menyimpan ekspresi formula matematika dalam bentuk string bebas pada kolom `formula_expression` di tabel `indikator_kinerja`, dievaluasi secara dinamis saat runtime.
+
+```mermaid
+flowchart TD
+    A["Formula String: '([VAR:hari_rawat] / ([VAR:tt] * [DAYS])) * 100'"] --> B["Lexer / Tokenizer"]
+    B --> C["Abstract Syntax Tree (AST) Parser"]
+    C --> D["Context Resolver: Injeksi Nilai COA, Variabel Manual, & Konstanta Hari"]
+    D --> E["Evaluasi Matematis Aman (Safe Math Evaluation)"]
+    E --> F["Nilai Akhir Indikator"]
+```
+
+- **Mekanisme Kerja**:
+  - Menghapus ketergantungan enum `basis_pembilang` dan `basis_penyebut`.
+  - Menggunakan library parsing formula (misal: Symfony ExpressionLanguage atau MathExecutor).
+- **Kesesuaian**: Fleksibilitas maksimal, namun memiliki kompleksitas tinggi dan rawan kesalahan operasional (human error) saat staf akuntansi menyusun string rumus.
+
+---
+
+### 4. Rekomendasi & Strategi Transisi Bertahap
+
+Berdasarkan keselarasan arsitektur SiAkurat dan kemudahan operasional rumah sakit:
+1. **Opsi Terpilih**: **Opsi A (`indikator_kinerja_mapping_variabel`)** direkomendasikan sebagai arsitektur target utama karena konsistensi 100% dengan modul pemetaan COA yang sudah terbukti andal.
+2. **Strategi Backward Compatibility**:
+   - Kolom `variabel_manual_id` pada `indikator_kinerja` tetap dipertahankan sebagai fallback warisan (*legacy fallback*).
+   - Migrasi data awal (*data migration*) dapat menyalin seluruh data `variabel_manual_id` yang aktif ke tabel baru `indikator_kinerja_mapping_variabel` dengan peran `DENOMINATOR` (atau `NUMERATOR` untuk tipe `MANUAL`).
+   - Mesin kalkulasi `IndikatorKinerjaService` memprioritaskan relasi `mappingVariabel`; bila kosong, sistem otomatis mundur (*fallback*) ke `variabel_manual_id` eksisting.

@@ -162,6 +162,7 @@ flowchart TD
    - Akun COA yang ditandai `is_excluded = true` secara eksplisit dikeluarkan dari daftar leaf descendant.
 3. **Data Variabel Manual**:
    - Untuk indikator dengan penyebut berbasis `MANUAL`, sistem mencari data bulanan terakhir yang terisi pada atau sebelum tanggal akhir evaluasi (`ambilNilaiManualTerakhir()`). Jika tidak ada data yang terisi, rasio tidak dapat dihitung dan bernilai netral.
+   - *Catatan Skalabilitas Arsitektur (Multi-Variabel)*: Saat ini mesin kalkulasi mengasumsikan 1 variabel manual per indikator via kolom `variabel_manual_id`. Analisis arsitektur komprehensif mengenai pemenuhan KPI rumah sakit majemuk (seperti BOR, BTO, atau agregasi SDM) beserta 3 opsi pendekatan solusi (Tabel Mapping Variabel, Variabel Komposit, Dynamic Expression Engine) didokumentasikan lengkap pada [Dokumentasi Setting Indikator Kinerja — Pembahasan Arsitektur: Dukungan Multi-Variabel Manual](pengaturan-setting-indikator-kinerja.md#pembahasan-arsitektur-dukungan-multi-variabel-manual-1-variabel).
 4. **Alokasi RBA Proporsional**:
    - Untuk penyebut berbasis `RBA`, sistem menghitung porsi target anggaran RBA secara proporsional sesuai jumlah bulan dalam rentang filter tanggal (`ambilRbaCoa()` dan `hitungAlokasiBulanPerTahun()`).
 5. **Widget Home Dashboard**:
