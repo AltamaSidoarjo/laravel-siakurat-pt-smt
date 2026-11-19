@@ -190,7 +190,7 @@
                                             <i class="bi bi-diagram-3-fill text-primary"></i> Sumber Data & Formula Kalkulasi
                                         </span>
                                         <span id="formulaVisualBadge" class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace small">
-                                            Formula: Pembilang ÷ Penyebut
+                                            Basis: Buku Besar ÷ Buku Besar
                                         </span>
                                     </div>
 
@@ -230,7 +230,7 @@
                                             <select name="variabel_manual_id" id="variabel_manual_id" class="form-select form-select-sm">
                                                 <option value="">-- Pilih Variabel Manual --</option>
                                                 @foreach ($variabelManuals as $vm)
-                                                    <option value="{{ $vm->id }}" @selected((string)old('variabel_manual_id') === (string)$vm->id)>
+                                                    <option value="{{ $vm->id }}" data-nama="{{ $vm->nama }}" @selected((string)old('variabel_manual_id') === (string)$vm->id)>
                                                         {{ $vm->nama }} ({{ $vm->satuan }}) - [{{ $vm->kode }}]
                                                     </option>
                                                 @endforeach
@@ -525,6 +525,15 @@
                                         Rasio
                                     </span>
                                 </div>
+                                <!-- Formula Visualisasi Preview -->
+                                <div class="p-2 mb-2 bg-white rounded border border-light-subtle small shadow-xs" id="previewFormulaWrapper">
+                                    <div class="text-muted small mb-1 fw-semibold d-flex align-items-center justify-content-between" style="font-size: 0.72rem;">
+                                        <span><i class="bi bi-calculator me-1 text-primary"></i>Formula Kalkulasi:</span>
+                                    </div>
+                                    <div class="d-flex align-items-center flex-wrap gap-1 font-monospace" id="previewFormulaContent" style="font-size: 0.75rem;">
+                                        <!-- Dinamis di-render via JS -->
+                                    </div>
+                                </div>
                                 <div class="p-2 bg-light rounded border small">
                                     <div class="text-muted small mb-1">Ambang Target Evaluasi:</div>
                                     <div class="d-flex flex-column gap-1">
@@ -684,6 +693,8 @@
         const previewKuningText = document.getElementById('previewKuningText');
         const previewMerahText = document.getElementById('previewMerahText');
         const formulaVisualBadge = document.getElementById('formulaVisualBadge');
+        const previewFormulaContent = document.getElementById('previewFormulaContent');
+        const variabelManualSelect = document.getElementById('variabel_manual_id');
         const polaExplanation = document.getElementById('polaExplanation');
         const polaGuideTitle = document.getElementById('polaGuideTitle');
 
@@ -841,31 +852,65 @@
             }
         }
 
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function getBasisPembilangLabel(val) {
+            if (val === 'COA') return 'Buku Besar';
+            if (val === 'SURPLUS') return 'Surplus Defisit';
+            return 'Pembilang';
+        }
+
+        function getBasisPenyebutLabel(val, manualText) {
+            if (val === 'COA') return 'Buku Besar';
+            if (val === 'RBA') return 'Target RBA';
+            if (val === 'MANUAL') return manualText ? `Variabel: ${manualText}` : 'Variabel Manual';
+            return 'Penyebut';
+        }
+
         function updateBasisInteractivity() {
             const tipe = tipeKalkulasiSelect ? tipeKalkulasiSelect.value : 'RASIO';
-            const penyebut = basisPenyebutSelect ? basisPenyebutSelect.value : 'COA';
+            const penyebutVal = basisPenyebutSelect ? basisPenyebutSelect.value : 'COA';
+            const pembilangVal = basisPembilangSelect ? basisPembilangSelect.value : 'COA';
+
+            let manualName = '';
+            if (variabelManualSelect && variabelManualSelect.selectedIndex > 0) {
+                const opt = variabelManualSelect.options[variabelManualSelect.selectedIndex];
+                manualName = opt.dataset.nama || opt.text.split('(')[0].trim();
+            }
 
             if (tipe === 'MANUAL') {
                 if (colBasisPembilang) colBasisPembilang.style.display = 'none';
                 if (colBasisPenyebut) colBasisPenyebut.style.display = 'none';
                 if (variabelManualCol) variabelManualCol.style.display = '';
                 if (alertManualInfo) alertManualInfo.style.display = '';
-                if (formulaVisualBadge) formulaVisualBadge.textContent = 'Sumber: Entri Variabel Manual Bulanan';
+                if (formulaVisualBadge) {
+                    formulaVisualBadge.textContent = manualName 
+                        ? `Basis: Manual (${manualName})` 
+                        : 'Basis: Variabel Manual Bulanan';
+                }
             } else {
                 if (colBasisPembilang) colBasisPembilang.style.display = '';
                 if (colBasisPenyebut) colBasisPenyebut.style.display = '';
                 if (alertManualInfo) alertManualInfo.style.display = 'none';
 
-                if (penyebut === 'MANUAL') {
+                if (penyebutVal === 'MANUAL') {
                     if (variabelManualCol) variabelManualCol.style.display = '';
                 } else {
                     if (variabelManualCol) variabelManualCol.style.display = 'none';
                 }
 
                 if (formulaVisualBadge) {
-                    const pembText = basisPembilangSelect ? basisPembilangSelect.value : 'COA';
-                    const penyText = penyebut;
-                    formulaVisualBadge.textContent = `Formula: ${pembText} ÷ ${penyText}`;
+                    const pembLabel = getBasisPembilangLabel(pembilangVal);
+                    const penyLabel = getBasisPenyebutLabel(penyebutVal, manualName);
+                    formulaVisualBadge.textContent = `Basis: ${pembLabel} ÷ ${penyLabel}`;
                 }
             }
         }
@@ -904,6 +949,48 @@
                 }
             }
 
+            if (previewFormulaContent) {
+                const tipe = tipeKalkulasiSelect ? tipeKalkulasiSelect.value : 'RASIO';
+                const pembilangVal = basisPembilangSelect ? basisPembilangSelect.value : 'COA';
+                const penyebutVal = basisPenyebutSelect ? basisPenyebutSelect.value : 'COA';
+
+                let manualName = '';
+                if (variabelManualSelect && variabelManualSelect.selectedIndex > 0) {
+                    const opt = variabelManualSelect.options[variabelManualSelect.selectedIndex];
+                    manualName = opt.dataset.nama || opt.text.split('(')[0].trim();
+                }
+
+                if (tipe === 'MANUAL') {
+                    const labelText = manualName || 'Pilih Variabel Manual';
+                    const safeLabel = escapeHtml(labelText);
+                    previewFormulaContent.innerHTML = `
+                        <span class="badge bg-warning-subtle text-dark border border-warning-subtle py-0.5 px-1.5 text-truncate" style="max-width: 100%;" title="${safeLabel}">
+                            <i class="bi bi-pencil-square me-1"></i>Manual: ${safeLabel}
+                        </span>
+                    `;
+                } else {
+                    const pembLabel = getBasisPembilangLabel(pembilangVal);
+                    const penyLabel = getBasisPenyebutLabel(penyebutVal, manualName);
+                    const safePemb = escapeHtml(pembLabel);
+                    const safePeny = escapeHtml(penyLabel);
+
+                    const satuanVal = satuanSelect ? satuanSelect.value : '';
+                    let multiplierBadge = '';
+                    if (tipe === 'TURNOVER') {
+                        multiplierBadge = '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle py-0.5 px-1.5 ms-0.5">× 365 Hari</span>';
+                    } else if (tipe === 'RASIO' && satuanVal === '%') {
+                        multiplierBadge = '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle py-0.5 px-1.5 ms-0.5">× 100%</span>';
+                    }
+
+                    previewFormulaContent.innerHTML = `
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0.5 px-1.5">${safePemb}</span>
+                        <span class="text-muted fw-bold mx-0.5">÷</span>
+                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle py-0.5 px-1.5 text-truncate" style="max-width: 130px;" title="${safePeny}">${safePeny}</span>
+                        ${multiplierBadge}
+                    `;
+                }
+            }
+
             const suffix = document.querySelector('.dynamic-unit-suffix')?.textContent || '';
             if (previewHijauText) previewHijauText.textContent = formatRangeText(targetHijauMin, targetHijauMax, suffix);
             if (previewKuningText) previewKuningText.textContent = formatRangeText(targetKuningMin, targetKuningMax, suffix);
@@ -930,11 +1017,24 @@
         }
 
         if (basisPembilangSelect) {
-            basisPembilangSelect.addEventListener('change', updateBasisInteractivity);
+            basisPembilangSelect.addEventListener('change', function () {
+                updateBasisInteractivity();
+                updateLivePreview();
+            });
         }
 
         if (basisPenyebutSelect) {
-            basisPenyebutSelect.addEventListener('change', updateBasisInteractivity);
+            basisPenyebutSelect.addEventListener('change', function () {
+                updateBasisInteractivity();
+                updateLivePreview();
+            });
+        }
+
+        if (variabelManualSelect) {
+            variabelManualSelect.addEventListener('change', function () {
+                updateBasisInteractivity();
+                updateLivePreview();
+            });
         }
 
         if (polaEvaluasiSelect) {

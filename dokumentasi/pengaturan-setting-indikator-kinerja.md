@@ -260,9 +260,17 @@ flowchart TD
 5. **Ketersediaan Opsi Akun COA pada Form Create & Edit**:
    - Query opsi akun COA memuat seluruh akun aktif (`status_aktif = 1` maupun `status_aktif IS NULL` untuk kompatibilitas data warisan), baik akun header/induk maupun akun leaf/detail karena formula indikator mendukung agregasi hierarki akun.
    - Pada form edit, seluruh akun yang sudah terpetakan pada indikator terkait dipastikan selalu diikutsertakan dalam dropdown (`orWhereIn('id', $existingCoaIds)`) agar status pilihan akun tetap terpilih secara konsisten meskipun akun tersebut berstatus nonaktif. Akun nonaktif diberi penanda `(Nonaktif)` pada label opsi.
-6. **Ergonomi Layout Form (Operate Mode)**:
+6. **Ergonomi Layout Form & Visualisasi Formula Dinamis**:
    - Form `create` dan `edit` menerapkan arsitektur 2 kolom responsif: kolom kiri memuat pengaturan utama (Identitas Dasar, Sumber Data Formula kontekstual, Matriks Ambang Batas RAG 3 kolom tanpa kartu bersarang, dan Tabel Pemetaan Akun COA), sedangkan kolom kanan memuat panel sticky *Live Preview Kartu KPI*, pengaturan keaktifan, urutan prioritas, dan tombol aksi publikasi cepat.
-   - Tipe kalkulasi `MANUAL` secara otomatis menyederhanakan alur dengan menyembunyikan pemetaan akun COA dan mengarahkan pengguna ke variabel manual yang relevan.
+   - **Pemisahan Peran Form vs Live Preview**:
+     - **Form Kiri**: Badge `#formulaVisualBadge` berfokus pada konteks **Basis Data** yang dipilih pengguna secara real-time (misal: `Basis: Buku Besar ÷ Target RBA`, `Basis: Buku Besar ÷ Buku Besar`, atau `Basis: Variabel Manual Bulanan`).
+     - **Live Preview Kanan**: Memuat visualisasi formula matematis yang dinamis dan representatif sesuai pilihan dropdown:
+       - **Rasio**: `[ {Pembilang} ] ÷ [ {Penyebut} ] × 100%` (bila satuan `%`; jika satuan rasio non-persen seperti *Kali*, formula menampilkan pembagian langsung tanpa pengali)
+       - **Turnover**: `[ {Pembilang} ] ÷ [ {Penyebut} ] × 365 Hari`
+       - **Manual**: `[ Manual: {Nama Variabel} ]`
+     - Perubahan pilihan dropdown `tipe_kalkulasi`, `basis_pembilang`, `basis_penyebut`, `variabel_manual_id`, dan `satuan` secara reaktif langsung memperbarui badge basis dan formula Live Preview tanpa reload.
+   - Tipe kalkulasi `MANUAL` secara otomatis menyederhanakan alur dengan menyembunyikan input pembilang/penyebut serta pemetaan akun COA dan menampilkan pilihan variabel manual yang relevan.
+   - Jika tipe `RASIO` atau `TURNOVER` memilih basis penyebut `MANUAL` (Variabel Manual Non-Akuntansi), input variabel manual otomatis muncul untuk melengkapi denominator formula.
 7. **Proteksi Integritas Variabel Manual**: Tombol hapus variabel berstatus disabled pada antarmuka jika variabel digunakan oleh indikator kinerja, dan controller secara defensif menolak request penghapusan via `indikatorKinerja()->exists()`.
 8. **Ergonomi Spreadsheet Tab 2 (Contained Scrollable Viewport & 2D Sticky Panes)**: Kontainer tabel matriks memiliki tinggi fleksibel yang dapat diubah ukurannya (*resizable drag handle*) dengan toleransi 220px s.d. 80vh dan tersimpan otomatis di `localStorage`. Header kolom dan kolom No, Kode, Nama Variabel bersifat sticky.
 9. **Navigasi Keyboard ala Excel**: Pengguna dapat berpindah sel menggunakan tombol panah (*Arrow keys*) dan *Enter* tanpa mengubah nilai numerik sel, dilengkapi *crosshair highlight* baris dan kolom aktif.

@@ -615,4 +615,92 @@ class IndikatorKinerjaCrudTest extends TestCase
         $this->assertSame(1, $ik1->urutan);
         $this->assertSame(2, $ik3->urutan);
     }
+
+    public function test_create_page_renders_live_preview_formula_visualization(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.create'));
+
+        $response->assertOk();
+        $response->assertSee('id="previewFormulaWrapper"', false);
+        $response->assertSee('id="previewFormulaContent"', false);
+        $response->assertSee('Formula Kalkulasi:');
+        $response->assertSee('getBasisPembilangLabel');
+        $response->assertSee('getBasisPenyebutLabel');
+        $response->assertSee('escapeHtml');
+    }
+
+    public function test_edit_page_renders_live_preview_formula_visualization(): void
+    {
+        $user = User::factory()->create();
+        $indikator = IndikatorKinerja::create([
+            'kode' => 'cr_formula',
+            'nama' => 'Current Ratio Formula Test',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'basis_pembilang' => \App\Enums\IndikatorKinerja\BasisPembilang::COA,
+            'basis_penyebut' => \App\Enums\IndikatorKinerja\BasisPenyebut::COA,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.edit', $indikator->id));
+
+        $response->assertOk();
+        $response->assertSee('id="previewFormulaWrapper"', false);
+        $response->assertSee('id="previewFormulaContent"', false);
+        $response->assertSee('Formula Kalkulasi:');
+        $response->assertSee('getBasisPembilangLabel');
+        $response->assertSee('getBasisPenyebutLabel');
+        $response->assertSee('escapeHtml');
+    }
+
+    public function test_edit_page_renders_live_preview_formula_visualization_for_turnover(): void
+    {
+        $user = User::factory()->create();
+        $indikator = IndikatorKinerja::create([
+            'kode' => 'ito_formula',
+            'nama' => 'Inventory Turnover Test',
+            'satuan' => SatuanIndikator::HARI,
+            'tipe_kalkulasi' => TipeKalkulasi::TURNOVER,
+            'basis_pembilang' => \App\Enums\IndikatorKinerja\BasisPembilang::COA,
+            'basis_penyebut' => \App\Enums\IndikatorKinerja\BasisPenyebut::COA,
+            'pola_evaluasi' => PolaEvaluasi::LOWER_IS_BETTER,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.edit', $indikator->id));
+
+        $response->assertOk();
+        $response->assertSee('id="previewFormulaWrapper"', false);
+        $response->assertSee('id="previewFormulaContent"', false);
+        $response->assertSee('escapeHtml');
+        $response->assertSee('× 365 Hari');
+    }
+
+    public function test_edit_page_renders_live_preview_formula_visualization_for_manual(): void
+    {
+        $user = User::factory()->create();
+        $vm = \App\Models\IndikatorKinerjaVariabelManual::create([
+            'kode' => 'sdm_test',
+            'nama' => 'SDM (Non-Organik)',
+            'satuan' => 'Orang',
+            'status_aktif' => true,
+        ]);
+        $indikator = IndikatorKinerja::create([
+            'kode' => 'manual_test',
+            'nama' => 'Manual Indicator Test',
+            'satuan' => SatuanIndikator::ORANG,
+            'tipe_kalkulasi' => TipeKalkulasi::MANUAL,
+            'variabel_manual_id' => $vm->id,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.edit', $indikator->id));
+
+        $response->assertOk();
+        $response->assertSee('id="previewFormulaWrapper"', false);
+        $response->assertSee('id="previewFormulaContent"', false);
+        $response->assertSee('data-nama="SDM (Non-Organik)"', false);
+        $response->assertSee('escapeHtml');
+    }
 }
