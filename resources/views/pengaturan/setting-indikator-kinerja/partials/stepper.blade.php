@@ -93,37 +93,70 @@
             .map(id => document.getElementById(id))
             .filter(el => el !== null);
 
+        let isManualClick = false;
+        let manualClickTimer = null;
+
+        function setActiveStep(activeId) {
+            stepItems.forEach(item => {
+                item.classList.toggle('active', item.getAttribute('data-target') === activeId);
+            });
+        }
+
         stepItems.forEach(item => {
             item.addEventListener('click', function (e) {
                 e.preventDefault();
                 const targetId = this.getAttribute('data-target');
                 const targetEl = document.getElementById(targetId);
                 if (targetEl) {
+                    isManualClick = true;
+                    clearTimeout(manualClickTimer);
+                    setActiveStep(targetId);
+
                     targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    stepItems.forEach(si => si.classList.toggle('active', si === item));
+
+                    manualClickTimer = setTimeout(() => {
+                        isManualClick = false;
+                    }, 800);
                 }
             });
         });
 
-        if ('IntersectionObserver' in window && sections.length > 0) {
-            const observerOptions = {
-                root: null,
-                rootMargin: '-20% 0px -60% 0px',
-                threshold: 0
-            };
+        function updateActiveSection() {
+            if (isManualClick || sections.length === 0) return;
 
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const activeId = entry.target.id;
-                        stepItems.forEach(item => {
-                            item.classList.toggle('active', item.getAttribute('data-target') === activeId);
-                        });
-                    }
-                });
-            }, observerOptions);
+            // 1. Deteksi jika posisi scroll sudah mencapai atau mendekati batas paling bawah halaman
+            const scrollBottom = window.innerHeight + window.scrollY;
+            const thresholdBottom = document.documentElement.scrollHeight - 60;
+            if (scrollBottom >= thresholdBottom) {
+                setActiveStep(sections[sections.length - 1].id);
+                return;
+            }
 
-            sections.forEach(sec => observer.observe(sec));
+            // 2. Tentukan section aktif berdasarkan posisi jarak dari atas viewport (kompensasi header/stepper)
+            const offsetThreshold = 140;
+            let currentActiveId = sections[0].id;
+
+            for (let i = 0; i < sections.length; i++) {
+                const rect = sections[i].getBoundingClientRect();
+                if (rect.top <= offsetThreshold) {
+                    currentActiveId = sections[i].id;
+                }
+            }
+
+            setActiveStep(currentActiveId);
         }
+
+        let ticking = false;
+        window.addEventListener('scroll', function () {
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    updateActiveSection();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        }, { passive: true });
+
+        window.addEventListener('resize', updateActiveSection, { passive: true });
     });
 </script>
