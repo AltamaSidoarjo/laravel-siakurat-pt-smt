@@ -10,6 +10,7 @@ Fitur utama meliputi:
 3. Pemetaan akun COA dinamis dengan berbagai peran (*Numerator*, *Denominator*, *Addition*, *Deduction*, serta opsi *Exclusion* / akun pengecualian).
 4. Pengelolaan master variabel manual operasional (misalnya: Persentase Lolos BAHV Pertama JKN, Jumlah SDM Non Organik).
 5. Matriks input dan update data bulanan (Januari s.d. Desember) untuk seluruh variabel manual per tahun anggaran.
+6. Pusat Bantuan & Glosarium Interaktif (`modal-panduan.blade.php`): Modal multi-tab terpadu pada halaman Index, Create, dan Edit yang memuat diagram alur tipe kalkulasi, matriks perilaku input form, glosarium peran akun COA (*Numerator*, *Denominator*, *Addition*, *Deduction*, *Exclusion*), 4 studi kasus RS nyata, serta panduan visual ambang batas target RAG.
 
 Implementasi utama modul ini berada di:
 - `routes/web.php`
@@ -26,6 +27,7 @@ Implementasi utama modul ini berada di:
 - `resources/views/pengaturan/setting-indikator-kinerja/create.blade.php`
 - `resources/views/pengaturan/setting-indikator-kinerja/edit.blade.php`
 - `resources/views/pengaturan/setting-indikator-kinerja/partials/stepper.blade.php`
+- `resources/views/pengaturan/setting-indikator-kinerja/partials/modal-panduan.blade.php`
 
 ---
 
@@ -291,6 +293,17 @@ flowchart TD
     - Menggunakan palet tema hijau utama aplikasi (`#027e3f` / `#166534` dengan background `#f0fdf4` dan border `#bbf7d0`).
     - Menyediakan interaktivitas klik untuk *smooth scroll* dengan kompensasi offset (`scroll-margin-top: 6.5rem`) serta deteksi posisi viewport real-time melalui `IntersectionObserver` (*auto-highlight on scroll*).
     - Desain responsif dengan container scroll horizontal (`overflow-x-auto`) pada perangkat mobile tanpa mematahkan lebar container kartu.
+14. **Pusat Bantuan & Glosarium Interaktif Terpadu (`partials/modal-panduan.blade.php`)**:
+    - Banner statis `#settingIndikatorBanner` dan script dismiss lokalnya telah dihapus dari antarmuka `index.blade.php`.
+    - Akses bantuan kini disediakan secara kontekstual melalui tombol `[ 💡 Panduan & Glosarium ]` pada header halaman Index, Create, dan Edit.
+    - Menggunakan modal dialog responsif (`modal-xl`, scrollable) dengan 3 tab navigasi independen:
+      - **Tab 1: Logika Formula & Matriks Input**: Menampilkan kartu alur keputusan pemilihan tipe kalkulasi (`RASIO`, `TURNOVER`, `MANUAL`), matriks perilaku form kondisional (kapan basis pembilang/penyebut aktif dan kapan dropdown variabel manual wajib), serta penjelasan dampak matematis satuan nilai (`%`, `Hari`, `Kali`, `Juta/org/bln`).
+      - **Tab 2: Glosarium COA & 4 Studi Kasus RS**: Memberikan definisi warna peran akun pemetaan (*Numerator*, *Denominator*, *Addition*, *Deduction*, *Exclusion*), kaidah resolusi saldo neraca kumulatif vs mutasi laba rugi, serta 4 contoh konfigurasi nyata RS:
+        1. *Kasus 1: Rasio Beban Pegawai* (Rasio Standar, Target Band 20% - 25%).
+        2. *Kasus 2: Margin EBITDA RS* (Add-back beban bunga dan penyusutan non-kas, Higher is Better).
+        3. *Kasus 3: Perputaran Persediaan Farmasi* (Turnover hari, Saldo Neraca dengan fitur *Exclusion* sub-akun obat program hibah, Lower is Better).
+        4. *Kasus 4: Produktivitas SDM Medis* (Rasio hibrida pembilang COA dibagi penyebut variabel manual non-keuangan, satuan `Juta/org/bln`).
+      - **Tab 3: Target Ambang Batas (RAG)**: Visualisasi kartu panduan 3 pola evaluasi (*Higher is Better*, *Lower is Better*, dan *Target Band*) dengan panduan kriteria warna Hijau (Optimal), Kuning (Waspada), dan Merah (Kritis).
 
 ---
 
