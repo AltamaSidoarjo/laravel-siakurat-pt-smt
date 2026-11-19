@@ -144,8 +144,8 @@ flowchart TD
    - Mengumpulkan data poin bulanan: nomor bulan, nama bulan singkat (Jan, Feb, ...), nilai riil hasil kalkulasi, badge status evaluasi, serta nominal pembilang dan penyebut.
 5. Controller mengembalikan respons JSON berupa struktur tren bulanan beserta metadata indikator (kode, nama, satuan, batas target).
 6. Script front-end merender modal detail & tren yang memuat 3 seksi utama:
-   - **Seksi 1: Formula Kalkulasi Riil Periode (Variasi C — Pecahan Matematika Ber-Badge)**:
-     - Header seksi: Judul `📐 Formula Kalkulasi Riil Periode`, badge tipe kalkulasi (`#modalIndicatorTipe`), dan badge rentang tanggal evaluasi riil (`#modalFormulaPeriodeText`, misal `01 Nov 2026 s.d. 19 Nov 2026 (19 Hari)`).
+   - **Seksi 1: Formula Kalkulasi Riil (Variasi C — Pecahan Matematika Ber-Badge)**:
+     - Header seksi: Judul `📐 Formula Kalkulasi Riil`, badge tipe kalkulasi (`#modalIndicatorTipe`), dan badge rentang tanggal evaluasi riil berlabel periode dengan ikon kalender (`#modalFormulaPeriodeText`, misal `Periode: 01 Nov 2026 s.d. 19 Nov 2026 (19 Hari)`).
      - Kontainer Persamaan Matematika Pecahan (`#modalFormulaEquationContainer`): Menampilkan pembilang ber-badge biru lembut (`bg-primary-subtle text-primary`), garis pembagi horizontal, penyebut ber-badge cyan lembut (`bg-info-subtle text-info-emphasis`), faktor pengali (misal `× 100%` atau `× {hariRiil} Hari`), tanda `=`, dan nilai capaian akhir ber-badge status RAG evaluasi (`#modalIndicatorNilai`). Untuk tipe `MANUAL`, menampilkan badge entri nilai non-akuntansi tanpa garis pecahan. Untuk satuan `JUTA_PER_ORG_BLN`, menampilkan formulasi rata-rata per bulan per orang SDM non-organik.
      - Legenda Komponen Nilai (`#modalFormulaLegendContainer`): Menjelaskan arti dan nominal riil komponen pembilang (sumber COA/Surplus) dan penyebut (COA/Target RBA/Variabel Manual), serta faktor pengali hari riil.
      - Definisi Operasional (`#modalIndicatorDefinisi`): Keterangan naratif acuan baku indikator kinerja.

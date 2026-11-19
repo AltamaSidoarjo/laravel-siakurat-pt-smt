@@ -684,7 +684,6 @@ class IndikatorKinerjaCrudTest extends TestCase
             'kode' => 'sdm_test',
             'nama' => 'SDM (Non-Organik)',
             'satuan' => 'Orang',
-            'status_aktif' => true,
         ]);
         $indikator = IndikatorKinerja::create([
             'kode' => 'manual_test',

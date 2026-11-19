@@ -649,17 +649,21 @@
             <div class="modal-body p-4 space-y-4">
                 <!-- Section 1: Explicit Formula Box (Variasi C) -->
                 <div class="bg-light p-3 p-md-4 rounded-3 border mb-4" id="modalFormulaBox">
-                    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 mb-3 pb-2 border-bottom">
-                        <div class="d-flex align-items-center gap-2">
-                            <span class="fs-6 fw-bold text-dark d-flex align-items-center gap-1.5">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-2.5 mb-3 pb-2 border-bottom">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span class="fs-6 fw-bold text-dark d-flex align-items-center gap-1.5 text-nowrap">
                                 <i class="bi bi-calculator text-primary"></i>
-                                <span>Formula Kalkulasi Riil Periode</span>
+                                <span>Formula Kalkulasi Riil</span>
                             </span>
                             <span class="badge bg-secondary-subtle text-secondary border font-monospace small" id="modalIndicatorTipe">-</span>
                         </div>
-                        <span class="badge bg-white text-dark border font-monospace py-1.5 px-2.5 shadow-xs" id="modalFormulaPeriodeText">
-                            -
-                        </span>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-white text-dark border font-monospace py-1.5 px-2.5 shadow-xs d-inline-flex align-items-center gap-1.5" title="Periode Evaluasi">
+                                <i class="bi bi-calendar3 text-primary"></i>
+                                <span class="text-muted fw-normal">Periode:</span>
+                                <span id="modalFormulaPeriodeText">-</span>
+                            </span>
+                        </div>
                     </div>
 
                     <!-- Equation Math Container -->
