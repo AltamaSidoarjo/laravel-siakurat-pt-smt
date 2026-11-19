@@ -1,4 +1,4 @@
-<div class="card border-0 shadow-sm bg-white rounded-3 p-2 p-md-2.5 kpi-stepper-sticky mb-4" id="kpiFormStepper">
+<div class="card border-0 shadow-sm bg-white rounded-3 p-2 p-md-2.5 kpi-stepper-sticky" id="kpiFormStepper">
     <div class="d-flex align-items-center justify-content-between gap-2 overflow-x-auto py-1 px-1">
         <!-- Step 1: Identitas Dasar -->
         <a href="#sectionIdentitas" class="kpi-step-item active d-flex align-items-center gap-2.5 px-3 py-2 rounded-3 text-decoration-none" data-target="sectionIdentitas">
