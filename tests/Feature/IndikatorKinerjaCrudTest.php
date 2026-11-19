@@ -702,4 +702,47 @@ class IndikatorKinerjaCrudTest extends TestCase
         $response->assertSee('data-nama="SDM (Non-Organik)"', false);
         $response->assertSee('escapeHtml');
     }
+
+    public function test_create_page_renders_sticky_stepper_navigation(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->get(route('pengaturan.setting-indikator-kinerja.create'));
+
+        $response->assertOk()
+            ->assertSee('id="kpiFormStepper"', false)
+            ->assertSee('kpi-stepper-sticky', false)
+            ->assertSee('Identitas Dasar')
+            ->assertSee('Target Evaluasi')
+            ->assertSee('Pemetaan Akun')
+            ->assertSee('id="sectionIdentitas"', false)
+            ->assertSee('id="sectionTargetRag"', false)
+            ->assertSee('id="sectionMappingCoa"', false);
+    }
+
+    public function test_edit_page_renders_sticky_stepper_navigation(): void
+    {
+        $user = User::factory()->create();
+        $indikator = IndikatorKinerja::create([
+            'kode' => 'stepper_test',
+            'nama' => 'Stepper Test',
+            'satuan' => SatuanIndikator::PERSEN,
+            'tipe_kalkulasi' => TipeKalkulasi::RASIO,
+            'pola_evaluasi' => PolaEvaluasi::HIGHER_IS_BETTER,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->get(route('pengaturan.setting-indikator-kinerja.edit', $indikator->id));
+
+        $response->assertOk()
+            ->assertSee('id="kpiFormStepper"', false)
+            ->assertSee('kpi-stepper-sticky', false)
+            ->assertSee('Identitas Dasar')
+            ->assertSee('Target Evaluasi')
+            ->assertSee('Pemetaan Akun')
+            ->assertSee('id="sectionIdentitas"', false)
+            ->assertSee('id="sectionTargetRag"', false)
+            ->assertSee('id="sectionMappingCoa"', false);
+    }
 }
