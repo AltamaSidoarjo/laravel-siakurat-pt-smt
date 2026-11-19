@@ -513,8 +513,10 @@ class SettingIndikatorKinerjaTest extends TestCase
         $response = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.index'));
         $response->assertOk()
             ->assertSee('rag-bar-wrapper')
-            ->assertSee('settingIndikatorBanner')
-            ->assertSee('btnDismissBanner')
+            ->assertDontSee('settingIndikatorBanner')
+            ->assertDontSee('btnDismissBanner')
+            ->assertSee('btnOpenModalPanduan')
+            ->assertSee('modalPanduanSetting')
             ->assertSee('data-bs-toggle="popover"', false)
             ->assertSee('sticky-col-action-tab1')
             ->assertDontSee('polaSelect');

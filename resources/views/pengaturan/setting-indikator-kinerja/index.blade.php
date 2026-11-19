@@ -331,9 +331,9 @@
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
-                    <button type="button" id="btnHelpGuide" class="btn btn-sm btn-outline-primary fw-semibold d-inline-flex align-items-center gap-1 shadow-xs" title="Tampilkan Panduan Arsitektur">
-                        <i class="bi bi-question-circle"></i>
-                        <span>Panduan</span>
+                    <button type="button" id="btnOpenModalPanduan" class="btn btn-sm btn-outline-success fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs" data-bs-toggle="modal" data-bs-target="#modalPanduanSetting" title="Buka Panduan &amp; Glosarium Indikator Kinerja">
+                        <i class="bi bi-book-half text-success"></i>
+                        <span>Panduan &amp; Glosarium</span>
                     </button>
 
                     @if (auth()->user()?->hasModuleAccess('dashboard.indikator-kinerja', 'view'))
@@ -349,30 +349,6 @@
 
     @include('partials.flash-message')
     @include('partials.validation-errors')
-
-    <!-- Informative Banner: Arsitektur Ekstensibel -->
-    <div id="settingIndikatorBanner" class="alert alert-primary bg-primary-subtle border-primary-subtle text-primary-emphasis d-flex align-items-start gap-3 p-3 shadow-xs mb-0 rounded-3 alert-dismissible fade show" role="alert">
-        <div class="p-2 bg-white rounded-3 shadow-xs text-primary flex-shrink-0 mt-0.5">
-            <i class="bi bi-info-circle-fill fs-5"></i>
-        </div>
-        <div class="flex-grow-1 pe-3">
-            <h6 class="fw-bold mb-1 text-primary-emphasis">Arsitektur Pengaturan Dinamis & Ekstensibel</h6>
-            <p class="small mb-0 opacity-90" style="line-height: 1.5;">
-                Modul ini tidak terkunci pada 11 indikator awal. Superadmin dapat menambah indikator baru, mengubah rumus dan ambang batas target (RAG), memetakan akun COA sesuai bagan akun rumah sakit, serta mencatat data non-akuntansi bulanan (seperti surat verifikasi BAHV BPJS Kesehatan & SDM).
-            </p>
-        </div>
-        <button type="button" class="btn-close" id="btnDismissBanner" aria-label="Close" title="Sembunyikan Panduan"></button>
-    </div>
-    <script>
-        (function () {
-            try {
-                if (localStorage.getItem('setting_indikator_banner_dismissed') === 'true') {
-                    var el = document.getElementById('settingIndikatorBanner');
-                    if (el) el.classList.add('d-none');
-                }
-            } catch (e) {}
-        })();
-    </script>
 
     <!-- Ringkasan Master Indikator (Executive Strip) -->
     <div class="row g-3">
@@ -1067,6 +1043,8 @@
         </div>
     </div>
 </div>
+
+@include('pengaturan.setting-indikator-kinerja.partials.modal-panduan')
 @endsection
 
 @push('scripts')
@@ -1103,47 +1081,6 @@
         document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
             new bootstrap.Tooltip(el);
         });
-
-        // Banner Dismiss & Restore with LocalStorage
-        const banner = document.getElementById('settingIndikatorBanner');
-        const btnHelpGuide = document.getElementById('btnHelpGuide');
-        const btnDismiss = document.getElementById('btnDismissBanner');
-
-        function hideBanner() {
-            if (!banner) return;
-            banner.classList.add('d-none');
-            try {
-                localStorage.setItem('setting_indikator_banner_dismissed', 'true');
-            } catch (e) {}
-        }
-
-        function showBanner() {
-            if (!banner) return;
-            banner.classList.remove('d-none');
-            banner.classList.add('show');
-            banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            try {
-                localStorage.removeItem('setting_indikator_banner_dismissed');
-            } catch (e) {}
-        }
-
-        if (btnDismiss) {
-            btnDismiss.addEventListener('click', function (e) {
-                e.preventDefault();
-                hideBanner();
-            });
-        }
-
-        if (btnHelpGuide) {
-            btnHelpGuide.addEventListener('click', function (e) {
-                e.preventDefault();
-                if (banner && banner.classList.contains('d-none')) {
-                    showBanner();
-                } else {
-                    hideBanner();
-                }
-            });
-        }
 
         // Tab 2: Resizable Matrix Container with LocalStorage persistence
         const matrixContainer = document.getElementById('matrixScrollContainer');
