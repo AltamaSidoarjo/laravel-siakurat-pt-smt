@@ -82,10 +82,33 @@
                 </div>
 
                 <div class="d-none d-md-flex align-items-center gap-2">
-                    <button type="button" id="btnOpenModalPanduan" class="btn btn-outline-success px-3 fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs" data-bs-toggle="modal" data-bs-target="#modalPanduanSetting" title="Buka Panduan &amp; Glosarium Indikator Kinerja">
-                        <i class="bi bi-book-half"></i>
-                        <span>Panduan &amp; Glosarium</span>
-                    </button>
+                    <div class="dropdown">
+                        <button type="button" id="btnBantuanDropdown" class="btn btn-outline-success px-3 fw-semibold dropdown-toggle d-inline-flex align-items-center gap-1.5 shadow-xs" data-bs-toggle="dropdown" aria-expanded="false" title="Pusat Panduan &amp; Bantuan Interaktif">
+                            <i class="bi bi-lightbulb text-success"></i>
+                            <span>Bantuan &amp; Panduan</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="btnBantuanDropdown">
+                            <li>
+                                <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" id="btnStartTour">
+                                    <i class="bi bi-play-circle-fill text-primary fs-6"></i>
+                                    <div>
+                                        <div class="fw-semibold">Mulai Tur Panduan</div>
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;">Sorot &amp; jelajahi langkah form ini</small>
+                                    </div>
+                                </button>
+                            </li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li>
+                                <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" id="btnOpenModalPanduan" data-bs-toggle="modal" data-bs-target="#modalPanduanSetting">
+                                    <i class="bi bi-book-half text-success fs-6"></i>
+                                    <div>
+                                        <div class="fw-semibold">Panduan &amp; Glosarium</div>
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;">Logika formula, COA &amp; target RAG</small>
+                                    </div>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
                     <a href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']) }}" class="btn btn-outline-secondary px-3 fw-semibold">
                         Batal
                     </a>
@@ -502,7 +525,7 @@
 
             <!-- Kolom Samping (Kanan / Col-lg-4) : Sticky Sidebar -->
             <div class="col-lg-4 col-xl-4">
-                <div class="sticky-panel d-flex flex-column gap-3">
+                <div class="sticky-panel d-flex flex-column gap-3" id="stickyLivePreview">
 
                     <!-- Kartu Live Preview Indikator -->
                     <div class="card border-0 shadow-sm bg-white">
@@ -657,6 +680,9 @@
 </template>
 
 @include('pengaturan.setting-indikator-kinerja.partials.modal-panduan')
+@include('pengaturan.setting-indikator-kinerja.partials.tour-scripts', [
+    'scenario' => 'form',
+])
 @endsection
 
 @push('scripts')

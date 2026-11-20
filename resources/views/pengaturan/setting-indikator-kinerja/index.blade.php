@@ -331,10 +331,33 @@
                 </div>
 
                 <div class="d-flex align-items-center gap-2">
-                    <button type="button" id="btnOpenModalPanduan" class="btn btn-sm btn-outline-success fw-semibold d-inline-flex align-items-center gap-1.5 shadow-xs" data-bs-toggle="modal" data-bs-target="#modalPanduanSetting" title="Buka Panduan &amp; Glosarium Indikator Kinerja">
-                        <i class="bi bi-book-half text-success"></i>
-                        <span>Panduan &amp; Glosarium</span>
-                    </button>
+                    <div class="dropdown">
+                        <button type="button" id="btnBantuanDropdown" class="btn btn-sm btn-outline-success fw-semibold dropdown-toggle d-inline-flex align-items-center gap-1.5 shadow-xs" data-bs-toggle="dropdown" aria-expanded="false" title="Pusat Panduan &amp; Bantuan Interaktif">
+                            <i class="bi bi-lightbulb text-success"></i>
+                            <span>Bantuan &amp; Panduan</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="btnBantuanDropdown">
+                            <li>
+                                <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" id="btnStartTour">
+                                    <i class="bi bi-play-circle-fill text-primary fs-6"></i>
+                                    <div>
+                                        <div class="fw-semibold">Mulai Tur Panduan</div>
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;">Sorot &amp; jelajahi fitur halaman ini</small>
+                                    </div>
+                                </button>
+                            </li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li>
+                                <button type="button" class="dropdown-item d-flex align-items-center gap-2 py-2" id="btnOpenModalPanduan" data-bs-toggle="modal" data-bs-target="#modalPanduanSetting">
+                                    <i class="bi bi-book-half text-success fs-6"></i>
+                                    <div>
+                                        <div class="fw-semibold">Panduan &amp; Glosarium</div>
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;">Logika formula, COA &amp; target RAG</small>
+                                    </div>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
 
                     @if (auth()->user()?->hasModuleAccess('dashboard.indikator-kinerja', 'view'))
                         <a href="{{ route('dashboard.indikator-kinerja.index') }}" class="btn btn-sm btn-success fw-semibold d-inline-flex align-items-center gap-2 shadow-xs">
@@ -351,7 +374,7 @@
     @include('partials.validation-errors')
 
     <!-- Ringkasan Master Indikator (Executive Strip) -->
-    <div class="row g-3">
+    <div class="row g-3" id="executiveStrip">
         <!-- Total Indikator -->
         <div class="col-6 col-lg-3">
             <div class="card border-0 shadow-sm h-100 bg-white border-start border-4 border-primary">
@@ -423,6 +446,7 @@
             <ul class="nav nav-tabs card-header-tabs" id="settingTab" role="tablist">
                 <li class="nav-item" role="presentation">
                     <a class="nav-link fw-semibold px-3 py-2.5 {{ $tab !== 'manual' ? 'active text-primary' : 'text-muted' }}" 
+                       id="tabLinkIndikator"
                        href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator', 'tahun' => $tahun]) }}">
                         <i class="bi bi-speedometer2 me-1.5"></i> 1. Manajemen Indikator & Ambang Batas
                         <span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1">{{ $indikators->count() }}</span>
@@ -430,6 +454,7 @@
                 </li>
                 <li class="nav-item" role="presentation">
                     <a class="nav-link fw-semibold px-3 py-2.5 {{ $tab === 'manual' ? 'active text-primary' : 'text-muted' }}" 
+                       id="tabLinkManual"
                        href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'manual', 'tahun' => $tahun]) }}">
                         <i class="bi bi-calendar3 me-1.5"></i> 2. Entri Data Manual Bulanan
                         <span class="badge bg-amber-subtle text-warning-emphasis rounded-pill ms-1">{{ $totalVariabel }} Variabel</span>
@@ -445,7 +470,7 @@
                 <!-- ============================================== -->
                 <div class="tab-pane fade show active">
                     <!-- Toolbar Filter Pencarian -->
-                    <div class="bg-light p-3 rounded-3 border mb-3">
+                    <div class="bg-light p-3 rounded-3 border mb-3" id="filterToolbarTab1">
                         <form method="GET" action="{{ route('pengaturan.setting-indikator-kinerja.index') }}" class="row g-2 align-items-end">
                             <input type="hidden" name="tab" value="indikator">
 
@@ -468,7 +493,7 @@
                                 </a>
 
                                 @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'create'))
-                                    <a href="{{ route('pengaturan.setting-indikator-kinerja.create') }}" class="btn btn-sm btn-success fw-bold text-nowrap ms-auto">
+                                    <a href="{{ route('pengaturan.setting-indikator-kinerja.create') }}" id="btnTambahIndikator" class="btn btn-sm btn-success fw-bold text-nowrap ms-auto">
                                         <i class="bi bi-plus-circle me-1"></i> Tambah Indikator
                                     </a>
                                 @endif
@@ -477,7 +502,7 @@
                     </div>
 
                     <!-- Table Master Indikator -->
-                    <div class="table-responsive border rounded-3 custom-scrollbar">
+                    <div class="table-responsive border rounded-3 custom-scrollbar" id="tableMasterIndikatorContainer">
                         <table class="table table-hover align-middle mb-0 text-sm table-tab1">
                             <thead class="table-light border-bottom">
                                 <tr class="text-nowrap small text-uppercase tracking-wider text-secondary">
@@ -737,7 +762,7 @@
                 <!-- ============================================== -->
                 <div class="tab-pane fade show active">
                     <!-- Toolbar Filter Tahun & Tombol Tambah Variabel -->
-                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3 bg-light p-3 rounded-3 border">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3 bg-light p-3 rounded-3 border" id="filterTahunManual">
                         <form method="GET" action="{{ route('pengaturan.setting-indikator-kinerja.index') }}" class="d-flex align-items-center gap-2">
                             <input type="hidden" name="tab" value="manual">
                             <label for="tahunSelect" class="form-label fw-bold mb-0 text-nowrap small text-muted">
@@ -755,7 +780,7 @@
 
                         <div class="d-flex align-items-center gap-2">
                             @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'create'))
-                                <button type="button" class="btn btn-sm btn-primary fw-semibold" data-bs-toggle="modal" data-bs-target="#modalTambahVariabel">
+                                <button type="button" id="btnTambahVariabelManual" class="btn btn-sm btn-primary fw-semibold" data-bs-toggle="modal" data-bs-target="#modalTambahVariabel">
                                     <i class="bi bi-plus-circle me-1"></i> Tambah Variabel Baru
                                 </button>
                             @endif
@@ -860,7 +885,7 @@
                                                                step="any" 
                                                                name="data[{{ $v->id }}][{{ $b }}]" 
                                                                value="{{ $val !== null ? (float) $val : '' }}" 
-                                                               class="form-control form-control-sm text-end matrix-input p-1" 
+                                                               class="form-control form-control-sm text-end matrix-input matrix-cell-input p-1" 
                                                                data-row-id="{{ $v->id }}"
                                                                data-row="{{ $v->id }}"
                                                                data-row-idx="{{ $rowIdx }}" 
@@ -931,7 +956,7 @@
 
                         @if ($variabelManuals->isNotEmpty() && auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'update'))
                             <div class="d-flex justify-content-end gap-2">
-                                <button type="submit" class="btn btn-success fw-bold px-4 shadow-xs">
+                                <button type="submit" id="btnSimpanManualData" class="btn btn-success fw-bold px-4 shadow-xs">
                                     <i class="bi bi-save me-1.5"></i> Simpan Data Bulanan
                                 </button>
                             </div>
@@ -1045,6 +1070,9 @@
 </div>
 
 @include('pengaturan.setting-indikator-kinerja.partials.modal-panduan')
+@include('pengaturan.setting-indikator-kinerja.partials.tour-scripts', [
+    'scenario' => $tab === 'manual' ? 'tab2' : 'tab1',
+])
 @endsection
 
 @push('scripts')
