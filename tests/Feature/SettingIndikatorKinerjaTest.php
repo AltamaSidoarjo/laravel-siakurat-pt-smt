@@ -611,4 +611,112 @@ class SettingIndikatorKinerjaTest extends TestCase
             ->assertSee('≥')
             ->assertSee('≤');
     }
+
+    public function test_tour_scripts_partial_renders_driverjs_assets_and_scenarios(): void
+    {
+        $viewTab1 = $this->blade("
+            @include('pengaturan.setting-indikator-kinerja.partials.tour-scripts', ['scenario' => 'tab1'])
+            @stack('styles')
+            @stack('scripts')
+        ");
+
+        $viewTab1->assertSee('driver.js@1.3.1/dist/driver.css')
+            ->assertSee('driver.js@1.3.1/dist/driver.js.iife.js')
+            ->assertSee('siakurat_tour_setting_tab1_seen')
+            ->assertSee('executiveStrip')
+            ->assertSee('filterToolbarTab1');
+
+        $viewTab2 = $this->blade("
+            @include('pengaturan.setting-indikator-kinerja.partials.tour-scripts', ['scenario' => 'tab2'])
+            @stack('styles')
+            @stack('scripts')
+        ");
+
+        $viewTab2->assertSee('siakurat_tour_setting_tab2_seen')
+            ->assertSee('matrixScrollContainer')
+            ->assertSee('btnSimpanManualData');
+
+        $viewForm = $this->blade("
+            @include('pengaturan.setting-indikator-kinerja.partials.tour-scripts', ['scenario' => 'form'])
+            @stack('styles')
+            @stack('scripts')
+        ");
+
+        $viewForm->assertSee('siakurat_tour_setting_form_seen')
+            ->assertSee('stepperNavigation')
+            ->assertSee('sectionIdentitas')
+            ->assertSee('stickyLivePreview');
+    }
+
+    public function test_index_page_renders_bantuan_dropdown_with_tour_and_panduan_buttons(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->get(route('pengaturan.setting-indikator-kinerja.index'));
+
+        $response->assertStatus(200)
+            ->assertSee('btnBantuanDropdown')
+            ->assertSee('btnStartTour')
+            ->assertSee('btnOpenModalPanduan')
+            ->assertSee('modalPanduanSetting')
+            ->assertSee('executiveStrip')
+            ->assertSee('filterToolbarTab1')
+            ->assertSee('tableMasterIndikatorContainer')
+            ->assertSee('tabLinkIndikator')
+            ->assertSee('tabLinkManual')
+            ->assertSee('driver.js@1.3.1');
+    }
+
+    public function test_index_manual_tab_renders_tour_targets(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->get(route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'manual']));
+
+        $response->assertStatus(200)
+            ->assertSee('btnBantuanDropdown')
+            ->assertSee('filterTahunManual')
+            ->assertSee('btnSimpanManualData')
+            ->assertSee('matrixScrollContainer')
+            ->assertSee('driver.js@1.3.1');
+    }
+
+    public function test_create_and_edit_pages_render_bantuan_dropdown_and_form_tour_targets(): void
+    {
+        $this->seed(IndikatorKinerjaSeeder::class);
+        $user = User::factory()->create();
+        $indikator = \App\Models\IndikatorKinerja::firstOrFail();
+
+        // 1. Create page
+        $createRes = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.create'));
+        $createRes->assertOk()
+            ->assertSee('btnBantuanDropdown')
+            ->assertSee('btnStartTour')
+            ->assertSee('btnOpenModalPanduan')
+            ->assertSee('modalPanduanSetting')
+            ->assertSee('stepperNavigation')
+            ->assertSee('sectionIdentitas')
+            ->assertSee('sectionTargetRag')
+            ->assertSee('sectionMappingCoa')
+            ->assertSee('stickyLivePreview')
+            ->assertSee('driver.js@1.3.1');
+
+        // 2. Edit page
+        $editRes = $this->actingAs($user)->get(route('pengaturan.setting-indikator-kinerja.edit', $indikator));
+        $editRes->assertOk()
+            ->assertSee('btnBantuanDropdown')
+            ->assertSee('btnStartTour')
+            ->assertSee('btnOpenModalPanduan')
+            ->assertSee('modalPanduanSetting')
+            ->assertSee('stepperNavigation')
+            ->assertSee('sectionIdentitas')
+            ->assertSee('sectionTargetRag')
+            ->assertSee('sectionMappingCoa')
+            ->assertSee('stickyLivePreview')
+            ->assertSee('driver.js@1.3.1');
+    }
 }
