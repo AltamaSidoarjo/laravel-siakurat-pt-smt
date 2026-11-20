@@ -11,6 +11,7 @@ Fitur utama meliputi:
 4. Pengelolaan master variabel manual operasional (misalnya: Persentase Lolos BAHV Pertama JKN, Jumlah SDM Non Organik).
 5. Matriks input dan update data bulanan (Januari s.d. Desember) untuk seluruh variabel manual per tahun anggaran.
 6. Pusat Bantuan & Glosarium Interaktif (`modal-panduan.blade.php`): Modal multi-tab terpadu pada halaman Index, Create, dan Edit yang memuat diagram alur tipe kalkulasi, matriks perilaku input form, glosarium peran akun COA (*Numerator*, *Denominator*, *Addition*, *Deduction*, *Exclusion*), 4 studi kasus RS nyata, serta panduan visual ambang batas target RAG.
+7. Onboarding Tour Interaktif Driver.js (`tour-scripts.blade.php`): Panduan langkah visual (spotlight walkthrough) untuk 3 skenario antarmuka (Index Tab 1, Index Tab 2 Spreadsheet, dan Form Konfigurasi Create/Edit) dengan aktivasi otomatis pada kunjungan pertama dan opsi pemicu manual kapan saja.
 
 Implementasi utama modul ini berada di:
 - `routes/web.php`
@@ -28,6 +29,7 @@ Implementasi utama modul ini berada di:
 - `resources/views/pengaturan/setting-indikator-kinerja/edit.blade.php`
 - `resources/views/pengaturan/setting-indikator-kinerja/partials/stepper.blade.php`
 - `resources/views/pengaturan/setting-indikator-kinerja/partials/modal-panduan.blade.php`
+- `resources/views/pengaturan/setting-indikator-kinerja/partials/tour-scripts.blade.php`
 
 ---
 
@@ -295,7 +297,7 @@ flowchart TD
     - Desain responsif dengan container scroll horizontal (`overflow-x-auto`) pada perangkat mobile tanpa mematahkan lebar container kartu.
 14. **Pusat Bantuan & Glosarium Interaktif Terpadu (`partials/modal-panduan.blade.php`)**:
     - Banner statis `#settingIndikatorBanner` dan script dismiss lokalnya telah dihapus dari antarmuka `index.blade.php`.
-    - Akses bantuan kini disediakan secara kontekstual melalui tombol `[ 💡 Panduan & Glosarium ]` pada header halaman Index, Create, dan Edit.
+    - Akses bantuan kini disediakan secara kontekstual melalui dropdown menu terpadu `[ 💡 Bantuan & Panduan ▼ ]` pada header halaman Index, Create, dan Edit.
     - Menggunakan modal dialog responsif (`modal-xl`, scrollable) dengan 3 tab navigasi independen:
       - **Tab 1: Logika Formula & Matriks Input**: Menampilkan kartu alur keputusan pemilihan tipe kalkulasi (`RASIO`, `TURNOVER`, `MANUAL`), matriks perilaku form kondisional (kapan basis pembilang/penyebut aktif dan kapan dropdown variabel manual wajib), serta penjelasan dampak matematis satuan nilai (`%`, `Hari`, `Kali`, `Juta/org/bln`).
       - **Tab 2: Glosarium COA & 4 Studi Kasus RS**: Memberikan definisi warna peran akun pemetaan (*Numerator*, *Denominator*, *Addition*, *Deduction*, *Exclusion*), kaidah resolusi saldo neraca kumulatif vs mutasi laba rugi, serta 4 contoh konfigurasi nyata RS:
@@ -304,6 +306,17 @@ flowchart TD
         3. *Kasus 3: Perputaran Persediaan Farmasi* (Turnover hari, Saldo Neraca dengan fitur *Exclusion* sub-akun obat program hibah, Lower is Better).
         4. *Kasus 4: Produktivitas SDM Medis* (Rasio hibrida pembilang COA dibagi penyebut variabel manual non-keuangan, satuan `Juta/org/bln`).
       - **Tab 3: Target Ambang Batas (RAG)**: Visualisasi kartu panduan 3 pola evaluasi (*Higher is Better*, *Lower is Better*, dan *Target Band*) dengan panduan kriteria warna Hijau (Optimal), Kuning (Waspada), dan Merah (Kritis).
+15. **Onboarding Tour Interaktif Driver.js (`partials/tour-scripts.blade.php`)**:
+    - Memberikan pengalaman sorotan langsung (*spotlight walkthrough*) menggunakan library Driver.js v1.3.1 (dimuat via CDN efisien pada level view tanpa mengotori tata letak global).
+    - Styling popover disesuaikan dengan identitas desain hijau korporat SiAkurat (`#027e3f` / `#166534`, tipografi bersih, rounded-3, bayangan lembut).
+    - Menyediakan 3 skenario tur terpisah:
+      - **Skenario A (Index Tab 1)**: Memandu Ringkasan Eksekutif (`#executiveStrip`), Filter Pencarian (`#filterToolbarTab1`), Tombol Tambah Indikator (`#btnTambahIndikator`), Matriks Indikator & Target RAG (`#tableMasterIndikatorContainer`), dan link menuju Tab 2.
+      - **Skenario B (Index Tab 2)**: Memandu Filter Tahun Anggaran (`#filterTahunManual`), Viewport Matriks Resizable (`#matrixScrollContainer`), Sel Input Cepat Ala Excel (`.matrix-cell-input`), Rata-Rata Otomatis Tahunan, dan Tombol Simpan Data Bulanan (`#btnSimpanManualData`).
+      - **Skenario C (Create & Edit)**: Memandu Stepper Navigasi (`#stepperNavigation`), Seksi Identitas & Tipe Kalkulasi (`#sectionIdentitas`), Seksi Target RAG (`#sectionTargetRag`), Seksi Pemetaan Akun COA (`#sectionMappingCoa`), Sticky Live Preview Kartu KPI (`#stickyLivePreview`), dan Tombol Simpan Indikator.
+    - **Pemicu Otomatis & Manual**:
+      - Tur otomatis berjalan 750ms setelah halaman dimuat pada kunjungan pertama pengguna (dilacak via `localStorage` berformat `siakurat_tour_setting_{scenario}_seen`).
+      - Pengguna dapat memicu ulang tur kapan saja dengan membuka menu dropdown `[ 💡 Bantuan & Panduan ▼ ]` $\rightarrow$ `Mulai Tur Panduan`.
+    - **Toleransi Hak Akses (*Permission-Aware*)**: Skrip tur secara defensif menyaring elemen target yang ada di DOM sebelum memulai tur. Jika pengguna tidak memiliki izin tambah/ubah/hapus sehingga tombol terkait tidak dirender, langkah tersebut dilewati tanpa menghasilkan galat JavaScript.
 
 ---
 
