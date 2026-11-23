@@ -125,6 +125,26 @@
         </div>
         <div class="card-body">
             <div id="invoice_alert" class="alert alert-warning d-none mb-3"></div>
+
+            @if (! $isEdit)
+                <div id="detail_search_container" class="mb-3 {{ count($selectedRows) === 0 ? 'd-none' : '' }}">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-12 col-md-6 col-lg-5">
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="search" id="input_detail_search" class="form-control" placeholder="Cari nomor faktur, nama pasien, atau no. RM..." autocomplete="off">
+                                <button type="button" id="btn_clear_detail_search" class="btn btn-outline-secondary d-none" title="Reset pencarian">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-6 col-lg-7 text-muted small" id="detail_search_info"></div>
+                    </div>
+                </div>
+            @endif
+
             <div class="table-responsive">
                 <table id="table_data_detail" class="table table-sm table-bordered {{ count($selectedRows) === 0 ? 'd-none' : '' }}">
                     <thead>
@@ -143,6 +163,13 @@
                         </tr>
                     </thead>
                     <tbody>
+                        @if (! $isEdit)
+                            <tr id="detail_no_search_results" class="d-none">
+                                <td colspan="5" class="text-center py-3 text-muted">
+                                    <i class="bi bi-search me-1"></i> Tidak ada data faktur yang sesuai dengan kata kunci pencarian.
+                                </td>
+                            </tr>
+                        @endif
                         @foreach ($selectedRows as $index => $item)
                             @php
                                 $grandTotal = (float) ($item['grandtotal'] ?? 0);
