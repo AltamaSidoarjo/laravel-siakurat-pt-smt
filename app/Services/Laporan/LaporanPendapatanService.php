@@ -1757,9 +1757,16 @@ class LaporanPendapatanService
     public function getRekonsiliasiDokterData(
         string $startDate,
         string $endDate,
-        ?int $coaId = null,
+        array|int|null $coaIds = null,
         bool $hanyaBerselisih = true
     ): array {
+        $normalizedCoaIds = collect(is_array($coaIds) ? $coaIds : ($coaIds !== null ? [$coaIds] : []))
+            ->filter(fn (mixed $id) => is_numeric($id) && (int) $id > 0)
+            ->map(fn (mixed $id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
         $hasChildren = Coa::query()
             ->whereNotNull('parent_coa')
             ->pluck('parent_coa')
@@ -1771,7 +1778,7 @@ class LaporanPendapatanService
                 $q->whereIn('tipe_coa', ['Pendapatan', 'Pendapatan lain'])
                     ->orWhereRaw("LOWER(COALESCE(tipe_coa, '')) LIKE ?", ['%pendapatan%']);
             })
-            ->when($coaId !== null, fn ($q) => $q->where('id', $coaId))
+            ->when($normalizedCoaIds !== [], fn ($q) => $q->whereIn('id', $normalizedCoaIds))
             ->orderBy('kode')
             ->get(['id', 'kode', 'nama', 'tipe_coa', 'parent_coa'])
             ->reject(fn (Coa $c) => $hasChildren->has((int) $c->id))
@@ -1781,7 +1788,7 @@ class LaporanPendapatanService
         $bukuBesarRows = DB::table('bukubesar')
             ->selectRaw('coa_id, (SUM(CASE WHEN tipe_mutasi = "K" THEN nominal ELSE 0 END) - SUM(CASE WHEN tipe_mutasi = "D" THEN nominal ELSE 0 END)) as nominal_buku_besar')
             ->whereBetween('tanggal', [$startDate, $endDate])
-            ->when($coaId !== null, fn ($q) => $q->where('coa_id', $coaId))
+            ->when($normalizedCoaIds !== [], fn ($q) => $q->whereIn('coa_id', $normalizedCoaIds))
             ->groupBy('coa_id')
             ->pluck('nominal_buku_besar', 'coa_id');
 
@@ -1789,7 +1796,7 @@ class LaporanPendapatanService
         $invoiceRows = DB::table('faktur_penjualan_rinci as fpr')
             ->join('faktur_penjualan as fp', 'fp.id', '=', 'fpr.faktur_penjualan_id')
             ->whereBetween('fp.tanggal_faktur', [$startDate, $endDate])
-            ->when($coaId !== null, fn ($q) => $q->where('fpr.coa_id', $coaId))
+            ->when($normalizedCoaIds !== [], fn ($q) => $q->whereIn('fpr.coa_id', $normalizedCoaIds))
             ->selectRaw('
                 fpr.coa_id,
                 SUM(CASE WHEN fpr.pelaksana_id IS NOT NULL THEN fpr.subtotal ELSE 0 END) as dengan_dokter,
@@ -1808,7 +1815,7 @@ class LaporanPendapatanService
                 ->join('coa as c', 'c.id', '=', 'jur.coa_id')
                 ->whereBetween('ju.tanggal', [$startDate, $endDate])
                 ->whereRaw("LOWER(COALESCE(c.tipe_coa, '')) LIKE ?", ['%pendapatan%'])
-                ->when($coaId !== null, fn ($q) => $q->where('jur.coa_id', $coaId))
+                ->when($normalizedCoaIds !== [], fn ($q) => $q->whereIn('jur.coa_id', $normalizedCoaIds))
                 ->selectRaw('
                     jur.coa_id,
                     SUM(CASE WHEN jur.pelaksana_id IS NOT NULL THEN (COALESCE(jur.kredit, 0) - COALESCE(jur.debit, 0)) ELSE 0 END) as dengan_dokter,
@@ -1828,7 +1835,7 @@ class LaporanPendapatanService
                 ->join('coa as c', 'c.id', '=', 'kbpr.coa_id')
                 ->whereBetween('kbp.tanggal', [$startDate, $endDate])
                 ->whereRaw("LOWER(COALESCE(c.tipe_coa, '')) LIKE ?", ['%pendapatan%'])
-                ->when($coaId !== null, fn ($q) => $q->where('kbpr.coa_id', $coaId))
+                ->when($normalizedCoaIds !== [], fn ($q) => $q->whereIn('kbpr.coa_id', $normalizedCoaIds))
                 ->selectRaw('
                     kbpr.coa_id,
                     SUM(CASE WHEN kbpr.pelaksana_id IS NOT NULL THEN (0 - COALESCE(kbpr.nominal, 0)) ELSE 0 END) as dengan_dokter,
@@ -1877,13 +1884,13 @@ class LaporanPendapatanService
             ];
         });
 
-        $filteredRows = $allRows->filter(function (array $r) use ($hanyaBerselisih, $coaId): bool {
-            if ($coaId !== null) {
-                return true;
-            }
-
+        $filteredRows = $allRows->filter(function (array $r) use ($hanyaBerselisih, $normalizedCoaIds): bool {
             if ($hanyaBerselisih) {
                 return $r['ada_selisih'];
+            }
+
+            if ($normalizedCoaIds !== []) {
+                return true;
             }
 
             return abs($r['total_buku_besar']) > 0.005
@@ -2056,16 +2063,24 @@ class LaporanPendapatanService
     public function streamRekonsiliasiDokterCsv(
         string $startDate,
         string $endDate,
-        ?int $coaId = null,
+        array|int|null $coaIds = null,
         bool $hanyaBerselisih = true
     ): void {
-        $data = $this->getRekonsiliasiDokterData($startDate, $endDate, $coaId, $hanyaBerselisih);
+        $normalizedCoaIds = collect(is_array($coaIds) ? $coaIds : ($coaIds !== null ? [$coaIds] : []))
+            ->filter(fn (mixed $id) => is_numeric($id) && (int) $id > 0)
+            ->map(fn (mixed $id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $data = $this->getRekonsiliasiDokterData($startDate, $endDate, $normalizedCoaIds, $hanyaBerselisih);
         $handle = fopen('php://output', 'wb');
 
         fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
 
         fputcsv($handle, ['REKONSILIASI PENDAPATAN DOKTER (AUDIT TANPA PELAKSANA)']);
         fputcsv($handle, ['Periode', $startDate.' s/d '.$endDate]);
+        fputcsv($handle, ['Filter Akun', $this->resolveCoaFilterLabel($normalizedCoaIds)]);
         fputcsv($handle, []);
 
         fputcsv($handle, [
@@ -2158,11 +2173,18 @@ class LaporanPendapatanService
     public function streamRekonsiliasiDokterExcel(
         string $startDate,
         string $endDate,
-        ?int $coaId = null,
+        array|int|null $coaIds = null,
         bool $hanyaBerselisih = true
     ): void {
+        $normalizedCoaIds = collect(is_array($coaIds) ? $coaIds : ($coaIds !== null ? [$coaIds] : []))
+            ->filter(fn (mixed $id) => is_numeric($id) && (int) $id > 0)
+            ->map(fn (mixed $id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
         $identitas = $this->getIdentitasLaporan();
-        $data = $this->getRekonsiliasiDokterData($startDate, $endDate, $coaId, $hanyaBerselisih);
+        $data = $this->getRekonsiliasiDokterData($startDate, $endDate, $normalizedCoaIds, $hanyaBerselisih);
 
         $spreadsheet = new Spreadsheet;
         $spreadsheet->getProperties()
@@ -2179,9 +2201,11 @@ class LaporanPendapatanService
             $sheet->mergeCells($range);
         }
 
+        $coaFilterText = $this->resolveCoaFilterLabel($normalizedCoaIds);
+
         $sheet->setCellValue('A1', mb_strtoupper($identitas['namaRumahSakit']));
         $sheet->setCellValue('A2', 'REKONSILIASI PENDAPATAN DOKTER (AUDIT TANPA PELAKSANA)');
-        $sheet->setCellValue('A3', 'Periode: '.$startDate.' s/d '.$endDate);
+        $sheet->setCellValue('A3', 'Periode: '.$startDate.' s/d '.$endDate.' | '.$coaFilterText);
         $sheet->getStyle('A1:I3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
         $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         $sheet->getStyle('A2')->getFont()->setBold(true)->setSize(12)->setColor(new Color('DC2626'));
@@ -2331,5 +2355,19 @@ class LaporanPendapatanService
             $spreadsheet->disconnectWorksheets();
             unset($spreadsheet);
         }
+    }
+
+    private function resolveCoaFilterLabel(array $coaIds): string
+    {
+        if ($coaIds === []) {
+            return 'Akun: Semua Akun Pendapatan';
+        }
+
+        $names = Coa::query()->whereIn('id', $coaIds)->pluck('kode')->all();
+        if (count($names) <= 3 && $names !== []) {
+            return 'Akun: '.implode(', ', $names);
+        }
+
+        return 'Akun: '.count($coaIds).' akun terpilih';
     }
 }

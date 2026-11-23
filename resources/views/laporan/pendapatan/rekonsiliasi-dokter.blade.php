@@ -6,7 +6,7 @@
     $exportParams = [
         'startDate' => $startDate,
         'endDate' => $endDate,
-        'coaId' => $coaId,
+        'coaIds' => $coaIds,
         'filter_applied' => '1',
         'hanyaBerselisih' => $hanyaBerselisih ? '1' : '0',
     ];
@@ -80,14 +80,14 @@
                     <p class="text-muted small mb-0">Audit perbandingan saldo buku besar (Laba Rugi) dengan pendapatan dokter untuk melacak transaksi tanpa nama dokter/pelaksana.</p>
                 </div>
                 <div class="d-flex gap-2">
-                    <a href="{{ route('laporan.pendapatan.rekonsiliasi-dokter.export-excel', $exportParams) }}"
+                    <button type="submit" form="filterForm" formaction="{{ route('laporan.pendapatan.rekonsiliasi-dokter.export-excel') }}"
                        class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1 shadow-sm">
                         <i class="bi bi-file-earmark-excel"></i> Ekspor Excel
-                    </a>
-                    <a href="{{ route('laporan.pendapatan.rekonsiliasi-dokter.export-csv', $exportParams) }}"
+                    </button>
+                    <button type="submit" form="filterForm" formaction="{{ route('laporan.pendapatan.rekonsiliasi-dokter.export-csv') }}"
                        class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 shadow-sm">
                         <i class="bi bi-filetype-csv"></i> Ekspor CSV
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
@@ -96,7 +96,7 @@
     <!-- Filter Card -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3 p-md-4">
-            <form method="get" action="{{ route('laporan.pendapatan.rekonsiliasi-dokter') }}">
+            <form id="filterForm" method="get" action="{{ route('laporan.pendapatan.rekonsiliasi-dokter') }}">
                 <input type="hidden" name="filter_applied" value="1">
                 <div class="row g-3 align-items-end">
                     <div class="col-md-3">
@@ -114,11 +114,10 @@
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <label for="coaId" class="form-label small fw-bold text-secondary">Akun Pendapatan (COA)</label>
-                        <select id="coaId" name="coaId" class="form-select form-select-sm select2">
-                            <option value="">Semua Akun Pendapatan</option>
+                        <label for="coaIds" class="form-label small fw-bold text-secondary">Akun Pendapatan (COA)</label>
+                        <select id="coaIds" name="coaIds[]" class="form-select form-select-sm select2" multiple data-placeholder="Semua Akun Pendapatan">
                             @foreach ($coaOptions as $coa)
-                                <option value="{{ $coa->id }}" @selected((string) $coaId === (string) $coa->id)>
+                                <option value="{{ $coa->id }}" @selected(in_array((int) $coa->id, $coaIds, true))>
                                     [{{ $coa->kode }}] {{ $coa->nama }}
                                 </option>
                             @endforeach

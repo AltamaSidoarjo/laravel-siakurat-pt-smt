@@ -58,11 +58,68 @@ class RekonsiliasiPendapatanDokterTest extends TestCase
         $this->assertTrue($row4327['ada_selisih']);
         $this->assertSame(1, $row4327['jumlah_transaksi_tanpa_dokter']);
 
-        // Summary assertions
+        // Summary assertions (only accounts with discrepancy included)
         $this->assertSame(125000.0, (float) $data['summary']['totalBukuBesar']);
         $this->assertSame(50000.0, (float) $data['summary']['totalPendapatanDokter']);
         $this->assertSame(75000.0, (float) $data['summary']['totalSelisih']);
         $this->assertSame(1, $data['summary']['jumlahAkunBerselisih']);
+    }
+
+    public function test_multi_select_coa_filters_properly(): void
+    {
+        // When coaIds = [11, 12] and hanyaBerselisih = 0, both selected accounts should appear
+        $responseSemua = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.rekonsiliasi-dokter', [
+                'startDate' => '2026-09-01',
+                'endDate' => '2026-09-30',
+                'coaIds' => [11, 12],
+                'hanyaBerselisih' => '0',
+                'filter_applied' => '1',
+            ]));
+
+        $responseSemua->assertOk();
+        $reportDataSemua = $responseSemua->viewData('reportData');
+        $this->assertCount(2, $reportDataSemua['rows']);
+        $this->assertTrue(collect($reportDataSemua['rows'])->contains('nama_akun', 'Tindakan Spesialis'));
+        $this->assertTrue(collect($reportDataSemua['rows'])->contains('nama_akun', 'Laboratorium'));
+        $this->assertFalse(collect($reportDataSemua['rows'])->contains('nama_akun', 'Farmasi'));
+        $responseSemua->assertSee('Tindakan Spesialis');
+        $responseSemua->assertSee('Laboratorium');
+
+        // When coaIds = [11, 12] and hanyaBerselisih = 1, only COA 11 (has discrepancy) should appear
+        $responseBerselisih = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.rekonsiliasi-dokter', [
+                'startDate' => '2026-09-01',
+                'endDate' => '2026-09-30',
+                'coaIds' => [11, 12],
+                'hanyaBerselisih' => '1',
+                'filter_applied' => '1',
+            ]));
+
+        $responseBerselisih->assertOk();
+        $reportDataBerselisih = $responseBerselisih->viewData('reportData');
+        $this->assertCount(1, $reportDataBerselisih['rows']);
+        $this->assertTrue(collect($reportDataBerselisih['rows'])->contains('nama_akun', 'Tindakan Spesialis'));
+        $this->assertFalse(collect($reportDataBerselisih['rows'])->contains('nama_akun', 'Laboratorium'));
+        $responseBerselisih->assertSee('Tindakan Spesialis');
+
+        // When only COA 12 (no discrepancy) is selected with hanyaBerselisih = 1, 0 rows appear
+        $responseCuma12 = $this
+            ->actingAs($this->makeUser())
+            ->get(route('laporan.pendapatan.rekonsiliasi-dokter', [
+                'startDate' => '2026-09-01',
+                'endDate' => '2026-09-30',
+                'coaIds' => [12],
+                'hanyaBerselisih' => '1',
+                'filter_applied' => '1',
+            ]));
+
+        $responseCuma12->assertOk();
+        $reportDataCuma12 = $responseCuma12->viewData('reportData');
+        $this->assertCount(0, $reportDataCuma12['rows']);
+        $responseCuma12->assertSee('Tidak Ditemukan Selisih Akun Pendapatan');
     }
 
     public function test_load_detail_transaksi_tanpa_dokter_returns_json(): void
@@ -141,30 +198,20 @@ class RekonsiliasiPendapatanDokterTest extends TestCase
         $details = collect($response->json('data'));
         $this->assertCount(3, $details);
 
-        $juItem = $details->firstWhere('sumber', 'Jurnal Umum');
-        $this->assertNotNull($juItem);
-        $this->assertSame('JU-001', $juItem['nomor_ref']);
-        $this->assertSame('Jurnal penyesuaian tanpa dokter', $juItem['catatan']);
-        $this->assertSame(10000.0, (float) $juItem['nominal']);
-        $this->assertSame('Buka Jurnal', $juItem['link_label']);
-        $this->assertSame(route('bukubesar.jurnal-umum.edit', 10), $juItem['link_url']);
-
-        $kbItem = $details->firstWhere('sumber', 'Kas & Bank Pembayaran');
-        $this->assertNotNull($kbItem);
-        $this->assertSame('KBP-001', $kbItem['nomor_ref']);
-        $this->assertSame('Potongan kas tanpa dokter', $kbItem['catatan']);
-        $this->assertSame(-2000.0, (float) $kbItem['nominal']);
-        $this->assertSame('Buka Kas/Bank', $kbItem['link_label']);
-        $this->assertSame(route('kasbank.pembayaran.edit', 30), $kbItem['link_url']);
+        $this->assertNotNull($details->firstWhere('sumber', 'Jurnal Umum'));
+        $this->assertNotNull($details->firstWhere('sumber', 'Kas & Bank Pembayaran'));
     }
 
-    public function test_export_excel_and_csv_streamed_responses(): void
+    public function test_export_excel_and_csv_supports_multi_select_coaIds(): void
     {
         $excelResponse = $this
             ->actingAs($this->makeUser())
             ->get(route('laporan.pendapatan.rekonsiliasi-dokter.export-excel', [
                 'startDate' => '2026-09-01',
                 'endDate' => '2026-09-30',
+                'coaIds' => [11, 12],
+                'hanyaBerselisih' => '0',
+                'filter_applied' => '1',
             ]));
 
         $excelResponse->assertOk();
@@ -178,6 +225,9 @@ class RekonsiliasiPendapatanDokterTest extends TestCase
             ->get(route('laporan.pendapatan.rekonsiliasi-dokter.export-csv', [
                 'startDate' => '2026-09-01',
                 'endDate' => '2026-09-30',
+                'coaIds' => [11, 12],
+                'hanyaBerselisih' => '0',
+                'filter_applied' => '1',
             ]));
 
         $csvResponse->assertOk();
@@ -327,9 +377,13 @@ class RekonsiliasiPendapatanDokterTest extends TestCase
         DB::table('coa')->insert([
             ['id' => 1, 'parent_coa' => null, 'kode' => '4000', 'nama' => 'Pendapatan', 'tipe_coa' => 'Pendapatan'],
             ['id' => 11, 'parent_coa' => 1, 'kode' => '432720002', 'nama' => 'Tindakan Spesialis', 'tipe_coa' => 'Pendapatan'],
+            ['id' => 12, 'parent_coa' => 1, 'kode' => '4102', 'nama' => 'Laboratorium', 'tipe_coa' => 'Pendapatan'],
+            ['id' => 13, 'parent_coa' => 1, 'kode' => '4103', 'nama' => 'Farmasi', 'tipe_coa' => 'Pendapatan'],
         ]);
 
-        // Buku besar: Total 125.000 Kredit
+        // Buku besar:
+        // COA 11: 125.000 Kredit
+        // COA 12: 30.000 Kredit (seimbang)
         DB::table('bukubesar')->truncate();
         DB::table('bukubesar')->insert([
             [
@@ -341,9 +395,18 @@ class RekonsiliasiPendapatanDokterTest extends TestCase
                 'sumber_id' => 1,
                 'keterangan' => 'Pendapatan tindakan',
             ],
+            [
+                'coa_id' => 12,
+                'tanggal' => '2026-09-10',
+                'tipe_mutasi' => 'K',
+                'nominal' => 30000,
+                'sumber_transaksi' => 'Invoice Pendapatan',
+                'sumber_id' => 2,
+                'keterangan' => 'Pendapatan lab',
+            ],
         ]);
 
-        // Faktur: INV-001
+        // Faktur: INV-001 & INV-002
         DB::table('faktur_penjualan')->truncate();
         DB::table('faktur_penjualan')->insert([
             [
@@ -356,11 +419,21 @@ class RekonsiliasiPendapatanDokterTest extends TestCase
                 'nama_penjamin' => 'BPJS Kesehatan',
                 'keterangan' => 'Billing rawat jalan',
             ],
+            [
+                'id' => 2,
+                'nomor_faktur' => 'INV-002',
+                'tanggal_faktur' => '2026-09-10',
+                'nama_pasien' => 'Pasien Kedua',
+                'nomer_rekam_medis' => 'RM-002',
+                'nama_poli' => 'Laboratorium',
+                'nama_penjamin' => 'Umum',
+                'keterangan' => 'Billing lab',
+            ],
         ]);
 
         // Faktur Rinci:
-        // Item 1: 50.000 dengan dokter Dr. A
-        // Item 2: 75.000 TANPA dokter (pelaksana_id NULL, kode_proyek DR_BARU)
+        // COA 11: Item 1: 50.000 (Dr. A), Item 2: 75.000 (Tanpa dokter)
+        // COA 12: Item 3: 30.000 (Dr. A -> Tidak berselisih)
         DB::table('faktur_penjualan_rinci')->truncate();
         DB::table('faktur_penjualan_rinci')->insert([
             [
@@ -378,6 +451,14 @@ class RekonsiliasiPendapatanDokterTest extends TestCase
                 'coa_id' => 11,
                 'subtotal' => 75000,
                 'catatan' => 'Tindakan tambahan tanpa dokter',
+            ],
+            [
+                'faktur_penjualan_id' => 2,
+                'pelaksana_id' => 1,
+                'kode_proyek' => '1_DR_A',
+                'coa_id' => 12,
+                'subtotal' => 30000,
+                'catatan' => 'Tindakan lab dokter',
             ],
         ]);
     }

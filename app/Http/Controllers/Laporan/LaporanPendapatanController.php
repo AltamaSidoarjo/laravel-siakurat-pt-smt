@@ -246,7 +246,7 @@ class LaporanPendapatanController extends Controller
     public function rekonsiliasiDokter(Request $request): View
     {
         [$startDate, $endDate] = $this->resolveDateRange($request);
-        $coaId = $request->integer('coaId') ?: null;
+        $coaIds = $this->normalizeMultiSelectIntegerFilter($request->input('coaIds', $request->input('coaId')));
         $hanyaBerselisih = $request->has('filter_applied')
             ? $request->boolean('hanyaBerselisih')
             : true;
@@ -254,7 +254,7 @@ class LaporanPendapatanController extends Controller
         $reportData = $this->laporanPendapatanService->getRekonsiliasiDokterData(
             $startDate,
             $endDate,
-            $coaId,
+            $coaIds,
             $hanyaBerselisih
         );
 
@@ -262,7 +262,7 @@ class LaporanPendapatanController extends Controller
             'page' => 'app',
             'startDate' => $startDate,
             'endDate' => $endDate,
-            'coaId' => $coaId,
+            'coaIds' => $coaIds,
             'hanyaBerselisih' => $hanyaBerselisih,
             'coaOptions' => $this->laporanPendapatanService->getCoaPendapatanOptions(),
             'reportData' => $reportData,
@@ -294,10 +294,12 @@ class LaporanPendapatanController extends Controller
         $validated = $request->validate([
             'startDate' => ['required', 'date_format:Y-m-d'],
             'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
-            'coaId' => ['nullable', 'integer', 'exists:coa,id'],
+            'coaIds' => ['nullable'],
+            'coaId' => ['nullable'],
             'hanyaBerselisih' => ['nullable'],
         ]);
 
+        $coaIds = $this->normalizeMultiSelectIntegerFilter($request->input('coaIds', $request->input('coaId')));
         $hanyaBerselisih = $request->has('filter_applied')
             ? $request->boolean('hanyaBerselisih')
             : true;
@@ -312,7 +314,7 @@ class LaporanPendapatanController extends Controller
             fn () => $this->laporanPendapatanService->streamRekonsiliasiDokterExcel(
                 $validated['startDate'],
                 $validated['endDate'],
-                isset($validated['coaId']) ? (int) $validated['coaId'] : null,
+                $coaIds,
                 $hanyaBerselisih
             ),
             $fileName,
@@ -325,10 +327,12 @@ class LaporanPendapatanController extends Controller
         $validated = $request->validate([
             'startDate' => ['required', 'date_format:Y-m-d'],
             'endDate' => ['required', 'date_format:Y-m-d', 'after_or_equal:startDate'],
-            'coaId' => ['nullable', 'integer', 'exists:coa,id'],
+            'coaIds' => ['nullable'],
+            'coaId' => ['nullable'],
             'hanyaBerselisih' => ['nullable'],
         ]);
 
+        $coaIds = $this->normalizeMultiSelectIntegerFilter($request->input('coaIds', $request->input('coaId')));
         $hanyaBerselisih = $request->has('filter_applied')
             ? $request->boolean('hanyaBerselisih')
             : true;
@@ -343,7 +347,7 @@ class LaporanPendapatanController extends Controller
             fn () => $this->laporanPendapatanService->streamRekonsiliasiDokterCsv(
                 $validated['startDate'],
                 $validated['endDate'],
-                isset($validated['coaId']) ? (int) $validated['coaId'] : null,
+                $coaIds,
                 $hanyaBerselisih
             ),
             $fileName,
@@ -670,6 +674,16 @@ class LaporanPendapatanController extends Controller
             ->filter(fn (mixed $item) => is_scalar($item))
             ->map(fn (mixed $item) => trim((string) $item))
             ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function normalizeMultiSelectIntegerFilter(mixed $value): array
+    {
+        return collect(is_array($value) ? $value : [$value])
+            ->filter(fn (mixed $item) => is_numeric($item) && (int) $item > 0)
+            ->map(fn (mixed $item) => (int) $item)
             ->unique()
             ->values()
             ->all();
