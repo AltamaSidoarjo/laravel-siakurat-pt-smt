@@ -28,6 +28,8 @@
                         @foreach ($parentOptions as $parentOption)
                             <option
                                 value="{{ $parentOption->id }}"
+                                data-aktivitas="{{ $parentOption->arus_kas_aktivitas ?? '' }}"
+                                data-kelompok="{{ $parentOption->arus_kas_kelompok ?? '' }}"
                                 @selected((string) old('parent_id', $coa->parent_coa ?? '') === (string) $parentOption->id)
                             >
                                 {{ $parentOption->kode }} - {{ $parentOption->nama }}
@@ -100,6 +102,31 @@
                 </div>
             </div>
 
+            @if ($isEdit && $hasChild)
+                <div id="cascade_wrapper" class="row align-items-center mb-2">
+                    <div class="col-12 col-sm-2"></div>
+                    <div class="col">
+                        <div class="form-check">
+                            <input
+                                class="form-check-input"
+                                type="checkbox"
+                                id="cascade_to_children"
+                                name="cascade_to_children"
+                                value="1"
+                                @checked(old('cascade_to_children'))
+                            >
+                            <label class="form-check-label fw-semibold" for="cascade_to_children">
+                                Terapkan klasifikasi arus kas ini ke seluruh sub-akun turunan
+                            </label>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            Hanya berlaku untuk sub-akun non-Kasbank di bawah akun ini.
+                        </small>
+                        <input type="hidden" id="cascade_mode" name="cascade_mode" value="{{ old('cascade_mode', '') }}">
+                    </div>
+                </div>
+            @endif
+
             <div class="row align-items-center mb-2">
                 <div class="col-12 col-sm-2">
                     <label for="nama" class="fw-bold">Nama</label>
@@ -147,3 +174,43 @@
         </div>
     </div>
 </div>
+
+@if ($isEdit && $hasChild)
+    <div class="modal fade" id="cascadeConfirmModal" tabindex="-1" aria-labelledby="cascadeConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="cascadeConfirmModalLabel">
+                        Konfirmasi Penerapan Arus Kas ke Sub-Akun
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">
+                        Akun ini memiliki <strong id="modal_total_descendants">0</strong> sub-akun non-Kasbank:
+                    </p>
+                    <ul class="mb-3">
+                        <li><strong id="modal_empty_count">0</strong> sub-akun belum memiliki klasifikasi arus kas</li>
+                        <li><strong id="modal_existing_count">0</strong> sub-akun sudah memiliki klasifikasi arus kas</li>
+                    </ul>
+                    <div class="mb-2">
+                        <div class="small fw-semibold text-muted mb-1">Contoh sub-akun yang sudah memiliki klasifikasi:</div>
+                        <ul id="modal_existing_list" class="list-group list-group-flush small border rounded"></ul>
+                    </div>
+                    <p class="mb-0 small text-muted">
+                        Pilih apakah ingin mengisi sub-akun yang masih kosong saja, atau menimpa seluruh sub-akun turunan.
+                    </p>
+                </div>
+                <div class="modal-footer flex-wrap gap-2">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" id="btnCascadeFillEmpty" class="btn btn-outline-primary">
+                        Hanya Isi yang Kosong
+                    </button>
+                    <button type="button" id="btnCascadeOverwriteAll" class="btn btn-warning fw-semibold">
+                        Timpa Semua Sub-Akun
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+@endif
