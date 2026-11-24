@@ -46,6 +46,8 @@ class ReferensiKelompokArusKasAccessTest extends TestCase
 
     private function prepareSchema(): void
     {
+        Schema::dropIfExists('coa');
+        Schema::dropIfExists('referensi_kelompok_arus_kas');
         Schema::dropIfExists('role_permissions');
         Schema::dropIfExists('access_modules');
         Schema::dropIfExists('roles');
@@ -86,6 +88,24 @@ class ReferensiKelompokArusKasAccessTest extends TestCase
             $table->string('password');
             $table->unsignedInteger('role_id')->nullable();
             $table->rememberToken();
+            $table->timestamps();
+        });
+
+        Schema::create('referensi_kelompok_arus_kas', function (Blueprint $table) {
+            $table->id();
+            $table->string('aktivitas', 50);
+            $table->string('nama', 150);
+            $table->boolean('status_aktif')->default(true);
+            $table->timestamps();
+        });
+
+        Schema::create('coa', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('kode', 20)->unique();
+            $table->string('nama', 100);
+            $table->string('tipe_coa', 50);
+            $table->string('arus_kas_aktivitas', 50)->nullable();
+            $table->string('arus_kas_kelompok', 150)->nullable();
             $table->timestamps();
         });
     }
