@@ -102,6 +102,24 @@ class ReferensiKelompokArusKasServiceTest extends TestCase
         $this->assertEquals('Beban Operasional', $coa->fresh()->arus_kas_kelompok);
     }
 
+    public function test_update_ignores_aktivitas_and_preserves_immutability(): void
+    {
+        $ref = ReferensiKelompokArusKas::create([
+            'aktivitas' => 'operasi',
+            'nama' => 'Beban Operasional',
+            'status_aktif' => true,
+        ]);
+
+        $this->service->update($ref, [
+            'nama' => 'Beban Operasional Baru',
+            'aktivitas' => 'investasi',
+            'status_aktif' => true,
+        ]);
+
+        $this->assertEquals('operasi', $ref->fresh()->aktivitas);
+        $this->assertEquals('Beban Operasional Baru', $ref->fresh()->nama);
+    }
+
     public function test_restricted_delete_when_used_by_coa(): void
     {
         $ref = ReferensiKelompokArusKas::create([

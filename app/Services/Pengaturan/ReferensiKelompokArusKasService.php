@@ -55,6 +55,7 @@ class ReferensiKelompokArusKasService
     {
         return DB::transaction(function () use ($ref, $data) {
             $oldName = $ref->nama;
+            $oldAktivitas = $ref->aktivitas;
             $cleanName = isset($data['nama']) ? $this->sanitizeName($data['nama']) : $oldName;
 
             $updateData = [];
@@ -64,14 +65,11 @@ class ReferensiKelompokArusKasService
             if (isset($data['status_aktif'])) {
                 $updateData['status_aktif'] = (bool) $data['status_aktif'];
             }
-            if (isset($data['aktivitas'])) {
-                $updateData['aktivitas'] = $data['aktivitas'];
-            }
 
             $ref->update($updateData);
 
             if ($cleanName !== $oldName) {
-                Coa::where('arus_kas_aktivitas', $ref->aktivitas)
+                Coa::where('arus_kas_aktivitas', $oldAktivitas)
                     ->where('arus_kas_kelompok', $oldName)
                     ->update(['arus_kas_kelompok' => $cleanName]);
             }

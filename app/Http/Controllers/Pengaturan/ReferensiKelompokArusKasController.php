@@ -48,7 +48,7 @@ class ReferensiKelompokArusKasController extends Controller
             ->keyBy(fn ($item) => $item->act.'||'.$item->grp);
 
         foreach ($referensiList as $ref) {
-            $key = strtolower($ref->aktivitas).'||'.strtolower($ref->nama);
+            $key = mb_strtolower($ref->aktivitas).'||'.mb_strtolower($ref->nama);
             $ref->coa_count = (int) ($coaCounts->get($key)?->aggregate_count ?? 0);
         }
 
