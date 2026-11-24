@@ -17,8 +17,7 @@ class ReferensiKelompokArusKasController extends Controller
 {
     public function __construct(
         private readonly ReferensiKelompokArusKasService $service,
-    ) {
-    }
+    ) {}
 
     /**
      * Display a listing of reference groups with filters and eager COA usage counts.
@@ -46,10 +45,10 @@ class ReferensiKelompokArusKasController extends Controller
             ->selectRaw('LOWER(arus_kas_aktivitas) as act, LOWER(arus_kas_kelompok) as grp, COUNT(*) as aggregate_count')
             ->groupBy(DB::raw('LOWER(arus_kas_aktivitas)'), DB::raw('LOWER(arus_kas_kelompok)'))
             ->get()
-            ->keyBy(fn ($item) => $item->act . '||' . $item->grp);
+            ->keyBy(fn ($item) => $item->act.'||'.$item->grp);
 
         foreach ($referensiList as $ref) {
-            $key = strtolower($ref->aktivitas) . '||' . strtolower($ref->nama);
+            $key = strtolower($ref->aktivitas).'||'.strtolower($ref->nama);
             $ref->coa_count = (int) ($coaCounts->get($key)?->aggregate_count ?? 0);
         }
 

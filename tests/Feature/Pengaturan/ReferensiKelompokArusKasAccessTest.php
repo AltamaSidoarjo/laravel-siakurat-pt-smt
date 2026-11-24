@@ -6,7 +6,6 @@ use App\Models\AccessModule;
 use App\Models\Role;
 use App\Models\RolePermission;
 use App\Models\User;
-use App\Support\AccessModuleRegistry;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -14,6 +13,7 @@ use Tests\TestCase;
 class ReferensiKelompokArusKasAccessTest extends TestCase
 {
     private User $admin;
+
     private User $unauthorizedUser;
 
     protected function setUp(): void
