@@ -8,6 +8,7 @@ use App\Http\Requests\Bukubesar\UpdateCoaRequest;
 use App\Models\Coa;
 use App\Services\Bukubesar\CoaService;
 use App\Services\Pengaturan\ReferensiKelompokArusKasService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -26,6 +27,13 @@ class CoaController extends Controller
             'page' => 'app',
             'rows' => $this->coaService->getTreeRows(),
         ]);
+    }
+
+    public function cascadePreview(Coa $coa): JsonResponse
+    {
+        return response()->json(
+            $this->coaService->getCascadePreview((int) $coa->id)
+        );
     }
 
     public function create(): View

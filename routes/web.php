@@ -83,6 +83,7 @@ Route::middleware('auth')->group(function () {
 
         Route::middleware('module.access:bukubesar.coa,view')->group(function () {
             Route::get('/coa', [CoaController::class, 'index'])->name('coa.index');
+            Route::get('/coa/{coa}/cascade-preview', [CoaController::class, 'cascadePreview'])->name('coa.cascade-preview');
         });
         Route::middleware('module.access:bukubesar.coa,create')->group(function () {
             Route::get('/coa/create', [CoaController::class, 'create'])->name('coa.create');
