@@ -52,6 +52,21 @@ class FakturPenjualan extends Model
         return $this->hasMany(PenerimaanPenjualanRinci::class, 'faktur_penjualan_id');
     }
 
+    public function getDokterAttribute(): ?string
+    {
+        return $this->nama_dokter;
+    }
+
+    public function getPoliAttribute(): ?string
+    {
+        return $this->nama_poli;
+    }
+
+    public function getPenjaminAttribute(): ?string
+    {
+        return $this->nama_penjamin;
+    }
+
     public function scopeBetweenDates(Builder $query, string $startDate, string $endDate): Builder
     {
         return $query->whereBetween('tanggal_faktur', [$startDate, $endDate]);
