@@ -45,8 +45,8 @@ flowchart TD
 2. DataTable menambahkan kolom turunan: `nominal` (grandtotal), `sudah_bayar`, `kurang_bayar`
    (`grandtotal - sudah_terbayar`), dan `status_text` (`Sudah Lunas` bila `sudah_terbayar >= grandtotal`,
    selain itu `Belum Lunas`), serta `nomer_link` menuju halaman read.
-3. Ekspor CSV memuat kolom Nomor, Tanggal, Dokter, No. RM, Pasien, Poli, Penjamin, Nominal,
-   Sudah bayar, Kurang bayar, Status.
+3. Ekspor CSV memuat kolom Nomor, Tanggal, Dokter (`nama_dokter`), No. RM (`nomer_rekam_medis`), Pasien (`nama_pasien`), Poli (`nama_poli`), Penjamin (`nama_penjamin`), Nominal,
+   Sudah bayar, Kurang bayar, Status. Model `FakturPenjualan` juga menyediakan accessor alias (`dokter`, `poli`, `penjamin`).
 
 ## Alur 2: Lihat Detail Invoice
 
