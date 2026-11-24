@@ -167,10 +167,11 @@ class CoaService
 
     public function create(array $data): Coa
     {
-        $kelompok = $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_kelompok'] ?? null);
-        $aktivitas = $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_aktivitas'] ?? null);
+        $isKasbank = strtolower((string) ($data['tipe_coa'] ?? '')) === 'kasbank';
+        $kelompok = $isKasbank ? null : ($data['arus_kas_kelompok'] ?? null);
+        $aktivitas = $isKasbank ? null : ($data['arus_kas_aktivitas'] ?? null);
 
-        if ($data['tipe_coa'] !== 'Kasbank' && ! empty($aktivitas) && ! empty($kelompok)) {
+        if (! $isKasbank && ! empty($aktivitas) && ! empty($kelompok)) {
             $ref = $this->getReferensiKelompokService()->ensureExists($aktivitas, $kelompok);
             $kelompok = $ref->nama;
         }

@@ -286,6 +286,55 @@ class CoaCascadeValidationAndPreviewTest extends TestCase
             ->assertJsonValidationErrors(['cascade_mode']);
     }
 
+    public function test_update_with_boolean_true_cascade_to_children_and_empty_arus_kas_aktivitas_fails_validation(): void
+    {
+        $parent = Coa::create([
+            'status_aktif' => 1,
+            'tipe_coa' => 'Beban',
+            'kode' => '5.1',
+            'nama' => 'Beban Operasional',
+        ]);
+
+        $response = $this->actingAs($this->authorizedUser)
+            ->putJson(route('bukubesar.coa.update', $parent), [
+                'status_aktif' => 1,
+                'tipe_coa' => 'Beban',
+                'arus_kas_aktivitas' => '',
+                'arus_kas_kelompok' => '',
+                'kode' => '5.1',
+                'nama' => 'Beban Operasional',
+                'cascade_to_children' => true,
+                'cascade_mode' => 'overwrite_all',
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['arus_kas_aktivitas']);
+    }
+
+    public function test_update_with_boolean_true_cascade_to_children_and_missing_cascade_mode_fails_validation(): void
+    {
+        $parent = Coa::create([
+            'status_aktif' => 1,
+            'tipe_coa' => 'Beban',
+            'kode' => '5.1',
+            'nama' => 'Beban Operasional',
+        ]);
+
+        $response = $this->actingAs($this->authorizedUser)
+            ->putJson(route('bukubesar.coa.update', $parent), [
+                'status_aktif' => 1,
+                'tipe_coa' => 'Beban',
+                'arus_kas_aktivitas' => 'operasi',
+                'arus_kas_kelompok' => 'Pembayaran Beban Operasional',
+                'kode' => '5.1',
+                'nama' => 'Beban Operasional',
+                'cascade_to_children' => true,
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['cascade_mode']);
+    }
+
     public function test_update_with_valid_cascade_overwrite_all_updates_parent_and_all_children(): void
     {
         $parent = Coa::create([

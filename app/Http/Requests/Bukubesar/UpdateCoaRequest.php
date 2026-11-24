@@ -26,11 +26,15 @@ class UpdateCoaRequest extends FormRequest
             'arus_kas_aktivitas' => [
                 'nullable',
                 Rule::in(['operasi', 'investasi', 'pendanaan']),
-                'required_if:cascade_to_children,1',
+                Rule::requiredIf(fn () => $this->boolean('cascade_to_children')),
             ],
             'arus_kas_kelompok' => ['nullable', 'required_with:arus_kas_aktivitas', 'string', 'max:150'],
             'cascade_to_children' => ['nullable', 'boolean'],
-            'cascade_mode' => ['nullable', 'required_if:cascade_to_children,1', 'in:fill_empty,overwrite_all'],
+            'cascade_mode' => [
+                'nullable',
+                Rule::requiredIf(fn () => $this->boolean('cascade_to_children')),
+                'in:fill_empty,overwrite_all',
+            ],
             'kode' => ['required', 'string', 'max:20', Rule::unique('coa', 'kode')->ignore($coa->id)],
             'nama' => ['required', 'string', 'max:100', Rule::unique('coa', 'nama')->ignore($coa->id)],
             'deskripsi' => ['nullable', 'string'],

@@ -90,12 +90,19 @@
             });
         }
 
-        const toggleArusKas = () => window.jQuery('.arus-kas-field').toggle(window.jQuery('#tipe_coa').val() !== 'Kasbank');
+        const toggleArusKas = () => {
+            const tipe = window.jQuery('#tipe_coa').val();
+            window.jQuery('.arus-kas-field').toggle(String(tipe || '').toLowerCase() !== 'kasbank');
+        };
         window.jQuery('#tipe_coa').on('change', toggleArusKas);
         toggleArusKas();
 
         @if (! $isEdit)
             $('#parent_id').on('change', function () {
+                if (String($('#tipe_coa').val() || '').toLowerCase() === 'kasbank') {
+                    return;
+                }
+
                 const $selectedOption = $(this).find('option:selected');
                 const aktivitas = $selectedOption.attr('data-aktivitas') || '';
                 const kelompok = $selectedOption.attr('data-kelompok') || '';
@@ -112,7 +119,9 @@
             const $cascadeCheckbox = $('#cascade_to_children');
             const $cascadeMode = $('#cascade_mode');
             const $form = $cascadeCheckbox.closest('form');
+            const $submitBtn = $form.find('button[type="submit"]');
             const previewUrl = @json(route('bukubesar.coa.cascade-preview', $coa->id));
+            let isPreviewLoading = false;
 
             const toggleCascadeAvailability = () => {
                 const isKasbank = String($('#tipe_coa').val() || '').toLowerCase() === 'kasbank';
@@ -139,6 +148,12 @@
 
             toggleCascadeAvailability();
 
+            $('#cascadeConfirmModal').on('hidden.bs.modal', function () {
+                if (!$cascadeMode.val()) {
+                    $submitBtn.prop('disabled', false);
+                }
+            });
+
             const submitWithCascadeMode = (mode) => {
                 $cascadeMode.val(mode);
                 const modalEl = document.getElementById('cascadeConfirmModal');
@@ -162,6 +177,13 @@
                 }
 
                 e.preventDefault();
+
+                if (isPreviewLoading) {
+                    return;
+                }
+
+                isPreviewLoading = true;
+                $submitBtn.prop('disabled', true);
 
                 $.ajax({
                     url: previewUrl,
@@ -204,9 +226,14 @@
                         window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
                     } else if ($.fn.modal) {
                         $('#cascadeConfirmModal').modal('show');
+                    } else {
+                        $submitBtn.prop('disabled', false);
                     }
                 }).fail(function () {
+                    $submitBtn.prop('disabled', false);
                     window.alert('Gagal memuat pratinjau sub-akun. Silakan coba lagi.');
+                }).always(function () {
+                    isPreviewLoading = false;
                 });
             });
         @endif
