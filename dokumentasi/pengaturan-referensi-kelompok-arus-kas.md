@@ -39,7 +39,11 @@ Semua endpoint dilindungi oleh middleware otorisasi `module.access:pengaturan.re
 
 ## Alur 1: Menampilkan Daftar Referensi Kelompok Arus Kas
 
-Pengguna dapat melihat seluruh master referensi dengan tab klasifikasi aktivitas (`semua`, `operasi`, `investasi`, `pendanaan`), pencarian berdasarkan nama, serta informasi agregat jumlah akun COA yang sedang memakai pos tersebut.
+Pengguna dapat melihat seluruh master referensi dengan tata letak modern yang mengadopsi standar antarmuka Setting Indikator Kinerja:
+- **Header Card**: Tombol kembali melingkar (`rounded-circle`), judul modul, badge `Master Data`, dan ringkasan fungsi modul.
+- **Card Header Tabs (`card-header-tabs`)**: Tab klasifikasi aktivitas (`Semua Pos`, `Aktivitas Operasi`, `Aktivitas Investasi`, `Aktivitas Pendanaan`) lengkap dengan badge counter jumlah pos.
+- **Filter Toolbar**: Wadah abu-abu lembut (`bg-light border rounded-3`) yang memuat pencarian berbasis nama, tombol filter & reset, serta tombol aksi `+ Tambah Pos Referensi`.
+- **Tabel Modern**: Tabel responsif dengan badge status subtle (`*-subtle`) berindikator dot aktif/nonaktif, badge pill jumlah akun COA terkait, dan tombol aksi outline ringkas.
 
 ### Flowchart
 
