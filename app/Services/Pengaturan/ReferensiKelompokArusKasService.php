@@ -7,6 +7,7 @@ use App\Models\ReferensiKelompokArusKas;
 use DomainException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ReferensiKelompokArusKasService
 {
@@ -23,6 +24,10 @@ class ReferensiKelompokArusKasService
      */
     public function getGroupedActive(): Collection
     {
+        if (! Schema::hasTable('referensi_kelompok_arus_kas')) {
+            return collect();
+        }
+
         return ReferensiKelompokArusKas::aktif()
             ->orderBy('nama', 'asc')
             ->get()
@@ -126,6 +131,14 @@ class ReferensiKelompokArusKasService
     public function ensureExists(string $aktivitas, string $nama): ReferensiKelompokArusKas
     {
         $cleanName = $this->sanitizeName($nama);
+
+        if (! Schema::hasTable('referensi_kelompok_arus_kas')) {
+            return new ReferensiKelompokArusKas([
+                'aktivitas' => $aktivitas,
+                'nama' => $cleanName,
+                'status_aktif' => true,
+            ]);
+        }
 
         $existing = ReferensiKelompokArusKas::where('aktivitas', $aktivitas)
             ->whereRaw('LOWER(nama) = ?', [mb_strtolower($cleanName)])

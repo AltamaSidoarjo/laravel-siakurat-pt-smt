@@ -83,7 +83,20 @@
                     <label for="arus_kas_kelompok" class="fw-bold">Kelompok Arus Kas</label>
                 </div>
                 <div class="col">
-                    <input id="arus_kas_kelompok" type="text" name="arus_kas_kelompok" class="form-control" maxlength="150" value="{{ old('arus_kas_kelompok', $coa->arus_kas_kelompok ?? '') }}" placeholder="Contoh: Pembayaran kepada pemasok">
+                    @php
+                        $selectedKelompok = old('arus_kas_kelompok', $coa->arus_kas_kelompok ?? '');
+                        $referensiKelompokMap = isset($referensiKelompok)
+                            ? collect($referensiKelompok)->map(function ($items) {
+                                return collect($items)->pluck('nama')->values();
+                            })
+                            : collect();
+                    @endphp
+                    <select id="arus_kas_kelompok" name="arus_kas_kelompok" class="form-select" data-referensi="{{ json_encode($referensiKelompokMap) }}">
+                        <option value="">Pilih atau ketik baru...</option>
+                        @if ($selectedKelompok)
+                            <option value="{{ $selectedKelompok }}" selected>{{ $selectedKelompok }}</option>
+                        @endif
+                    </select>
                 </div>
             </div>
 

@@ -7,6 +7,7 @@ use App\Http\Requests\Bukubesar\StoreCoaRequest;
 use App\Http\Requests\Bukubesar\UpdateCoaRequest;
 use App\Models\Coa;
 use App\Services\Bukubesar\CoaService;
+use App\Services\Pengaturan\ReferensiKelompokArusKasService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
@@ -15,6 +16,7 @@ class CoaController extends Controller
 {
     public function __construct(
         private readonly CoaService $coaService,
+        private readonly ReferensiKelompokArusKasService $referensiKelompokService,
     ) {
     }
 
@@ -32,6 +34,7 @@ class CoaController extends Controller
             'page' => 'app',
             'parentOptions' => $this->coaService->getParentOptions(),
             'tipeOptions' => $this->coaService->getTipeOptions(),
+            'referensiKelompok' => $this->referensiKelompokService->getGroupedActive(),
         ]);
     }
 
@@ -55,6 +58,7 @@ class CoaController extends Controller
             'canDelete' => $this->coaService->canDelete($coa),
             'parentOptions' => $this->coaService->getParentOptions((int) $coa->id),
             'tipeOptions' => $this->coaService->getTipeOptions(),
+            'referensiKelompok' => $this->referensiKelompokService->getGroupedActive(),
         ]);
     }
 

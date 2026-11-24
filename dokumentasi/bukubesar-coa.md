@@ -82,18 +82,22 @@ flowchart TD
     F -- Tidak --> H["pakai nilai arus kas dari input"]
     G --> I["Simpan/Update Coa"]
     H --> I
-    I --> J["LogAktifitasService::log('COA', create/update)"]
+    I --> L{"Bukan Kasbank & arus kas terisi?"}
+    L -- Ya --> M["ReferensiKelompokArusKasService::ensureExists()"]
+    L -- Tidak --> J
+    M --> J["LogAktifitasService::log('COA', create/update)"]
     J --> K["Redirect index"]
 ```
 
 ### Algoritma
 
-1. Halaman create/edit menyediakan opsi parent (`getParentOptions()`) dan tipe (`getTipeOptions()`).
+1. Halaman create/edit menyediakan opsi parent (`getParentOptions()`), tipe (`getTipeOptions()`), serta referensi kelompok arus kas aktif (`getGroupedActive()`) yang dipasang sebagai chained Select2 dengan dukungan penambahan tag baru (disertai konfirmasi dialog pengguna).
 2. `getParentOptions($excludeId)` mengecualikan akun itu sendiri beserta seluruh turunannya
    (`getDescendantIds()`), dan hanya menampilkan akun yang punya anak atau belum punya mutasi buku besar.
 3. Pada create, `is_postable` diset `false`.
 4. Bila `tipe_coa = 'Kasbank'`, kolom arus kas dipaksa `null`.
-5. Pada update, hanya field yang berubah (`getDirty()`) yang dicatat pada log.
+5. Jika `tipe_coa !== 'Kasbank'` dan kolom `arus_kas_aktivitas` serta `arus_kas_kelompok` terisi, service otomatis memanggil `ReferensiKelompokArusKasService::ensureExists($aktivitas, $kelompok)` untuk mendaftarkan tag baru ke tabel master referensi jika belum ada.
+6. Pada update, hanya field yang berubah (`getDirty()`) yang dicatat pada log.
 
 ## Alur 3: Hapus COA
 

@@ -5,6 +5,7 @@ namespace App\Services\Bukubesar;
 use App\Models\Coa;
 use App\Models\TipeCoa;
 use App\Services\LogAktifitasService;
+use App\Services\Pengaturan\ReferensiKelompokArusKasService;
 use DomainException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +15,13 @@ class CoaService
 {
     public function __construct(
         private readonly LogAktifitasService $logService,
+        private readonly ?ReferensiKelompokArusKasService $referensiKelompokService = null,
     ) {
+    }
+
+    private function getReferensiKelompokService(): ReferensiKelompokArusKasService
+    {
+        return $this->referensiKelompokService ?? app(ReferensiKelompokArusKasService::class);
     }
 
     public function getTreeRows(): array
@@ -170,6 +177,10 @@ class CoaService
             'is_postable' => false,
         ]);
 
+        if ($coa->tipe_coa !== 'Kasbank' && ! empty($coa->arus_kas_aktivitas) && ! empty($coa->arus_kas_kelompok)) {
+            $this->getReferensiKelompokService()->ensureExists($coa->arus_kas_aktivitas, $coa->arus_kas_kelompok);
+        }
+
         $this->logService->log('COA', 'create', null, $coa->only($this->loggableFields()));
 
         return $coa;
@@ -192,6 +203,10 @@ class CoaService
 
         $changes = $coa->getDirty();
         $coa->save();
+
+        if ($coa->tipe_coa !== 'Kasbank' && ! empty($coa->arus_kas_aktivitas) && ! empty($coa->arus_kas_kelompok)) {
+            $this->getReferensiKelompokService()->ensureExists($coa->arus_kas_aktivitas, $coa->arus_kas_kelompok);
+        }
 
         if ($changes) {
             $this->logService->log(
