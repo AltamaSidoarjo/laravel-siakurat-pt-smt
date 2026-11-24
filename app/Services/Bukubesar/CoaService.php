@@ -165,21 +165,25 @@ class CoaService
 
     public function create(array $data): Coa
     {
+        $kelompok = $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_kelompok'] ?? null);
+        $aktivitas = $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_aktivitas'] ?? null);
+
+        if ($data['tipe_coa'] !== 'Kasbank' && ! empty($aktivitas) && ! empty($kelompok)) {
+            $ref = $this->getReferensiKelompokService()->ensureExists($aktivitas, $kelompok);
+            $kelompok = $ref->nama;
+        }
+
         $coa = Coa::query()->create([
             'status_aktif' => (int) $data['status_aktif'],
             'parent_coa' => ($data['parent_id'] ?? null) ?: null,
             'tipe_coa' => $data['tipe_coa'],
-            'arus_kas_aktivitas' => $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_aktivitas'] ?? null),
-            'arus_kas_kelompok' => $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_kelompok'] ?? null),
+            'arus_kas_aktivitas' => $aktivitas,
+            'arus_kas_kelompok' => $kelompok,
             'kode' => $data['kode'],
             'nama' => $data['nama'],
             'deskripsi' => ($data['deskripsi'] ?? null) ?: null,
             'is_postable' => false,
         ]);
-
-        if ($coa->tipe_coa !== 'Kasbank' && ! empty($coa->arus_kas_aktivitas) && ! empty($coa->arus_kas_kelompok)) {
-            $this->getReferensiKelompokService()->ensureExists($coa->arus_kas_aktivitas, $coa->arus_kas_kelompok);
-        }
 
         $this->logService->log('COA', 'create', null, $coa->only($this->loggableFields()));
 
@@ -190,12 +194,20 @@ class CoaService
     {
         $original = $coa->only($this->loggableFields());
 
+        $kelompok = $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_kelompok'] ?? null);
+        $aktivitas = $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_aktivitas'] ?? null);
+
+        if ($data['tipe_coa'] !== 'Kasbank' && ! empty($aktivitas) && ! empty($kelompok)) {
+            $ref = $this->getReferensiKelompokService()->ensureExists($aktivitas, $kelompok);
+            $kelompok = $ref->nama;
+        }
+
         $coa->fill([
             'status_aktif' => (int) $data['status_aktif'],
             'parent_coa' => ($data['parent_id'] ?? null) ?: null,
             'tipe_coa' => $data['tipe_coa'],
-            'arus_kas_aktivitas' => $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_aktivitas'] ?? null),
-            'arus_kas_kelompok' => $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_kelompok'] ?? null),
+            'arus_kas_aktivitas' => $aktivitas,
+            'arus_kas_kelompok' => $kelompok,
             'kode' => $data['kode'],
             'nama' => $data['nama'],
             'deskripsi' => ($data['deskripsi'] ?? null) ?: null,
@@ -203,10 +215,6 @@ class CoaService
 
         $changes = $coa->getDirty();
         $coa->save();
-
-        if ($coa->tipe_coa !== 'Kasbank' && ! empty($coa->arus_kas_aktivitas) && ! empty($coa->arus_kas_kelompok)) {
-            $this->getReferensiKelompokService()->ensureExists($coa->arus_kas_aktivitas, $coa->arus_kas_kelompok);
-        }
 
         if ($changes) {
             $this->logService->log(

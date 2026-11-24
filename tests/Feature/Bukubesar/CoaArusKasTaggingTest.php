@@ -272,6 +272,43 @@ class CoaArusKasTaggingTest extends TestCase
         ]);
 
         $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('coa', [
+            'kode' => '5.2.01',
+            'arus_kas_kelompok' => 'Pembayaran kepada Pemasok',
+        ]);
         $this->assertEquals(1, ReferensiKelompokArusKas::where('aktivitas', 'operasi')->where('nama', 'Pembayaran kepada Pemasok')->count());
+    }
+
+    public function test_updating_with_existing_tag_normalizes_to_canonical_reference_name(): void
+    {
+        ReferensiKelompokArusKas::create([
+            'aktivitas' => 'operasi',
+            'nama' => 'Penerimaan Kas dari Pelanggan',
+            'status_aktif' => true,
+        ]);
+
+        $coa = Coa::create([
+            'status_aktif' => 1,
+            'tipe_coa' => 'Pendapatan',
+            'arus_kas_aktivitas' => 'operasi',
+            'arus_kas_kelompok' => 'Initial Group',
+            'kode' => '4.1.01',
+            'nama' => 'Pendapatan Rawat Inap',
+        ]);
+
+        $response = $this->actingAs($this->accountingUser)->put(route('bukubesar.coa.update', $coa), [
+            'status_aktif' => 1,
+            'tipe_coa' => 'Pendapatan',
+            'arus_kas_aktivitas' => 'operasi',
+            'arus_kas_kelompok' => '  penerimaan kas dari pelanggan  ',
+            'kode' => '4.1.01',
+            'nama' => 'Pendapatan Rawat Inap',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('coa', [
+            'id' => $coa->id,
+            'arus_kas_kelompok' => 'Penerimaan Kas dari Pelanggan',
+        ]);
     }
 }
