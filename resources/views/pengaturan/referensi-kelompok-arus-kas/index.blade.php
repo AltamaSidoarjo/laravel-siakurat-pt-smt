@@ -2,6 +2,25 @@
 
 @section('title', 'Referensi Kelompok Arus Kas')
 
+@push('styles')
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f5f9;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+</style>
+@endpush
+
 @section('content')
     @php
         $user = auth()->user();
@@ -10,205 +29,232 @@
         $canDelete = $user?->hasModuleAccess('pengaturan.referensi-kelompok-arus-kas', 'delete') ?? false;
     @endphp
 
-    <div class="row mb-3">
-        <div class="col">
-            <div class="d-flex align-items-center gap-3 fs-3">
-                <a href="{{ route('home') }}" class="text-dark">
-                    <i class="bi bi-arrow-left"></i>
-                </a>
-                <span class="fw-bold">Referensi Kelompok Arus Kas</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col">
-            <div class="card border-muhammadiyah mb-2">
-                <div class="card-body">
-                    @include('partials.flash-message')
-                    @include('partials.validation-errors')
-
-                    <div class="d-flex flex-column gap-3 mt-2">
-                        <!-- Filter & Search Toolbar -->
-                        <div class="card border-light shadow-sm">
-                            <div class="card-body">
-                                <div class="row g-2 align-items-center">
-                                    <div class="col-12 col-md-auto mb-2 mb-md-0">
-                                        <div class="btn-group" role="group" aria-label="Filter Aktivitas">
-                                            <a href="{{ route('pengaturan.referensi-kelompok-arus-kas.index', array_filter(['search' => $search])) }}"
-                                               class="btn btn-sm {{ $aktivitas === 'semua' || empty($aktivitas) ? 'btn-primary' : 'btn-outline-primary' }}">
-                                                Semua
-                                                @if(isset($tabCounts['semua']))
-                                                    <span class="badge text-bg-light ms-1">{{ $tabCounts['semua'] }}</span>
-                                                @endif
-                                            </a>
-                                            <a href="{{ route('pengaturan.referensi-kelompok-arus-kas.index', array_filter(['aktivitas' => 'operasi', 'search' => $search])) }}"
-                                               class="btn btn-sm {{ $aktivitas === 'operasi' ? 'btn-primary' : 'btn-outline-primary' }}">
-                                                Operasi
-                                                @if(isset($tabCounts['operasi']))
-                                                    <span class="badge text-bg-light ms-1">{{ $tabCounts['operasi'] }}</span>
-                                                @endif
-                                            </a>
-                                            <a href="{{ route('pengaturan.referensi-kelompok-arus-kas.index', array_filter(['aktivitas' => 'investasi', 'search' => $search])) }}"
-                                               class="btn btn-sm {{ $aktivitas === 'investasi' ? 'btn-success' : 'btn-outline-success' }}">
-                                                Investasi
-                                                @if(isset($tabCounts['investasi']))
-                                                    <span class="badge text-bg-light ms-1">{{ $tabCounts['investasi'] }}</span>
-                                                @endif
-                                            </a>
-                                            <a href="{{ route('pengaturan.referensi-kelompok-arus-kas.index', array_filter(['aktivitas' => 'pendanaan', 'search' => $search])) }}"
-                                               class="btn btn-sm {{ $aktivitas === 'pendanaan' ? 'btn-info text-dark' : 'btn-outline-info text-dark' }}">
-                                                Pendanaan
-                                                @if(isset($tabCounts['pendanaan']))
-                                                    <span class="badge text-bg-light ms-1">{{ $tabCounts['pendanaan'] }}</span>
-                                                @endif
-                                            </a>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-12 col-md">
-                                        <form method="get" action="{{ route('pengaturan.referensi-kelompok-arus-kas.index') }}" class="d-flex gap-2">
-                                            @if($aktivitas && in_array($aktivitas, ['operasi', 'investasi', 'pendanaan'], true))
-                                                <input type="hidden" name="aktivitas" value="{{ $aktivitas }}">
-                                            @endif
-                                            <input type="search" name="search" value="{{ $search }}" class="form-control form-control-sm" placeholder="Cari nama kelompok arus kas...">
-                                            <button type="submit" class="btn btn-sm btn-primary">
-                                                <i class="bi bi-search"></i> Cari
-                                            </button>
-                                            @if($search !== '' || ($aktivitas !== 'semua' && !empty($aktivitas)))
-                                                <a href="{{ route('pengaturan.referensi-kelompok-arus-kas.index') }}" class="btn btn-sm btn-light border">
-                                                    Reset
-                                                </a>
-                                            @endif
-                                        </form>
-                                    </div>
-
-                                    @if ($canCreate)
-                                        <div class="col-12 col-md-auto ms-auto text-end">
-                                            <button type="button" class="btn btn-sm btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#modalTambahReferensi">
-                                                <i class="bi bi-plus-circle-fill me-1"></i> Tambah Pos Referensi
-                                            </button>
-                                        </div>
-                                    @endif
-                                </div>
+    <div class="d-flex flex-column gap-3">
+        <!-- Header -->
+        <div class="card border-0 shadow-sm bg-white">
+            <div class="card-body p-3 p-md-4">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <a href="{{ route('home') }}" class="btn btn-sm btn-light border rounded-circle d-flex align-items-center justify-content-center shadow-xs" style="width: 38px; height: 38px;" title="Kembali ke Dashboard">
+                            <i class="bi bi-arrow-left fs-5"></i>
+                        </a>
+                        <div>
+                            <div class="d-flex align-items-center gap-2">
+                                <h4 class="mb-0 fw-bold text-dark">Referensi Kelompok Arus Kas</h4>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle small">Master Data</span>
                             </div>
-                        </div>
-
-                        <!-- Data Table -->
-                        <div class="card border-light shadow-sm">
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-striped table-bordered table-hover align-middle">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th class="text-center" style="width: 50px;">No</th>
-                                                <th style="width: 140px;">Aktivitas</th>
-                                                <th>Nama Kelompok Arus Kas</th>
-                                                <th class="text-center" style="width: 160px;">Status Aktif</th>
-                                                <th class="text-center" style="width: 150px;">Jumlah COA Terkait</th>
-                                                <th class="text-center" style="width: 160px;">Aksi</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @forelse ($referensiList as $item)
-                                                <tr>
-                                                    <td class="text-center">
-                                                        {{ $loop->iteration + ($referensiList->currentPage() - 1) * $referensiList->perPage() }}
-                                                    </td>
-                                                    <td>
-                                                        @if ($item->aktivitas === 'operasi')
-                                                            <span class="badge bg-primary">Operasi</span>
-                                                        @elseif ($item->aktivitas === 'investasi')
-                                                            <span class="badge bg-success">Investasi</span>
-                                                        @elseif ($item->aktivitas === 'pendanaan')
-                                                            <span class="badge bg-info text-dark">Pendanaan</span>
-                                                        @else
-                                                            <span class="badge bg-secondary">{{ ucfirst($item->aktivitas) }}</span>
-                                                        @endif
-                                                    </td>
-                                                    <td class="fw-semibold">
-                                                        {{ $item->nama }}
-                                                    </td>
-                                                    <td class="text-center">
-                                                        <div class="d-flex align-items-center justify-content-center gap-2">
-                                                            @if ($item->status_aktif)
-                                                                <span class="badge bg-success">Aktif</span>
-                                                            @else
-                                                                <span class="badge bg-secondary">Nonaktif</span>
-                                                            @endif
-
-                                                            @if ($canUpdate)
-                                                                <form method="POST" action="{{ route('pengaturan.referensi-kelompok-arus-kas.toggle', $item) }}" class="d-inline">
-                                                                    @csrf
-                                                                    @method('PATCH')
-                                                                    <button type="submit" class="btn btn-xs btn-outline-secondary p-1 py-0" title="Ubah Status">
-                                                                        <i class="bi {{ $item->status_aktif ? 'bi-toggle-on text-success' : 'bi-toggle-off text-muted' }} fs-6"></i>
-                                                                    </button>
-                                                                </form>
-                                                            @endif
-                                                        </div>
-                                                    </td>
-                                                    <td class="text-center">
-                                                        @if (($item->coa_count ?? 0) > 0)
-                                                            <span class="badge bg-primary rounded-pill px-2 py-1">
-                                                                {{ $item->coa_count }} Akun
-                                                            </span>
-                                                        @else
-                                                            <span class="text-muted small">0 Akun</span>
-                                                        @endif
-                                                    </td>
-                                                    <td class="text-center">
-                                                        <div class="d-flex justify-content-center gap-1">
-                                                            @if ($canUpdate)
-                                                                <button type="button"
-                                                                        class="btn btn-warning btn-sm btn-edit-referensi"
-                                                                        data-id="{{ $item->id }}"
-                                                                        data-aktivitas="{{ $item->aktivitas }}"
-                                                                        data-nama="{{ $item->nama }}"
-                                                                        data-status="{{ $item->status_aktif ? 1 : 0 }}"
-                                                                        title="Edit Pos Referensi">
-                                                                    <i class="bi bi-pencil-square"></i> Edit
-                                                                </button>
-                                                            @endif
-
-                                                            @if ($canDelete)
-                                                                <form method="POST" action="{{ route('pengaturan.referensi-kelompok-arus-kas.destroy', $item) }}"
-                                                                      class="d-inline"
-                                                                      onsubmit="return confirm('Apakah Anda yakin ingin menghapus pos referensi ini?');">
-                                                                    @csrf
-                                                                    @method('DELETE')
-                                                                    <button type="submit"
-                                                                            class="btn btn-danger btn-sm"
-                                                                            @if(($item->coa_count ?? 0) > 0)
-                                                                                title="Pos ini sedang digunakan oleh {{ $item->coa_count }} akun COA"
-                                                                            @else
-                                                                                title="Hapus Pos Referensi"
-                                                                            @endif>
-                                                                        <i class="bi bi-trash3"></i> Hapus
-                                                                    </button>
-                                                                </form>
-                                                            @endif
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            @empty
-                                                <tr>
-                                                    <td colspan="6" class="text-center text-muted py-4">
-                                                        <i class="bi bi-inbox fs-4 d-block mb-1"></i>
-                                                        Data referensi kelompok arus kas belum ada.
-                                                    </td>
-                                                </tr>
-                                            @endforelse
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <div class="mt-3">
-                                    {{ $referensiList->links('pagination::bootstrap-5') }}
-                                </div>
-                            </div>
+                            <p class="text-muted mb-0 small mt-1">
+                                Standardisasi master pos kelompok arus kas per aktivitas (Operasi, Investasi, Pendanaan) dan sinkronisasi ke bagan akun (COA).
+                            </p>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        @include('partials.flash-message')
+        @include('partials.validation-errors')
+
+        <!-- Navigation Tabs & Content Card -->
+        <div class="card border-0 shadow-sm bg-white">
+            <div class="card-header bg-white border-bottom-0 pb-0 pt-3 px-4">
+                <ul class="nav nav-tabs card-header-tabs" id="referensiTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link fw-semibold px-3 py-2.5 {{ $aktivitas === 'semua' || empty($aktivitas) ? 'active text-primary' : 'text-muted' }}"
+                           href="{{ route('pengaturan.referensi-kelompok-arus-kas.index', array_filter(['search' => $search])) }}">
+                            <i class="bi bi-collection me-1.5"></i> Semua Pos
+                            @if(isset($tabCounts['semua']))
+                                <span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1">{{ $tabCounts['semua'] }}</span>
+                            @endif
+                        </a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link fw-semibold px-3 py-2.5 {{ $aktivitas === 'operasi' ? 'active text-primary' : 'text-muted' }}"
+                           href="{{ route('pengaturan.referensi-kelompok-arus-kas.index', array_filter(['aktivitas' => 'operasi', 'search' => $search])) }}">
+                            <i class="bi bi-activity me-1.5"></i> Aktivitas Operasi
+                            @if(isset($tabCounts['operasi']))
+                                <span class="badge bg-primary-subtle text-primary rounded-pill ms-1">{{ $tabCounts['operasi'] }}</span>
+                            @endif
+                        </a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link fw-semibold px-3 py-2.5 {{ $aktivitas === 'investasi' ? 'active text-primary' : 'text-muted' }}"
+                           href="{{ route('pengaturan.referensi-kelompok-arus-kas.index', array_filter(['aktivitas' => 'investasi', 'search' => $search])) }}">
+                            <i class="bi bi-graph-up-arrow me-1.5"></i> Aktivitas Investasi
+                            @if(isset($tabCounts['investasi']))
+                                <span class="badge bg-success-subtle text-success rounded-pill ms-1">{{ $tabCounts['investasi'] }}</span>
+                            @endif
+                        </a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link fw-semibold px-3 py-2.5 {{ $aktivitas === 'pendanaan' ? 'active text-primary' : 'text-muted' }}"
+                           href="{{ route('pengaturan.referensi-kelompok-arus-kas.index', array_filter(['aktivitas' => 'pendanaan', 'search' => $search])) }}">
+                            <i class="bi bi-bank me-1.5"></i> Aktivitas Pendanaan
+                            @if(isset($tabCounts['pendanaan']))
+                                <span class="badge bg-info-subtle text-info rounded-pill ms-1">{{ $tabCounts['pendanaan'] }}</span>
+                            @endif
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card-body p-3 p-md-4">
+                <!-- Toolbar Filter Pencarian -->
+                <div class="bg-light p-3 rounded-3 border mb-3" id="filterToolbar">
+                    <form method="GET" action="{{ route('pengaturan.referensi-kelompok-arus-kas.index') }}" class="row g-2 align-items-center">
+                        @if($aktivitas && in_array($aktivitas, ['operasi', 'investasi', 'pendanaan'], true))
+                            <input type="hidden" name="aktivitas" value="{{ $aktivitas }}">
+                        @endif
+
+                        <div class="col-12 col-md-7 col-lg-8">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white text-muted border-end-0">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="search" name="search" value="{{ $search }}" class="form-control border-start-0" placeholder="Cari nama kelompok arus kas...">
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-5 col-lg-4 d-flex gap-2 justify-content-md-end">
+                            <button type="submit" class="btn btn-sm btn-primary fw-semibold px-3">
+                                <i class="bi bi-filter me-1"></i> Filter
+                            </button>
+                            @if($search !== '' || ($aktivitas !== 'semua' && !empty($aktivitas)))
+                                <a href="{{ route('pengaturan.referensi-kelompok-arus-kas.index', $aktivitas !== 'semua' && !empty($aktivitas) ? ['aktivitas' => $aktivitas] : []) }}" class="btn btn-sm btn-light border fw-semibold">
+                                    Reset
+                                </a>
+                            @endif
+
+                            @if ($canCreate)
+                                <button type="button" class="btn btn-sm btn-success fw-bold text-nowrap ms-auto" data-bs-toggle="modal" data-bs-target="#modalTambahReferensi">
+                                    <i class="bi bi-plus-circle me-1"></i> Tambah Pos Referensi
+                                </button>
+                            @endif
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Data Table -->
+                <div class="table-responsive border rounded-3 custom-scrollbar" id="tableReferensiContainer">
+                    <table class="table table-hover align-middle mb-0 text-sm">
+                        <thead class="table-light border-bottom">
+                            <tr class="text-nowrap small text-uppercase tracking-wider text-secondary">
+                                <th class="py-2.5 px-3 text-center" style="width: 50px;">No</th>
+                                <th class="py-2.5 px-3" style="width: 140px;">Aktivitas</th>
+                                <th class="py-2.5 px-3" style="min-width: 260px;">Nama Kelompok Arus Kas</th>
+                                <th class="py-2.5 px-3 text-center" style="width: 150px;">Status</th>
+                                <th class="py-2.5 px-3 text-center" style="width: 160px;">COA Terkait</th>
+                                <th class="py-2.5 px-3 text-center" style="width: 110px;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($referensiList as $item)
+                                <tr>
+                                    <td class="text-center align-middle fw-bold text-muted">
+                                        {{ $loop->iteration + ($referensiList->currentPage() - 1) * $referensiList->perPage() }}
+                                    </td>
+                                    <td class="align-middle">
+                                        @if ($item->aktivitas === 'operasi')
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill fw-semibold">
+                                                Operasi
+                                            </span>
+                                        @elseif ($item->aktivitas === 'investasi')
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill fw-semibold">
+                                                Investasi
+                                            </span>
+                                        @elseif ($item->aktivitas === 'pendanaan')
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 rounded-pill fw-semibold">
+                                                Pendanaan
+                                            </span>
+                                        @else
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded-pill fw-semibold">
+                                                {{ ucfirst($item->aktivitas) }}
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="align-middle">
+                                        <div class="fw-semibold text-dark">{{ $item->nama }}</div>
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <div class="d-inline-flex align-items-center justify-content-center gap-1.5">
+                                            @if ($item->status_aktif)
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill fw-semibold">
+                                                    <i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i> Aktif
+                                                </span>
+                                            @else
+                                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded-pill fw-semibold">
+                                                    Nonaktif
+                                                </span>
+                                            @endif
+
+                                            @if ($canUpdate)
+                                                <form method="POST" action="{{ route('pengaturan.referensi-kelompok-arus-kas.toggle', $item) }}" class="d-inline">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <button type="submit" class="btn btn-xs btn-outline-secondary p-1 py-0 rounded-circle border-0" title="Ubah Status Aktif">
+                                                        <i class="bi {{ $item->status_aktif ? 'bi-toggle-on text-success fs-5' : 'bi-toggle-off text-muted fs-5' }}"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        @if (($item->coa_count ?? 0) > 0)
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill fw-semibold">
+                                                <i class="bi bi-diagram-3 me-1"></i> {{ $item->coa_count }} Akun
+                                            </span>
+                                        @else
+                                            <span class="badge bg-light text-muted border px-2 py-1 rounded-pill">
+                                                0 Akun
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="text-center align-middle text-nowrap">
+                                        @if ($canUpdate)
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-primary py-0.5 px-2 btn-edit-referensi"
+                                                    data-id="{{ $item->id }}"
+                                                    data-aktivitas="{{ $item->aktivitas }}"
+                                                    data-nama="{{ $item->nama }}"
+                                                    data-status="{{ $item->status_aktif ? 1 : 0 }}"
+                                                    title="Edit Pos Referensi">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                        @endif
+
+                                        @if ($canDelete)
+                                            <form method="POST" action="{{ route('pengaturan.referensi-kelompok-arus-kas.destroy', $item) }}"
+                                                  class="d-inline"
+                                                  onsubmit="return confirm('Apakah Anda yakin ingin menghapus pos referensi ini?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit"
+                                                        class="btn btn-sm btn-outline-danger py-0.5 px-2 ms-1"
+                                                        @if(($item->coa_count ?? 0) > 0)
+                                                            title="Pos ini sedang digunakan oleh {{ $item->coa_count }} akun COA"
+                                                        @else
+                                                            title="Hapus Pos Referensi"
+                                                        @endif>
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="text-center py-5 text-muted">
+                                        <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                        Data referensi kelompok arus kas belum ada atau tidak sesuai filter.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-3">
+                    {{ $referensiList->links('pagination::bootstrap-5') }}
                 </div>
             </div>
         </div>

@@ -263,4 +263,25 @@ class ReferensiKelompokArusKasCrudTest extends TestCase
         $response2->assertSessionHas('success');
         $this->assertTrue($ref->fresh()->status_aktif);
     }
+
+    public function test_index_renders_modern_ui_layout_with_tabs_and_toolbar(): void
+    {
+        ReferensiKelompokArusKas::create([
+            'aktivitas' => 'operasi',
+            'nama' => 'Penerimaan Pasien',
+            'status_aktif' => true,
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('pengaturan.referensi-kelompok-arus-kas.index'));
+
+        $response->assertStatus(200);
+        $response->assertSee('card-header-tabs');
+        $response->assertSee('Semua Pos');
+        $response->assertSee('Aktivitas Operasi');
+        $response->assertSee('Aktivitas Investasi');
+        $response->assertSee('Aktivitas Pendanaan');
+        $response->assertSee('rounded-circle');
+        $response->assertSee('table-hover');
+    }
 }
