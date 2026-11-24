@@ -74,6 +74,12 @@ Tabel `bukubesar` adalah **mutasi akun** yang diturunkan dari transaksi sumber.
 
 Scope: `BukuBesar::scopeForSource($sumberTransaksi, $sumberId)`.
 
+Index performa pada tabel `bukubesar`:
+- `(coa_id, tanggal)` — percepatan query histori mutasi per akun
+- `tanggal` — percepatan agregasi laporan keuangan berbasis tanggal
+- `(sumber_transaksi, sumber_id)` — percepatan pembersihan mutasi via `deleteBySource()` dan delete massal bridging
+- `nomer` — percepatan penelusuran mutasi berdasarkan nomor dokumen transaksi
+
 ### Pembacaan Buku Bank
 
 `Kasbank\BukuBankService` membaca tabel `bukubesar` tanpa mengubah data. Akun yang dapat
