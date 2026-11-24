@@ -115,7 +115,7 @@
                             </div>
                         </div>
 
-                        <div class="col-12 col-md-5 col-lg-4 d-flex gap-2 justify-content-md-end">
+                        <div class="col-12 col-md-5 col-lg-4 d-flex flex-wrap gap-2 justify-content-md-end">
                             <button type="submit" class="btn btn-sm btn-primary fw-semibold px-3">
                                 <i class="bi bi-filter me-1"></i> Filter
                             </button>
@@ -191,7 +191,7 @@
                                                 <form method="POST" action="{{ route('pengaturan.referensi-kelompok-arus-kas.toggle', $item) }}" class="d-inline">
                                                     @csrf
                                                     @method('PATCH')
-                                                    <button type="submit" class="btn btn-xs btn-outline-secondary p-1 py-0 rounded-circle border-0" title="Ubah Status Aktif">
+                                                    <button type="submit" class="btn btn-sm btn-outline-secondary p-1 py-0 rounded-circle border-0" title="Ubah Status Aktif">
                                                         <i class="bi {{ $item->status_aktif ? 'bi-toggle-on text-success fs-5' : 'bi-toggle-off text-muted fs-5' }}"></i>
                                                     </button>
                                                 </form>
@@ -225,7 +225,7 @@
                                         @if ($canDelete)
                                             <form method="POST" action="{{ route('pengaturan.referensi-kelompok-arus-kas.destroy', $item) }}"
                                                   class="d-inline"
-                                                  onsubmit="return confirm('Apakah Anda yakin ingin menghapus pos referensi ini?');">
+                                                  onsubmit="return confirm('{{ ($item->coa_count ?? 0) > 0 ? "PERINGATAN: Pos ini sedang digunakan oleh {$item->coa_count} akun COA dan penghapusan akan ditolak sistem. Tetap lanjutkan?" : "Apakah Anda yakin ingin menghapus pos referensi ini?" }}');">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit"
@@ -292,6 +292,7 @@
 
                         <div class="mb-2">
                             <div class="form-check form-switch">
+                                <input type="hidden" name="status_aktif" value="0">
                                 <input class="form-check-input" type="checkbox" name="status_aktif" value="1" id="createStatusAktif" @checked(old('status_aktif', '1') == '1')>
                                 <label class="form-check-label small fw-semibold" for="createStatusAktif">Status Aktif</label>
                             </div>
@@ -370,7 +371,7 @@
                     const status = this.getAttribute('data-status');
 
                     const form = document.getElementById('formEditReferensi');
-                    form.action = '{{ url('/pengaturan/referensi-kelompok-arus-kas') }}/' + id;
+                    form.action = '{{ route('pengaturan.referensi-kelompok-arus-kas.index') }}/' + id;
 
                     document.getElementById('editAktivitasLabel').value = aktivitas;
                     document.getElementById('editNama').value = nama;

@@ -14,10 +14,15 @@ class StoreReferensiKelompokArusKasRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $merge = [];
         if ($this->has('nama') && is_string($this->input('nama'))) {
-            $this->merge([
-                'nama' => trim(preg_replace('/\s+/', ' ', $this->input('nama'))),
-            ]);
+            $merge['nama'] = trim(preg_replace('/\s+/', ' ', $this->input('nama')));
+        }
+        if ($this->has('status_aktif')) {
+            $merge['status_aktif'] = $this->boolean('status_aktif');
+        }
+        if (! empty($merge)) {
+            $this->merge($merge);
         }
     }
 

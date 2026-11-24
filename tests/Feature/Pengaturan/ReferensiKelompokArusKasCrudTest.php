@@ -181,6 +181,23 @@ class ReferensiKelompokArusKasCrudTest extends TestCase
         ]);
     }
 
+    public function test_store_creates_inactive_reference_when_status_is_zero(): void
+    {
+        $response = $this->actingAs($this->admin)->post(route('pengaturan.referensi-kelompok-arus-kas.store'), [
+            'aktivitas' => 'investasi',
+            'nama' => 'Peralatan Nonaktif Baru',
+            'status_aktif' => '0',
+        ]);
+
+        $response->assertRedirect(route('pengaturan.referensi-kelompok-arus-kas.index'));
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('referensi_kelompok_arus_kas', [
+            'aktivitas' => 'investasi',
+            'nama' => 'Peralatan Nonaktif Baru',
+            'status_aktif' => false,
+        ]);
+    }
+
     public function test_update_updates_name_and_status_with_coa_cascade(): void
     {
         $ref = ReferensiKelompokArusKas::create([
