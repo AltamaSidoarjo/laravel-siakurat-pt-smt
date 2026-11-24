@@ -24,6 +24,7 @@ use App\Http\Controllers\Pengaturan\MappingGeneralController;
 use App\Http\Controllers\Pengaturan\MappingPendapatanController;
 use App\Http\Controllers\Pengaturan\PenggunaController;
 use App\Http\Controllers\Pengaturan\PreferensiController;
+use App\Http\Controllers\Pengaturan\ReferensiKelompokArusKasController;
 use App\Http\Controllers\Pengaturan\RoleAksesController;
 use App\Http\Controllers\Pengaturan\SettingIndikatorKinerjaController;
 use App\Http\Controllers\Pengaturan\SettingRbaController;
@@ -421,6 +422,24 @@ Route::middleware('auth')->group(function () {
         Route::middleware('module.access:pengaturan.setting-indikator-kinerja,delete')->group(function () {
             Route::delete('/setting-indikator-kinerja/{indikator}', [SettingIndikatorKinerjaController::class, 'destroy'])->name('setting-indikator-kinerja.destroy');
             Route::delete('/setting-indikator-kinerja/variabel/{variabelManual}', [SettingIndikatorKinerjaController::class, 'destroyVariabel'])->name('setting-indikator-kinerja.destroy-variabel');
+        });
+
+        Route::prefix('referensi-kelompok-arus-kas')->name('referensi-kelompok-arus-kas.')->group(function () {
+            Route::get('/', [ReferensiKelompokArusKasController::class, 'index'])
+                ->middleware('module.access:pengaturan.referensi-kelompok-arus-kas,view')
+                ->name('index');
+            Route::post('/', [ReferensiKelompokArusKasController::class, 'store'])
+                ->middleware('module.access:pengaturan.referensi-kelompok-arus-kas,create')
+                ->name('store');
+            Route::put('/{referensi}', [ReferensiKelompokArusKasController::class, 'update'])
+                ->middleware('module.access:pengaturan.referensi-kelompok-arus-kas,update')
+                ->name('update');
+            Route::delete('/{referensi}', [ReferensiKelompokArusKasController::class, 'destroy'])
+                ->middleware('module.access:pengaturan.referensi-kelompok-arus-kas,delete')
+                ->name('destroy');
+            Route::patch('/{referensi}/toggle', [ReferensiKelompokArusKasController::class, 'toggleStatus'])
+                ->middleware('module.access:pengaturan.referensi-kelompok-arus-kas,update')
+                ->name('toggle');
         });
     });
 });
