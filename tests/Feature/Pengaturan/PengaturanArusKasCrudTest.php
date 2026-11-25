@@ -466,4 +466,150 @@ class PengaturanArusKasCrudTest extends TestCase
         $this->assertSame(2, $resWithShortcut->viewData('tabCounts')['semua']);
         $this->assertNotNull($posOp);
     }
+
+    public function test_index_renders_dual_mode_switcher_modals_and_coa_compatibility_controls(): void
+    {
+        $parent = Coa::create(['kode' => '112', 'nama' => 'Piutang', 'tipe_coa' => 'Piutang Usaha', 'status_aktif' => 1]);
+        $mappedCoa = Coa::create([
+            'parent_coa' => $parent->id,
+            'kode' => '112.01',
+            'nama' => 'Piutang Pasien',
+            'tipe_coa' => 'Piutang Usaha',
+            'status_aktif' => 1,
+        ]);
+        $inactiveNeraca = Coa::create([
+            'parent_coa' => $parent->id,
+            'kode' => '112.02',
+            'nama' => 'Piutang Lama',
+            'tipe_coa' => 'Piutang Usaha',
+            'status_aktif' => 0,
+        ]);
+        $excludedCoa = Coa::create([
+            'kode' => '142.01',
+            'nama' => 'Akumulasi Penyusutan',
+            'tipe_coa' => 'Aset Tetap',
+            'status_aktif' => 1,
+        ]);
+        $bebanCoa = Coa::create([
+            'kode' => '511.01',
+            'nama' => 'Beban Penyusutan',
+            'tipe_coa' => 'Beban',
+            'status_aktif' => 1,
+        ]);
+
+        $pos = SettingArusKas::create([
+            'kode_pos' => 'MK_PIUTANG',
+            'nama_pos' => 'Piutang Usaha',
+            'kelompok_bagian' => 'modal_kerja',
+            'sifat_pos' => 'aset',
+            'pakai_prefix_perubahan' => true,
+            'urutan' => 1,
+            'is_active' => true,
+        ]);
+        SettingArusKasCoa::create(['setting_arus_kas_id' => $pos->id, 'coa_id' => $mappedCoa->id]);
+        SettingArusKasPengecualian::create(['coa_id' => $excludedCoa->id, 'alasan' => 'Akun kontra']);
+
+        $response = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index'));
+
+        $response->assertStatus(200);
+
+        // Dual-mode switcher & localStorage contract
+        $response->assertSee('data-view-mode="tab"', false);
+        $response->assertSee('data-view-mode="struktur"', false);
+        $response->assertSee('siakurat.pengaturan_arus_kas.view_mode', false);
+
+        // Modal Pos Arus Kas & fields
+        $response->assertSee('id="modalPosArusKas"', false);
+        $response->assertSee('name="kelompok_bagian"', false);
+        $response->assertSee('name="sifat_pos"', false);
+        $response->assertSee('name="nama_pos"', false);
+        $response->assertSee('name="kode_pos"', false);
+        $response->assertSee('name="urutan"', false);
+        $response->assertSee('name="pakai_prefix_perubahan"', false);
+        $response->assertSee('name="is_active"', false);
+        $response->assertSee('name="coa_ids[]"', false);
+        $response->assertSee('id="coaIdsSelect"', false);
+
+        // Parent COA quick-select & AJAX endpoints
+        $response->assertSee('id="parentCoaSelect"', false);
+        $response->assertSee('id="btnAddParentLeaves"', false);
+        $response->assertSee('id="parentLeavesFeedback"', false);
+        $response->assertSee(route('pengaturan.arus-kas.parent-coa-leaves'), false);
+        $response->assertSee(route('pengaturan.arus-kas.reorder'), false);
+
+        // Modal Pengecualian Arus Kas & controls
+        $response->assertSee('id="modalPengecualianArusKas"', false);
+        $response->assertSee('id="pengecualianParentCoaSelect"', false);
+        $response->assertSee('id="btnAddPengecualianParentLeaves"', false);
+        $response->assertSee('id="pengecualianCoaIdsSelect"', false);
+        $response->assertSee('name="alasan"', false);
+
+        // Serialized COA metadata & availability/status markers
+        $response->assertSee('[Nonaktif]', false);
+        $response->assertSee('(Dipakai: Piutang Usaha)', false);
+        $response->assertSee('(Dikecualikan)', false);
+        $response->assertSee($inactiveNeraca->kode, false);
+        $response->assertSee($bebanCoa->kode, false);
+    }
+
+    public function test_validation_error_with_modal_target_reopens_intended_modal_with_old_input(): void
+    {
+        $response = $this->actingAs($this->admin)
+            ->from(route('pengaturan.arus-kas.index'))
+            ->followingRedirects()
+            ->post(route('pengaturan.arus-kas.store'), [
+                '_modal_target' => 'modalPosArusKas',
+                'kelompok_bagian' => 'modal_kerja',
+                'sifat_pos' => 'aset',
+                'nama_pos' => '',
+                'kode_pos' => 'MK_TEST_ERR',
+                'urutan' => 3,
+            ]);
+
+        $response->assertStatus(200);
+        $response->assertSee('value="MK_TEST_ERR"', false);
+        $response->assertSee('"hasErrors":true', false);
+        $response->assertSee('"target":"modalPosArusKas"', false);
+
+        // Clearing coa_ids (empty string -> null via ConvertEmptyStringsToNull) clears mappings on update
+        $pos = SettingArusKas::create([
+            'kode_pos' => 'MK_CLEAR',
+            'nama_pos' => 'Pos Clear',
+            'kelompok_bagian' => 'modal_kerja',
+            'sifat_pos' => 'aset',
+            'urutan' => 1,
+            'is_active' => true,
+        ]);
+        $coa = Coa::create(['kode' => '114.01', 'nama' => 'Biaya Dibayar Dimuka', 'tipe_coa' => 'Aset Lancar Lainnya', 'status_aktif' => 1]);
+        SettingArusKasCoa::create(['setting_arus_kas_id' => $pos->id, 'coa_id' => $coa->id]);
+
+        $clearResponse = $this->actingAs($this->admin)->put(route('pengaturan.arus-kas.update', $pos), [
+            'kode_pos' => 'MK_CLEAR',
+            'nama_pos' => 'Pos Clear',
+            'kelompok_bagian' => 'modal_kerja',
+            'sifat_pos' => 'aset',
+            'urutan' => 1,
+            'is_active' => '1',
+            'coa_ids' => '',
+        ]);
+        $clearResponse->assertRedirect(route('pengaturan.arus-kas.index'));
+        $this->assertDatabaseMissing('setting_arus_kas_coa', ['setting_arus_kas_id' => $pos->id, 'coa_id' => $coa->id]);
+
+        // Validation error on update reopens modal in edit mode
+        $editErrResponse = $this->actingAs($this->admin)
+            ->from(route('pengaturan.arus-kas.index'))
+            ->followingRedirects()
+            ->put(route('pengaturan.arus-kas.update', $pos), [
+                '_modal_target' => 'modalPosArusKas',
+                '_pos_id' => $pos->id,
+                'kelompok_bagian' => 'modal_kerja',
+                'sifat_pos' => 'aset',
+                'nama_pos' => '',
+                'kode_pos' => 'MK_CLEAR',
+                'urutan' => 1,
+            ]);
+        $editErrResponse->assertStatus(200);
+        $editErrResponse->assertSee('"posId":'.$pos->id, false);
+        $editErrResponse->assertSee('Perbarui Pos Arus Kas', false);
+    }
 }

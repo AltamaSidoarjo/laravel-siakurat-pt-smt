@@ -710,4 +710,8 @@
             </div>
         </div>
     </div>
+
+    @include('pengaturan.arus-kas.partials._modals')
 @endsection
+
+@include('pengaturan.arus-kas.partials._scripts')
