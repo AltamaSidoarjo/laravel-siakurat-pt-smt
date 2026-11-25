@@ -87,13 +87,13 @@
                             $itemsP = $itemsP ?? collect();
                             $orderedCodes = $itemsB->keys()->merge($itemsP->keys())->unique()->values();
 
-                            return $orderedCodes->map(function (string $kodePos) use ($itemsB, $itemsP): array {
+                            return $orderedCodes->map(function (string|int $kodePos) use ($itemsB, $itemsP): array {
                                 $itemB = $itemsB->get($kodePos);
                                 $itemP = $itemsP->get($kodePos);
 
                                 return [
-                                    'kode_pos' => $kodePos,
-                                    'label' => $itemB['label'] ?? ($itemP['label'] ?? $kodePos),
+                                    'kode_pos' => (string) $kodePos,
+                                    'label' => $itemB['label'] ?? ($itemP['label'] ?? (string) $kodePos),
                                     'nilai_b' => (float) ($itemB['dampak_kas'] ?? 0),
                                     'nilai_p' => (float) ($itemP['dampak_kas'] ?? 0),
                                 ];

@@ -626,4 +626,72 @@ class LaporanArusKasTidakLangsungDynamicTest extends TestCase
             ->assertSee('115.01 - Uang Muka Vendor (Aktiva Lancar lainnya)')
             ->assertDontSee(route('pengaturan.arus-kas.index'));
     }
+
+    public function test_deactivated_laba_rugi_coa_is_skipped_in_penyesuaian_laba_while_inactive_neraca_coa_is_included(): void
+    {
+        $kas = $this->createCoa('111.01', 'Kas Utama', 'Kasbank');
+        $piutangNonaktif = $this->createCoa('112.99', 'Piutang Pasien Lama', 'Piutang Usaha', 0);
+        $akumPenyusutan = $this->createCoa('142.01', 'Akumulasi Penyusutan', 'Akumulasi Penyusutan', 1);
+        $pendapatan = $this->createCoa('410.01', 'Pendapatan Jasa', 'Pendapatan', 1);
+        $bebanPenyusutanAktif = $this->createCoa('706.01', 'Beban Penyusutan Aktif', 'Beban', 1);
+        $bebanPenyusutanNonaktif = $this->createCoa('706.99', 'Beban Penyusutan Lama', 'Beban', 0);
+
+        SettingArusKasPengecualian::query()->create(['coa_id' => $akumPenyusutan->id, 'alasan' => 'Kontra penyusutan']);
+
+        $this->createPos(
+            'PL_PENYUSUTAN',
+            'Penyusutan Aset Tetap',
+            'penyesuaian_laba',
+            'penambah_laba',
+            1,
+            false,
+            true,
+            [$bebanPenyusutanAktif->id, $bebanPenyusutanNonaktif->id]
+        );
+        $this->createPos(
+            'MK_PIUTANG',
+            'Piutang usaha',
+            'modal_kerja',
+            'aset',
+            1,
+            true,
+            true,
+            [$piutangNonaktif->id]
+        );
+
+        // Pendapatan tunai 200.000
+        $this->postEntry($kas, '2026-07-02', 'TRX-1', 'Pendapatan', 200_000, 'D');
+        $this->postEntry($pendapatan, '2026-07-02', 'TRX-1', 'Pendapatan', 200_000, 'K');
+
+        // Beban penyusutan aktif 40.000 (masuk laba bersih & penyesuaian_non_kas)
+        $this->postEntry($bebanPenyusutanAktif, '2026-07-05', 'TRX-2', 'Jurnal Umum', 40_000, 'D');
+        $this->postEntry($akumPenyusutan, '2026-07-05', 'TRX-2', 'Jurnal Umum', 40_000, 'K');
+
+        // Beban penyusutan nonaktif 60.000 (dikecualikan dari laba bersih -> wajib dilewati di penyesuaian_non_kas)
+        $this->postEntry($bebanPenyusutanNonaktif, '2026-07-06', 'TRX-3', 'Jurnal Umum', 60_000, 'D');
+        $this->postEntry($akumPenyusutan, '2026-07-06', 'TRX-3', 'Jurnal Umum', 60_000, 'K');
+
+        // Pelunasan piutang dari akun Neraca nonaktif 100.000 (tetap dihitung di pos Neraca)
+        $this->postEntry($kas, '2026-07-08', 'TRX-4', 'Kas & Bank', 100_000, 'D');
+        $this->postEntry($piutangNonaktif, '2026-07-08', 'TRX-4', 'Kas & Bank', 100_000, 'K');
+
+        $service = app(LaporanKeuanganService::class);
+        $result = $service->getArusKasTidakLangsung('2026-07-01', '2026-07-31');
+        $berjalan = $result['berjalan'];
+
+        $this->assertEquals(160_000.0, $berjalan['laba_bersih']);
+
+        $posPenyusutan = $berjalan['penyesuaian_non_kas']['items']->get('PL_PENYUSUTAN');
+        $this->assertEquals(40_000.0, $posPenyusutan['dampak_kas']);
+        $this->assertEquals(40_000.0, $berjalan['penyesuaian_non_kas']['subtotal']);
+        $this->assertSame(['706.01'], $posPenyusutan['detail_akun']->pluck('kode')->all());
+
+        $posPiutang = $berjalan['modal_kerja']['items']->get('MK_PIUTANG');
+        $this->assertEquals(100_000.0, $posPiutang['dampak_kas']);
+        $this->assertSame(['112.99'], $posPiutang['detail_akun']->pluck('kode')->all());
+
+        $this->assertEquals(300_000.0, $berjalan['kas_operasi']);
+        $this->assertEquals(300_000.0, $berjalan['kas_akhir_riil']);
+        $this->assertEquals(0.0, $berjalan['selisih_rekonsiliasi']);
+    }
 }

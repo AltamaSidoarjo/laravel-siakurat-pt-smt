@@ -1120,11 +1120,17 @@ class LaporanKeuanganService
 
         foreach ($positions as $pos) {
             $coas = $hasCoaTable ? $pos->coas : collect();
+            $isSifatLabaRugi = in_array((string) $pos->sifat_pos, SettingArusKas::SIFAT_LABA_RUGI, true);
             $totalDebit = 0.0;
             $totalKredit = 0.0;
             $detailAkun = collect();
 
             foreach ($coas as $coa) {
+                // Konsisten dengan queryCoaLabaRugiLeafAktif(): COA Laba Rugi nonaktif tidak masuk laba bersih sehingga harus dilewati di penyesuaian laba.
+                if ($isSifatLabaRugi && (int) $coa->status_aktif !== 1) {
+                    continue;
+                }
+
                 $debit = (float) ($mutasiPerCoa[$coa->id]['debit'] ?? 0);
                 $kredit = (float) ($mutasiPerCoa[$coa->id]['kredit'] ?? 0);
                 $totalDebit += $debit;
@@ -1268,12 +1274,12 @@ class LaporanKeuanganService
 
         $unmapped = collect();
         foreach ($candidateCoas as $coa) {
-            $tipeCoa = (string) ($coa->tipe_coa ?? '');
+            $tipeCoa = trim((string) ($coa->tipe_coa ?? ''));
             if (in_array($tipeCoa, self::TIPE_LABA_RUGI, true)) {
                 continue;
             }
 
-            if (strtolower(trim($tipeCoa)) === 'kasbank') {
+            if (strtolower($tipeCoa) === 'kasbank') {
                 continue;
             }
 
