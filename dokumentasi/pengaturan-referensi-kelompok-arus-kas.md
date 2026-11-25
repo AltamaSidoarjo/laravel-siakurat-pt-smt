@@ -42,8 +42,8 @@ Semua endpoint dilindungi oleh middleware otorisasi `module.access:pengaturan.re
 Pengguna dapat melihat seluruh master referensi dengan tata letak modern yang mengadopsi standar antarmuka Setting Indikator Kinerja:
 - **Header Card**: Tombol kembali melingkar (`rounded-circle`), judul modul, badge `Master Data`, dan ringkasan fungsi modul.
 - **Card Header Tabs (`card-header-tabs`)**: Tab klasifikasi aktivitas (`Semua Pos`, `Aktivitas Operasi`, `Aktivitas Investasi`, `Aktivitas Pendanaan`) lengkap dengan badge counter jumlah pos.
-- **Filter Toolbar**: Wadah abu-abu lembut (`bg-light border rounded-3`) yang memuat pencarian berbasis nama, tombol filter & reset, serta tombol aksi `+ Tambah Pos Referensi`.
-- **Tabel Modern**: Tabel responsif dengan badge status subtle (`*-subtle`) berindikator dot aktif/nonaktif, badge pill jumlah akun COA terkait, dan tombol aksi outline ringkas.
+- **Filter Toolbar**: Wadah abu-abu lembut (`bg-light border rounded-3`) di mana input pencarian mengisi seluruh ruang kosong yang ada (`flex-grow-1`), eksekusi pencarian dilakukan dengan menekan tombol `Enter`, dan reset dilakukan melalui ikon silang (`x`) di dalam kotak input, berdampingan dengan tombol aksi `+ Tambah Pos Referensi`.
+- **Tabel Modern**: Tabel responsif dengan badge status statis (`Aktif` / `Nonaktif`), badge pill jumlah akun COA terkait, dan tombol aksi outline ringkas (pengubahan status dilakukan melalui modal Edit).
 
 ### Flowchart
 

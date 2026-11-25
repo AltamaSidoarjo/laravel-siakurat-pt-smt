@@ -101,32 +101,36 @@
             <div class="card-body p-3 p-md-4">
                 <!-- Toolbar Filter Pencarian -->
                 <div class="bg-light p-3 rounded-3 border mb-3" id="filterToolbar">
-                    <form method="GET" action="{{ route('pengaturan.referensi-kelompok-arus-kas.index') }}" class="row g-2 align-items-center">
+                    <form method="GET" action="{{ route('pengaturan.referensi-kelompok-arus-kas.index') }}" id="formSearchReferensi">
                         @if($aktivitas && in_array($aktivitas, ['operasi', 'investasi', 'pendanaan'], true))
                             <input type="hidden" name="aktivitas" value="{{ $aktivitas }}">
                         @endif
 
-                        <div class="col-12 col-md-7 col-lg-8">
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-white text-muted border-end-0">
-                                    <i class="bi bi-search"></i>
-                                </span>
-                                <input type="search" name="search" value="{{ $search }}" class="form-control border-start-0" placeholder="Cari nama kelompok arus kas...">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="flex-grow-1">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-white text-muted border-end-0">
+                                        <i class="bi bi-search"></i>
+                                    </span>
+                                    <input type="text"
+                                           name="search"
+                                           id="searchReferensiInput"
+                                           value="{{ $search }}"
+                                           class="form-control border-start-0 {{ $search !== '' ? 'border-end-0' : '' }}"
+                                           placeholder="Cari nama kelompok arus kas... (Tekan Enter)">
+                                    @if ($search !== '')
+                                        <a href="{{ route('pengaturan.referensi-kelompok-arus-kas.index', $aktivitas !== 'semua' && !empty($aktivitas) ? ['aktivitas' => $aktivitas] : []) }}"
+                                           class="input-group-text bg-white text-muted border-start-0 text-decoration-none"
+                                           title="Reset pencarian"
+                                           id="btnResetSearchReferensi">
+                                            <i class="bi bi-x-circle-fill text-secondary"></i>
+                                        </a>
+                                    @endif
+                                </div>
                             </div>
-                        </div>
-
-                        <div class="col-12 col-md-5 col-lg-4 d-flex flex-wrap gap-2 justify-content-md-end">
-                            <button type="submit" class="btn btn-sm btn-primary fw-semibold px-3">
-                                <i class="bi bi-filter me-1"></i> Filter
-                            </button>
-                            @if($search !== '' || ($aktivitas !== 'semua' && !empty($aktivitas)))
-                                <a href="{{ route('pengaturan.referensi-kelompok-arus-kas.index', $aktivitas !== 'semua' && !empty($aktivitas) ? ['aktivitas' => $aktivitas] : []) }}" class="btn btn-sm btn-light border fw-semibold">
-                                    Reset
-                                </a>
-                            @endif
 
                             @if ($canCreate)
-                                <button type="button" class="btn btn-sm btn-success fw-bold text-nowrap ms-auto" data-bs-toggle="modal" data-bs-target="#modalTambahReferensi">
+                                <button type="button" class="btn btn-sm btn-success fw-bold text-nowrap flex-shrink-0" data-bs-toggle="modal" data-bs-target="#modalTambahReferensi">
                                     <i class="bi bi-plus-circle me-1"></i> Tambah Pos Referensi
                                 </button>
                             @endif
@@ -142,7 +146,7 @@
                                 <th class="py-2.5 px-3 text-center" style="width: 50px;">No</th>
                                 <th class="py-2.5 px-3" style="width: 140px;">Aktivitas</th>
                                 <th class="py-2.5 px-3" style="min-width: 260px;">Nama Kelompok Arus Kas</th>
-                                <th class="py-2.5 px-3 text-center" style="width: 150px;">Status</th>
+                                <th class="py-2.5 px-3 text-center" style="width: 120px;">Status</th>
                                 <th class="py-2.5 px-3 text-center" style="width: 160px;">COA Terkait</th>
                                 <th class="py-2.5 px-3 text-center" style="width: 110px;">Aksi</th>
                             </tr>
@@ -176,27 +180,15 @@
                                         <div class="fw-semibold text-dark">{{ $item->nama }}</div>
                                     </td>
                                     <td class="text-center align-middle">
-                                        <div class="d-inline-flex align-items-center justify-content-center gap-1.5">
-                                            @if ($item->status_aktif)
-                                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill fw-semibold">
-                                                    <i class="bi bi-circle-fill me-1" style="font-size: 0.5rem;"></i> Aktif
-                                                </span>
-                                            @else
-                                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded-pill fw-semibold">
-                                                    Nonaktif
-                                                </span>
-                                            @endif
-
-                                            @if ($canUpdate)
-                                                <form method="POST" action="{{ route('pengaturan.referensi-kelompok-arus-kas.toggle', $item) }}" class="d-inline">
-                                                    @csrf
-                                                    @method('PATCH')
-                                                    <button type="submit" class="btn btn-sm btn-outline-secondary p-1 py-0 rounded-circle border-0" title="Ubah Status Aktif">
-                                                        <i class="bi {{ $item->status_aktif ? 'bi-toggle-on text-success fs-5' : 'bi-toggle-off text-muted fs-5' }}"></i>
-                                                    </button>
-                                                </form>
-                                            @endif
-                                        </div>
+                                        @if ($item->status_aktif)
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill fw-semibold">
+                                                Aktif
+                                            </span>
+                                        @else
+                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1 rounded-pill fw-semibold">
+                                                Nonaktif
+                                            </span>
+                                        @endif
                                     </td>
                                     <td class="text-center align-middle">
                                         @if (($item->coa_count ?? 0) > 0)
@@ -379,6 +371,17 @@
 
                     modalEdit.show();
                 });
+            });
+        }
+
+        const searchReferensiInput = document.getElementById('searchReferensiInput');
+        const formSearchReferensi = document.getElementById('formSearchReferensi');
+        if (searchReferensiInput && formSearchReferensi) {
+            searchReferensiInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    formSearchReferensi.submit();
+                }
             });
         }
     });
