@@ -24,5 +24,6 @@ class DatabaseSeeder extends Seeder
 
         $this->call(IndikatorKinerjaSeeder::class);
         $this->call(ReferensiKelompokArusKasSeeder::class);
+        $this->call(SettingArusKasSeeder::class);
     }
 }
