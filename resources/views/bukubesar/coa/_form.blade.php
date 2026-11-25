@@ -202,12 +202,12 @@
                     </p>
                 </div>
                 <div class="modal-footer d-flex justify-content-between align-items-center">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Batal</button>
                     <div class="d-flex flex-wrap gap-2 justify-content-end">
-                        <button type="button" id="btnCascadeFillEmpty" class="btn btn-outline-primary">
+                        <button type="button" id="btnCascadeFillEmpty" class="btn btn-sm btn-outline-primary">
                             Hanya Isi yang Kosong
                         </button>
-                        <button type="button" id="btnCascadeOverwriteAll" class="btn btn-warning fw-semibold">
+                        <button type="button" id="btnCascadeOverwriteAll" class="btn btn-sm btn-warning fw-semibold">
                             Timpa Semua Sub-Akun
                         </button>
                     </div>
