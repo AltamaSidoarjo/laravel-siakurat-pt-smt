@@ -9,6 +9,7 @@ use App\Models\SettingArusKasCoa;
 use App\Models\SettingArusKasPengecualian;
 use App\Services\LogAktifitasService;
 use DomainException;
+use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -603,6 +604,35 @@ class PengaturanArusKasService
         }
 
         return $errors;
+    }
+
+    /**
+     * Validate COA IDs and attach per-index errors directly onto a Laravel Validator instance.
+     */
+    public function validateCoaIdsForValidator(
+        ValidatorContract $validator,
+        mixed $coaIds,
+        mixed $modeOrSifatPos,
+        ?int $ignoreSettingArusKasId = null,
+    ): void {
+        if (! is_array($coaIds) || $coaIds === []) {
+            return;
+        }
+
+        if (
+            ! is_string($modeOrSifatPos)
+            || ($modeOrSifatPos !== 'pengecualian' && ! in_array($modeOrSifatPos, SettingArusKas::SIFAT_POS, true))
+        ) {
+            return;
+        }
+
+        $errors = $this->validateCoaIds($coaIds, $modeOrSifatPos, $ignoreSettingArusKasId);
+        foreach ($errors as $index => $message) {
+            $key = "coa_ids.{$index}";
+            if (! $validator->errors()->has($key)) {
+                $validator->errors()->add($key, $message);
+            }
+        }
     }
 
     /**
