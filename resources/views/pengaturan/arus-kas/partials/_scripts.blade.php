@@ -75,11 +75,20 @@
         };
 
         let savedViewMode = 'tab';
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasTabOrSearchParam = urlParams.has('tab') || urlParams.has('search');
+
         try {
             savedViewMode = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY) || 'tab';
         } catch (err) {
             savedViewMode = 'tab';
         }
+
+        // Jika user secara spesifik membuka tab atau melakukan search lewat URL/toolbar, dahulukan Mode Tab
+        if (hasTabOrSearchParam) {
+            savedViewMode = 'tab';
+        }
+
         applyViewMode(savedViewMode, false);
 
         modeButtons.forEach((btn) => {
@@ -87,6 +96,137 @@
                 applyViewMode(this.getAttribute('data-view-mode'), true);
             });
         });
+
+        const escapeHtml = (value) => String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+        // ---------------------------------------------------------------------
+        // 1b. Mode Struktur Laporan: Expand All / Collapse All Sections
+        // ---------------------------------------------------------------------
+        const btnExpandAllSections = document.getElementById('btnExpandAllSections');
+        const btnCollapseAllSections = document.getElementById('btnCollapseAllSections');
+
+        if (btnExpandAllSections) {
+            btnExpandAllSections.addEventListener('click', function () {
+                document.querySelectorAll('#viewModeStruktur .collapse').forEach((el) => {
+                    if (window.bootstrap && window.bootstrap.Collapse) {
+                        window.bootstrap.Collapse.getOrCreateInstance(el, { toggle: false }).show();
+                    } else {
+                        el.classList.add('show');
+                    }
+                });
+            });
+        }
+
+        if (btnCollapseAllSections) {
+            btnCollapseAllSections.addEventListener('click', function () {
+                document.querySelectorAll('#viewModeStruktur .collapse').forEach((el) => {
+                    if (window.bootstrap && window.bootstrap.Collapse) {
+                        window.bootstrap.Collapse.getOrCreateInstance(el, { toggle: false }).hide();
+                    } else {
+                        el.classList.remove('show');
+                    }
+                });
+            });
+        }
+
+        // ---------------------------------------------------------------------
+        // 1c. Modal Detail COA Terpetakan
+        // ---------------------------------------------------------------------
+        const modalDetailCoaEl = document.getElementById('modalDetailCoaPos');
+        const detailCoaSubTitleEl = document.getElementById('detailCoaPosSubTitle');
+        const detailCoaListContainerEl = document.getElementById('detailCoaListContainer');
+        const detailCoaTotalCountEl = document.getElementById('detailCoaTotalCount');
+        const inputSearchDetailCoaEl = document.getElementById('inputSearchDetailCoa');
+        const detailCoaEmptyAlertEl = document.getElementById('detailCoaEmptyAlert');
+
+        let currentDetailCoas = [];
+
+        const renderDetailCoaList = (filterText = '') => {
+            if (!detailCoaListContainerEl) return;
+            const search = filterText.trim().toLowerCase();
+            const filtered = currentDetailCoas.filter((c) => {
+                if (!search) return true;
+                const kode = String(c.kode || '').toLowerCase();
+                const nama = String(c.nama || '').toLowerCase();
+                return kode.includes(search) || nama.includes(search);
+            });
+
+            detailCoaListContainerEl.innerHTML = '';
+            if (filtered.length === 0) {
+                if (detailCoaEmptyAlertEl) detailCoaEmptyAlertEl.classList.remove('d-none');
+            } else {
+                if (detailCoaEmptyAlertEl) detailCoaEmptyAlertEl.classList.add('d-none');
+                filtered.forEach((c) => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item d-flex justify-content-between align-items-center py-2 px-3';
+                    const statusBadge = Number(c.status_aktif) !== 1
+                        ? '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small ms-1">Nonaktif</span>'
+                        : '';
+                    li.innerHTML = `
+                        <div class="me-2">
+                            <span class="font-monospace fw-semibold text-primary me-2">${escapeHtml(c.kode)}</span>
+                            <span class="text-dark">${escapeHtml(c.nama)}</span>
+                            ${statusBadge}
+                        </div>
+                    `;
+                    detailCoaListContainerEl.appendChild(li);
+                });
+            }
+        };
+
+        document.querySelectorAll('.btn-show-coas').forEach((btn) => {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                const posName = this.getAttribute('data-pos-name') || '';
+                const posKode = this.getAttribute('data-pos-kode') || '';
+                let coas = [];
+                try {
+                    coas = JSON.parse(this.getAttribute('data-coas') || '[]');
+                } catch (err) {
+                    coas = [];
+                }
+                currentDetailCoas = coas;
+
+                if (detailCoaSubTitleEl) {
+                    detailCoaSubTitleEl.textContent = `Pos: ${posName} (${posKode})`;
+                }
+                if (detailCoaTotalCountEl) {
+                    detailCoaTotalCountEl.textContent = `Total: ${coas.length} Akun Terpetakan`;
+                }
+                if (inputSearchDetailCoaEl) {
+                    inputSearchDetailCoaEl.value = '';
+                }
+                renderDetailCoaList('');
+                if (modalDetailCoaEl && window.bootstrap && window.bootstrap.Modal) {
+                    window.bootstrap.Modal.getOrCreateInstance(modalDetailCoaEl).show();
+                }
+            });
+        });
+
+        if (inputSearchDetailCoaEl) {
+            inputSearchDetailCoaEl.addEventListener('input', function () {
+                renderDetailCoaList(this.value);
+            });
+        }
+
+        // ---------------------------------------------------------------------
+        // 1d. Toolbar Search Input (Submit on Enter)
+        // ---------------------------------------------------------------------
+        const searchArusKasInputEl = document.getElementById('searchArusKasInput');
+        const formSearchArusKasEl = document.getElementById('formSearchArusKas');
+        if (searchArusKasInputEl && formSearchArusKasEl) {
+            searchArusKasInputEl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    formSearchArusKasEl.submit();
+                }
+            });
+        }
 
         @if ($canCreate || $canUpdate)
         const COA_META = @json($coaOptionsPayload);
@@ -103,13 +243,6 @@
         const tipeLabaRugiSet = new Set(COA_META.tipeLabaRugi || []);
         const sifatLabaRugiSet = new Set(COA_META.sifatLabaRugi || []);
         const leafCoaById = new Map((COA_META.leafCoas || []).map((coa) => [Number(coa.id), coa]));
-
-        const escapeHtml = (value) => String(value ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
 
         // ---------------------------------------------------------------------
         // 2. Shared Select2 & COA Filtering Helpers
@@ -405,11 +538,20 @@
                 return;
             }
             const isLabaRugi = sifatLabaRugiSet.has(posSifatSelect.value);
+            const prefixHelpEl = document.getElementById('posPrefixHelp');
             if (isLabaRugi) {
                 posPakaiPrefixInput.checked = false;
                 posPakaiPrefixInput.disabled = true;
+                if (prefixHelpEl) {
+                    prefixHelpEl.textContent = 'Tidak berlaku untuk pos penyesuaian laba rugi non-kas.';
+                    prefixHelpEl.className = 'text-warning-emphasis small mt-0.5';
+                }
             } else {
                 posPakaiPrefixInput.disabled = false;
+                if (prefixHelpEl) {
+                    prefixHelpEl.textContent = 'Disesuaikan otomatis dengan mutasi saldo akun Neraca.';
+                    prefixHelpEl.className = 'text-muted small mt-0.5';
+                }
             }
         };
 

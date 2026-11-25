@@ -52,6 +52,12 @@ Semua endpoint dilindungi oleh middleware otorisasi `module.access:pengaturan.ar
 
 Halaman utama menampilkan ringkasan pos laporan arus kas tidak langsung, daftar akun pengecualian, serta banner peringatan apabila ada akun Neraca non-Kasbank yang bermutasi di buku besar tahun berjalan tetapi belum dipetakan atau dikecualikan. Antarmuka mendukung dua mode tampilan: **Mode Tab** (tab `Semua Pos`, `Penyesuaian Laba`, `Modal Kerja`, `Investasi`, `Pendanaan`, `Akun Dikecualikan`) dan **Mode Struktur Laporan**.
 
+Fitur UI/UX utama antarmuka:
+- **Pencarian Terpadu (Mode Tab)**: Kolom pencarian di `#filterToolbar` mengisi seluruh ruang kosong horizontal (`flex-grow-1`). Pengguna cukup menekan tombol `Enter` untuk melakukan filter, dan tombol reset disediakan melalui ikon silang (`x`) di dalam kotak pencarian.
+- **Tampilan Ringkas COA**: Kolom terpisah "Akun COA Terpetakan" ditiadakan untuk menghemat ruang tabel. Sebagai gantinya, pada kolom "Pos Arus Kas" terdapat badge interaktif jumlah akun (`[X Akun COA]`) yang dapat diklik untuk membuka modal detail daftar COA terpetakan (`modalDetailCoaPos`) lengkap dengan fitur pencarian instan. Pos tanpa akun ditandai dengan badge peringatan `0 Akun`.
+- **Badge Status Pos**: Kolom status menggunakan badge statis `Aktif` / `Nonaktif`. Pengubahan status pos dilakukan melalui form modal Edit Pos.
+- **Accordion / Collapsible (Mode Struktur Laporan)**: Setiap kelompok bagian (`Penyesuaian Laba`, `Modal Kerja`, `Investasi`, `Pendanaan`, dan `Akun Dikecualikan`) dapat dilipat/dibuka (*collapse/show*) secara mandiri dengan indikator chevron berputar halus, serta disediakan tombol global *Buka Semua* dan *Tutup Semua*.
+
 ### Flowchart
 
 ```mermaid
@@ -70,7 +76,7 @@ flowchart TD
 ### Algoritma
 
 1. `PengaturanArusKasController::index()` membaca query parameter `tab` (valid: `semua`, `penyesuaian_laba`, `modal_kerja`, `investasi`, `pendanaan`, `pengecualian`; default `'semua'`) dan `search`.
-2. Controller mengambil seluruh `SettingArusKas` terurut (`urut()` -> `orderBy('urutan')->orderBy('id')`) beserta relasi `coas` (terurut `kode`), dan seluruh `SettingArusKasPengecualian` beserta relasi `coa`.
+2. Controller mengambil seluruh `SettingArusKas` terurut (`urut()` -> terurut per kelompok bagian laporan `penyesuaian_laba` -> `modal_kerja` -> `investasi` -> `pendanaan`, lalu `orderBy('urutan')->orderBy('id')`) beserta relasi `coas` (terurut `kode`), dan seluruh `SettingArusKasPengecualian` beserta relasi `coa`.
 3. Controller menghitung `tabCounts` untuk keenam tab.
 4. Controller memanggil `PengaturanArusKasService::getUnmappedMutatedNeracaAccounts()` (default periode awal sampai akhir tahun berjalan) yang:
    - Mengambil `coa_id` yang sudah dipetakan ke pos **aktif** (`setting_arus_kas.is_active = true`) dan `coa_id` di tabel `setting_arus_kas_pengecualian`.

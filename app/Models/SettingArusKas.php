@@ -90,7 +90,15 @@ class SettingArusKas extends Model
 
     public function scopeUrut(Builder $query): Builder
     {
-        return $query->orderBy('urutan')->orderBy('id');
+        return $query
+            ->orderByRaw("CASE kelompok_bagian 
+                WHEN 'penyesuaian_laba' THEN 1 
+                WHEN 'modal_kerja' THEN 2 
+                WHEN 'investasi' THEN 3 
+                WHEN 'pendanaan' THEN 4 
+                ELSE 5 END")
+            ->orderBy('urutan')
+            ->orderBy('id');
     }
 
     /**

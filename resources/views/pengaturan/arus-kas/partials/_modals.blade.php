@@ -32,25 +32,24 @@
     <!-- Modal Create / Edit Pos Arus Kas -->
     <div class="modal fade" id="modalPosArusKas" tabindex="-1" aria-labelledby="modalPosArusKasLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content border-0 shadow">
-                <form id="formPosArusKas" method="POST" action="{{ $posFormAction }}">
-                    @csrf
-                    <input type="hidden" name="_method" id="posFormMethod" value="PUT" @disabled(! $isOldPosEdit)>
-                    <input type="hidden" name="_modal_target" value="modalPosArusKas">
-                    <input type="hidden" name="_pos_id" id="posFormId" value="{{ $isOldPosEdit ? (int) $oldPosId : '' }}">
+            <form class="modal-content border-0 shadow" id="formPosArusKas" method="POST" action="{{ $posFormAction }}">
+                @csrf
+                <input type="hidden" name="_method" id="posFormMethod" value="PUT" @disabled(! $isOldPosEdit)>
+                <input type="hidden" name="_modal_target" value="modalPosArusKas">
+                <input type="hidden" name="_pos_id" id="posFormId" value="{{ $isOldPosEdit ? (int) $oldPosId : '' }}">
 
-                    <div class="modal-header bg-light border-bottom px-4 py-3">
-                        <h5 class="modal-title fw-bold text-dark fs-6" id="modalPosArusKasLabel">
-                            @if ($isOldPosEdit)
-                                <i class="bi bi-pencil-square text-primary me-1"></i> Edit Pos Arus Kas
-                            @else
-                                <i class="bi bi-plus-circle text-success me-1"></i> Tambah Pos Arus Kas
-                            @endif
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
-                    </div>
+                <div class="modal-header bg-light border-bottom px-4 py-3 flex-shrink-0">
+                    <h5 class="modal-title fw-bold text-dark fs-6" id="modalPosArusKasLabel">
+                        @if ($isOldPosEdit)
+                            <i class="bi bi-pencil-square text-primary me-1"></i> Edit Pos Arus Kas
+                        @else
+                            <i class="bi bi-plus-circle text-success me-1"></i> Tambah Pos Arus Kas
+                        @endif
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
 
-                    <div class="modal-body p-4">
+                <div class="modal-body p-4 custom-scrollbar">
                         @if ($isOldPosModal)
                             <div id="modalPosValidationAlert" class="alert alert-danger py-2 px-3 small mb-3">
                                 @foreach ($errors->all() as $error)
@@ -129,31 +128,38 @@
                             </div>
 
                             <div class="col-12">
-                                <div class="d-flex flex-wrap gap-4 p-2.5 bg-light rounded-3 border">
-                                    <div class="form-check form-switch mb-0">
-                                        <input type="hidden" name="pakai_prefix_perubahan" value="0">
-                                        <input class="form-check-input"
-                                               type="checkbox"
-                                               name="pakai_prefix_perubahan"
-                                               value="1"
-                                               id="posPakaiPrefix"
-                                               @checked($isOldPosModal ? (bool) old('pakai_prefix_perubahan') : false)>
-                                        <label class="form-check-label small fw-semibold" for="posPakaiPrefix">
-                                            Pakai Prefix Perubahan (Kenaikan/Penurunan)
-                                        </label>
+                                <div class="row g-2 p-2.5 bg-light rounded-3 border m-0">
+                                    <div class="col-12 col-sm-7">
+                                        <div class="form-check form-switch mb-0">
+                                            <input type="hidden" name="pakai_prefix_perubahan" value="0">
+                                            <input class="form-check-input"
+                                                   type="checkbox"
+                                                   name="pakai_prefix_perubahan"
+                                                   value="1"
+                                                   id="posPakaiPrefix"
+                                                   @checked($isOldPosModal ? (bool) old('pakai_prefix_perubahan') : false)>
+                                            <label class="form-check-label small fw-semibold" for="posPakaiPrefix" id="posPakaiPrefixLabel">
+                                                Prefix Perubahan (Kenaikan/Penurunan)
+                                            </label>
+                                        </div>
+                                        <div class="text-muted small mt-0.5" id="posPrefixHelp" style="font-size: 0.75rem;">
+                                            Disesuaikan otomatis dengan mutasi saldo akun Neraca.
+                                        </div>
                                     </div>
 
-                                    <div class="form-check form-switch mb-0">
-                                        <input type="hidden" name="is_active" value="0">
-                                        <input class="form-check-input"
-                                               type="checkbox"
-                                               name="is_active"
-                                               value="1"
-                                               id="posIsActive"
-                                               @checked($isOldPosModal ? (bool) old('is_active', true) : true)>
-                                        <label class="form-check-label small fw-semibold" for="posIsActive">
-                                            Status Aktif
-                                        </label>
+                                    <div class="col-12 col-sm-5 d-flex align-items-center">
+                                        <div class="form-check form-switch mb-0">
+                                            <input type="hidden" name="is_active" value="0">
+                                            <input class="form-check-input"
+                                                   type="checkbox"
+                                                   name="is_active"
+                                                   value="1"
+                                                   id="posIsActive"
+                                                   @checked($isOldPosModal ? (bool) old('is_active', true) : true)>
+                                            <label class="form-check-label small fw-semibold" for="posIsActive">
+                                                Status Aktif
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -241,7 +247,7 @@
                         </div>
                     </div>
 
-                    <div class="modal-footer bg-light border-top px-4 py-2">
+                    <div class="modal-footer bg-light border-top px-4 py-2 flex-shrink-0">
                         <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Batal</button>
                         <button type="submit" id="btnSubmitPosArusKas" class="btn btn-sm btn-primary fw-bold px-3">
                             <i class="bi bi-check-circle me-1"></i>
@@ -251,26 +257,24 @@
                 </form>
             </div>
         </div>
-    </div>
 @endif
 
 @if ($canCreate)
     <!-- Modal Tambah Pengecualian Arus Kas -->
     <div class="modal fade" id="modalPengecualianArusKas" tabindex="-1" aria-labelledby="modalPengecualianArusKasLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content border-0 shadow">
-                <form id="formPengecualianArusKas" method="POST" action="{{ route('pengaturan.arus-kas.pengecualian.store') }}">
-                    @csrf
-                    <input type="hidden" name="_modal_target" value="modalPengecualianArusKas">
+            <form class="modal-content border-0 shadow" id="formPengecualianArusKas" method="POST" action="{{ route('pengaturan.arus-kas.pengecualian.store') }}">
+                @csrf
+                <input type="hidden" name="_modal_target" value="modalPengecualianArusKas">
 
-                    <div class="modal-header bg-light border-bottom px-4 py-3">
-                        <h5 class="modal-title fw-bold text-dark fs-6" id="modalPengecualianArusKasLabel">
-                            <i class="bi bi-slash-circle text-danger me-1"></i> Tambah Akun Pengecualian Arus Kas
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
-                    </div>
+                <div class="modal-header bg-light border-bottom px-4 py-3 flex-shrink-0">
+                    <h5 class="modal-title fw-bold text-dark fs-6" id="modalPengecualianArusKasLabel">
+                        <i class="bi bi-slash-circle text-danger me-1"></i> Tambah Akun Pengecualian Arus Kas
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+                </div>
 
-                    <div class="modal-body p-4">
+                <div class="modal-body p-4 custom-scrollbar">
                         @if ($isOldPengecualianModal)
                             <div id="modalPengecualianValidationAlert" class="alert alert-danger py-2 px-3 small mb-3">
                                 @foreach ($errors->all() as $error)
@@ -367,7 +371,7 @@
                         </div>
                     </div>
 
-                    <div class="modal-footer bg-light border-top px-4 py-2">
+                    <div class="modal-footer bg-light border-top px-4 py-2 flex-shrink-0">
                         <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Batal</button>
                         <button type="submit" class="btn btn-sm btn-danger fw-bold px-3">
                             <i class="bi bi-check-circle me-1"></i> Simpan Pengecualian
@@ -378,3 +382,43 @@
         </div>
     </div>
 @endif
+
+<!-- Modal Detail Akun COA Terpetakan -->
+<div class="modal fade" id="modalDetailCoaPos" tabindex="-1" aria-labelledby="modalDetailCoaPosLabel" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light border-bottom px-4 py-3 flex-shrink-0">
+                <div>
+                    <h5 class="modal-title fw-bold text-dark fs-6" id="modalDetailCoaPosLabel">
+                        <i class="bi bi-diagram-2 text-primary me-1"></i> Akun COA Terpetakan
+                    </h5>
+                    <div class="small text-muted mt-0.5" id="detailCoaPosSubTitle">Pos: -</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body p-3 custom-scrollbar">
+                <div class="mb-2">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white text-muted border-end-0">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text"
+                               id="inputSearchDetailCoa"
+                               class="form-control border-start-0"
+                               placeholder="Cari kode atau nama akun...">
+                    </div>
+                </div>
+                <div id="detailCoaEmptyAlert" class="alert alert-secondary py-2 px-3 small text-center d-none mb-0">
+                    Tidak ada akun yang cocok dengan kata kunci.
+                </div>
+                <ul class="list-group list-group-flush border rounded-3" id="detailCoaListContainer">
+                    <!-- Populated dynamically via JS -->
+                </ul>
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-2 flex-shrink-0 justify-content-between">
+                <span class="small text-muted fw-semibold" id="detailCoaTotalCount">Total: 0 Akun</span>
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Tutup</button>
+            </div>
+        </div>
+    </div>
+</div>
