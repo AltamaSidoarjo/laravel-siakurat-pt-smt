@@ -201,14 +201,16 @@
                         Pilih apakah ingin mengisi sub-akun yang masih kosong saja, atau menimpa seluruh sub-akun turunan.
                     </p>
                 </div>
-                <div class="modal-footer flex-wrap gap-2">
+                <div class="modal-footer d-flex justify-content-between align-items-center">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Batal</button>
-                    <button type="button" id="btnCascadeFillEmpty" class="btn btn-outline-primary">
-                        Hanya Isi yang Kosong
-                    </button>
-                    <button type="button" id="btnCascadeOverwriteAll" class="btn btn-warning fw-semibold">
-                        Timpa Semua Sub-Akun
-                    </button>
+                    <div class="d-flex flex-wrap gap-2 justify-content-end">
+                        <button type="button" id="btnCascadeFillEmpty" class="btn btn-outline-primary">
+                            Hanya Isi yang Kosong
+                        </button>
+                        <button type="button" id="btnCascadeOverwriteAll" class="btn btn-warning fw-semibold">
+                            Timpa Semua Sub-Akun
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
