@@ -195,7 +195,7 @@ class PengaturanArusKasService
             throw new DomainException("Kode pos '{$kodePos}' sudah digunakan.");
         }
 
-        $urutan = isset($data['urutan'])
+        $urutan = (isset($data['urutan']) && $data['urutan'] !== '' && is_numeric($data['urutan']))
             ? max(1, (int) $data['urutan'])
             : ((int) SettingArusKas::query()->where('kelompok_bagian', $kelompokBagian)->max('urutan')) + 1;
 
@@ -250,13 +250,13 @@ class PengaturanArusKasService
                 'nama_pos' => $namaPos,
                 'kelompok_bagian' => $kelompokBagian,
                 'sifat_pos' => $sifatPos,
-                'pakai_prefix_perubahan' => array_key_exists('pakai_prefix_perubahan', $data)
+                'pakai_prefix_perubahan' => isset($data['pakai_prefix_perubahan'])
                     ? (bool) $data['pakai_prefix_perubahan']
                     : (bool) $settingArusKas->pakai_prefix_perubahan,
-                'urutan' => array_key_exists('urutan', $data)
+                'urutan' => (isset($data['urutan']) && $data['urutan'] !== '' && is_numeric($data['urutan']))
                     ? max(1, (int) $data['urutan'])
                     : (int) $settingArusKas->urutan,
-                'is_active' => array_key_exists('is_active', $data)
+                'is_active' => isset($data['is_active'])
                     ? (bool) $data['is_active']
                     : (bool) $settingArusKas->is_active,
             ]);

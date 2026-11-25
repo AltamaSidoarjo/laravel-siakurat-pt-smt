@@ -94,15 +94,26 @@ class PengaturanArusKasServiceTest extends TestCase
         $this->assertTrue($first->is_active);
         $this->assertSame([$piutangA->id, $piutangNonaktif->id], $first->coas->pluck('id')->all());
 
-        // Second store with identical nama_pos should auto-generate distinct kode_pos
+        // Second store with identical nama_pos and blank urutan should auto-generate distinct kode_pos and next urutan
         $second = $this->service->store([
             'nama_pos' => 'Piutang Usaha',
             'kelompok_bagian' => 'modal_kerja',
             'sifat_pos' => 'aset',
-            'urutan' => 2,
+            'urutan' => '',
         ]);
 
         $this->assertSame('MK_PIUTANG_USAHA_2', $second->kode_pos);
+        $this->assertSame(2, $second->urutan);
+
+        $third = $this->service->store([
+            'nama_pos' => 'Piutang Usaha',
+            'kelompok_bagian' => 'modal_kerja',
+            'sifat_pos' => 'aset',
+            'urutan' => null,
+        ]);
+
+        $this->assertSame('MK_PIUTANG_USAHA_3', $third->kode_pos);
+        $this->assertSame(3, $third->urutan);
 
         $log = LogAktifitas::query()->where('modul', 'Pengaturan Arus Kas')->where('tipe', 'create')->first();
         $this->assertNotNull($log);
@@ -233,6 +244,36 @@ class PengaturanArusKasServiceTest extends TestCase
         $this->assertSame([$coa1->id], $payload['old']['coa_ids']);
         $this->assertSame('Piutang Revisi', $payload['new']['nama_pos']);
         $this->assertSame([$coa2->id], $payload['new']['coa_ids']);
+
+        // Passing null/empty optional values on update must preserve existing urutan and flags
+        $preserved = $this->service->update($updated, [
+            'kode_pos' => null,
+            'urutan' => null,
+            'pakai_prefix_perubahan' => null,
+            'is_active' => null,
+        ]);
+        $this->assertSame('MK_PIUTANG_CUSTOM', $preserved->kode_pos);
+        $this->assertSame(3, $preserved->urutan);
+        $this->assertFalse($preserved->pakai_prefix_perubahan);
+        $this->assertTrue($preserved->is_active);
+
+        $flipped = $this->service->update($preserved, [
+            'urutan' => '',
+            'pakai_prefix_perubahan' => true,
+            'is_active' => false,
+        ]);
+        $this->assertSame(3, $flipped->urutan);
+        $this->assertTrue($flipped->pakai_prefix_perubahan);
+        $this->assertFalse($flipped->is_active);
+
+        $preservedFlipped = $this->service->update($flipped, [
+            'urutan' => '',
+            'pakai_prefix_perubahan' => null,
+            'is_active' => null,
+        ]);
+        $this->assertSame(3, $preservedFlipped->urutan);
+        $this->assertTrue($preservedFlipped->pakai_prefix_perubahan);
+        $this->assertFalse($preservedFlipped->is_active);
     }
 
     public function test_toggle_status_flips_is_active_and_logs(): void
