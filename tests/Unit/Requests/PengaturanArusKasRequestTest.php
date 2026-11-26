@@ -359,7 +359,7 @@ class PengaturanArusKasRequestTest extends TestCase
 
         if ($routePos !== null) {
             $request->setRouteResolver(function () use ($routePos): Route {
-                $route = new Route('PUT', '/pengaturan/arus-kas/{settingArusKas}', []);
+                $route = new Route('PUT', '/pengaturan/arus-kas/tidak-langsung/{settingArusKas}', []);
                 $route->parameters = ['settingArusKas' => $routePos];
 
                 return $route;

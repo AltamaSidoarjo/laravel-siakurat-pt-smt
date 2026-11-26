@@ -144,7 +144,7 @@ class ReferensiKelompokArusKasRequestTest extends TestCase
         // Bind route parameter
         $route = Route::get('/dummy/{referensi}', fn () => null)->bind(request());
         $request->setRouteResolver(function () use ($ref) {
-            $route = new \Illuminate\Routing\Route('PUT', '/pengaturan/referensi-kelompok-arus-kas/{referensi}', []);
+            $route = new \Illuminate\Routing\Route('PUT', '/pengaturan/arus-kas/langsung/{referensi}', []);
             $route->parameters = ['referensi' => $ref];
 
             return $route;
@@ -181,7 +181,7 @@ class ReferensiKelompokArusKasRequestTest extends TestCase
         $request->setContainer(app());
 
         $request->setRouteResolver(function () use ($ref2) {
-            $route = new \Illuminate\Routing\Route('PUT', '/pengaturan/referensi-kelompok-arus-kas/{referensi}', []);
+            $route = new \Illuminate\Routing\Route('PUT', '/pengaturan/arus-kas/langsung/{referensi}', []);
             $route->parameters = ['referensi' => $ref2];
 
             return $route;

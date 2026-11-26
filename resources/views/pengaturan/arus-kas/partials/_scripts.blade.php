@@ -1,44 +1,137 @@
 @php
-    $coaOptionsPayload = [
-        'leafCoas' => ($coaOptionsData['leafCoas'] ?? collect())
-            ->map(fn ($coa): array => [
-                'id' => (int) $coa->id,
-                'parent_coa' => $coa->parent_coa !== null ? (int) $coa->parent_coa : null,
-                'kode' => (string) $coa->kode,
-                'nama' => (string) $coa->nama,
-                'tipe_coa' => (string) ($coa->tipe_coa ?? ''),
-                'status_aktif' => (int) $coa->status_aktif,
-            ])
-            ->values()
-            ->all(),
-        'mappedByPos' => $coaOptionsData['mappedByPos'] ?? [],
-        'excludedCoaIds' => array_values(array_map('intval', $coaOptionsData['excludedCoaIds'] ?? [])),
-        'tipeLabaRugi' => \App\Models\SettingArusKas::TIPE_LABA_RUGI,
-        'sifatLabaRugi' => \App\Models\SettingArusKas::SIFAT_LABA_RUGI,
-    ];
+    if ($activeMetode === 'tidak_langsung') {
+        $coaOptionsPayload = [
+            'leafCoas' => ($coaOptionsData['leafCoas'] ?? collect())
+                ->map(fn ($coa): array => [
+                    'id' => (int) $coa->id,
+                    'parent_coa' => $coa->parent_coa !== null ? (int) $coa->parent_coa : null,
+                    'kode' => (string) $coa->kode,
+                    'nama' => (string) $coa->nama,
+                    'tipe_coa' => (string) ($coa->tipe_coa ?? ''),
+                    'status_aktif' => (int) $coa->status_aktif,
+                ])
+                ->values()
+                ->all(),
+            'mappedByPos' => $coaOptionsData['mappedByPos'] ?? [],
+            'excludedCoaIds' => array_values(array_map('intval', $coaOptionsData['excludedCoaIds'] ?? [])),
+            'tipeLabaRugi' => \App\Models\SettingArusKas::TIPE_LABA_RUGI,
+            'sifatLabaRugi' => \App\Models\SettingArusKas::SIFAT_LABA_RUGI,
+        ];
 
-    $maxUrutanByBagian = [];
-    foreach (\App\Models\SettingArusKas::KELOMPOK_BAGIAN as $bagianKey) {
-        $maxUrutanByBagian[$bagianKey] = (int) ($posList->where('kelompok_bagian', $bagianKey)->max('urutan') ?? 0);
+        $maxUrutanByBagian = [];
+        foreach (\App\Models\SettingArusKas::KELOMPOK_BAGIAN as $bagianKey) {
+            $maxUrutanByBagian[$bagianKey] = (int) ($posList->where('kelompok_bagian', $bagianKey)->max('urutan') ?? 0);
+        }
+
+        $oldModalState = [
+            'hasErrors' => $errors->any(),
+            'target' => (string) old('_modal_target', ''),
+            'posId' => old('_pos_id') !== null && old('_pos_id') !== '' ? (int) old('_pos_id') : null,
+            'sifatPos' => (string) old('sifat_pos', 'penambah_laba'),
+            'coaIds' => array_values(array_map('intval', (array) old('coa_ids', []))),
+        ];
     }
-
-    $oldModalState = [
-        'hasErrors' => $errors->any(),
-        'target' => (string) old('_modal_target', ''),
-        'posId' => old('_pos_id') !== null && old('_pos_id') !== '' ? (int) old('_pos_id') : null,
-        'sifatPos' => (string) old('sifat_pos', 'penambah_laba'),
-        'coaIds' => array_values(array_map('intval', (array) old('coa_ids', []))),
-    ];
 @endphp
 
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // ---------------------------------------------------------------------
+        // 0. Pusat Panduan & Tur Interaktif Placeholder Alert
+        // ---------------------------------------------------------------------
+        const btnStartTour = document.getElementById('btnStartTour');
+        const tourAlert = document.getElementById('tourPlaceholderAlert');
+        if (btnStartTour && tourAlert) {
+            btnStartTour.addEventListener('click', function () {
+                tourAlert.classList.remove('d-none');
+                tourAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        }
+
+        @if ($activeMetode === 'langsung')
+        // ---------------------------------------------------------------------
+        // METODE LANGSUNG: Filters, Edit Handler & Modal Reopen
+        // ---------------------------------------------------------------------
+        const selectAktivitas = document.getElementById('selectAktivitasLangsung');
+        const formFilterLangsung = document.getElementById('formFilterLangsung');
+        if (selectAktivitas && formFilterLangsung) {
+            selectAktivitas.addEventListener('change', function () {
+                formFilterLangsung.submit();
+            });
+        }
+
+        const searchLangsungInput = document.getElementById('searchLangsungInput');
+        if (searchLangsungInput && formFilterLangsung) {
+            searchLangsungInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    formFilterLangsung.submit();
+                }
+            });
+        }
+
+        @if ($canUpdate)
+        const UPDATE_LANGSUNG_URL_TEMPLATE = '{{ route('pengaturan.arus-kas.langsung.update', ['referensi' => '__ID__']) }}';
+        const modalEditEl = document.getElementById('modalEditReferensi');
+        if (modalEditEl) {
+            const modalEdit = window.bootstrap && window.bootstrap.Modal
+                ? window.bootstrap.Modal.getOrCreateInstance(modalEditEl)
+                : new bootstrap.Modal(modalEditEl);
+
+            document.querySelectorAll('.btn-edit-referensi').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const id = this.getAttribute('data-id');
+                    const aktivitas = this.getAttribute('data-aktivitas');
+                    const nama = this.getAttribute('data-nama');
+                    const status = this.getAttribute('data-status');
+
+                    const form = document.getElementById('formEditReferensi');
+                    if (form) {
+                        form.action = UPDATE_LANGSUNG_URL_TEMPLATE.replace('__ID__', id);
+                    }
+
+                    const editIdEl = document.getElementById('editReferensiId');
+                    if (editIdEl) editIdEl.value = id;
+
+                    const editAktEl = document.getElementById('editReferensiAktivitas');
+                    if (editAktEl) editAktEl.value = aktivitas;
+
+                    const editLabelEl = document.getElementById('editAktivitasLabel');
+                    if (editLabelEl) editLabelEl.value = aktivitas;
+
+                    const editNamaEl = document.getElementById('editNama');
+                    if (editNamaEl) editNamaEl.value = nama;
+
+                    const editStatusEl = document.getElementById('editStatusAktif');
+                    if (editStatusEl) editStatusEl.value = status;
+
+                    modalEdit.show();
+                });
+            });
+        }
+        @endif
+
+        @if ($errors->any())
+            const oldTarget = '{{ old('_modal_target') }}';
+            if (oldTarget === 'modalTambahReferensi') {
+                const modalTambahEl = document.getElementById('modalTambahReferensi');
+                if (modalTambahEl && window.bootstrap && window.bootstrap.Modal) {
+                    window.bootstrap.Modal.getOrCreateInstance(modalTambahEl).show();
+                }
+            } else if (oldTarget === 'modalEditReferensi') {
+                const modalEditEl = document.getElementById('modalEditReferensi');
+                if (modalEditEl && window.bootstrap && window.bootstrap.Modal) {
+                    window.bootstrap.Modal.getOrCreateInstance(modalEditEl).show();
+                }
+            }
+        @endif
+
+        @else
+        // ---------------------------------------------------------------------
+        // METODE TIDAK LANGSUNG: Switcher, Table/Struktur, COA Pickers & Reorder
+        // ---------------------------------------------------------------------
         const VIEW_MODE_STORAGE_KEY = 'siakurat.pengaturan_arus_kas.view_mode';
 
-        // ---------------------------------------------------------------------
-        // 1. Dual-Mode View Switcher (Mode Tab vs Mode Struktur Laporan)
-        // ---------------------------------------------------------------------
         const viewModeTabEl = document.getElementById('viewModeTab');
         const viewModeStrukturEl = document.getElementById('viewModeStruktur');
         const modeButtons = document.querySelectorAll('[data-view-mode]');
@@ -69,7 +162,7 @@
                 try {
                     window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, normalizedMode);
                 } catch (err) {
-                    // Ignore storage failures in restricted browsers
+                    // Ignore storage failures
                 }
             }
         };
@@ -84,7 +177,6 @@
             savedViewMode = 'tab';
         }
 
-        // Jika user secara spesifik membuka tab atau melakukan search lewat URL/toolbar, dahulukan Mode Tab
         if (hasTabOrSearchParam) {
             savedViewMode = 'tab';
         }
@@ -104,9 +196,7 @@
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
 
-        // ---------------------------------------------------------------------
         // 1b. Mode Struktur Laporan: Expand All / Collapse All Sections
-        // ---------------------------------------------------------------------
         const btnExpandAllSections = document.getElementById('btnExpandAllSections');
         const btnCollapseAllSections = document.getElementById('btnCollapseAllSections');
 
@@ -134,50 +224,10 @@
             });
         }
 
-        // ---------------------------------------------------------------------
         // 1c. Modal Detail COA Terpetakan
-        // ---------------------------------------------------------------------
         const modalDetailCoaEl = document.getElementById('modalDetailCoaPos');
-        const detailCoaSubTitleEl = document.getElementById('detailCoaPosSubTitle');
-        const detailCoaListContainerEl = document.getElementById('detailCoaListContainer');
-        const detailCoaTotalCountEl = document.getElementById('detailCoaTotalCount');
-        const inputSearchDetailCoaEl = document.getElementById('inputSearchDetailCoa');
-        const detailCoaEmptyAlertEl = document.getElementById('detailCoaEmptyAlert');
-
-        let currentDetailCoas = [];
-
-        const renderDetailCoaList = (filterText = '') => {
-            if (!detailCoaListContainerEl) return;
-            const search = filterText.trim().toLowerCase();
-            const filtered = currentDetailCoas.filter((c) => {
-                if (!search) return true;
-                const kode = String(c.kode || '').toLowerCase();
-                const nama = String(c.nama || '').toLowerCase();
-                return kode.includes(search) || nama.includes(search);
-            });
-
-            detailCoaListContainerEl.innerHTML = '';
-            if (filtered.length === 0) {
-                if (detailCoaEmptyAlertEl) detailCoaEmptyAlertEl.classList.remove('d-none');
-            } else {
-                if (detailCoaEmptyAlertEl) detailCoaEmptyAlertEl.classList.add('d-none');
-                filtered.forEach((c) => {
-                    const li = document.createElement('li');
-                    li.className = 'list-group-item d-flex justify-content-between align-items-center py-2 px-3';
-                    const statusBadge = Number(c.status_aktif) !== 1
-                        ? '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small ms-1">Nonaktif</span>'
-                        : '';
-                    li.innerHTML = `
-                        <div class="me-2">
-                            <span class="font-monospace fw-semibold text-primary me-2">${escapeHtml(c.kode)}</span>
-                            <span class="text-dark">${escapeHtml(c.nama)}</span>
-                            ${statusBadge}
-                        </div>
-                    `;
-                    detailCoaListContainerEl.appendChild(li);
-                });
-            }
-        };
+        const detailCoaListEl = document.getElementById('modalDetailCoaList');
+        const detailCoaSubtitleEl = document.getElementById('modalDetailPosSubtitle');
 
         document.querySelectorAll('.btn-show-coas').forEach((btn) => {
             btn.addEventListener('click', function (e) {
@@ -190,33 +240,41 @@
                 } catch (err) {
                     coas = [];
                 }
-                currentDetailCoas = coas;
 
-                if (detailCoaSubTitleEl) {
-                    detailCoaSubTitleEl.textContent = `Pos: ${posName} (${posKode})`;
+                if (detailCoaSubtitleEl) {
+                    detailCoaSubtitleEl.textContent = `Pos: ${posName} (${posKode}) - Total ${coas.length} Akun COA`;
                 }
-                if (detailCoaTotalCountEl) {
-                    detailCoaTotalCountEl.textContent = `Total: ${coas.length} Akun Terpetakan`;
+
+                if (detailCoaListEl) {
+                    detailCoaListEl.innerHTML = '';
+                    if (coas.length === 0) {
+                        detailCoaListEl.innerHTML = '<li class="list-group-item text-muted text-center py-3">Tidak ada akun COA terpetakan.</li>';
+                    } else {
+                        coas.forEach((c) => {
+                            const li = document.createElement('li');
+                            li.className = 'list-group-item d-flex justify-content-between align-items-center py-2 px-3';
+                            const statusBadge = Number(c.status_aktif) !== 1
+                                ? '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small ms-1">Nonaktif</span>'
+                                : '';
+                            li.innerHTML = `
+                                <div class="me-2">
+                                    <span class="font-monospace fw-semibold text-primary me-2">${escapeHtml(c.kode)}</span>
+                                    <span class="text-dark">${escapeHtml(c.nama)}</span>
+                                    ${statusBadge}
+                                </div>
+                            `;
+                            detailCoaListEl.appendChild(li);
+                        });
+                    }
                 }
-                if (inputSearchDetailCoaEl) {
-                    inputSearchDetailCoaEl.value = '';
-                }
-                renderDetailCoaList('');
+
                 if (modalDetailCoaEl && window.bootstrap && window.bootstrap.Modal) {
                     window.bootstrap.Modal.getOrCreateInstance(modalDetailCoaEl).show();
                 }
             });
         });
 
-        if (inputSearchDetailCoaEl) {
-            inputSearchDetailCoaEl.addEventListener('input', function () {
-                renderDetailCoaList(this.value);
-            });
-        }
-
-        // ---------------------------------------------------------------------
         // 1d. Toolbar Search Input (Submit on Enter)
-        // ---------------------------------------------------------------------
         const searchArusKasInputEl = document.getElementById('searchArusKasInput');
         const formSearchArusKasEl = document.getElementById('formSearchArusKas');
         if (searchArusKasInputEl && formSearchArusKasEl) {
@@ -232,10 +290,10 @@
         const COA_META = @json($coaOptionsPayload);
         const MAX_URUTAN_BY_BAGIAN = @json($maxUrutanByBagian);
         const OLD_MODAL_STATE = @json($oldModalState);
-        const PARENT_LEAVES_URL = '{{ route('pengaturan.arus-kas.parent-coa-leaves') }}';
-        const STORE_POS_URL = '{{ route('pengaturan.arus-kas.store') }}';
-        const UPDATE_POS_URL_TEMPLATE = '{{ route('pengaturan.arus-kas.update', ['settingArusKas' => '__POS_ID__']) }}';
-        const REORDER_URL = '{{ route('pengaturan.arus-kas.reorder') }}';
+        const PARENT_LEAVES_URL = '{{ route('pengaturan.arus-kas.tidak-langsung.parent-coa-leaves') }}';
+        const STORE_POS_URL = '{{ route('pengaturan.arus-kas.tidak-langsung.store') }}';
+        const UPDATE_POS_URL_TEMPLATE = '{{ route('pengaturan.arus-kas.tidak-langsung.update', ['settingArusKas' => '__POS_ID__']) }}';
+        const REORDER_URL = '{{ route('pengaturan.arus-kas.tidak-langsung.reorder') }}';
         const CSRF_TOKEN = '{{ csrf_token() }}';
 
         const $ = window.jQuery;
@@ -243,34 +301,6 @@
         const tipeLabaRugiSet = new Set(COA_META.tipeLabaRugi || []);
         const sifatLabaRugiSet = new Set(COA_META.sifatLabaRugi || []);
         const leafCoaById = new Map((COA_META.leafCoas || []).map((coa) => [Number(coa.id), coa]));
-
-        // ---------------------------------------------------------------------
-        // 2. Shared Select2 & COA Filtering Helpers
-        // ---------------------------------------------------------------------
-        const initSelect2InModal = (selector, modalSelector, placeholderText, isMultiple = false) => {
-            if (!($ && $.fn && $.fn.select2)) {
-                return null;
-            }
-            const $el = $(selector);
-            const $modal = $(modalSelector);
-            if (!$el.length || !$modal.length) {
-                return null;
-            }
-            if ($el.data('select2')) {
-                return $el;
-            }
-
-            $el.select2({
-                theme: 'bootstrap-5',
-                width: '100%',
-                dropdownParent: $modal,
-                placeholder: placeholderText,
-                allowClear: true,
-                closeOnSelect: !isMultiple,
-            });
-
-            return $el;
-        };
 
         const isCoaCompatibleWithMode = (coa, modeOrSifat) => {
             const isLabaRugiCoa = tipeLabaRugiSet.has(String(coa.tipe_coa || ''));
@@ -326,18 +356,11 @@
                 option.selected = !disabled && selectedSet.has(coaId);
                 selectEl.appendChild(option);
             });
-
-            if ($ && $.fn && $.fn.select2) {
-                $(selectEl).trigger('change');
-            }
         };
 
         const getSelectedValues = (selectEl) => {
             if (!selectEl) {
                 return [];
-            }
-            if ($ && $(selectEl).data('select2')) {
-                return ($(selectEl).val() || []).map((val) => Number(val));
             }
             return Array.from(selectEl.selectedOptions).map((opt) => Number(opt.value));
         };
@@ -352,16 +375,13 @@
                     opt.selected = idSet.has(opt.value);
                 }
             });
-            if ($ && $(selectEl).data('select2')) {
-                $(selectEl).val(Array.from(idSet)).trigger('change');
-            }
         };
 
         const resetFeedback = (feedbackEl) => {
             if (!feedbackEl) {
                 return;
             }
-            feedbackEl.className = 'small mt-2 d-none';
+            feedbackEl.className = 'small text-muted mb-2 d-none';
             feedbackEl.innerHTML = '';
         };
 
@@ -374,7 +394,7 @@
             const skippedCount = skipped.length;
 
             if (eligibleCount === 0 && skippedCount === 0) {
-                feedbackEl.className = 'small mt-2 alert alert-secondary py-2 px-3 mb-0';
+                feedbackEl.className = 'small text-muted mb-2 alert alert-secondary py-2 px-3';
                 feedbackEl.textContent = 'Tidak ditemukan akun child (detail) di bawah akun induk yang dipilih.';
                 return;
             }
@@ -403,7 +423,7 @@
                 `;
             }
 
-            feedbackEl.className = `small mt-2 alert ${eligibleCount > 0 ? 'alert-light border' : 'alert-warning'} py-2 px-3 mb-0`;
+            feedbackEl.className = `small mb-2 alert ${eligibleCount > 0 ? 'alert-light border' : 'alert-warning'} py-2 px-3`;
             feedbackEl.innerHTML = html;
         };
 
@@ -423,7 +443,7 @@
                 const parentId = parentSelectEl.value;
                 if (!parentId) {
                     if (feedbackEl) {
-                        feedbackEl.className = 'small mt-2 alert alert-warning py-2 px-3 mb-0';
+                        feedbackEl.className = 'small text-muted mb-2 alert alert-warning py-2 px-3';
                         feedbackEl.textContent = 'Pilih akun induk (parent COA) terlebih dahulu.';
                     }
                     return;
@@ -474,7 +494,7 @@
                     renderParentLeavesFeedback(feedbackEl, eligible, skipped);
                 } catch (err) {
                     if (feedbackEl) {
-                        feedbackEl.className = 'small mt-2 alert alert-danger py-2 px-3 mb-0';
+                        feedbackEl.className = 'small text-muted mb-2 alert alert-danger py-2 px-3';
                         feedbackEl.textContent = err.message || 'Terjadi kesalahan saat mengambil daftar child COA.';
                     }
                 } finally {
@@ -484,15 +504,12 @@
             });
         };
 
-        // ---------------------------------------------------------------------
-        // 3. Modal Pos Arus Kas Initialization & Handlers
-        // ---------------------------------------------------------------------
+        // 3. Modal Pos Arus Kas
         const modalPosEl = document.getElementById('modalPosArusKas');
         const formPosEl = document.getElementById('formPosArusKas');
         const posMethodInput = document.getElementById('posFormMethod');
         const posIdInput = document.getElementById('posFormId');
         const modalPosTitleEl = document.getElementById('modalPosArusKasLabel');
-        const btnSubmitPosLabelEl = document.getElementById('btnSubmitPosArusKasLabel');
         const posBagianSelect = document.getElementById('posKelompokBagian');
         const posSifatSelect = document.getElementById('posSifatPos');
         const posNamaInput = document.getElementById('posNamaPos');
@@ -504,9 +521,6 @@
         const btnAddParentLeavesEl = document.getElementById('btnAddParentLeaves');
         const parentLeavesFeedbackEl = document.getElementById('parentLeavesFeedback');
         const coaIdsSelectEl = document.getElementById('coaIdsSelect');
-
-        initSelect2InModal('#parentCoaSelect', '#modalPosArusKas', 'Pilih Akun Induk (Parent COA)...', false);
-        initSelect2InModal('#coaIdsSelect', '#modalPosArusKas', 'Pilih satu atau lebih akun COA...', true);
 
         const defaultSifatForBagian = (bagian) => {
             switch (bagian) {
@@ -538,20 +552,11 @@
                 return;
             }
             const isLabaRugi = sifatLabaRugiSet.has(posSifatSelect.value);
-            const prefixHelpEl = document.getElementById('posPrefixHelp');
             if (isLabaRugi) {
                 posPakaiPrefixInput.checked = false;
                 posPakaiPrefixInput.disabled = true;
-                if (prefixHelpEl) {
-                    prefixHelpEl.textContent = 'Tidak berlaku untuk pos penyesuaian laba rugi non-kas.';
-                    prefixHelpEl.className = 'text-warning-emphasis small mt-0.5';
-                }
             } else {
                 posPakaiPrefixInput.disabled = false;
-                if (prefixHelpEl) {
-                    prefixHelpEl.textContent = 'Disesuaikan otomatis dengan mutasi saldo akun Neraca.';
-                    prefixHelpEl.className = 'text-muted small mt-0.5';
-                }
             }
         };
 
@@ -581,9 +586,6 @@
             if (modalPosTitleEl) {
                 modalPosTitleEl.innerHTML = '<i class="bi bi-plus-circle text-success me-1"></i> Tambah Pos Arus Kas';
             }
-            if (btnSubmitPosLabelEl) {
-                btnSubmitPosLabelEl.textContent = 'Simpan Pos Arus Kas';
-            }
 
             const resolvedBagian = kelompokBagian || 'penyesuaian_laba';
             const resolvedSifat = sifatPos || defaultSifatForBagian(resolvedBagian);
@@ -601,9 +603,6 @@
 
             if (parentCoaSelectEl) {
                 parentCoaSelectEl.value = '';
-                if ($ && $(parentCoaSelectEl).data('select2')) {
-                    $(parentCoaSelectEl).val('').trigger('change');
-                }
             }
             resetFeedback(parentLeavesFeedbackEl);
             syncPrefixToggleState();
@@ -652,9 +651,6 @@
             if (modalPosTitleEl) {
                 modalPosTitleEl.innerHTML = '<i class="bi bi-pencil-square text-primary me-1"></i> Edit Pos Arus Kas';
             }
-            if (btnSubmitPosLabelEl) {
-                btnSubmitPosLabelEl.textContent = 'Perbarui Pos Arus Kas';
-            }
 
             if (posBagianSelect) posBagianSelect.value = kelompokBagian;
             if (posSifatSelect) posSifatSelect.value = sifatPos;
@@ -666,9 +662,6 @@
 
             if (parentCoaSelectEl) {
                 parentCoaSelectEl.value = '';
-                if ($ && $(parentCoaSelectEl).data('select2')) {
-                    $(parentCoaSelectEl).val('').trigger('change');
-                }
             }
             resetFeedback(parentLeavesFeedbackEl);
             syncPrefixToggleState();
@@ -718,18 +711,13 @@
             getIgnorePosId: getCurrentIgnorePosId,
         });
 
-        // ---------------------------------------------------------------------
-        // 4. Modal Pengecualian Arus Kas Initialization & Handlers
-        // ---------------------------------------------------------------------
+        // 4. Modal Pengecualian Arus Kas
         const modalPengecualianEl = document.getElementById('modalPengecualianArusKas');
         const pengecualianParentEl = document.getElementById('pengecualianParentCoaSelect');
         const btnAddPengecualianLeavesEl = document.getElementById('btnAddPengecualianParentLeaves');
         const pengecualianFeedbackEl = document.getElementById('pengecualianParentLeavesFeedback');
         const pengecualianCoaSelectEl = document.getElementById('pengecualianCoaIdsSelect');
         const pengecualianAlasanEl = document.getElementById('pengecualianAlasan');
-
-        initSelect2InModal('#pengecualianParentCoaSelect', '#modalPengecualianArusKas', 'Pilih Akun Induk (Parent COA)...', false);
-        initSelect2InModal('#pengecualianCoaIdsSelect', '#modalPengecualianArusKas', 'Pilih akun Neraca yang dikecualikan...', true);
 
         const openPengecualianModal = (preselectedCoaIds = []) => {
             if (!modalPengecualianEl) {
@@ -741,9 +729,6 @@
             }
             if (pengecualianParentEl) {
                 pengecualianParentEl.value = '';
-                if ($ && $(pengecualianParentEl).data('select2')) {
-                    $(pengecualianParentEl).val('').trigger('change');
-                }
             }
             if (pengecualianAlasanEl) {
                 pengecualianAlasanEl.value = '';
@@ -771,9 +756,7 @@
             getIgnorePosId: () => null,
         });
 
-        // ---------------------------------------------------------------------
-        // 5. Unmapped Mutated Neraca Banner Quick-Action Hooks
-        // ---------------------------------------------------------------------
+        // 5. Unmapped Mutated Neraca Quick-Action Hooks
         document.querySelectorAll('.btn-quick-map-unmapped').forEach((btn) => {
             btn.addEventListener('click', function () {
                 const coaId = Number(this.getAttribute('data-coa-id'));
@@ -804,9 +787,7 @@
         });
 
         @if ($canUpdate)
-        // ---------------------------------------------------------------------
-        // 6. Struktur Laporan Row Reorder (↑ / ↓)
-        // ---------------------------------------------------------------------
+        // 6. Struktur Laporan Row Reorder
         const refreshSectionOrderControls = (tbody) => {
             const rows = Array.from(tbody.querySelectorAll('tr[data-pos-id]'));
             rows.forEach((tr, index) => {
@@ -890,9 +871,7 @@
         });
         @endif
 
-        // ---------------------------------------------------------------------
         // 7. Auto-reopen Modal on Validation Errors ($errors->any())
-        // ---------------------------------------------------------------------
         if (OLD_MODAL_STATE.hasErrors && window.bootstrap && window.bootstrap.Modal) {
             if (OLD_MODAL_STATE.target === 'modalPengecualianArusKas' && modalPengecualianEl) {
                 populateCoaSelect(pengecualianCoaSelectEl, {
@@ -911,6 +890,7 @@
                 window.bootstrap.Modal.getOrCreateInstance(modalPosEl).show();
             }
         }
+        @endif
         @endif
     });
 </script>

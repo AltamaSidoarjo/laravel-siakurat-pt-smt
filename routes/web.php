@@ -25,7 +25,6 @@ use App\Http\Controllers\Pengaturan\MappingPendapatanController;
 use App\Http\Controllers\Pengaturan\PengaturanArusKasController;
 use App\Http\Controllers\Pengaturan\PenggunaController;
 use App\Http\Controllers\Pengaturan\PreferensiController;
-use App\Http\Controllers\Pengaturan\ReferensiKelompokArusKasController;
 use App\Http\Controllers\Pengaturan\RoleAksesController;
 use App\Http\Controllers\Pengaturan\SettingIndikatorKinerjaController;
 use App\Http\Controllers\Pengaturan\SettingRbaController;
@@ -426,52 +425,52 @@ Route::middleware('auth')->group(function () {
             Route::delete('/setting-indikator-kinerja/variabel/{variabelManual}', [SettingIndikatorKinerjaController::class, 'destroyVariabel'])->name('setting-indikator-kinerja.destroy-variabel');
         });
 
-        Route::prefix('referensi-kelompok-arus-kas')->name('referensi-kelompok-arus-kas.')->group(function () {
-            Route::get('/', [ReferensiKelompokArusKasController::class, 'index'])
-                ->middleware('module.access:pengaturan.referensi-kelompok-arus-kas,view')
-                ->name('index');
-            Route::post('/', [ReferensiKelompokArusKasController::class, 'store'])
-                ->middleware('module.access:pengaturan.referensi-kelompok-arus-kas,create')
-                ->name('store');
-            Route::put('/{referensi}', [ReferensiKelompokArusKasController::class, 'update'])
-                ->middleware('module.access:pengaturan.referensi-kelompok-arus-kas,update')
-                ->name('update');
-            Route::delete('/{referensi}', [ReferensiKelompokArusKasController::class, 'destroy'])
-                ->middleware('module.access:pengaturan.referensi-kelompok-arus-kas,delete')
-                ->name('destroy');
-            Route::patch('/{referensi}/toggle', [ReferensiKelompokArusKasController::class, 'toggleStatus'])
-                ->middleware('module.access:pengaturan.referensi-kelompok-arus-kas,update')
-                ->name('toggle');
-        });
-
         Route::prefix('arus-kas')->name('arus-kas.')->group(function () {
             Route::get('/', [PengaturanArusKasController::class, 'index'])
                 ->middleware('module.access:pengaturan.arus-kas,view')
                 ->name('index');
-            Route::get('/parent-coa-leaves', [PengaturanArusKasController::class, 'parentCoaLeaves'])
-                ->middleware('module.access:pengaturan.arus-kas,view')
-                ->name('parent-coa-leaves');
-            Route::post('/', [PengaturanArusKasController::class, 'store'])
-                ->middleware('module.access:pengaturan.arus-kas,create')
-                ->name('store');
-            Route::patch('/reorder', [PengaturanArusKasController::class, 'reorder'])
-                ->middleware('module.access:pengaturan.arus-kas,update')
-                ->name('reorder');
-            Route::post('/pengecualian', [PengaturanArusKasController::class, 'storePengecualian'])
-                ->middleware('module.access:pengaturan.arus-kas,create')
-                ->name('pengecualian.store');
-            Route::delete('/pengecualian/{pengecualian}', [PengaturanArusKasController::class, 'destroyPengecualian'])
-                ->middleware('module.access:pengaturan.arus-kas,delete')
-                ->name('pengecualian.destroy');
-            Route::put('/{settingArusKas}', [PengaturanArusKasController::class, 'update'])
-                ->middleware('module.access:pengaturan.arus-kas,update')
-                ->name('update');
-            Route::patch('/{settingArusKas}/toggle', [PengaturanArusKasController::class, 'toggleStatus'])
-                ->middleware('module.access:pengaturan.arus-kas,update')
-                ->name('toggle');
-            Route::delete('/{settingArusKas}', [PengaturanArusKasController::class, 'destroy'])
-                ->middleware('module.access:pengaturan.arus-kas,delete')
-                ->name('destroy');
+
+            Route::prefix('langsung')->name('langsung.')->group(function () {
+                Route::post('/', [PengaturanArusKasController::class, 'storeLangsung'])
+                    ->middleware('module.access:pengaturan.arus-kas,create')
+                    ->name('store');
+                Route::put('/{referensi}', [PengaturanArusKasController::class, 'updateLangsung'])
+                    ->middleware('module.access:pengaturan.arus-kas,update')
+                    ->name('update');
+                Route::patch('/{referensi}/toggle', [PengaturanArusKasController::class, 'toggleStatusLangsung'])
+                    ->middleware('module.access:pengaturan.arus-kas,update')
+                    ->name('toggle');
+                Route::delete('/{referensi}', [PengaturanArusKasController::class, 'destroyLangsung'])
+                    ->middleware('module.access:pengaturan.arus-kas,delete')
+                    ->name('destroy');
+            });
+
+            Route::prefix('tidak-langsung')->name('tidak-langsung.')->group(function () {
+                Route::get('/parent-coa-leaves', [PengaturanArusKasController::class, 'parentCoaLeaves'])
+                    ->middleware('module.access:pengaturan.arus-kas,view')
+                    ->name('parent-coa-leaves');
+                Route::post('/', [PengaturanArusKasController::class, 'store'])
+                    ->middleware('module.access:pengaturan.arus-kas,create')
+                    ->name('store');
+                Route::patch('/reorder', [PengaturanArusKasController::class, 'reorder'])
+                    ->middleware('module.access:pengaturan.arus-kas,update')
+                    ->name('reorder');
+                Route::post('/pengecualian', [PengaturanArusKasController::class, 'storePengecualian'])
+                    ->middleware('module.access:pengaturan.arus-kas,create')
+                    ->name('pengecualian.store');
+                Route::delete('/pengecualian/{pengecualian}', [PengaturanArusKasController::class, 'destroyPengecualian'])
+                    ->middleware('module.access:pengaturan.arus-kas,delete')
+                    ->name('pengecualian.destroy');
+                Route::put('/{settingArusKas}', [PengaturanArusKasController::class, 'update'])
+                    ->middleware('module.access:pengaturan.arus-kas,update')
+                    ->name('update');
+                Route::patch('/{settingArusKas}/toggle', [PengaturanArusKasController::class, 'toggleStatus'])
+                    ->middleware('module.access:pengaturan.arus-kas,update')
+                    ->name('toggle');
+                Route::delete('/{settingArusKas}', [PengaturanArusKasController::class, 'destroy'])
+                    ->middleware('module.access:pengaturan.arus-kas,delete')
+                    ->name('destroy');
+            });
         });
     });
 });
