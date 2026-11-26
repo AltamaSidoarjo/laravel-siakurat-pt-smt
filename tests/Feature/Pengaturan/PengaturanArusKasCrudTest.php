@@ -1055,4 +1055,132 @@ class PengaturanArusKasCrudTest extends TestCase
         $emptySearchRes->assertStatus(200);
         $emptySearchRes->assertSee('Tidak ada akun dikecualikan yang cocok dengan pencarian.');
     }
+
+    public function test_langsung_endpoints_view_data_and_coa_search(): void
+    {
+        $refOperasi = ReferensiKelompokArusKas::create([
+            'aktivitas' => 'operasi',
+            'nama' => 'Penerimaan Rawat Inap',
+            'status_aktif' => true,
+        ]);
+
+        $parentCoa = Coa::create([
+            'kode' => '410',
+            'nama' => 'Pendapatan Rawat Inap',
+            'tipe_coa' => 'Pendapatan',
+            'status_aktif' => 1,
+            'arus_kas_aktivitas' => 'operasi',
+            'arus_kas_kelompok' => 'Penerimaan Rawat Inap',
+        ]);
+
+        $leafCoa1 = Coa::create([
+            'parent_coa' => $parentCoa->id,
+            'kode' => '410.01',
+            'nama' => 'Tarif Kamar VIP',
+            'tipe_coa' => 'Pendapatan',
+            'status_aktif' => 1,
+            'arus_kas_aktivitas' => 'operasi',
+            'arus_kas_kelompok' => 'Penerimaan Rawat Inap',
+        ]);
+
+        $leafCoa2 = Coa::create([
+            'parent_coa' => $parentCoa->id,
+            'kode' => '410.02',
+            'nama' => 'Tarif Kamar Kelas 1',
+            'tipe_coa' => 'Pendapatan',
+            'status_aktif' => 1,
+            'arus_kas_aktivitas' => null,
+            'arus_kas_kelompok' => null,
+        ]);
+
+        $kasbankCoa = Coa::create([
+            'kode' => '111.05',
+            'nama' => 'Bank BCA',
+            'tipe_coa' => 'Kasbank',
+            'status_aktif' => 1,
+        ]);
+
+        // 1. Index langsung view data verification
+        $resIndex = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
+        $resIndex->assertStatus(200);
+        $resIndex->assertViewHas('unmappedLangsungAccounts');
+        $resIndex->assertViewHas('langsungCoaOptionsData');
+        $resIndex->assertViewHas('activeReferensiOptions');
+
+        $referensiList = $resIndex->viewData('referensiList');
+        $this->assertNotNull($referensiList);
+        $firstRef = $referensiList->firstWhere('id', $refOperasi->id);
+        $this->assertNotNull($firstRef);
+        $this->assertSame(1, $firstRef->coa_count); // leafCoa1
+        $this->assertSame(1, $firstRef->parent_coa_count); // parentCoa
+        $this->assertCount(1, $firstRef->mapped_leaf_coas);
+        $this->assertCount(1, $firstRef->mapped_parent_coas);
+
+        // 2. Search matches leaf COA nama or kode
+        $resSearch = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', [
+            'metode' => 'langsung',
+            'search' => 'Kamar VIP',
+        ]));
+        $resSearch->assertStatus(200);
+        $resSearch->assertSee('Penerimaan Rawat Inap');
+
+        $resSearchNotFound = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', [
+            'metode' => 'langsung',
+            'search' => 'TidakAdaAkunSamaSekali',
+        ]));
+        $resSearchNotFound->assertStatus(200);
+        $resSearchNotFound->assertDontSee('Penerimaan Rawat Inap');
+
+        // 3. parentCoaLeavesLangsung returns JSON structure
+        $resLeaves = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.langsung.parent-coa-leaves', [
+            'parent_id' => $parentCoa->id,
+            'ignore_referensi_id' => $refOperasi->id,
+        ]));
+        $resLeaves->assertStatus(200);
+        $resLeaves->assertJsonStructure(['eligible', 'reassignable', 'skipped']);
+
+        // 4. quickMapLangsung maps leaf COA directly
+        $resQuickMap = $this->actingAs($this->admin)->post(route('pengaturan.arus-kas.langsung.quick-map'), [
+            'coa_id' => $leafCoa2->id,
+            'referensi_id' => $refOperasi->id,
+        ]);
+        $resQuickMap->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
+        $resQuickMap->assertSessionHas('success');
+        $this->assertSame('operasi', $leafCoa2->fresh()->arus_kas_aktivitas);
+        $this->assertSame('Penerimaan Rawat Inap', $leafCoa2->fresh()->arus_kas_kelompok);
+
+        // 5. quickMapLangsung fails on Kasbank COA
+        $resQuickMapKasbank = $this->actingAs($this->admin)->post(route('pengaturan.arus-kas.langsung.quick-map'), [
+            'coa_id' => $kasbankCoa->id,
+            'referensi_id' => $refOperasi->id,
+        ]);
+        $resQuickMapKasbank->assertSessionHasErrors('coa_id');
+
+        // 6. storeLangsung with coa_ids syncs mappings
+        $leafCoa3 = Coa::create([
+            'kode' => '520.01',
+            'nama' => 'Beban Perjalanan Dinas',
+            'tipe_coa' => 'Beban',
+            'status_aktif' => 1,
+        ]);
+
+        $resStoreWithCoas = $this->actingAs($this->admin)->post(route('pengaturan.arus-kas.langsung.store'), [
+            'aktivitas' => 'operasi',
+            'nama' => 'Beban Perjalanan',
+            'status_aktif' => '1',
+            'coa_ids' => [$leafCoa3->id],
+        ]);
+        $resStoreWithCoas->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
+        $this->assertSame('Beban Perjalanan', $leafCoa3->fresh()->arus_kas_kelompok);
+
+        // 7. updateLangsung with empty sentinel clears mappings
+        $refCreated = ReferensiKelompokArusKas::where('nama', 'Beban Perjalanan')->firstOrFail();
+        $resUpdateClear = $this->actingAs($this->admin)->put(route('pengaturan.arus-kas.langsung.update', $refCreated), [
+            'nama' => 'Beban Perjalanan Update',
+            'status_aktif' => '1',
+            'coa_ids' => '',
+        ]);
+        $resUpdateClear->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
+        $this->assertNull($leafCoa3->fresh()->arus_kas_kelompok);
+    }
 }

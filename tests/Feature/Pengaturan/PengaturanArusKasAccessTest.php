@@ -29,6 +29,8 @@ class PengaturanArusKasAccessTest extends TestCase
 
     private ReferensiKelompokArusKas $referensi;
 
+    private Coa $parentCoa;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -110,6 +112,21 @@ class PengaturanArusKasAccessTest extends TestCase
         $this->pengecualian = SettingArusKasPengecualian::create([
             'coa_id' => $coa->id,
             'alasan' => 'Akun kontra',
+        ]);
+
+        $this->parentCoa = Coa::create([
+            'kode' => '100',
+            'nama' => 'Aset',
+            'tipe_coa' => 'Aset',
+            'status_aktif' => 1,
+        ]);
+
+        Coa::create([
+            'parent_coa' => $this->parentCoa->id,
+            'kode' => '100.01',
+            'nama' => 'Kas Operasional',
+            'tipe_coa' => 'Kasbank',
+            'status_aktif' => 1,
         ]);
     }
 
@@ -236,6 +253,14 @@ class PengaturanArusKasAccessTest extends TestCase
             ->delete(route('pengaturan.arus-kas.langsung.destroy', $this->referensi))
             ->assertStatus(403);
 
+        $this->actingAs($this->unauthorizedUser)
+            ->get(route('pengaturan.arus-kas.langsung.parent-coa-leaves', ['parent_id' => $this->parentCoa->id]))
+            ->assertStatus(403);
+
+        $this->actingAs($this->unauthorizedUser)
+            ->post(route('pengaturan.arus-kas.langsung.quick-map'), [])
+            ->assertStatus(403);
+
         // 7-13. Tidak Langsung Routes
         $this->actingAs($this->unauthorizedUser)
             ->get(route('pengaturan.arus-kas.tidak-langsung.parent-coa-leaves', ['parent_id' => 1]))
@@ -290,16 +315,21 @@ class PengaturanArusKasAccessTest extends TestCase
         $indexTidakLangsungResponse->assertDontSee(route('pengaturan.arus-kas.tidak-langsung.destroy', $this->pos));
         $indexTidakLangsungResponse->assertDontSee(route('pengaturan.arus-kas.tidak-langsung.pengecualian.destroy', $this->pengecualian));
 
-        // 3. GET parent-coa-leaves
+        // 3. GET parent-coa-leaves (tidak langsung dan langsung)
         $this->actingAs($this->viewerOnly)
             ->get(route('pengaturan.arus-kas.tidak-langsung.parent-coa-leaves', ['parent_id' => 1]))
             ->assertStatus(200);
 
-        // 4. Semua 11 route mutasi mengembalikan 403
+        $this->actingAs($this->viewerOnly)
+            ->get(route('pengaturan.arus-kas.langsung.parent-coa-leaves', ['parent_id' => $this->parentCoa->id]))
+            ->assertStatus(200);
+
+        // 4. Semua route mutasi mengembalikan 403
         $this->actingAs($this->viewerOnly)->post(route('pengaturan.arus-kas.langsung.store'), [])->assertStatus(403);
         $this->actingAs($this->viewerOnly)->put(route('pengaturan.arus-kas.langsung.update', $this->referensi), [])->assertStatus(403);
         $this->actingAs($this->viewerOnly)->patch(route('pengaturan.arus-kas.langsung.toggle', $this->referensi))->assertStatus(403);
         $this->actingAs($this->viewerOnly)->delete(route('pengaturan.arus-kas.langsung.destroy', $this->referensi))->assertStatus(403);
+        $this->actingAs($this->viewerOnly)->post(route('pengaturan.arus-kas.langsung.quick-map'), [])->assertStatus(403);
 
         $this->actingAs($this->viewerOnly)->post(route('pengaturan.arus-kas.tidak-langsung.store'), [])->assertStatus(403);
         $this->actingAs($this->viewerOnly)->put(route('pengaturan.arus-kas.tidak-langsung.update', $this->pos), [])->assertStatus(403);
@@ -321,6 +351,11 @@ class PengaturanArusKasAccessTest extends TestCase
             ->get(route('pengaturan.arus-kas.tidak-langsung.parent-coa-leaves', ['parent_id' => 1]))
             ->assertStatus(200)
             ->assertJsonStructure(['eligible', 'skipped']);
+
+        $this->actingAs($this->admin)
+            ->get(route('pengaturan.arus-kas.langsung.parent-coa-leaves', ['parent_id' => $this->parentCoa->id]))
+            ->assertStatus(200)
+            ->assertJsonStructure(['eligible', 'reassignable', 'skipped']);
 
         Auth::login($this->admin);
         $adminSidebar = view('partials.sidebar')->render();

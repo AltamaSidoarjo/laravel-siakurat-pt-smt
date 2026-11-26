@@ -434,6 +434,12 @@ Route::middleware('auth')->group(function () {
                 Route::post('/', [PengaturanArusKasController::class, 'storeLangsung'])
                     ->middleware('module.access:pengaturan.arus-kas,create')
                     ->name('store');
+                Route::get('/parent-coa-leaves', [PengaturanArusKasController::class, 'parentCoaLeavesLangsung'])
+                    ->middleware('module.access:pengaturan.arus-kas,view')
+                    ->name('parent-coa-leaves');
+                Route::post('/quick-map', [PengaturanArusKasController::class, 'quickMapLangsung'])
+                    ->middleware('module.access:pengaturan.arus-kas,update')
+                    ->name('quick-map');
                 Route::put('/{referensi}', [PengaturanArusKasController::class, 'updateLangsung'])
                     ->middleware('module.access:pengaturan.arus-kas,update')
                     ->name('update');

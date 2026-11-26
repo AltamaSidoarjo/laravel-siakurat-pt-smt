@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Pengaturan;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Pengaturan\QuickMapReferensiKelompokArusKasRequest;
 use App\Http\Requests\Pengaturan\ReorderSettingArusKasRequest;
 use App\Http\Requests\Pengaturan\StorePengecualianArusKasRequest;
 use App\Http\Requests\Pengaturan\StoreReferensiKelompokArusKasRequest;
@@ -29,8 +30,7 @@ class PengaturanArusKasController extends Controller
     public function __construct(
         private readonly PengaturanArusKasService $service,
         private readonly ReferensiKelompokArusKasService $referensiService,
-    ) {
-    }
+    ) {}
 
     /**
      * Display cash flow settings for direct or indirect method based on active tab.
@@ -94,6 +94,9 @@ class PengaturanArusKasController extends Controller
             $referensiList = $langsungData['referensiList'];
             $aktivitas = $langsungData['aktivitas'];
             $search = $langsungData['search'];
+            $unmappedLangsungAccounts = $langsungData['unmappedLangsungAccounts'];
+            $langsungCoaOptionsData = $langsungData['langsungCoaOptionsData'];
+            $activeReferensiOptions = $langsungData['activeReferensiOptions'];
         } else {
             $tidakLangsungData = $this->buildTidakLangsungViewData($request);
 
@@ -117,6 +120,13 @@ class PengaturanArusKasController extends Controller
 
             $referensiList = null;
             $aktivitas = 'semua';
+            $unmappedLangsungAccounts = collect();
+            $langsungCoaOptionsData = [
+                'leafCoas' => collect(),
+                'parentCoas' => collect(),
+                'mappedByCoaId' => [],
+            ];
+            $activeReferensiOptions = collect();
         }
 
         $activeTab = $activeBagian;
@@ -138,6 +148,9 @@ class PengaturanArusKasController extends Controller
             'coaOptionsData',
             'kelompokBagianLabels',
             'sifatPosLabels',
+            'unmappedLangsungAccounts',
+            'langsungCoaOptionsData',
+            'activeReferensiOptions',
         ));
     }
 
@@ -146,7 +159,14 @@ class PengaturanArusKasController extends Controller
      */
     public function storeLangsung(StoreReferensiKelompokArusKasRequest $request): RedirectResponse
     {
-        $this->referensiService->store($request->validated());
+        try {
+            $this->referensiService->store($request->validated());
+        } catch (DomainException $e) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', $e->getMessage());
+        }
 
         return redirect()
             ->route('pengaturan.arus-kas.index', ['metode' => 'langsung'])
@@ -158,7 +178,14 @@ class PengaturanArusKasController extends Controller
      */
     public function updateLangsung(UpdateReferensiKelompokArusKasRequest $request, ReferensiKelompokArusKas $referensi): RedirectResponse
     {
-        $this->referensiService->update($referensi, $request->validated());
+        try {
+            $this->referensiService->update($referensi, $request->validated());
+        } catch (DomainException $e) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', $e->getMessage());
+        }
 
         return redirect()
             ->route('pengaturan.arus-kas.index', ['metode' => 'langsung'])
@@ -199,6 +226,48 @@ class PengaturanArusKasController extends Controller
         return redirect()
             ->route('pengaturan.arus-kas.index', ['metode' => 'langsung'])
             ->with('success', 'Pos referensi kelompok arus kas berhasil dihapus.');
+    }
+
+    /**
+     * Expand descendant leaf COAs under a parent COA for direct cash flow mapping modal.
+     */
+    public function parentCoaLeavesLangsung(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'parent_id' => ['required', 'integer', 'min:1'],
+            'ignore_referensi_id' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $result = $this->referensiService->getLeafDescendantsByParent(
+            (int) $validated['parent_id'],
+            isset($validated['ignore_referensi_id']) ? (int) $validated['ignore_referensi_id'] : null,
+        );
+
+        return response()->json($result);
+    }
+
+    /**
+     * Quickly map an unmapped COA directly to an active reference group.
+     */
+    public function quickMapLangsung(QuickMapReferensiKelompokArusKasRequest $request): RedirectResponse
+    {
+        $validated = $request->validated();
+
+        try {
+            $result = $this->referensiService->quickMapCoa(
+                (int) $validated['coa_id'],
+                (int) $validated['referensi_id'],
+            );
+        } catch (DomainException $e) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('pengaturan.arus-kas.index', ['metode' => 'langsung'])
+            ->with('success', "Akun '{$result['coa']->kode} - {$result['coa']->nama}' berhasil dipetakan ke kelompok '{$result['referensi']->nama}'.");
     }
 
     /**
@@ -378,30 +447,99 @@ class PengaturanArusKasController extends Controller
         }
 
         if ($search !== '') {
-            $query->where('nama', 'like', "%{$search}%");
+            $query->where(function ($sub) use ($search) {
+                $sub->where('nama', 'like', "%{$search}%");
+                if (Schema::hasTable('coa')) {
+                    $sub->orWhereExists(function ($coaQuery) use ($search) {
+                        $coaQuery->select(DB::raw(1))
+                            ->from('coa')
+                            ->whereRaw('LOWER(coa.arus_kas_aktivitas) = LOWER(referensi_kelompok_arus_kas.aktivitas)')
+                            ->whereRaw('LOWER(coa.arus_kas_kelompok) = LOWER(referensi_kelompok_arus_kas.nama)')
+                            ->whereNotExists(function ($childQuery) {
+                                $childQuery->select(DB::raw(1))
+                                    ->from('coa as child_coa')
+                                    ->whereColumn('child_coa.parent_coa', 'coa.id');
+                            })
+                            ->where(function ($matchFilter) use ($search) {
+                                $matchFilter->where('coa.kode', 'like', "%{$search}%")
+                                    ->orWhere('coa.nama', 'like', "%{$search}%");
+                            });
+                    });
+                }
+            });
         }
 
         $referensiList = $query->orderBy('nama', 'asc')->paginate(25)->withQueryString();
 
-        if (Schema::hasTable('coa') && Schema::hasColumns('coa', ['arus_kas_aktivitas', 'arus_kas_kelompok'])) {
-            $coaCounts = Coa::query()
+        if ($referensiList->isNotEmpty() && Schema::hasTable('coa') && Schema::hasColumns('coa', ['arus_kas_aktivitas', 'arus_kas_kelompok'])) {
+            $pairs = $referensiList->map(fn ($ref) => [
+                'aktivitas' => (string) $ref->aktivitas,
+                'nama' => (string) $ref->nama,
+            ]);
+
+            $parentIds = [];
+            if (Schema::hasColumn('coa', 'parent_coa')) {
+                $parentIds = Coa::query()
+                    ->whereNotNull('parent_coa')
+                    ->where('parent_coa', '>', 0)
+                    ->pluck('parent_coa')
+                    ->mapWithKeys(fn ($id) => [(int) $id => true])
+                    ->all();
+            }
+
+            $coas = Coa::query()
                 ->whereNotNull('arus_kas_kelompok')
-                ->selectRaw('LOWER(arus_kas_aktivitas) as act, LOWER(arus_kas_kelompok) as grp, COUNT(*) as aggregate_count')
-                ->groupBy(DB::raw('LOWER(arus_kas_aktivitas)'), DB::raw('LOWER(arus_kas_kelompok)'))
-                ->get()
-                ->keyBy(fn ($item) => $item->act.'||'.$item->grp);
+                ->whereNotNull('arus_kas_aktivitas')
+                ->where(function ($q) use ($pairs) {
+                    foreach ($pairs as $pair) {
+                        $q->orWhere(function ($sub) use ($pair) {
+                            $sub->whereRaw('LOWER(arus_kas_aktivitas) = ?', [mb_strtolower($pair['aktivitas'])])
+                                ->whereRaw('LOWER(arus_kas_kelompok) = ?', [mb_strtolower($pair['nama'])]);
+                        });
+                    }
+                })
+                ->orderBy('kode')
+                ->get();
+
+            $groupedCoas = $coas->groupBy(function ($coa) {
+                return mb_strtolower((string) $coa->arus_kas_aktivitas).'||'.mb_strtolower((string) $coa->arus_kas_kelompok);
+            });
 
             foreach ($referensiList as $ref) {
-                $key = mb_strtolower((string) $ref->aktivitas).'||'.mb_strtolower((string) $ref->nama);
-                $ref->coa_count = (int) ($coaCounts->get($key)?->aggregate_count ?? 0);
+                $refKey = mb_strtolower((string) $ref->aktivitas).'||'.mb_strtolower((string) $ref->nama);
+                $matchedCoas = $groupedCoas->get($refKey, collect());
+
+                $leafCoas = $matchedCoas->filter(fn ($c) => ! isset($parentIds[(int) $c->id]))->values();
+                $parentCoas = $matchedCoas->filter(fn ($c) => isset($parentIds[(int) $c->id]))->values();
+
+                $ref->mapped_leaf_coas = $leafCoas;
+                $ref->mapped_parent_coas = $parentCoas;
+                $ref->coa_count = $leafCoas->count();
+                $ref->parent_coa_count = $parentCoas->count();
             }
         } else {
             foreach ($referensiList as $ref) {
+                $ref->mapped_leaf_coas = collect();
+                $ref->mapped_parent_coas = collect();
                 $ref->coa_count = 0;
+                $ref->parent_coa_count = 0;
             }
         }
 
-        return compact('referensiList', 'aktivitas', 'search');
+        $unmappedLangsungAccounts = $this->referensiService->getUnmappedCashCounterpartAccounts();
+        $langsungCoaOptionsData = $this->referensiService->getCoaOptionsData();
+        $activeReferensiOptions = Schema::hasTable('referensi_kelompok_arus_kas')
+            ? ReferensiKelompokArusKas::aktif()->orderBy('aktivitas')->orderBy('nama')->get(['id', 'aktivitas', 'nama'])
+            : collect();
+
+        return compact(
+            'referensiList',
+            'aktivitas',
+            'search',
+            'unmappedLangsungAccounts',
+            'langsungCoaOptionsData',
+            'activeReferensiOptions',
+        );
     }
 
     /**
