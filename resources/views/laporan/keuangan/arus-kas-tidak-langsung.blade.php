@@ -29,9 +29,16 @@
                         </a>
                     </li>
                 </ul>
-                <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-                    <i class="bi bi-printer me-1"></i> Cetak Laporan
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                    @if (auth()->user()?->hasModuleAccess('pengaturan.arus-kas', 'view') ?? false)
+                        <a href="{{ route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']) }}" class="btn btn-outline-primary">
+                            <i class="bi bi-gear me-1"></i> Pengaturan Arus Kas
+                        </a>
+                    @endif
+                    <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+                        <i class="bi bi-printer me-1"></i> Cetak Laporan
+                    </button>
+                </div>
             </div>
 
             <div class="card border-light shadow-sm">
