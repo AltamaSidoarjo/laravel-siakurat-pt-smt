@@ -27,7 +27,6 @@
     $canPengaturanPreferensi = $can('pengaturan.preferensi');
     $canPengaturanPengguna = $can('pengaturan.pengguna');
     $canPengaturanRoleAkses = $can('pengaturan.role-akses');
-    $canPengaturanReferensiKelompokArusKas = $can('pengaturan.referensi-kelompok-arus-kas');
     $canPengaturanArusKas = $can('pengaturan.arus-kas');
     $canPengaturanKonversiFile = $can('pengaturan.konversi-file');
     $canPengaturanLayananInformasi = $can('pengaturan.layanan-informasi');
@@ -40,7 +39,6 @@
         || $canPengaturanPreferensi
         || $canPengaturanPengguna
         || $canPengaturanRoleAkses
-        || $canPengaturanReferensiKelompokArusKas
         || $canPengaturanArusKas
         || $canPengaturanKonversiFile
         || $canPengaturanLayananInformasi;
@@ -379,14 +377,6 @@
                         <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/role-akses') ? 'active' : '' }}"
                            href="{{ route('pengaturan.role-akses.index') }}">
                             <i class="bi bi-circle-fill sidebar-bullet"></i> Role Akses
-                        </a>
-                    </li>
-                    @endif
-                    @if ($canPengaturanReferensiKelompokArusKas)
-                    <li>
-                        <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/referensi-kelompok-arus-kas') ? 'active' : '' }}"
-                           href="{{ route('pengaturan.referensi-kelompok-arus-kas.index') }}">
-                            <i class="bi bi-circle-fill sidebar-bullet"></i> Referensi Kelompok Arus Kas
                         </a>
                     </li>
                     @endif
