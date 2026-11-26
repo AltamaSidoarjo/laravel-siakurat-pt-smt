@@ -652,7 +652,7 @@ class PengaturanArusKasCrudTest extends TestCase
             'coa_ids' => [$akum->id],
             'alasan' => 'Akun kontra penyusutan',
         ]);
-        $storeRes->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']));
+        $storeRes->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung', 'bagian' => 'pengecualian']));
         $storeRes->assertSessionHas('success');
         $this->assertDatabaseHas('setting_arus_kas_pengecualian', [
             'coa_id' => $akum->id,
@@ -662,9 +662,116 @@ class PengaturanArusKasCrudTest extends TestCase
         $pengecualian = SettingArusKasPengecualian::where('coa_id', $akum->id)->firstOrFail();
 
         $deleteRes = $this->actingAs($this->admin)->delete(route('pengaturan.arus-kas.tidak-langsung.pengecualian.destroy', $pengecualian));
-        $deleteRes->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']));
+        $deleteRes->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung', 'bagian' => 'pengecualian']));
         $deleteRes->assertSessionHas('success');
         $this->assertDatabaseMissing('setting_arus_kas_pengecualian', ['id' => $pengecualian->id]);
+    }
+
+    public function test_tidak_langsung_uses_bagian_dropdown_and_tab_mode_switcher_without_nav_tabs(): void
+    {
+        SettingArusKas::create([
+            'kode_pos' => 'PL_PENYUSUTAN',
+            'nama_pos' => 'Penyusutan Aset Tetap',
+            'kelompok_bagian' => 'penyesuaian_laba',
+            'sifat_pos' => 'penambah_laba',
+            'urutan' => 1,
+            'is_active' => true,
+        ]);
+        SettingArusKas::create([
+            'kode_pos' => 'INV_ASET',
+            'nama_pos' => 'Pembelian Aset Tetap',
+            'kelompok_bagian' => 'investasi',
+            'sifat_pos' => 'aset',
+            'urutan' => 1,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', [
+            'metode' => 'tidak_langsung',
+            'bagian' => 'investasi',
+            'search' => 'Pembelian',
+        ]));
+
+        $response->assertStatus(200);
+        $this->assertSame('investasi', $response->viewData('activeBagian'));
+
+        // Tidak ada inner nav-tabs lama #arusKasTab
+        $response->assertDontSee('id="arusKasTab"', false);
+
+        // Dropdown bagian beserta 6 opsi ber-counter
+        $response->assertSee('id="filterToolbarTidakLangsung"', false);
+        $response->assertSee('id="formFilterTidakLangsung"', false);
+        $response->assertSee('<select name="bagian"', false);
+        $response->assertSee('id="selectBagianTidakLangsung"', false);
+        $response->assertSee('Semua Pos (');
+        $response->assertSee('Penyesuaian Laba (');
+        $response->assertSee('Modal Kerja Operasi (');
+        $response->assertSee('Aktivitas Investasi (');
+        $response->assertSee('Aktivitas Pendanaan (');
+        $response->assertSee('Akun Dikecualikan (');
+
+        // Top control bar & mode switcher dirender pada metode tidak langsung
+        $response->assertSee('id="tidakLangsungControlBar"', false);
+        $response->assertSee('id="subBarModeTab"', false);
+        $response->assertSee('id="subBarModeStruktur"', false);
+        $response->assertSee('id="btnModeTab"', false);
+        $response->assertSee('id="btnModeStruktur"', false);
+        $response->assertSee('id="btnExpandAllSections"', false);
+        $response->assertSee('id="btnCollapseAllSections"', false);
+
+        // Link reset pencarian mempertahankan metode & bagian
+        $response->assertSee('id="btnResetSearchTidakLangsung"', false);
+        $response->assertSee(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung', 'bagian' => 'investasi']));
+
+        // JS memeriksa prioritas parameter bagian || search
+        $response->assertSee("urlParams.has('bagian') || urlParams.has('search')", false);
+
+        // Switcher & kontrol struktur TIDAK dirender pada metode langsung
+        $langsungResponse = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', [
+            'metode' => 'langsung',
+        ]));
+        $langsungResponse->assertStatus(200);
+        $langsungResponse->assertDontSee('id="btnModeTab"', false);
+        $langsungResponse->assertDontSee('id="btnModeStruktur"', false);
+        $langsungResponse->assertDontSee('id="btnExpandAllSections"', false);
+        $langsungResponse->assertDontSee('id="btnCollapseAllSections"', false);
+    }
+
+    public function test_tidak_langsung_bagian_dropdown_and_invalid_bagian_fallback(): void
+    {
+        $coa = Coa::create(['kode' => '142.01', 'nama' => 'Akumulasi Penyusutan', 'tipe_coa' => 'Aset Tetap', 'status_aktif' => 1]);
+        SettingArusKasPengecualian::create([
+            'coa_id' => $coa->id,
+            'alasan' => 'Akun kontra penyusutan',
+        ]);
+
+        $pengecualianRes = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', [
+            'metode' => 'tidak_langsung',
+            'bagian' => 'pengecualian',
+        ]));
+
+        $pengecualianRes->assertStatus(200);
+        $this->assertSame('pengecualian', $pengecualianRes->viewData('activeBagian'));
+
+        $html = $pengecualianRes->getContent();
+        $tabStart = strpos($html, 'id="viewModeTab"');
+        $strukturStart = strpos($html, 'id="viewModeStruktur"');
+        $this->assertNotFalse($tabStart);
+        $this->assertNotFalse($strukturStart);
+        $viewModeTabHtml = substr($html, $tabStart, $strukturStart - $tabStart);
+
+        $this->assertStringContainsString('Tambah Pengecualian', $viewModeTabHtml);
+        $this->assertStringContainsString('Alasan Pengecualian', $viewModeTabHtml);
+        $this->assertStringContainsString('142.01 - Akumulasi Penyusutan', $viewModeTabHtml);
+        $this->assertStringNotContainsString('Tambah Pos', $viewModeTabHtml);
+
+        $fallbackRes = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', [
+            'metode' => 'tidak_langsung',
+            'bagian' => 'ngawur',
+        ]));
+
+        $fallbackRes->assertStatus(200);
+        $this->assertSame('semua', $fallbackRes->viewData('activeBagian'));
     }
 
     public function test_index_filters_by_tab_and_search_and_renders_struktur_sections(): void

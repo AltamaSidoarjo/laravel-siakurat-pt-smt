@@ -134,6 +134,8 @@
 
         const viewModeTabEl = document.getElementById('viewModeTab');
         const viewModeStrukturEl = document.getElementById('viewModeStruktur');
+        const subBarModeTabEl = document.getElementById('subBarModeTab');
+        const subBarModeStrukturEl = document.getElementById('subBarModeStruktur');
         const modeButtons = document.querySelectorAll('[data-view-mode]');
 
         const applyViewMode = (mode, persist = true) => {
@@ -148,6 +150,16 @@
                     viewModeTabEl.classList.remove('d-none');
                     viewModeStrukturEl.classList.add('d-none');
                     viewModeStrukturEl.classList.remove('d-flex');
+                }
+            }
+
+            if (subBarModeTabEl && subBarModeStrukturEl) {
+                if (normalizedMode === 'struktur') {
+                    subBarModeTabEl.classList.add('d-none');
+                    subBarModeStrukturEl.classList.remove('d-none');
+                } else {
+                    subBarModeTabEl.classList.remove('d-none');
+                    subBarModeStrukturEl.classList.add('d-none');
                 }
             }
 
@@ -169,7 +181,7 @@
 
         let savedViewMode = 'tab';
         const urlParams = new URLSearchParams(window.location.search);
-        const hasTabOrSearchParam = urlParams.has('tab') || urlParams.has('search');
+        const hasBagianOrSearchParam = urlParams.has('bagian') || urlParams.has('search');
 
         try {
             savedViewMode = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY) || 'tab';
@@ -177,7 +189,7 @@
             savedViewMode = 'tab';
         }
 
-        if (hasTabOrSearchParam) {
+        if (hasBagianOrSearchParam) {
             savedViewMode = 'tab';
         }
 
@@ -274,14 +286,21 @@
             });
         });
 
-        // 1d. Toolbar Search Input (Submit on Enter)
-        const searchArusKasInputEl = document.getElementById('searchArusKasInput');
-        const formSearchArusKasEl = document.getElementById('formSearchArusKas');
-        if (searchArusKasInputEl && formSearchArusKasEl) {
-            searchArusKasInputEl.addEventListener('keydown', function (e) {
+        // 1d. Toolbar Bagian Dropdown & Search Input
+        const selectBagianTidakLangsungEl = document.getElementById('selectBagianTidakLangsung');
+        const formFilterTidakLangsungEl = document.getElementById('formFilterTidakLangsung');
+        if (selectBagianTidakLangsungEl && formFilterTidakLangsungEl) {
+            selectBagianTidakLangsungEl.addEventListener('change', function () {
+                formFilterTidakLangsungEl.submit();
+            });
+        }
+
+        const searchTidakLangsungInputEl = document.getElementById('searchTidakLangsungInput');
+        if (searchTidakLangsungInputEl && formFilterTidakLangsungEl) {
+            searchTidakLangsungInputEl.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    formSearchArusKasEl.submit();
+                    formFilterTidakLangsungEl.submit();
                 }
             });
         }

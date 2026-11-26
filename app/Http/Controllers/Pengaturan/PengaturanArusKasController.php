@@ -345,7 +345,7 @@ class PengaturanArusKasController extends Controller
         }
 
         return redirect()
-            ->route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung'])
+            ->route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung', 'bagian' => 'pengecualian'])
             ->with('success', 'Akun pengecualian arus kas berhasil ditambahkan.');
     }
 
@@ -357,7 +357,7 @@ class PengaturanArusKasController extends Controller
         $this->service->deletePengecualian($pengecualian);
 
         return redirect()
-            ->route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung'])
+            ->route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung', 'bagian' => 'pengecualian'])
             ->with('success', 'Akun pengecualian arus kas berhasil dihapus.');
     }
 

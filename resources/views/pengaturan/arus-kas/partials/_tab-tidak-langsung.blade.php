@@ -3,8 +3,8 @@
 
     $filteredPosList = $posList
         ->when(
-            $activeTab !== 'semua' && $activeTab !== 'pengecualian',
-            fn ($collection) => $collection->where('kelompok_bagian', $activeTab)
+            $activeBagian !== 'semua' && $activeBagian !== 'pengecualian',
+            fn ($collection) => $collection->where('kelompok_bagian', $activeBagian)
         )
         ->when($searchLower !== '', function ($collection) use ($searchLower) {
             return $collection->filter(function ($pos) use ($searchLower): bool {
@@ -48,9 +48,25 @@
     ];
 @endphp
 
-{{-- Top Control Bar: View Mode Switcher --}}
-<div class="d-flex justify-content-end mb-3">
-    <div class="btn-group btn-group-sm flex-nowrap flex-shrink-0" role="group" aria-label="Mode Tampilan Pengaturan Arus Kas">
+{{-- Top Control Bar: Sub-bar Mode Info/Struktur Controls & View Mode Switcher --}}
+<div id="tidakLangsungControlBar" class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <div id="subBarModeTab" class="small text-muted">
+            <i class="bi bi-table me-1"></i> Kelola daftar pos laporan arus kas per bagian, pemetaan akun COA, dan akun dikecualikan.
+        </div>
+        <div id="subBarModeStruktur" class="d-none">
+            <div class="btn-group bg-white" role="group" aria-label="Kontrol Struktur Laporan">
+                <button type="button" class="btn btn-sm fw-bold btn-light border" id="btnExpandAllSections">
+                    <i class="bi bi-arrows-expand me-1"></i> Buka Semua
+                </button>
+                <button type="button" class="btn btn-sm fw-bold btn-light border" id="btnCollapseAllSections">
+                    <i class="bi bi-arrows-collapse me-1"></i> Tutup Semua
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="btn-group btn-group-sm flex-nowrap flex-shrink-0 ms-auto" role="group" aria-label="Mode Tampilan Pengaturan Arus Kas">
         <button type="button"
                 id="btnModeTab"
                 class="btn btn-primary fw-semibold active text-nowrap"
@@ -67,109 +83,83 @@
 </div>
 
 <!-- Mode Tab Pane -->
-<div id="viewModeTab" class="card border-0 shadow-sm bg-white">
-    <div class="card-header bg-white border-bottom-0 pb-0 pt-3 px-3 px-md-4">
-        <ul class="nav nav-tabs card-header-tabs flex-nowrap overflow-x-auto custom-scrollbar border-bottom-0" id="arusKasTab" role="tablist" style="scrollbar-width: thin; -webkit-overflow-scrolling: touch;">
-            <li class="nav-item" role="presentation">
-                <a class="nav-link fw-semibold px-3 py-2 text-nowrap {{ $activeTab === 'semua' ? 'active text-primary' : 'text-muted' }}"
-                   href="{{ route('pengaturan.arus-kas.index', array_filter(['metode' => 'tidak_langsung', 'search' => $search])) }}">
-                    <i class="bi bi-collection me-1"></i> Semua Pos
-                    <span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1">{{ $tabCounts['semua'] }}</span>
-                </a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link fw-semibold px-3 py-2 text-nowrap {{ $activeTab === 'penyesuaian_laba' ? 'active text-primary' : 'text-muted' }}"
-                   href="{{ route('pengaturan.arus-kas.index', array_filter(['metode' => 'tidak_langsung', 'tab' => 'penyesuaian_laba', 'search' => $search])) }}">
-                    <i class="bi bi-sliders me-1"></i> Penyesuaian Laba
-                    <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill ms-1">{{ $tabCounts['penyesuaian_laba'] }}</span>
-                </a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link fw-semibold px-3 py-2 text-nowrap {{ $activeTab === 'modal_kerja' ? 'active text-primary' : 'text-muted' }}"
-                   href="{{ route('pengaturan.arus-kas.index', array_filter(['metode' => 'tidak_langsung', 'tab' => 'modal_kerja', 'search' => $search])) }}">
-                    <i class="bi bi-arrow-left-right me-1"></i> Modal Kerja
-                    <span class="badge bg-primary-subtle text-primary rounded-pill ms-1">{{ $tabCounts['modal_kerja'] }}</span>
-                </a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link fw-semibold px-3 py-2 text-nowrap {{ $activeTab === 'investasi' ? 'active text-primary' : 'text-muted' }}"
-                   href="{{ route('pengaturan.arus-kas.index', array_filter(['metode' => 'tidak_langsung', 'tab' => 'investasi', 'search' => $search])) }}">
-                    <i class="bi bi-graph-up-arrow me-1"></i> Investasi
-                    <span class="badge bg-success-subtle text-success rounded-pill ms-1">{{ $tabCounts['investasi'] }}</span>
-                </a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link fw-semibold px-3 py-2 text-nowrap {{ $activeTab === 'pendanaan' ? 'active text-primary' : 'text-muted' }}"
-                   href="{{ route('pengaturan.arus-kas.index', array_filter(['metode' => 'tidak_langsung', 'tab' => 'pendanaan', 'search' => $search])) }}">
-                    <i class="bi bi-bank me-1"></i> Pendanaan
-                    <span class="badge bg-info-subtle text-info-emphasis rounded-pill ms-1">{{ $tabCounts['pendanaan'] }}</span>
-                </a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a class="nav-link fw-semibold px-3 py-2 text-nowrap {{ $activeTab === 'pengecualian' ? 'active text-primary' : 'text-muted' }}"
-                   href="{{ route('pengaturan.arus-kas.index', array_filter(['metode' => 'tidak_langsung', 'tab' => 'pengecualian', 'search' => $search])) }}">
-                    <i class="bi bi-slash-circle me-1"></i> Akun Dikecualikan
-                    <span class="badge bg-danger-subtle text-danger rounded-pill ms-1">{{ $tabCounts['pengecualian'] }}</span>
-                </a>
-            </li>
-        </ul>
-    </div>
+<div id="viewModeTab">
+    <!-- Filter & Action Toolbar -->
+    <div class="bg-light p-3 rounded-3 border mb-3" id="filterToolbarTidakLangsung">
+        <form method="GET" action="{{ route('pengaturan.arus-kas.index') }}" id="formFilterTidakLangsung">
+            <input type="hidden" name="metode" value="tidak_langsung">
 
-    <div class="card-body p-3 p-md-4">
-        <!-- Filter & Action Toolbar -->
-        <div class="bg-light p-3 rounded-3 border mb-3" id="filterToolbar">
-            <form method="GET" action="{{ route('pengaturan.arus-kas.index') }}" id="formSearchArusKas">
-                <input type="hidden" name="metode" value="tidak_langsung">
-                @if ($activeTab !== 'semua')
-                    <input type="hidden" name="tab" value="{{ $activeTab }}">
-                @endif
+            <div class="row g-2 align-items-center">
+                <div class="col-12 col-md-4 col-lg-3">
+                    <select name="bagian" id="selectBagianTidakLangsung" class="form-select form-select-sm">
+                        <option value="semua" @selected($activeBagian === 'semua' || empty($activeBagian))>
+                            Semua Pos ({{ $tidakLangsungTabCounts['semua'] }})
+                        </option>
+                        <option value="penyesuaian_laba" @selected($activeBagian === 'penyesuaian_laba')>
+                            {{ $kelompokBagianLabels['penyesuaian_laba'] ?? 'Penyesuaian Laba' }} ({{ $tidakLangsungTabCounts['penyesuaian_laba'] }})
+                        </option>
+                        <option value="modal_kerja" @selected($activeBagian === 'modal_kerja')>
+                            {{ $kelompokBagianLabels['modal_kerja'] ?? 'Modal Kerja Operasi' }} ({{ $tidakLangsungTabCounts['modal_kerja'] }})
+                        </option>
+                        <option value="investasi" @selected($activeBagian === 'investasi')>
+                            {{ $kelompokBagianLabels['investasi'] ?? 'Aktivitas Investasi' }} ({{ $tidakLangsungTabCounts['investasi'] }})
+                        </option>
+                        <option value="pendanaan" @selected($activeBagian === 'pendanaan')>
+                            {{ $kelompokBagianLabels['pendanaan'] ?? 'Aktivitas Pendanaan' }} ({{ $tidakLangsungTabCounts['pendanaan'] }})
+                        </option>
+                        <option value="pengecualian" @selected($activeBagian === 'pengecualian')>
+                            Akun Dikecualikan ({{ $tidakLangsungTabCounts['pengecualian'] }})
+                        </option>
+                    </select>
+                </div>
 
-                <div class="d-flex align-items-center gap-2">
-                    <div class="flex-grow-1">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white text-muted border-end-0">
-                                <i class="bi bi-search"></i>
-                            </span>
-                            <input type="text"
-                                   name="search"
-                                   id="searchArusKasInput"
-                                   value="{{ $search }}"
-                                   class="form-control border-start-0 {{ $search !== '' ? 'border-end-0' : '' }}"
-                                   placeholder="Cari nama pos, kode pos, atau kode/nama akun COA... (Tekan Enter)">
-                            @if ($search !== '')
-                                <a href="{{ route('pengaturan.arus-kas.index', array_filter(['metode' => 'tidak_langsung', 'tab' => $activeTab !== 'semua' ? $activeTab : null])) }}"
-                                   class="input-group-text bg-white text-muted border-start-0 text-decoration-none"
-                                   title="Reset pencarian"
-                                   id="btnResetSearch">
-                                    <i class="bi bi-x-circle-fill text-secondary"></i>
-                                </a>
-                            @endif
-                        </div>
+                <div class="col-12 col-md flex-grow-1">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-white text-muted border-end-0">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text"
+                               name="search"
+                               id="searchTidakLangsungInput"
+                               value="{{ $search }}"
+                               class="form-control border-start-0 {{ $search !== '' ? 'border-end-0' : '' }}"
+                               placeholder="Cari nama pos, kode pos, atau kode/nama akun COA... (Tekan Enter)">
+                        @if ($search !== '')
+                            <a href="{{ route('pengaturan.arus-kas.index', array_filter(['metode' => 'tidak_langsung', 'bagian' => $activeBagian !== 'semua' ? $activeBagian : null])) }}"
+                               class="input-group-text bg-white text-muted border-start-0 text-decoration-none"
+                               title="Reset pencarian"
+                               id="btnResetSearchTidakLangsung">
+                                <i class="bi bi-x-circle-fill text-secondary"></i>
+                            </a>
+                        @endif
                     </div>
+                </div>
 
-                    @if ($canCreate)
-                        @if ($activeTab === 'pengecualian')
+                @if ($canCreate)
+                    <div class="col-12 col-md-auto ms-auto">
+                        @if ($activeBagian === 'pengecualian')
                             <button type="button"
-                                    class="btn btn-sm btn-danger fw-bold text-nowrap btn-open-create-pengecualian flex-shrink-0"
+                                    class="btn btn-sm btn-danger fw-bold text-nowrap btn-open-create-pengecualian w-100"
                                     data-bs-toggle="modal"
                                     data-bs-target="#modalPengecualianArusKas">
                                 <i class="bi bi-plus-circle me-1"></i> Tambah Pengecualian
                             </button>
                         @else
                             <button type="button"
-                                    class="btn btn-sm btn-success fw-bold text-nowrap btn-open-create-pos flex-shrink-0"
-                                    data-kelompok-bagian="{{ in_array($activeTab, \App\Models\SettingArusKas::KELOMPOK_BAGIAN, true) ? $activeTab : 'penyesuaian_laba' }}"
+                                    class="btn btn-sm btn-success fw-bold text-nowrap btn-open-create-pos w-100"
+                                    data-kelompok-bagian="{{ in_array($activeBagian, \App\Models\SettingArusKas::KELOMPOK_BAGIAN, true) ? $activeBagian : 'penyesuaian_laba' }}"
                                     data-bs-toggle="modal"
                                     data-bs-target="#modalPosArusKas">
                                 <i class="bi bi-plus-circle me-1"></i> Tambah Pos
                             </button>
                         @endif
-                    @endif
-                </div>
-            </form>
-        </div>
+                    </div>
+                @endif
+            </div>
+        </form>
+    </div>
 
-        @if ($activeTab === 'pengecualian')
+    @if ($activeBagian === 'pengecualian')
             <div class="table-responsive border rounded-3 custom-scrollbar">
                 <table class="table table-hover align-middle mb-0 text-sm">
                     <thead class="table-light border-bottom">
@@ -335,22 +325,11 @@
                     </tbody>
                 </table>
             </div>
-        @endif
-    </div>
+    @endif
 </div>
 
 <!-- Mode Struktur Laporan Pane -->
 <div id="viewModeStruktur" class="d-none flex-column gap-3">
-    <div class="d-flex justify-content-between align-items-center mb-1">
-        <div class="btn-group bg-white" role="group">
-            <button type="button" class="btn btn-sm fw-bold btn-light" id="btnExpandAllSections">
-                <i class="bi bi-arrows-expand me-1"></i> Buka Semua
-            </button>
-            <button type="button" class="btn btn-sm fw-bold btn-light" id="btnCollapseAllSections">
-                <i class="bi bi-arrows-collapse me-1"></i> Tutup Semua
-            </button>
-        </div>
-    </div>
 
     @foreach (\App\Models\SettingArusKas::KELOMPOK_BAGIAN as $bagianKey)
         @php
