@@ -8,6 +8,7 @@ use App\Models\SettingArusKas;
 use App\Models\SettingArusKasCoa;
 use App\Models\SettingArusKasPengecualian;
 use App\Services\LogAktifitasService;
+use App\Support\CoaTreeHelper;
 use DomainException;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Support\Collection;
@@ -104,29 +105,11 @@ class PengaturanArusKasService
             ->orderBy('kode')
             ->get(['id', 'parent_coa', 'kode', 'nama', 'tipe_coa', 'status_aktif']);
 
-        $childrenByParent = [];
-        foreach ($allCoas as $coa) {
-            if ($coa->parent_coa !== null && (int) $coa->parent_coa > 0) {
-                $childrenByParent[(int) $coa->parent_coa][] = $coa;
-            }
-        }
-
-        if (! isset($childrenByParent[$parentId])) {
-            return ['eligible' => [], 'skipped' => []];
-        }
-
-        $visited = [$parentId => true];
-        $leafNodes = [];
-        $this->collectLeafDescendants($parentId, $childrenByParent, $visited, $leafNodes);
+        $leafNodes = CoaTreeHelper::collectLeafDescendants($parentId, $allCoas);
 
         if ($leafNodes === []) {
             return ['eligible' => [], 'skipped' => []];
         }
-
-        usort(
-            $leafNodes,
-            fn (Coa $a, Coa $b): int => strcmp((string) $a->kode, (string) $b->kode) ?: ($a->id <=> $b->id)
-        );
 
         $leafIds = array_map(fn (Coa $coa): int => (int) $coa->id, $leafNodes);
         $mappedByPos = $this->loadMappedByPosMap($leafIds);
@@ -651,22 +634,11 @@ class PengaturanArusKasService
             ->orderBy('kode')
             ->get(['id', 'parent_coa', 'kode', 'nama', 'tipe_coa', 'status_aktif']);
 
-        $parentIds = [];
-        foreach ($allCoas as $coa) {
-            if ($coa->parent_coa !== null && (int) $coa->parent_coa > 0) {
-                $parentIds[(int) $coa->parent_coa] = true;
-            }
-        }
+        $partition = CoaTreeHelper::partitionParentAndLeafIds($allCoas);
 
-        $parentCoas = $allCoas
-            ->filter(fn (Coa $coa): bool => isset($parentIds[(int) $coa->id]))
-            ->values();
-
-        $leafCoas = $allCoas
-            ->filter(
-                fn (Coa $coa): bool => ! isset($parentIds[(int) $coa->id])
-                    && strtolower(trim((string) $coa->tipe_coa)) !== 'kasbank'
-            )
+        $parentCoas = $partition['parentCoas'];
+        $leafCoas = $partition['leafCoas']
+            ->filter(fn (Coa $coa): bool => strtolower(trim((string) $coa->tipe_coa)) !== 'kasbank')
             ->values();
 
         $excludedCoaIds = SettingArusKasPengecualian::query()
@@ -745,35 +717,6 @@ class PengaturanArusKasService
         }
 
         $pos->unsetRelation('coas')->unsetRelation('mappingCoa');
-    }
-
-    /**
-     * @param  array<int, array<int, Coa>>  $childrenByParent
-     * @param  array<int, bool>  $visited
-     * @param  array<int, Coa>  $leafNodes
-     */
-    private function collectLeafDescendants(
-        int $currentParentId,
-        array $childrenByParent,
-        array &$visited,
-        array &$leafNodes,
-    ): void {
-        foreach ($childrenByParent[$currentParentId] ?? [] as $child) {
-            $childId = (int) $child->id;
-            if (isset($visited[$childId])) {
-                continue;
-            }
-
-            $visited[$childId] = true;
-
-            if (! isset($childrenByParent[$childId]) || $childrenByParent[$childId] === []) {
-                $leafNodes[] = $child;
-
-                continue;
-            }
-
-            $this->collectLeafDescendants($childId, $childrenByParent, $visited, $leafNodes);
-        }
     }
 
     /**
