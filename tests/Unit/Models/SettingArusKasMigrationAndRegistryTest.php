@@ -10,6 +10,8 @@ use Tests\TestCase;
 
 class SettingArusKasMigrationAndRegistryTest extends TestCase
 {
+    private const LEGACY_MODULE_KODE = 'pengaturan'.'.referensi-kelompok-arus-kas';
+
     public function test_registry_contains_pengaturan_arus_kas_module(): void
     {
         $module = collect(AccessModuleRegistry::all())->firstWhere('kode', 'pengaturan.arus-kas');
@@ -23,7 +25,7 @@ class SettingArusKasMigrationAndRegistryTest extends TestCase
     public function test_registry_excludes_legacy_referensi_kelompok_arus_kas_module(): void
     {
         $legacy = collect(AccessModuleRegistry::all())
-            ->firstWhere('kode', 'pengaturan.referensi-kelompok-arus-kas');
+            ->firstWhere('kode', self::LEGACY_MODULE_KODE);
 
         $this->assertNull($legacy);
     }
@@ -85,7 +87,7 @@ class SettingArusKasMigrationAndRegistryTest extends TestCase
         $oldAccessMigration->up();
         $newAccessMigration->up();
 
-        $oldModuleId = DB::table('access_modules')->where('kode', 'pengaturan.referensi-kelompok-arus-kas')->value('id');
+        $oldModuleId = DB::table('access_modules')->where('kode', self::LEGACY_MODULE_KODE)->value('id');
         $newModuleId = DB::table('access_modules')->where('kode', 'pengaturan.arus-kas')->value('id');
 
         $this->assertNotNull($oldModuleId);
@@ -113,7 +115,7 @@ class SettingArusKasMigrationAndRegistryTest extends TestCase
         $mergeMigration = require database_path('migrations/2026_11_26_000001_merge_referensi_kelompok_arus_kas_into_pengaturan_arus_kas_module.php');
         $mergeMigration->up();
 
-        $this->assertDatabaseMissing('access_modules', ['kode' => 'pengaturan.referensi-kelompok-arus-kas']);
+        $this->assertDatabaseMissing('access_modules', ['kode' => self::LEGACY_MODULE_KODE]);
         $this->assertDatabaseHas('access_modules', [
             'id' => $newModuleId,
             'kode' => 'pengaturan.arus-kas',
@@ -146,11 +148,11 @@ class SettingArusKasMigrationAndRegistryTest extends TestCase
 
         $mergeMigration->down();
 
-        $restoredOldModuleId = DB::table('access_modules')->where('kode', 'pengaturan.referensi-kelompok-arus-kas')->value('id');
+        $restoredOldModuleId = DB::table('access_modules')->where('kode', self::LEGACY_MODULE_KODE)->value('id');
         $this->assertNotNull($restoredOldModuleId);
         $this->assertDatabaseHas('access_modules', [
             'id' => $restoredOldModuleId,
-            'kode' => 'pengaturan.referensi-kelompok-arus-kas',
+            'kode' => self::LEGACY_MODULE_KODE,
             'nama' => 'Referensi Kelompok Arus Kas',
             'group_nama' => 'Pengaturan',
             'urutan' => 205,

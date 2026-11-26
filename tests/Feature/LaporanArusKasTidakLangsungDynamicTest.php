@@ -601,7 +601,7 @@ class LaporanArusKasTidakLangsungDynamicTest extends TestCase
         $responseWithAccess = $this->actingAs($this->reportAndSettingUser)->get($url);
         $responseWithAccess->assertOk()
             ->assertSee('115.01 - Uang Muka Vendor (Aktiva Lancar lainnya)')
-            ->assertSee(route('pengaturan.arus-kas.index'))
+            ->assertSee(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']))
             ->assertSee('Laba Operasi Sebelum Perubahan Modal Kerja')
             ->assertSee('Penyusutan Aset Tetap')
             ->assertSee('(Kenaikan) Piutang usaha')
@@ -624,7 +624,7 @@ class LaporanArusKasTidakLangsungDynamicTest extends TestCase
         $responseWithoutSettingAccess = $this->actingAs($this->reportOnlyUser)->get($url);
         $responseWithoutSettingAccess->assertOk()
             ->assertSee('115.01 - Uang Muka Vendor (Aktiva Lancar lainnya)')
-            ->assertDontSee(route('pengaturan.arus-kas.index'));
+            ->assertDontSee(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']));
     }
 
     public function test_deactivated_laba_rugi_coa_is_skipped_in_penyesuaian_laba_while_inactive_neraca_coa_is_included(): void

@@ -126,7 +126,7 @@
                                     </div>
                                 </div>
                                 @if ($canViewPengaturanArusKas)
-                                    <a href="{{ route('pengaturan.arus-kas.index') }}" class="btn btn-sm btn-warning fw-semibold text-nowrap">
+                                    <a href="{{ route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']) }}" class="btn btn-sm btn-warning fw-semibold text-nowrap">
                                         <i class="bi bi-sliders me-1"></i> Pengaturan Arus Kas
                                     </a>
                                 @endif

@@ -160,171 +160,171 @@
     </div>
 
     @if ($activeBagian === 'pengecualian')
-            <div class="table-responsive border rounded-3 custom-scrollbar">
-                <table class="table table-hover align-middle mb-0 text-sm">
-                    <thead class="table-light border-bottom">
-                        <tr class="text-nowrap small text-uppercase text-secondary">
-                            <th class="py-2.5 px-3 text-center" style="width: 55px;">No</th>
-                            <th class="py-2.5 px-3" style="min-width: 260px;">Akun COA</th>
-                            <th class="py-2.5 px-3" style="width: 160px;">Tipe COA</th>
-                            <th class="py-2.5 px-3" style="min-width: 240px;">Alasan Pengecualian</th>
-                            <th class="py-2.5 px-3 text-center" style="width: 95px;">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($filteredPengecualian as $item)
-                            <tr>
-                                <td class="text-center fw-bold text-muted">{{ $loop->iteration }}</td>
-                                <td>
-                                    @if ($item->coa)
-                                        <span class="fw-semibold text-dark">{{ $item->coa->kode }} - {{ $item->coa->nama }}</span>
-                                        @if ((int) $item->coa->status_aktif !== 1)
-                                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1">Nonaktif</span>
-                                        @endif
-                                    @else
-                                        <span class="text-muted">COA #{{ $item->coa_id }}</span>
+        <div class="table-responsive border rounded-3 custom-scrollbar">
+            <table class="table table-hover align-middle mb-0 text-sm">
+                <thead class="table-light border-bottom">
+                    <tr class="text-nowrap small text-uppercase text-secondary">
+                        <th class="py-2.5 px-3 text-center" style="width: 55px;">No</th>
+                        <th class="py-2.5 px-3" style="min-width: 260px;">Akun COA</th>
+                        <th class="py-2.5 px-3" style="width: 160px;">Tipe COA</th>
+                        <th class="py-2.5 px-3" style="min-width: 240px;">Alasan Pengecualian</th>
+                        <th class="py-2.5 px-3 text-center" style="width: 95px;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($filteredPengecualian as $item)
+                        <tr>
+                            <td class="text-center fw-bold text-muted">{{ $loop->iteration }}</td>
+                            <td>
+                                @if ($item->coa)
+                                    <span class="fw-semibold text-dark">{{ $item->coa->kode }} - {{ $item->coa->nama }}</span>
+                                    @if ((int) $item->coa->status_aktif !== 1)
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1">Nonaktif</span>
                                     @endif
-                                </td>
-                                <td class="text-muted">{{ $item->coa?->tipe_coa ?? '-' }}</td>
-                                <td class="text-muted">{{ $item->alasan ?? '-' }}</td>
-                                <td class="text-center text-nowrap">
-                                    @if ($canDelete)
-                                        <form method="POST"
-                                              action="{{ route('pengaturan.arus-kas.tidak-langsung.pengecualian.destroy', $item) }}"
-                                              class="d-inline"
-                                              onsubmit="return confirm('Hapus akun ini dari daftar pengecualian?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0.5 px-2" title="Hapus Pengecualian">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
-                                    @endif
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="text-center py-5 text-muted">
-                                    <i class="bi bi-inbox fs-2 d-block mb-2"></i>
-                                    Belum ada akun yang dikecualikan.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        @else
-            <div class="table-responsive border rounded-3 custom-scrollbar">
-                <table class="table table-hover align-middle mb-0 text-sm">
-                    <thead class="table-light border-bottom">
-                        <tr class="text-nowrap small text-uppercase text-secondary">
-                            <th class="py-2.5 px-3 text-center" style="width: 65px;">Urutan</th>
-                            <th class="py-2.5 px-3" style="min-width: 250px;">Pos Arus Kas</th>
-                            <th class="py-2.5 px-3" style="width: 170px;">Bagian</th>
-                            <th class="py-2.5 px-3" style="width: 180px;">Sifat Pos</th>
-                            <th class="py-2.5 px-3 text-center" style="width: 110px;">Status</th>
-                            <th class="py-2.5 px-3 text-center" style="width: 110px;">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($filteredPosList as $pos)
-                            <tr>
-                                <td class="text-center fw-bold text-muted">{{ $pos->urutan }}</td>
-                                <td>
-                                    <div class="fw-semibold text-dark">{{ $pos->nama_pos }}</div>
-                                    <div class="d-flex flex-wrap align-items-center gap-1 mt-1">
-                                        <span class="small text-muted font-monospace">{{ $pos->kode_pos }}</span>
-                                        @if ($pos->pakai_prefix_perubahan)
-                                            <span class="badge bg-light text-secondary border">Prefix Perubahan</span>
-                                        @endif
-                                        @if ($pos->coas->isNotEmpty())
-                                            @php
-                                                $coasJson = json_encode($pos->coas->map(fn ($c) => [
-                                                    'kode' => $c->kode,
-                                                    'nama' => $c->nama,
-                                                    'status_aktif' => (int) $c->status_aktif,
-                                                    'label' => "{$c->kode} - {$c->nama}",
-                                                ])->values());
-                                            @endphp
-                                            <button type="button"
-                                                    class="btn btn-xs btn-outline-secondary py-0 px-2 rounded-pill btn-show-coas text-nowrap"
-                                                    data-pos-name="{{ $pos->nama_pos }}"
-                                                    data-pos-kode="{{ $pos->kode_pos }}"
-                                                    data-coas="{{ $coasJson }}"
-                                                    title="Lihat Daftar COA Terpetakan">
-                                                <i class="bi bi-diagram-2 me-1"></i> {{ $pos->coas->count() }} Akun COA
-                                            </button>
-                                        @else
-                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-0 px-1.5 rounded-pill small">
-                                                <i class="bi bi-exclamation-circle me-1"></i> 0 Akun
-                                            </span>
-                                        @endif
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="badge border px-2 py-1 rounded-pill fw-semibold {{ $bagianBadgeClasses[$pos->kelompok_bagian] ?? 'bg-secondary-subtle text-secondary border-secondary-subtle' }}">
-                                        {{ $kelompokBagianLabels[$pos->kelompok_bagian] ?? $pos->kelompok_bagian }}
-                                    </span>
-                                </td>
-                                <td class="small text-dark">
-                                    {{ $sifatPosLabels[$pos->sifat_pos] ?? $pos->sifat_pos }}
-                                </td>
-                                <td class="text-center">
-                                    @if ($pos->is_active)
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill fw-semibold">
-                                            Aktif
-                                        </span>
-                                    @else
-                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1 rounded-pill fw-semibold">
-                                            Nonaktif
-                                        </span>
-                                    @endif
-                                </td>
-                                <td class="text-center text-nowrap">
-                                    @if ($canUpdate)
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-primary py-0.5 px-2 btn-edit-pos"
-                                                data-id="{{ $pos->id }}"
-                                                data-kode-pos="{{ $pos->kode_pos }}"
-                                                data-nama-pos="{{ $pos->nama_pos }}"
-                                                data-kelompok-bagian="{{ $pos->kelompok_bagian }}"
-                                                data-sifat-pos="{{ $pos->sifat_pos }}"
-                                                data-pakai-prefix="{{ $pos->pakai_prefix_perubahan ? 1 : 0 }}"
-                                                data-urutan="{{ $pos->urutan }}"
-                                                data-is-active="{{ $pos->is_active ? 1 : 0 }}"
-                                                data-coa-ids='@json($pos->coas->pluck("id")->values())'
-                                                title="Edit Pos Arus Kas">
-                                            <i class="bi bi-pencil"></i>
+                                @else
+                                    <span class="text-muted">COA #{{ $item->coa_id }}</span>
+                                @endif
+                            </td>
+                            <td class="text-muted">{{ $item->coa?->tipe_coa ?? '-' }}</td>
+                            <td class="text-muted">{{ $item->alasan ?? '-' }}</td>
+                            <td class="text-center text-nowrap">
+                                @if ($canDelete)
+                                    <form method="POST"
+                                          action="{{ route('pengaturan.arus-kas.tidak-langsung.pengecualian.destroy', $item) }}"
+                                          class="d-inline"
+                                          onsubmit="return confirm('Hapus akun ini dari daftar pengecualian?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0.5 px-2" title="Hapus Pengecualian">
+                                            <i class="bi bi-trash"></i>
                                         </button>
+                                    </form>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                Belum ada akun yang dikecualikan.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    @else
+        <div class="table-responsive border rounded-3 custom-scrollbar">
+            <table class="table table-hover align-middle mb-0 text-sm">
+                <thead class="table-light border-bottom">
+                    <tr class="text-nowrap small text-uppercase text-secondary">
+                        <th class="py-2.5 px-3 text-center" style="width: 65px;">Urutan</th>
+                        <th class="py-2.5 px-3" style="min-width: 250px;">Pos Arus Kas</th>
+                        <th class="py-2.5 px-3" style="width: 170px;">Bagian</th>
+                        <th class="py-2.5 px-3" style="width: 180px;">Sifat Pos</th>
+                        <th class="py-2.5 px-3 text-center" style="width: 110px;">Status</th>
+                        <th class="py-2.5 px-3 text-center" style="width: 110px;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($filteredPosList as $pos)
+                        <tr>
+                            <td class="text-center fw-bold text-muted">{{ $pos->urutan }}</td>
+                            <td>
+                                <div class="fw-semibold text-dark">{{ $pos->nama_pos }}</div>
+                                <div class="d-flex flex-wrap align-items-center gap-1 mt-1">
+                                    <span class="small text-muted font-monospace">{{ $pos->kode_pos }}</span>
+                                    @if ($pos->pakai_prefix_perubahan)
+                                        <span class="badge bg-light text-secondary border">Prefix Perubahan</span>
                                     @endif
+                                    @if ($pos->coas->isNotEmpty())
+                                        @php
+                                            $coasJson = json_encode($pos->coas->map(fn ($c) => [
+                                                'kode' => $c->kode,
+                                                'nama' => $c->nama,
+                                                'status_aktif' => (int) $c->status_aktif,
+                                                'label' => "{$c->kode} - {$c->nama}",
+                                            ])->values());
+                                        @endphp
+                                        <button type="button"
+                                                class="btn btn-xs btn-outline-secondary py-0 px-2 rounded-pill btn-show-coas text-nowrap"
+                                                data-pos-name="{{ $pos->nama_pos }}"
+                                                data-pos-kode="{{ $pos->kode_pos }}"
+                                                data-coas="{{ $coasJson }}"
+                                                title="Lihat Daftar COA Terpetakan">
+                                            <i class="bi bi-diagram-2 me-1"></i> {{ $pos->coas->count() }} Akun COA
+                                        </button>
+                                    @else
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-0 px-1.5 rounded-pill small">
+                                            <i class="bi bi-exclamation-circle me-1"></i> 0 Akun
+                                        </span>
+                                    @endif
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge border px-2 py-1 rounded-pill fw-semibold {{ $bagianBadgeClasses[$pos->kelompok_bagian] ?? 'bg-secondary-subtle text-secondary border-secondary-subtle' }}">
+                                    {{ $kelompokBagianLabels[$pos->kelompok_bagian] ?? $pos->kelompok_bagian }}
+                                </span>
+                            </td>
+                            <td class="small text-dark">
+                                {{ $sifatPosLabels[$pos->sifat_pos] ?? $pos->sifat_pos }}
+                            </td>
+                            <td class="text-center">
+                                @if ($pos->is_active)
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1 rounded-pill fw-semibold">
+                                        Aktif
+                                    </span>
+                                @else
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1 rounded-pill fw-semibold">
+                                        Nonaktif
+                                    </span>
+                                @endif
+                            </td>
+                            <td class="text-center text-nowrap">
+                                @if ($canUpdate)
+                                    <button type="button"
+                                            class="btn btn-sm btn-outline-primary py-0.5 px-2 btn-edit-pos"
+                                            data-id="{{ $pos->id }}"
+                                            data-kode-pos="{{ $pos->kode_pos }}"
+                                            data-nama-pos="{{ $pos->nama_pos }}"
+                                            data-kelompok-bagian="{{ $pos->kelompok_bagian }}"
+                                            data-sifat-pos="{{ $pos->sifat_pos }}"
+                                            data-pakai-prefix="{{ $pos->pakai_prefix_perubahan ? 1 : 0 }}"
+                                            data-urutan="{{ $pos->urutan }}"
+                                            data-is-active="{{ $pos->is_active ? 1 : 0 }}"
+                                            data-coa-ids='@json($pos->coas->pluck("id")->values())'
+                                            title="Edit Pos Arus Kas">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                @endif
 
-                                    @if ($canDelete)
-                                        <form method="POST"
-                                              action="{{ route('pengaturan.arus-kas.tidak-langsung.destroy', $pos) }}"
-                                              class="d-inline"
-                                              onsubmit="return confirm('Apakah Anda yakin ingin menghapus pos arus kas ini?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit"
-                                                    class="btn btn-sm btn-outline-danger py-0.5 px-2 ms-1"
-                                                    title="Hapus Pos Arus Kas">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
-                                    @endif
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
-                                    <i class="bi bi-inbox fs-2 d-block mb-2"></i>
-                                    Data pos arus kas belum ada atau tidak sesuai filter.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+                                @if ($canDelete)
+                                    <form method="POST"
+                                          action="{{ route('pengaturan.arus-kas.tidak-langsung.destroy', $pos) }}"
+                                          class="d-inline"
+                                          onsubmit="return confirm('Apakah Anda yakin ingin menghapus pos arus kas ini?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                                class="btn btn-sm btn-outline-danger py-0.5 px-2 ms-1"
+                                                title="Hapus Pos Arus Kas">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                Data pos arus kas belum ada atau tidak sesuai filter.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     @endif
 </div>
 

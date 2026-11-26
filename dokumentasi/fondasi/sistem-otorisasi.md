@@ -114,7 +114,6 @@ sama dengan `kode` yang dipakai pada middleware `module.access` di `routes/web.p
 | `pengaturan.preferensi` | Preferensi | Pengaturan |
 | `pengaturan.pengguna` | Pengguna | Pengaturan |
 | `pengaturan.role-akses` | Role Akses | Pengaturan |
-| `pengaturan.referensi-kelompok-arus-kas` | Referensi Kelompok Arus Kas | Pengaturan |
 | `pengaturan.arus-kas` | Pengaturan Arus Kas | Pengaturan |
 | `pengaturan.konversi-file` | Konversi File | Pengaturan |
 | `pengaturan.layanan-informasi` | Layanan Informasi | Pengaturan |
@@ -146,7 +145,6 @@ sama dengan `kode` yang dipakai pada middleware `module.access` di `routes/web.p
 | `pengaturan.preferensi` | ✔ | | ✔ | |
 | `pengaturan.pengguna` | ✔ | ✔ | ✔ | ✔ |
 | `pengaturan.role-akses` | ✔ | ✔ | ✔ | |
-| `pengaturan.referensi-kelompok-arus-kas` | ✔ | ✔ | ✔ | ✔ |
 | `pengaturan.arus-kas` | ✔ | ✔ | ✔ | ✔ |
 | `pengaturan.konversi-file` | ✔ | ✔ | | |
 | `pengaturan.layanan-informasi` | ✔ | ✔ | ✔ | ✔ |
