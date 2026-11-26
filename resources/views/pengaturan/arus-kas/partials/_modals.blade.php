@@ -378,8 +378,8 @@
                                             </option>
                                         @endforeach
                                     </select>
-                                    <div class="form-text small mt-1">
-                                        Gunakan <kbd>Ctrl</kbd> + Klik (atau <kbd>Cmd</kbd> + Klik pada Mac) untuk memilih beberapa akun sekaligus.
+                                    <div class="form-text small mt-1 text-muted">
+                                        <i class="bi bi-info-circle me-1"></i> Gunakan <kbd>Ctrl</kbd> + Klik (atau <kbd>Cmd</kbd> + Klik pada Mac) untuk memilih atau membatalkan pilihan (unselect) akun.
                                     </div>
                                 </div>
                             </div>
@@ -487,8 +487,11 @@
                                     </option>
                                 @endforeach
                             </select>
-                            <div class="form-text small">
+                            <div class="form-text small text-muted">
                                 Khusus akun Neraca non-Kasbank (mis. akumulasi penyusutan atau akun kontra) agar tidak muncul pada peringatan akun belum dipetakan.
+                            </div>
+                            <div class="form-text small mt-1 text-muted">
+                                <i class="bi bi-info-circle me-1"></i> Gunakan <kbd>Ctrl</kbd> + Klik (atau <kbd>Cmd</kbd> + Klik pada Mac) untuk memilih atau membatalkan pilihan (unselect) akun.
                             </div>
                         </div>
 
