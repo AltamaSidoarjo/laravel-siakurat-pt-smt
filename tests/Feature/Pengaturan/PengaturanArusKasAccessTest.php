@@ -224,7 +224,7 @@ class PengaturanArusKasAccessTest extends TestCase
         $response->assertRedirect(route('login'));
     }
 
-    public function test_unauthorized_user_receives_403_across_all_13_routes(): void
+    public function test_unauthorized_user_receives_403_across_all_routes(): void
     {
         // 1. Index Langsung
         $this->actingAs($this->unauthorizedUser)

@@ -211,12 +211,16 @@
                             const statusBadge = Number(c.status_aktif) !== 1
                                 ? '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small ms-1">Nonaktif</span>'
                                 : '';
+                            const tipeBadge = c.tipe_coa
+                                ? `<span class="badge bg-light text-dark border small ms-1">${escapeHtml(c.tipe_coa)}</span>`
+                                : '';
                             li.innerHTML = `
                                 <div class="me-2">
                                     <span class="font-monospace fw-semibold text-primary me-2">${escapeHtml(c.kode)}</span>
                                     <span class="text-dark">${escapeHtml(c.nama)}</span>
                                     ${statusBadge}
                                 </div>
+                                <div>${tipeBadge}</div>
                             `;
                             detailLeafListEl.appendChild(li);
                         });
@@ -233,12 +237,16 @@
                             const statusBadge = Number(p.status_aktif) !== 1
                                 ? '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle small ms-1">Nonaktif</span>'
                                 : '';
+                            const tipeBadge = p.tipe_coa
+                                ? `<span class="badge bg-light text-dark border small ms-1">${escapeHtml(p.tipe_coa)}</span>`
+                                : '';
                             li.innerHTML = `
                                 <div class="me-2">
                                     <span class="font-monospace fw-semibold text-secondary me-2">${escapeHtml(p.kode)}</span>
                                     <span class="text-dark">${escapeHtml(p.nama)}</span>
                                     ${statusBadge}
                                 </div>
+                                <div>${tipeBadge}</div>
                             `;
                             detailParentListEl.appendChild(li);
                         });
@@ -481,39 +489,68 @@
             getIgnoreReferensiId: () => null,
         });
 
+        const resetCreateReferensiModal = ({ preselectedCoaIds = [] } = {}) => {
+            const form = document.getElementById('formTambahReferensi');
+            if (form) {
+                form.reset();
+                form.dataset.confirmedMove = 'false';
+            }
+
+            const alertEl = document.getElementById('modalTambahReferensiValidationAlert');
+            if (alertEl) {
+                alertEl.classList.add('d-none');
+            }
+
+            const aktSelect = document.getElementById('createAktivitas');
+            if (aktSelect) {
+                const currentFilter = document.getElementById('selectAktivitasLangsung')?.value;
+                aktSelect.value = (currentFilter && ['operasi', 'investasi', 'pendanaan'].includes(currentFilter)) ? currentFilter : '';
+            }
+
+            const namaInput = document.getElementById('createNama');
+            if (namaInput) {
+                namaInput.value = '';
+            }
+
+            const statusAktif = document.getElementById('createStatusAktif');
+            if (statusAktif) {
+                statusAktif.checked = true;
+            }
+
+            const selectCoa = document.getElementById('createCoaIdsSelect');
+            const badge = document.getElementById('createCoaCounterBadge');
+            const filterInput = document.getElementById('filterCreateCoaOptionsInput');
+
+            if (filterInput) {
+                filterInput.value = '';
+            }
+
+            if (selectCoa) {
+                filterSelectOptions(selectCoa, '');
+                setSelectedValues(selectCoa, preselectedCoaIds, badge);
+            }
+
+            const parentSelect = document.getElementById('createParentCoaSelect');
+            if (parentSelect) {
+                const $ = window.jQuery;
+                if ($ && $.fn && $.fn.select2 && $(parentSelect).data('select2')) {
+                    $(parentSelect).val('').trigger('change');
+                } else {
+                    parentSelect.value = '';
+                }
+            }
+
+            const feedbackEl = document.getElementById('createParentLeavesFeedback');
+            if (feedbackEl) {
+                feedbackEl.className = 'small mb-2 d-none';
+                feedbackEl.innerHTML = '';
+            }
+        };
+
         const btnOpenCreate = document.getElementById('btnOpenCreateReferensi');
         if (btnOpenCreate) {
             btnOpenCreate.addEventListener('click', function () {
-                const form = document.getElementById('formTambahReferensi');
-                if (form) {
-                    form.reset();
-                    form.dataset.confirmedMove = 'false';
-                }
-                const selectCoa = document.getElementById('createCoaIdsSelect');
-                const badge = document.getElementById('createCoaCounterBadge');
-                if (selectCoa) {
-                    Array.from(selectCoa.options).forEach(opt => opt.selected = false);
-                    updateCoaCounterBadge(selectCoa, badge);
-                }
-                const filterInput = document.getElementById('filterCreateCoaOptionsInput');
-                if (filterInput) {
-                    filterInput.value = '';
-                    filterSelectOptions(selectCoa, '');
-                }
-                const parentSelect = document.getElementById('createParentCoaSelect');
-                if (parentSelect) {
-                    const $ = window.jQuery;
-                    if ($ && $.fn && $.fn.select2 && $(parentSelect).data('select2')) {
-                        $(parentSelect).val('').trigger('change');
-                    } else {
-                        parentSelect.value = '';
-                    }
-                }
-                const feedbackEl = document.getElementById('createParentLeavesFeedback');
-                if (feedbackEl) {
-                    feedbackEl.className = 'small mb-2 d-none';
-                    feedbackEl.innerHTML = '';
-                }
+                resetCreateReferensiModal();
             });
         }
         @endif
@@ -544,6 +581,11 @@
 
         document.querySelectorAll('.btn-edit-referensi').forEach(function (btn) {
             btn.addEventListener('click', function () {
+                const alertEl = document.getElementById('modalEditReferensiValidationAlert');
+                if (alertEl) {
+                    alertEl.classList.add('d-none');
+                }
+
                 const id = this.getAttribute('data-id');
                 const aktivitas = this.getAttribute('data-aktivitas');
                 const nama = this.getAttribute('data-nama');
@@ -632,6 +674,11 @@
 
         document.querySelectorAll('.btn-quick-map-langsung').forEach(function (btn) {
             btn.addEventListener('click', function () {
+                const alertEl = document.getElementById('modalQuickMapValidationAlert');
+                if (alertEl) {
+                    alertEl.classList.add('d-none');
+                }
+
                 const coaId = this.getAttribute('data-coa-id');
                 const coaLabel = this.getAttribute('data-coa-label');
 
@@ -653,24 +700,21 @@
         if (btnQuickMapCreate) {
             btnQuickMapCreate.addEventListener('click', function () {
                 const coaId = document.getElementById('quickMapCoaId')?.value;
-                if (modalQuickMap) modalQuickMap.hide();
-
                 const modalTambahEl = document.getElementById('modalTambahReferensi');
-                if (modalTambahEl && window.bootstrap && window.bootstrap.Modal) {
-                    const form = document.getElementById('formTambahReferensi');
-                    if (form) {
-                        form.reset();
-                        form.dataset.confirmedMove = 'false';
+                const openTambahModal = () => {
+                    if (modalTambahEl && window.bootstrap && window.bootstrap.Modal) {
+                        resetCreateReferensiModal({ preselectedCoaIds: coaId ? [coaId] : [] });
+                        window.bootstrap.Modal.getOrCreateInstance(modalTambahEl).show();
                     }
-                    const selectCoa = document.getElementById('createCoaIdsSelect');
-                    const badge = document.getElementById('createCoaCounterBadge');
-                    if (selectCoa) {
-                        Array.from(selectCoa.options).forEach(opt => {
-                            opt.selected = (String(opt.value) === String(coaId));
-                        });
-                        updateCoaCounterBadge(selectCoa, badge);
+                };
+
+                if (modalQuickMapEl && window.bootstrap && window.bootstrap.Modal) {
+                    modalQuickMapEl.addEventListener('hidden.bs.modal', openTambahModal, { once: true });
+                    if (modalQuickMap) {
+                        modalQuickMap.hide();
                     }
-                    window.bootstrap.Modal.getOrCreateInstance(modalTambahEl).show();
+                } else {
+                    openTambahModal();
                 }
             });
         }
@@ -692,6 +736,19 @@
                 if (modalEditEl && window.bootstrap && window.bootstrap.Modal) {
                     const selectCoa = document.getElementById('editCoaIdsSelect');
                     const badge = document.getElementById('editCoaCounterBadge');
+                    const editGroupKey = (document.getElementById('editOriginalGroupKey')?.value || '').toLowerCase();
+                    if (selectCoa && editGroupKey) {
+                        Array.from(selectCoa.options).forEach(function (opt) {
+                            const optGroupKey = (opt.getAttribute('data-current-group-key') || '').toLowerCase();
+                            const baseLabel = opt.getAttribute('data-base-label') || opt.textContent;
+                            const currentLabel = opt.getAttribute('data-current-label') || '';
+                            if (optGroupKey === editGroupKey) {
+                                opt.textContent = baseLabel;
+                            } else if (optGroupKey !== '') {
+                                opt.textContent = baseLabel + currentLabel;
+                            }
+                        });
+                    }
                     if (selectCoa) updateCoaCounterBadge(selectCoa, badge);
                     window.bootstrap.Modal.getOrCreateInstance(modalEditEl).show();
                 }

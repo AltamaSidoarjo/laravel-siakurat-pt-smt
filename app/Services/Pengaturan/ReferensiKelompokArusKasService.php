@@ -474,6 +474,9 @@ class ReferensiKelompokArusKasService
             }
 
             $snapshot = $this->buildSnapshot($ref, $syncResult !== null ? $syncResult['coa_ids'] : []);
+            if ($syncResult !== null && !empty($syncResult['moved_from'])) {
+                $snapshot['moved_from'] = $syncResult['moved_from'];
+            }
             $this->recordLog('create_langsung', null, $snapshot);
 
             return $ref;
@@ -489,7 +492,6 @@ class ReferensiKelompokArusKasService
         return DB::transaction(function () use ($ref, $data) {
             $oldName = $ref->nama;
             $oldAktivitas = $ref->aktivitas;
-            $oldStatus = (bool) $ref->status_aktif;
             $oldLeafIds = $this->getMappedLeafCoaIds($ref);
             $oldSnapshot = $this->buildSnapshot($ref, $oldLeafIds);
 

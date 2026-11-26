@@ -302,7 +302,10 @@
                         <div class="mb-3">
                             <label class="form-label small fw-semibold text-muted">Akun COA</label>
                             <div class="fw-bold fs-6 text-primary p-2 bg-light rounded border" id="quickMapCoaLabel">
-                                {{ old('coa_id') ? (optional($leafCoas->firstWhere('id', (int) old('coa_id')))->kode . ' - ' . optional($leafCoas->firstWhere('id', (int) old('coa_id')))->nama) : '-' }}
+                                @php
+                                    $oldQuickMapCoa = old('coa_id') ? $leafCoas->firstWhere('id', (int) old('coa_id')) : null;
+                                @endphp
+                                {{ $oldQuickMapCoa ? ($oldQuickMapCoa->kode . ' - ' . $oldQuickMapCoa->nama) : (old('coa_id') ? ('COA #' . old('coa_id')) : '-') }}
                             </div>
                         </div>
 

@@ -449,21 +449,25 @@ class PengaturanArusKasController extends Controller
         if ($search !== '') {
             $query->where(function ($sub) use ($search) {
                 $sub->where('nama', 'like', "%{$search}%");
-                if (Schema::hasTable('coa')) {
+                if (Schema::hasTable('coa') && Schema::hasColumns('coa', ['arus_kas_aktivitas', 'arus_kas_kelompok'])) {
                     $sub->orWhereExists(function ($coaQuery) use ($search) {
                         $coaQuery->select(DB::raw(1))
                             ->from('coa')
                             ->whereRaw('LOWER(coa.arus_kas_aktivitas) = LOWER(referensi_kelompok_arus_kas.aktivitas)')
-                            ->whereRaw('LOWER(coa.arus_kas_kelompok) = LOWER(referensi_kelompok_arus_kas.nama)')
-                            ->whereNotExists(function ($childQuery) {
+                            ->whereRaw('LOWER(coa.arus_kas_kelompok) = LOWER(referensi_kelompok_arus_kas.nama)');
+
+                        if (Schema::hasColumn('coa', 'parent_coa')) {
+                            $coaQuery->whereNotExists(function ($childQuery) {
                                 $childQuery->select(DB::raw(1))
                                     ->from('coa as child_coa')
                                     ->whereColumn('child_coa.parent_coa', 'coa.id');
-                            })
-                            ->where(function ($matchFilter) use ($search) {
-                                $matchFilter->where('coa.kode', 'like', "%{$search}%")
-                                    ->orWhere('coa.nama', 'like', "%{$search}%");
                             });
+                        }
+
+                        $coaQuery->where(function ($matchFilter) use ($search) {
+                            $matchFilter->where('coa.kode', 'like', "%{$search}%")
+                                ->orWhere('coa.nama', 'like', "%{$search}%");
+                        });
                     });
                 }
             });

@@ -203,13 +203,13 @@ Pengguna dapat melihat daftar master pos referensi kelompok arus kas untuk metod
 - Penomoran berurutan lintas halaman paginasi (25 baris/halaman via `withQueryString()`).
 - Badge pilar aktivitas: `Operasi` (`primary-subtle`), `Investasi` (`success-subtle`), dan `Pendanaan` (`info-subtle`).
 - Badge status statis: `Aktif` (hijau subtle) / `Nonaktif` (abu-abu subtle).
-- **Badge Jumlah Akun COA Terkait**:
-  - `[X Akun]` (badge hijau/biru dengan ikon diagram `bi-diagram-3-fill`): menampilkan jumlah akun detail (*leaf*) yang terpetakan ke pos ini. Jika belum ada akun daun terikat, tampil badge abu-abu netral `0 Akun`.
-  - `+Y Induk` (badge sekunder info-subtle): tampil otomatis jika terdapat satu atau lebih akun induk di Master COA yang memiliki tag kelompok ini sebagai template pewarisan untuk sub-akun baru.
+- **Badge / Tombol Pill Jumlah Akun COA Terkait**:
+  - Tombol pill `.btn-outline-primary` dengan ikon diagram `bi-diagram-3`: menampilkan jumlah akun detail (*leaf*) yang terpetakan ke pos ini (`X Akun`). Jika belum ada akun daun terikat, tampil badge abu-abu netral `0 Akun`.
+  - `+Y Induk` (badge sekunder `bg-secondary-subtle text-secondary`): tampil otomatis di dalam tombol pill jika terdapat satu atau lebih akun induk di Master COA yang memiliki tag kelompok ini sebagai template pewarisan untuk sub-akun baru.
 - **Pencarian Lintas Nama Pos & Leaf COA**: Input pencarian fleksibel pada toolbar Metode Langsung mencari kecocokan pada `nama` pos referensi maupun kode/nama akun COA daun (*leaf*) yang terpetakan via subquery `whereExists` (dengan pengaman `NOT EXISTS child_coa` agar akun induk tidak memicu false positive).
 - **Pemuatan Eager Efisien (Bebas N+1)**: Pemuatan seluruh akun COA terpetakan untuk seluruh baris pos pada halaman aktif dilakukan dalam **satu query batch** gabungan, lalu diklasifikasikan ke dalam `$ref->mapped_leaf_coas` dan `$ref->mapped_parent_coas`.
 - **Modal Detail COA Terpetakan (`#modalDetailCoaLangsung`)**:
-  - Mengklik badge `[X Akun]` membuka modal `#modalDetailCoaLangsung`.
+  - Mengklik tombol pill `[X Akun]` membuka modal `#modalDetailCoaLangsung`.
   - Menampilkan nama pos dan pilar aktivitas pada `#modalDetailLangsungSubtitle`.
   - Menampilkan daftar akun daun pada `#modalDetailLangsungLeafList` lengkap dengan kode akun, nama, badge tipe COA, dan badge status aktif.
   - Jika terdapat akun induk template, section `#modalDetailLangsungParentSection` akan ditampilkan dengan rincian akun induk pada `#modalDetailLangsungParentList`.
@@ -263,12 +263,12 @@ Pengguna dengan hak akses `create` dapat menambahkan pos referensi kelompok arus
   - Memanggil `ReferensiKelompokArusKasService::validateCoaIdsForValidator()` untuk memastikan seluruh akun berstatus daun (*leaf* / `children_count == 0`) dan bukan akun bertipe `Kasbank`.
 
 #### Fitur Antarmuka & UX
-1. **Panel Pemilihan COA (`#createCoaSelect`)**: Komponen Select2 multi-select yang memuat seluruh akun daun non-Kasbank.
+1. **Panel Pemilihan COA (`#createCoaIdsSelect`)**: Komponen multi-select dengan input filter cepat (`#filterCreateCoaOptionsInput`) dan hidden input sentinel `coa_ids=""`, memuat seluruh akun daun non-Kasbank.
 2. **Pilih Cepat Akun Induk (*Parent COA Expansion*)**:
-   - Pengguna memilih akun induk pada `#createParentCoaSelect` dan menekan tombol **Tambah Sub-Akun** (`#btnCreateAddParentLeaves`).
+   - Pengguna memilih akun induk pada `#createParentCoaSelect` dan menekan tombol **+ Sub-Akun** (`#btnCreateAddParentLeaves`).
    - Klien mengirim request AJAX ke `GET /pengaturan/arus-kas/langsung/parent-coa-leaves?parent_id=...`.
    - Endpoint mengembalikan klasifikasi:
-     - `eligible`: Akun daun belum terpetakan, otomatis dimasukkan ke pilihan Select2.
+     - `eligible`: Akun daun belum terpetakan, otomatis dimasukkan ke pilihan multi-select.
      - `reassignable`: Akun daun yang saat ini sudah terpetakan di pos lain, ditampung dan akan memunculkan modal konfirmasi pemindahan (`#modalKonfirmasiPindahCoaLangsung`) sebelum formulir disubmit.
      - `skipped`: Akun `Kasbank` yang dilewati secara otomatis disertai pesan informatif.
 3. **Konfirmasi Pemindahan Akun COA**: Jika pengguna memilih akun yang sudah memiliki pos kelompok lain, saat tombol Simpan ditekan sistem membuka modal `#modalKonfirmasiPindahCoaLangsung` yang merinci nama akun dan pos asalnya untuk persetujuan pengguna.
@@ -340,8 +340,8 @@ Mengubah nama pos master akan secara otomatis memperbarui seluruh akun COA yang 
   - Memanggil `ReferensiKelompokArusKasService::validateCoaIdsForValidator()` untuk memastikan seluruh akun berstatus daun non-Kasbank.
 
 #### Fitur Antarmuka & UX
-1. Formulir modal `#modalEditReferensi` (`modal-lg`) memuat data nama pos, badge aktivitas (bersifat tetap / *read-only*), status aktif, serta daftar akun daun yang sedang terpetakan pada `#editCoaSelect`.
-2. Tombol **Tambah Sub-Akun** (`#btnEditAddParentLeaves`) memanggil `parentCoaLeavesLangsung` dengan menyertakan `ignore_referensi_id = $ref->id`, sehingga akun-akun daun yang sudah menjadi anggota pos ini diklasifikasikan sebagai `eligible` (bukan `reassignable`).
+1. Formulir modal `#modalEditReferensi` (`modal-lg`) memuat data nama pos, badge aktivitas (bersifat tetap / *read-only*), status aktif, serta daftar akun daun yang sedang terpetakan pada `#editCoaIdsSelect`.
+2. Tombol **+ Sub-Akun** (`#btnEditAddParentLeaves`) memanggil `parentCoaLeavesLangsung` dengan menyertakan `ignore_referensi_id = $ref->id`, sehingga akun-akun daun yang sudah menjadi anggota pos ini diklasifikasikan sebagai `eligible` (bukan `reassignable`).
 3. Jika pengguna memilih akun baru yang saat ini dimiliki pos lain, saat tombol Simpan ditekan sistem membuka modal `#modalKonfirmasiPindahCoaLangsung` yang merinci daftar akun yang akan dipindahkan.
 
 #### Flowchart
@@ -538,7 +538,7 @@ Method `ReferensiKelompokArusKasService::getUnmappedCashCounterpartAccounts(?str
 #### Fitur Antarmuka & UX
 1. **Banner Peringatan Kuning (`#unmappedLangsungAccountsCollapse`)**:
    - Ditampilkan pada Tab Metode Langsung jika terdapat satu atau lebih akun lawan kasbank yang belum dipetakan.
-   - Menampilkan tabel ringkasan: Kode Akun, Nama Akun, Tipe COA, Total Debit, Total Kredit, Frekuensi Transaksi, dan Dampak Kas.
+   - Menampilkan tabel ringkasan: Akun COA (dengan badge status `[Nonaktif]` dan badge `(X trx)` jika ada transaksi), Tipe COA, Debit, Kredit, Dampak Kas, serta Tindakan Cepat.
 2. **Tombol Tindakan Cepat**:
    - **Petakan** (`.btn-quick-map-langsung`): Membuka Modal Quick-Map (`#modalQuickMapLangsung`) dengan data akun COA bersangkutan langsung terisi.
    - Pada modal quick-map, pengguna dapat memilih pos referensi tujuan dari dropdown terkelompok per aktivitas (`optgroup`), atau menekan tombol **Buat Pos Baru dengan Akun Ini** (`#btnQuickMapCreatePosBaru`) yang menutup modal quick-map dan membuka modal `#modalTambahReferensi` dengan akun tersebut otomatis terpilih di panel COA.
