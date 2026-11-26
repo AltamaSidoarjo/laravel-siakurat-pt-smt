@@ -241,7 +241,7 @@
                                        name="kode_pos"
                                        id="posKodePos"
                                        class="form-control form-control-sm font-monospace"
-                                       maxlength="50"
+                                       maxlength="80"
                                        placeholder="Otomatis jika kosong"
                                        value="{{ $isOldPosModal ? old('kode_pos') : '' }}">
                             </div>
@@ -331,6 +331,7 @@
                                                placeholder="Ketik untuk memfilter daftar akun COA di bawah...">
                                     </div>
 
+                                    <input type="hidden" name="coa_ids" value="">
                                     <select name="coa_ids[]"
                                             id="coaIdsSelect"
                                             class="form-select form-select-sm custom-scrollbar"
@@ -435,6 +436,7 @@
                                     Pilih Semua
                                 </button>
                             </div>
+                            <div id="pengecualianParentLeavesFeedback" class="form-text mt-1 d-none"></div>
                         </div>
 
                         <div class="mb-3">
@@ -445,6 +447,7 @@
                                    class="form-control form-control-sm mb-2"
                                    id="filterPengecualianCoaInput"
                                    placeholder="Filter akun Neraca...">
+                            <input type="hidden" name="coa_ids" value="">
                             <select name="coa_ids[]"
                                     id="pengecualianCoaIdsSelect"
                                     class="form-select form-select-sm custom-scrollbar"

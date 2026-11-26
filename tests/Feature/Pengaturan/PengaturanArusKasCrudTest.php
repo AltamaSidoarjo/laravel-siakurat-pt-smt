@@ -961,4 +961,98 @@ class PengaturanArusKasCrudTest extends TestCase
         $editErrResponse->assertSee('"posId":'.$pos->id, false);
         $editErrResponse->assertSee('Perbarui Pos Arus Kas', false);
     }
+
+    public function test_modal_pos_renders_coa_ids_hidden_sentinel_and_clearing_all_coas_unmaps_them(): void
+    {
+        $coa1 = Coa::create(['kode' => '112.11', 'nama' => 'Piutang Rawat Inap', 'tipe_coa' => 'Piutang Usaha', 'status_aktif' => 1]);
+        $coa2 = Coa::create(['kode' => '112.12', 'nama' => 'Piutang Rawat Jalan', 'tipe_coa' => 'Piutang Usaha', 'status_aktif' => 1]);
+
+        $pos = SettingArusKas::create([
+            'kode_pos' => 'MK_SENTINEL_TEST',
+            'nama_pos' => 'Piutang Sentinel',
+            'kelompok_bagian' => 'modal_kerja',
+            'sifat_pos' => 'aset',
+            'urutan' => 1,
+            'is_active' => true,
+        ]);
+        SettingArusKasCoa::create(['setting_arus_kas_id' => $pos->id, 'coa_id' => $coa1->id]);
+        SettingArusKasCoa::create(['setting_arus_kas_id' => $pos->id, 'coa_id' => $coa2->id]);
+
+        $indexResponse = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']));
+        $indexResponse->assertStatus(200);
+
+        $html = $indexResponse->getContent();
+        $modalPosPos = strpos($html, 'id="modalPosArusKas"');
+        $modalPengecualianPos = strpos($html, 'id="modalPengecualianArusKas"');
+        $this->assertNotFalse($modalPosPos);
+        $this->assertNotFalse($modalPengecualianPos);
+
+        $modalPosHtml = substr($html, $modalPosPos, $modalPengecualianPos - $modalPosPos);
+        $this->assertMatchesRegularExpression(
+            '/<input\s+type="hidden"\s+name="coa_ids"\s+value=""\s*>\s*<select\s+name="coa_ids\[\]"[^>]*id="coaIdsSelect"/s',
+            $modalPosHtml
+        );
+        $this->assertStringContainsString('id="posKodePos"', $modalPosHtml);
+        $this->assertStringContainsString('maxlength="80"', $modalPosHtml);
+        $this->assertStringContainsString('id="coaCounterBadge"', $modalPosHtml);
+        $this->assertStringContainsString('id="filterCoaOptionsInput"', $modalPosHtml);
+
+        $modalDetailPos = strpos($html, 'id="modalDetailCoaPos"');
+        $this->assertNotFalse($modalDetailPos);
+        $modalPengecualianHtml = substr($html, $modalPengecualianPos, $modalDetailPos - $modalPengecualianPos);
+        $this->assertMatchesRegularExpression(
+            '/<input\s+type="hidden"\s+name="coa_ids"\s+value=""\s*>\s*<select\s+name="coa_ids\[\]"[^>]*id="pengecualianCoaIdsSelect"/s',
+            $modalPengecualianHtml
+        );
+        $this->assertStringContainsString('id="pengecualianParentLeavesFeedback"', $modalPengecualianHtml);
+        $this->assertStringContainsString('id="filterPengecualianCoaInput"', $modalPengecualianHtml);
+
+        // Simulate browser PUT when all options in #coaIdsSelect are deselected (hidden sentinel submits coa_ids="")
+        $clearResponse = $this->actingAs($this->admin)->put(route('pengaturan.arus-kas.tidak-langsung.update', $pos), [
+            'kode_pos' => 'MK_SENTINEL_TEST',
+            'nama_pos' => 'Piutang Sentinel Dikosongkan',
+            'kelompok_bagian' => 'modal_kerja',
+            'sifat_pos' => 'aset',
+            'urutan' => 1,
+            'is_active' => '1',
+            'coa_ids' => '',
+        ]);
+
+        $clearResponse->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']));
+        $clearResponse->assertSessionHas('success');
+        $this->assertSame('Piutang Sentinel Dikosongkan', $pos->fresh()->nama_pos);
+        $this->assertCount(0, $pos->fresh()->coas);
+        $this->assertDatabaseMissing('setting_arus_kas_coa', ['setting_arus_kas_id' => $pos->id]);
+
+        // Re-mapping after clearing also succeeds
+        $remapResponse = $this->actingAs($this->admin)->put(route('pengaturan.arus-kas.tidak-langsung.update', $pos), [
+            'kode_pos' => 'MK_SENTINEL_TEST',
+            'nama_pos' => 'Piutang Sentinel Dikosongkan',
+            'kelompok_bagian' => 'modal_kerja',
+            'sifat_pos' => 'aset',
+            'urutan' => 1,
+            'is_active' => '1',
+            'coa_ids' => [$coa1->id],
+        ]);
+        $remapResponse->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']));
+        $this->assertSame([$coa1->id], $pos->fresh()->coas->pluck('id')->all());
+    }
+
+    public function test_pengecualian_empty_state_copy_distinguishes_default_vs_search(): void
+    {
+        $emptyDefaultRes = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', [
+            'metode' => 'tidak_langsung',
+            'bagian' => 'pengecualian',
+        ]));
+        $emptyDefaultRes->assertStatus(200);
+        $emptyDefaultRes->assertSee('Belum ada akun yang dikecualikan.');
+
+        $emptySearchRes = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', [
+            'metode' => 'tidak_langsung',
+            'bagian' => 'pengecualian',
+            'search' => 'TidakMungkinAda',
+        ]));
+        $emptySearchRes->assertStatus(200);
+        $emptySearchRes->assertSee('Tidak ada akun dikecualikan yang cocok dengan pencarian.');
+    }
 }

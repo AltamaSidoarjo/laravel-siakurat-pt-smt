@@ -352,6 +352,46 @@
             return { label, disabled };
         };
 
+        const coaCounterBadgeEl = document.getElementById('coaCounterBadge');
+        const filterCoaOptionsInputEl = document.getElementById('filterCoaOptionsInput');
+        const filterPengecualianCoaInputEl = document.getElementById('filterPengecualianCoaInput');
+
+        const updateCoaCounterBadge = (selectEl) => {
+            if (!coaCounterBadgeEl || !selectEl || selectEl.id !== 'coaIdsSelect') {
+                return;
+            }
+            const count = Array.from(selectEl.selectedOptions).length;
+            coaCounterBadgeEl.textContent = `${count} akun dipilih`;
+        };
+
+        const filterSelectOptions = (selectEl, rawQuery) => {
+            if (!selectEl) {
+                return;
+            }
+            const needle = String(rawQuery || '').trim().toLowerCase();
+            Array.from(selectEl.options).forEach((opt) => {
+                const text = String(opt.textContent || '').toLowerCase();
+                const value = String(opt.value || '').toLowerCase();
+                const matches = needle === '' || text.includes(needle) || value.includes(needle);
+                opt.hidden = !matches;
+                opt.style.display = matches ? '' : 'none';
+            });
+        };
+
+        const bindSelectFilterInput = (inputEl, selectEl) => {
+            if (!inputEl || !selectEl) {
+                return;
+            }
+            inputEl.addEventListener('input', function () {
+                filterSelectOptions(selectEl, this.value);
+            });
+            inputEl.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                }
+            });
+        };
+
         const populateCoaSelect = (selectEl, { modeOrSifat, ignorePosId = null, selectedIds = [] }) => {
             if (!selectEl) {
                 return;
@@ -375,6 +415,15 @@
                 option.selected = !disabled && selectedSet.has(coaId);
                 selectEl.appendChild(option);
             });
+
+            if (selectEl.id === 'coaIdsSelect') {
+                updateCoaCounterBadge(selectEl);
+                if (filterCoaOptionsInputEl && filterCoaOptionsInputEl.value !== '') {
+                    filterSelectOptions(selectEl, filterCoaOptionsInputEl.value);
+                }
+            } else if (selectEl.id === 'pengecualianCoaIdsSelect' && filterPengecualianCoaInputEl && filterPengecualianCoaInputEl.value !== '') {
+                filterSelectOptions(selectEl, filterPengecualianCoaInputEl.value);
+            }
         };
 
         const getSelectedValues = (selectEl) => {
@@ -394,6 +443,7 @@
                     opt.selected = idSet.has(opt.value);
                 }
             });
+            updateCoaCounterBadge(selectEl);
         };
 
         const resetFeedback = (feedbackEl) => {
@@ -623,6 +673,9 @@
             if (parentCoaSelectEl) {
                 parentCoaSelectEl.value = '';
             }
+            if (filterCoaOptionsInputEl) {
+                filterCoaOptionsInputEl.value = '';
+            }
             resetFeedback(parentLeavesFeedbackEl);
             syncPrefixToggleState();
 
@@ -682,6 +735,9 @@
             if (parentCoaSelectEl) {
                 parentCoaSelectEl.value = '';
             }
+            if (filterCoaOptionsInputEl) {
+                filterCoaOptionsInputEl.value = '';
+            }
             resetFeedback(parentLeavesFeedbackEl);
             syncPrefixToggleState();
 
@@ -693,6 +749,14 @@
 
             window.bootstrap.Modal.getOrCreateInstance(modalPosEl).show();
         };
+
+        if (coaIdsSelectEl) {
+            coaIdsSelectEl.addEventListener('change', function () {
+                updateCoaCounterBadge(this);
+            });
+            updateCoaCounterBadge(coaIdsSelectEl);
+        }
+        bindSelectFilterInput(filterCoaOptionsInputEl, coaIdsSelectEl);
 
         if (posSifatSelect) {
             posSifatSelect.addEventListener('change', function () {
@@ -749,6 +813,9 @@
             if (pengecualianParentEl) {
                 pengecualianParentEl.value = '';
             }
+            if (filterPengecualianCoaInputEl) {
+                filterPengecualianCoaInputEl.value = '';
+            }
             if (pengecualianAlasanEl) {
                 pengecualianAlasanEl.value = '';
             }
@@ -759,6 +826,8 @@
                 selectedIds: preselectedCoaIds,
             });
         };
+
+        bindSelectFilterInput(filterPengecualianCoaInputEl, pengecualianCoaSelectEl);
 
         document.querySelectorAll('.btn-open-create-pengecualian').forEach((btn) => {
             btn.addEventListener('click', function () {

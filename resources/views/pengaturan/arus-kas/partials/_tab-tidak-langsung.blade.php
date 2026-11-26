@@ -206,7 +206,11 @@
                         <tr>
                             <td colspan="5" class="text-center py-5 text-muted">
                                 <i class="bi bi-inbox fs-2 d-block mb-2"></i>
-                                Belum ada akun yang dikecualikan.
+                                @if ($search !== '')
+                                    Tidak ada akun dikecualikan yang cocok dengan pencarian.
+                                @else
+                                    Belum ada akun yang dikecualikan.
+                                @endif
                             </td>
                         </tr>
                     @endforelse

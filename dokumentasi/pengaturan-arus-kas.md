@@ -45,16 +45,18 @@ Implementasi utama modul ini berada di:
 - `app/Models/SettingArusKas.php`
 - `app/Models/SettingArusKasCoa.php`
 - `app/Models/SettingArusKasPengecualian.php`
-- `app/Support/AccessModuleRegistry.php` (kode: `pengaturan.arus-kas`, urutan: 205)
+- `app/Support/AccessModuleRegistry.php` (kode: `pengaturan.arus-kas`, urutan: 206)
 - `database/migrations/2026_11_24_000001_create_referensi_kelompok_arus_kas_table.php`
+- `database/migrations/2026_11_24_000002_add_referensi_kelompok_arus_kas_access_module.php`
 - `database/migrations/2026_11_25_000001_create_setting_arus_kas_tables.php`
 - `database/migrations/2026_11_25_000002_add_pengaturan_arus_kas_access_module.php`
-- `database/migrations/2026_11_26_000001_merge_referensi_kelompok_into_pengaturan_arus_kas.php`
+- `database/migrations/2026_11_26_000001_merge_referensi_kelompok_arus_kas_into_pengaturan_arus_kas_module.php`
 - `database/seeders/ReferensiKelompokArusKasSeeder.php`
 - `database/seeders/SettingArusKasSeeder.php`
 - `resources/views/pengaturan/arus-kas/index.blade.php`
 - `resources/views/pengaturan/arus-kas/partials/_tab-langsung.blade.php`
 - `resources/views/pengaturan/arus-kas/partials/_tab-tidak-langsung.blade.php`
+- `resources/views/pengaturan/arus-kas/partials/_modal-panduan.blade.php`
 - `resources/views/pengaturan/arus-kas/partials/_modals.blade.php`
 - `resources/views/pengaturan/arus-kas/partials/_scripts.blade.php`
 
@@ -78,14 +80,14 @@ Seluruh 13 endpoint dilindungi oleh middleware otorisasi berbasis modul `module.
 | `PUT` | `/pengaturan/arus-kas/langsung/{referensi}` | `pengaturan.arus-kas.langsung.update` | `updateLangsung()` | `pengaturan.arus-kas,update` | Edit pos referensi kelompok & cascade COA (Langsung) |
 | `DELETE` | `/pengaturan/arus-kas/langsung/{referensi}` | `pengaturan.arus-kas.langsung.destroy` | `destroyLangsung()` | `pengaturan.arus-kas,delete` | Hapus pos referensi kelompok (Restricted Delete) |
 | `PATCH` | `/pengaturan/arus-kas/langsung/{referensi}/toggle` | `pengaturan.arus-kas.langsung.toggle` | `toggleStatusLangsung()` | `pengaturan.arus-kas,update` | Toggle status aktif/nonaktif pos referensi |
-| `GET` | `/pengaturan/arus-kas/parent-coa-leaves` | `pengaturan.arus-kas.parent-coa-leaves` | `parentCoaLeaves()` | `pengaturan.arus-kas,view` | AJAX ekspansi child COA daun dari parent |
-| `POST` | `/pengaturan/arus-kas/tidak-langsung` | `pengaturan.arus-kas.tidak-langsung.store` | `storeTidakLangsung()` | `pengaturan.arus-kas,create` | Tambah pos arus kas baru (Tidak Langsung) |
-| `PUT` | `/pengaturan/arus-kas/tidak-langsung/{settingArusKas}` | `pengaturan.arus-kas.tidak-langsung.update` | `updateTidakLangsung()` | `pengaturan.arus-kas,update` | Edit pos arus kas & sync COA (Tidak Langsung) |
-| `DELETE` | `/pengaturan/arus-kas/tidak-langsung/{settingArusKas}` | `pengaturan.arus-kas.tidak-langsung.destroy` | `destroyTidakLangsung()` | `pengaturan.arus-kas,delete` | Hapus pos arus kas dinamis (Tidak Langsung) |
-| `PATCH` | `/pengaturan/arus-kas/tidak-langsung/{settingArusKas}/toggle` | `pengaturan.arus-kas.tidak-langsung.toggle` | `toggleStatusTidakLangsung()` | `pengaturan.arus-kas,update` | Toggle status aktif pos arus kas (Tidak Langsung) |
-| `PATCH` | `/pengaturan/arus-kas/tidak-langsung/reorder` | `pengaturan.arus-kas.tidak-langsung.reorder` | `reorderTidakLangsung()` | `pengaturan.arus-kas,update` | AJAX reordering urutan pos per bagian laporan |
-| `POST` | `/pengaturan/arus-kas/tidak-langsung/pengecualian` | `pengaturan.arus-kas.tidak-langsung.pengecualian.store` | `storePengecualianTidakLangsung()` | `pengaturan.arus-kas,create` | Tambah akun Neraca ke daftar pengecualian |
-| `DELETE` | `/pengaturan/arus-kas/tidak-langsung/pengecualian/{pengecualian}` | `pengaturan.arus-kas.tidak-langsung.pengecualian.destroy` | `destroyPengecualianTidakLangsung()` | `pengaturan.arus-kas,delete` | Hapus akun dari daftar pengecualian |
+| `GET` | `/pengaturan/arus-kas/tidak-langsung/parent-coa-leaves` | `pengaturan.arus-kas.tidak-langsung.parent-coa-leaves` | `parentCoaLeaves()` | `pengaturan.arus-kas,view` | AJAX ekspansi child COA daun dari parent |
+| `POST` | `/pengaturan/arus-kas/tidak-langsung` | `pengaturan.arus-kas.tidak-langsung.store` | `store()` | `pengaturan.arus-kas,create` | Tambah pos arus kas baru (Tidak Langsung) |
+| `PUT` | `/pengaturan/arus-kas/tidak-langsung/{settingArusKas}` | `pengaturan.arus-kas.tidak-langsung.update` | `update()` | `pengaturan.arus-kas,update` | Edit pos arus kas & sync COA (Tidak Langsung) |
+| `DELETE` | `/pengaturan/arus-kas/tidak-langsung/{settingArusKas}` | `pengaturan.arus-kas.tidak-langsung.destroy` | `destroy()` | `pengaturan.arus-kas,delete` | Hapus pos arus kas dinamis (Tidak Langsung) |
+| `PATCH` | `/pengaturan/arus-kas/tidak-langsung/{settingArusKas}/toggle` | `pengaturan.arus-kas.tidak-langsung.toggle` | `toggleStatus()` | `pengaturan.arus-kas,update` | Toggle status aktif pos arus kas (Tidak Langsung) |
+| `PATCH` | `/pengaturan/arus-kas/tidak-langsung/reorder` | `pengaturan.arus-kas.tidak-langsung.reorder` | `reorder()` | `pengaturan.arus-kas,update` | AJAX reordering urutan pos per bagian laporan |
+| `POST` | `/pengaturan/arus-kas/tidak-langsung/pengecualian` | `pengaturan.arus-kas.tidak-langsung.pengecualian.store` | `storePengecualian()` | `pengaturan.arus-kas,create` | Tambah akun Neraca ke daftar pengecualian |
+| `DELETE` | `/pengaturan/arus-kas/tidak-langsung/pengecualian/{pengecualian}` | `pengaturan.arus-kas.tidak-langsung.pengecualian.destroy` | `destroyPengecualian()` | `pengaturan.arus-kas,delete` | Hapus akun dari daftar pengecualian |
 
 ---
 
@@ -97,11 +99,14 @@ Halaman utama menyajikan antarmuka terpadu yang memadukan Header Card, tab navig
 
 1. **Header Card Terpadu**:
    - Tombol kembali melingkar (`rounded-circle`) yang mengarah ke dashboard (`route('home')`).
-   - Judul modul: **Pengaturan Arus Kas**, dilengkapi badge status `Master Data & Mapping` dan ringkasan fungsi modul.
-   - Tombol modal **Bantuan & Panduan** (`#btnPanduanArusKas`) yang membuka panduan ringkas perbedaan Metode Langsung vs Tidak Langsung serta langkah-langkah pemetaan akun.
-2. **Tab Navigasi Utama (`#arusKasMetodeTab`)**:
-   - **Metode Langsung** (`route('pengaturan.arus-kas.index', ['metode' => 'langsung'])`): Menampilkan master referensi kelompok arus kas 3 pilar aktivitas.
-   - **Metode Tidak Langsung** (`route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung'])`): Menampilkan konfigurasi dinamis pos arus kas 4 bagian laporan, pengecualian, serta banner deteksi unmapped accounts.
+   - Judul modul: **Pengaturan Arus Kas**, dilengkapi badge status `Master & Pemetaan` dan ringkasan fungsi modul.
+   - Tautan kontekstual **Laporan Arus Kas** (tampil bila pengguna memiliki izin `laporan.keuangan,view`): mengarah ke `/laporan/keuangan/arus-kas` (`route('laporan.keuangan.arus-kas')`) saat tab Metode Langsung aktif, atau ke `/laporan/keuangan/arus-kas-tidak-langsung` (`route('laporan.keuangan.arus-kas-tidak-langsung')`) saat tab Metode Tidak Langsung aktif.
+   - Dropdown **Bantuan & Panduan** (`#btnBantuanDropdown`) dengan opsi:
+     - **Mulai Tur Panduan** (`#btnStartTour`): menampilkan alert placeholder `#tourPlaceholderAlert`.
+     - **Panduan & Glosarium** (`#btnOpenModalPanduan`): membuka modal `#modalPanduanArusKas` (`partials/_modal-panduan.blade.php`) yang saat ini menampilkan placeholder `"Panduan & Glosarium belum tersedia."`.
+2. **Tab Navigasi Utama (`#mainArusKasTabs`)**:
+   - **Pengaturan Arus Kas Metode Langsung** (`route('pengaturan.arus-kas.index', ['metode' => 'langsung'])`): Menampilkan master referensi kelompok arus kas 3 pilar aktivitas beserta badge counter `$referensiTabCounts['semua']`.
+   - **Pengaturan Arus Kas Metode Tidak Langsung** (`route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung'])`): Menampilkan konfigurasi dinamis pos arus kas 4 bagian laporan, pengecualian, serta banner deteksi unmapped accounts.
    - Navigasi tab didukung query parameter URL `metode`, sehingga tautan langsung maupun refresh browser tetap mempertahankan tab yang aktif.
 3. **Filter Toolbar Spesifik Tab**:
    - **Pada Tab Metode Langsung**: Memuat dropdown filter klasifikasi aktivitas (`Semua Aktivitas`, `Aktivitas Operasi`, `Aktivitas Investasi`, `Aktivitas Pendanaan`) lengkap dengan counter, input teks pencarian fleksibel, tombol reset pencarian, dan tombol `+ Tambah Pos Referensi`.
@@ -127,20 +132,19 @@ flowchart TD
 
 ### Algoritma `index()`
 
-1. `PengaturanArusKasController::index()` membaca query parameter `metode` (default: `'langsung'`), serta query filter pencarian `search`.
+1. `PengaturanArusKasController::index()` membaca query parameter `metode` (default: `'langsung'`), serta query filter pencarian `search`, dan selalu menghitung `$referensiTabCounts` (`semua`, `operasi`, `investasi`, `pendanaan`).
 2. Jika `metode === 'langsung'`:
    - Membaca parameter `aktivitas` (default `'semua'`).
    - Mengambil data `ReferensiKelompokArusKas` berpaginasi (25 baris/halaman) terfilter `aktivitas` dan `search`.
    - Menghitung agregasi eager `COUNT(*)` akun COA yang terikat ke setiap pasangan `(LOWER(arus_kas_aktivitas), LOWER(arus_kas_kelompok))` via `Coa::query()`.
-   - Menghitung total data per kategori tab `aktivitas` (`semua`, `operasi`, `investasi`, `pendanaan`).
-   - Menyiapkan variabel `$tabCounts` dan `$referensiList`.
+   - Menghitung ringkasan `$tidakLangsungTabCounts` untuk badge tab sebelah, dan menyiapkan `$referensiTabCounts` serta `$referensiList`.
 3. Jika `metode === 'tidak_langsung'`:
    - Membaca parameter `bagian` (atau alias legacy `tab`, valid: `semua`, `penyesuaian_laba`, `modal_kerja`, `investasi`, `pendanaan`, `pengecualian`; default `'semua'`).
    - Mengambil seluruh data `SettingArusKas` terurut (`urut()`) beserta relasi `coas`, serta seluruh record `SettingArusKasPengecualian` beserta relasi `coa`.
-   - Menghitung `tabCounts` untuk keenam kategori bagian laporan.
+   - Menghitung `$tidakLangsungTabCounts` (dan alias `$tabCounts`) untuk keenam kategori bagian laporan.
    - Memanggil `PengaturanArusKasService::getUnmappedMutatedNeracaAccounts()` untuk memindai akun Neraca non-Kasbank bermutasi pada tahun berjalan yang belum dipetakan.
    - Memanggil `PengaturanArusKasService::getCoaOptionsData()` untuk menyiapkan metadata COA leaf, parent, akun terpetakan, dan akun pengecualian.
-4. Mengembalikan view `pengaturan.arus-kas.index` yang merender header card terpadu dan menyertakan partial yang sesuai (`_tab-langsung.blade.php` atau `_tab-tidak-langsung.blade.php`).
+4. Mengembalikan view `pengaturan.arus-kas.index` yang merender header card terpadu, `_modal-panduan.blade.php`, `_modals.blade.php`, dan menyertakan partial yang sesuai (`_tab-langsung.blade.php` atau `_tab-tidak-langsung.blade.php`).
 
 ---
 
@@ -395,7 +399,7 @@ Menampilkan daftar konfigurasi pos arus kas tidak langsung, daftar akun pengecua
    - Kolom pencarian fleksibel di `#filterToolbarTidakLangsung` mencocokkan kata kunci terhadap `nama_pos`, `kode_pos`, kode COA terpetakan, dan nama COA terpetakan (serta kode/nama COA dan alasan pada tab pengecualian).
 3. **Tampilan Ringkas COA & Modal Detail**:
    - Kolom tabel pos menampilkan nama pos, kode pos berformat monospace, badge `Prefix Perubahan` (jika aktif), serta badge interaktif jumlah akun (`[X Akun COA]`). Pos tanpa akun ditandai dengan badge peringatan kuning `0 Akun`.
-   - Mengklik badge `[X Akun COA]` membuka modal interaktif `#modalDetailCoaPos` yang menampilkan judul & kode pos, kolom pencarian instan klien `#inputSearchDetailCoa`, daftar akun, serta status aktif/nonaktif akun.
+   - Mengklik badge `[X Akun COA]` membuka modal interaktif `#modalDetailCoaPos` yang menampilkan judul & kode pos (`#modalDetailPosSubtitle`), daftar akun (`#modalDetailCoaList`), serta status aktif/nonaktif akun.
 4. **Banner Akun Neraca Belum Dipetakan**:
    - Jika ada akun Neraca non-Kasbank yang memiliki mutasi saldo pada buku besar periode tahun berjalan namun belum masuk pos aktif maupun pengecualian, sistem menampilkan banner peringatan kuning `#unmappedAccountsCollapse`.
    - Tabel menampilkan daftar akun, tipe COA, total debit, total kredit, dan dampak kas (`kredit - debit`).
@@ -417,7 +421,7 @@ Menampilkan daftar konfigurasi pos arus kas tidak langsung, daftar akun pengecua
 
 ### Alur TL2: Ekspansi Akun Induk (Parent COA) ke Leaf COA
 
-Ketika pengguna memilih akun induk (*parent COA*) pada modal Tambah/Edit Pos atau modal Tambah Pengecualian dan menekan tombol **Tambah Semua Child COA**, skrip klien memanggil endpoint AJAX untuk mengekspansi seluruh akun daun turunan (*leaf descendants*) di bawah parent tersebut dan mengklasifikasikannya ke dalam kelompok `eligible` atau `skipped`.
+Ketika pengguna memilih akun induk (*parent COA*) pada modal Tambah/Edit Pos (`#parentCoaSelect`) atau modal Tambah Pengecualian (`#pengecualianParentCoaSelect`) dan menekan tombol **Tambah Sub-Akun** (`#btnAddParentLeaves`) atau **Pilih Semua** (`#btnAddPengecualianParentLeaves`), skrip klien memanggil endpoint AJAX untuk mengekspansi seluruh akun daun turunan (*leaf descendants*) di bawah parent tersebut dan mengklasifikasikannya ke dalam kelompok `eligible` atau `skipped`.
 
 #### Validasi Request
 `PengaturanArusKasController::parentCoaLeaves()` memvalidasi query parameter secara langsung:
@@ -429,7 +433,7 @@ Ketika pengguna memilih akun induk (*parent COA*) pada modal Tambah/Edit Pos ata
 
 ```mermaid
 flowchart TD
-    A["User klik 'Tambah Semua Child COA' di modal"] --> B["GET /pengaturan/arus-kas/parent-coa-leaves"]
+    A["User klik 'Tambah Sub-Akun' / 'Pilih Semua' di modal"] --> B["GET /pengaturan/arus-kas/tidak-langsung/parent-coa-leaves"]
     B --> C["PengaturanArusKasController::parentCoaLeaves()"]
     C --> D["PengaturanArusKasService::getLeafDescendantsByParent()"]
     D --> E["Bangun relasi parent_coa -> children"]
@@ -442,7 +446,7 @@ flowchart TD
     J -- Tidak --> K["Masukkan ke eligible"]
     I --> L["Return JSON { eligible, skipped }"]
     K --> L
-    L --> M["Frontend: Tambah eligible ke Select2 & render alert feedback"]
+    L --> M["Frontend: Tambah eligible ke daftar pilihan COA & render alert feedback"]
 ```
 
 #### Algoritma
@@ -487,7 +491,7 @@ Form modal `#modalPosArusKas` digunakan untuk menambah (*create*) maupun menyunt
 flowchart TD
     A["User submit form Tambah / Edit Pos"] --> B["POST /pengaturan/arus-kas/tidak-langsung atau PUT .../tidak-langsung/{id}"]
     B --> C["StoreSettingArusKasRequest / UpdateSettingArusKasRequest"]
-    C --> D["PengaturanArusKasController::storeTidakLangsung() / updateTidakLangsung()"]
+    C --> D["PengaturanArusKasController::store() / update()"]
     D --> E["PengaturanArusKasService::store() / update()"]
     E --> F["Mulai DB::transaction()"]
     F --> G["Simpan / Update record SettingArusKas"]
@@ -501,7 +505,7 @@ flowchart TD
 
 #### Fungsi yang Dipanggil
 - `StoreSettingArusKasRequest`, `UpdateSettingArusKasRequest`
-- `PengaturanArusKasController::storeTidakLangsung()`, `updateTidakLangsung()`
+- `PengaturanArusKasController::store()`, `update()`
 - `PengaturanArusKasService::store()`, `update()`, `syncCoaMappings()`, `validateCoaIds()`
 - `LogAktifitasService::log(...)`
 
@@ -509,12 +513,12 @@ flowchart TD
 
 ### Alur TL4: Mengubah Status Aktif & Menghapus Pos Arus Kas Tidak Langsung
 
-1. **Toggle Status Pos (`toggleStatusTidakLangsung`)**:
+1. **Toggle Status Pos (`toggleStatus`)**:
    - `PATCH /pengaturan/arus-kas/tidak-langsung/{settingArusKas}/toggle`
    - Memanggil `PengaturanArusKasService::toggleStatus($settingArusKas)`.
    - Di dalam `DB::transaction()`, membalik status boolean `$pos->is_active = !$pos->is_active`, menyimpan, dan mencatat audit log.
    - Redirect `back()` dengan pesan flash sukses.
-2. **Hapus Pos Arus Kas (`destroyTidakLangsung`)**:
+2. **Hapus Pos Arus Kas (`destroy`)**:
    - `DELETE /pengaturan/arus-kas/tidak-langsung/{settingArusKas}`
    - Di dalam `DB::transaction()`, menghapus seluruh pemetaan anak di `setting_arus_kas_coa`, menghapus record `SettingArusKas`, dan mencatat log audit.
    - Redirect ke `pengaturan.arus-kas.index` (`metode=tidak_langsung`) dengan pesan sukses.
@@ -538,7 +542,7 @@ Pengurutan pos di dalam satu kelompok bagian laporan dilakukan melalui antarmuka
 flowchart TD
     A["User klik tombol panah naik/turun di Mode Struktur Laporan"] --> B["PATCH /pengaturan/arus-kas/tidak-langsung/reorder (AJAX)"]
     B --> C["ReorderSettingArusKasRequest validasi"]
-    C --> D["PengaturanArusKasController::reorderTidakLangsung()"]
+    C --> D["PengaturanArusKasController::reorder()"]
     D --> E["PengaturanArusKasService::reorder(kelompokBagian, orderedIds)"]
     E --> F["Update urutan 1..N dalam DB::transaction() + audit log"]
     F --> G["Return JSON { success: true, ordered_ids: [...] }"]
@@ -558,20 +562,20 @@ Akun pengecualian digunakan untuk menandai akun Neraca non-Kasbank (seperti akum
 - **Validasi Kustom (`after`)**: Memanggil `PengaturanArusKasService::validateCoaIdsForValidator($validator, $coaIds, 'pengecualian')` guna menjamin seluruh akun berstatus *leaf*, bertipe Neraca non-Kasbank, belum berada di daftar pengecualian, dan belum dipetakan ke pos arus kas mana pun.
 
 #### Operasi Tambah & Hapus
-- **Tambah (`storePengecualianTidakLangsung`)**: Menyisipkan record ke tabel `setting_arus_kas_pengecualian` di dalam `DB::transaction()` dan mencatat audit log `'create_pengecualian'`.
-- **Hapus (`destroyPengecualianTidakLangsung`)**: Menghapus record `SettingArusKasPengecualian` di dalam `DB::transaction()` dan mencatat audit log `'delete_pengecualian'`.
+- **Tambah (`storePengecualian`)**: Menyisipkan record ke tabel `setting_arus_kas_pengecualian` di dalam `DB::transaction()` dan mencatat audit log `'create_pengecualian'`.
+- **Hapus (`destroyPengecualian`)**: Menghapus record `SettingArusKasPengecualian` di dalam `DB::transaction()` dan mencatat audit log `'delete_pengecualian'`.
 
 ---
 
 ## Catatan Penting Bisnis
 
 1. **Pengendalian Akses Modul Tunggal (Unified RBAC)**:
-   - Seluruh endpoint konfigurasi arus kas (baik Metode Langsung maupun Metode Tidak Langsung) dikendalikan secara terpusat oleh satu modul hak akses: `pengaturan.arus-kas` (urutan registry: 205).
+   - Seluruh endpoint konfigurasi arus kas (baik Metode Langsung maupun Metode Tidak Langsung) dikendalikan secara terpusat oleh satu modul hak akses: `pengaturan.arus-kas` (urutan registry: 206).
    - Hak akses default diberikan penuh (`view`, `create`, `update`, `delete`) kepada peran sistem (`roles.is_system = 1`, mis. Administrator/Superadmin).
-   - Migrasi penggabungan `2026_11_26_000001_merge_referensi_kelompok_into_pengaturan_arus_kas.php` membersihkan modul referensi kelompok lama dari tabel `role_permissions` dan `access_modules` secara aman.
+   - Migrasi `2026_11_24_000002_add_referensi_kelompok_arus_kas_access_module.php` (legacy) dan migrasi penggabungan `2026_11_26_000001_merge_referensi_kelompok_arus_kas_into_pengaturan_arus_kas_module.php` menyatukan izin ke `pengaturan.arus-kas` serta membersihkan modul referensi kelompok lama dari tabel `role_permissions` dan `access_modules` secara aman.
 2. **Karakteristik Metode Langsung vs Metode Tidak Langsung**:
-   - **Metode Langsung** (*Direct Cash Flow*): Menggunakan penandaan kolom `arus_kas_aktivitas` dan `arus_kas_kelompok` pada master akun `coa`. Setiap jurnal kas/bank akan diklasifikasikan berdasarkan akun lawannya. Menghasilkan laporan di `/keuangan/arus-kas`.
-   - **Metode Tidak Langsung** (*Indirect Cash Flow*): Menggunakan pemetaan tabel dinamis `setting_arus_kas`, `setting_arus_kas_coa`, dan `setting_arus_kas_pengecualian`. Menghasilkan laporan di `/keuangan/arus-kas-tidak-langsung`.
+   - **Metode Langsung** (*Direct Cash Flow*): Menggunakan penandaan kolom `arus_kas_aktivitas` dan `arus_kas_kelompok` pada master akun `coa`. Setiap jurnal kas/bank akan diklasifikasikan berdasarkan akun lawannya. Menghasilkan laporan di `/laporan/keuangan/arus-kas`.
+   - **Metode Tidak Langsung** (*Indirect Cash Flow*): Menggunakan pemetaan tabel dinamis `setting_arus_kas`, `setting_arus_kas_coa`, dan `setting_arus_kas_pengecualian`. Menghasilkan laporan di `/laporan/keuangan/arus-kas-tidak-langsung`.
 3. **Aturan Khusus Akun Kasbank vs Non-Kasbank**:
    - Akun COA bertipe `Kasbank` bertindak sebagai kas/setara kas itu sendiri, sehingga **tidak boleh** memiliki kelompok arus kas pada master COA (`arus_kas_kelompok = null`), dan **tidak boleh** dipetakan ke pos arus kas tidak langsung maupun dimasukkan ke daftar pengecualian.
 4. **Immutabilitas Aktivitas & Cascade Update pada Metode Langsung**:
@@ -587,7 +591,7 @@ Akun pengecualian digunakan untuk menandai akun Neraca non-Kasbank (seperti akum
    - Ketika pos arus kas tidak langsung dinonaktifkan (`is_active = false`), data pemetaannya tetap dipertahankan di database.
    - Namun, scanner `getUnmappedMutatedNeracaAccounts()` dan Laporan Keuangan dinamis hanya memperhitungkan pos **aktif**. Akun-akun pada pos nonaktif yang memiliki mutasi tahun berjalan akan otomatis muncul di banner peringatan **belum dipetakan** agar pengguna menyadari adanya aliran kas yang belum terefleksi pada laporan aktif.
 8. **Konsumsi pada Laporan Keuangan & Tautan Lintas Modul**:
-   - Pada halaman Laporan Arus Kas Tidak Langsung (`/keuangan/arus-kas-tidak-langsung`), banner peringatan akun belum dipetakan menyediakan tombol pintasan yang mengarahkan pengguna langsung ke tab Metode Tidak Langsung:
+   - Pada halaman Laporan Arus Kas Tidak Langsung (`/laporan/keuangan/arus-kas-tidak-langsung`), banner peringatan akun belum dipetakan menyediakan tombol pintasan yang mengarahkan pengguna langsung ke tab Metode Tidak Langsung:
      `route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung'])` (hanya tampil jika pengguna memiliki izin `pengaturan.arus-kas,view`).
 9. **Jejak Audit & Idempotensi Seeder**:
    - Seluruh mutasi konfigurasi pos arus kas dicatat ke dalam audit log `LogAktifitasService` dengan nama modul `'Pengaturan Arus Kas'`.
