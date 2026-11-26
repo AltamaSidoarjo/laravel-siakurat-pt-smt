@@ -31,7 +31,7 @@
                            id="searchLangsungInput"
                            value="{{ $search }}"
                            class="form-control border-start-0 {{ $search !== '' ? 'border-end-0' : '' }}"
-                           placeholder="Cari nama kelompok arus kas... (Tekan Enter)">
+                           placeholder="Cari nama pos atau kode/nama akun COA... (Tekan Enter)">
                     @if ($search !== '')
                         <a href="{{ route('pengaturan.arus-kas.index', array_filter(['metode' => 'langsung', 'aktivitas' => $aktivitas !== 'semua' ? $aktivitas : null])) }}"
                            class="input-group-text bg-white text-muted border-start-0 text-decoration-none"
@@ -73,6 +73,24 @@
         </thead>
         <tbody>
             @forelse ($referensiList as $item)
+                @php
+                    $mappedLeafPayload = ($item->mapped_leaf_coas ?? collect())->map(fn ($c) => [
+                        'id' => (int) $c->id,
+                        'kode' => (string) $c->kode,
+                        'nama' => (string) $c->nama,
+                        'tipe_coa' => (string) ($c->tipe_coa ?? ''),
+                        'status_aktif' => (int) $c->status_aktif,
+                    ])->values()->all();
+                    $mappedParentPayload = ($item->mapped_parent_coas ?? collect())->map(fn ($c) => [
+                        'id' => (int) $c->id,
+                        'kode' => (string) $c->kode,
+                        'nama' => (string) $c->nama,
+                        'tipe_coa' => (string) ($c->tipe_coa ?? ''),
+                        'status_aktif' => (int) $c->status_aktif,
+                    ])->values()->all();
+                    $mappedLeafIds = ($item->mapped_leaf_coas ?? collect())->pluck('id')->values()->all();
+                    $totalCoaCount = (int) ($item->coa_count ?? 0) + (int) ($item->parent_coa_count ?? 0);
+                @endphp
                 <tr>
                     <td class="text-center align-middle fw-bold text-muted">
                         {{ $loop->iteration + ($referensiList->currentPage() - 1) * $referensiList->perPage() }}
@@ -111,10 +129,18 @@
                         @endif
                     </td>
                     <td class="text-center align-middle">
-                        @if (($item->coa_count ?? 0) > 0)
-                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill fw-semibold">
-                                <i class="bi bi-diagram-3 me-1"></i> {{ $item->coa_count }} Akun
-                            </span>
+                        @if ($totalCoaCount > 0)
+                            <button type="button"
+                                    class="btn btn-xs btn-outline-primary py-0.5 px-2 rounded-pill fw-semibold btn-show-langsung-coas text-nowrap"
+                                    data-pos-name="{{ $item->nama }}"
+                                    data-pos-aktivitas="{{ $item->aktivitas }}"
+                                    data-leaf-coas="{{ json_encode($mappedLeafPayload) }}"
+                                    data-parent-coas="{{ json_encode($mappedParentPayload) }}">
+                                <i class="bi bi-diagram-3 me-1"></i> {{ $item->coa_count ?? 0 }} Akun
+                                @if (($item->parent_coa_count ?? 0) > 0)
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1">+{{ $item->parent_coa_count }} Induk</span>
+                                @endif
+                            </button>
                         @else
                             <span class="badge bg-light text-muted border px-2 py-1 rounded-pill">
                                 0 Akun
@@ -129,6 +155,7 @@
                                     data-aktivitas="{{ $item->aktivitas }}"
                                     data-nama="{{ $item->nama }}"
                                     data-status="{{ $item->status_aktif ? 1 : 0 }}"
+                                    data-coa-ids="{{ json_encode($mappedLeafIds) }}"
                                     title="Edit Pos Referensi">
                                 <i class="bi bi-pencil"></i>
                             </button>
@@ -137,13 +164,13 @@
                         @if ($canDelete)
                             <form method="POST" action="{{ route('pengaturan.arus-kas.langsung.destroy', $item) }}"
                                   class="d-inline"
-                                  onsubmit="return confirm('{{ ($item->coa_count ?? 0) > 0 ? "PERINGATAN: Pos ini sedang digunakan oleh {$item->coa_count} akun COA dan penghapusan akan ditolak sistem. Tetap lanjutkan?" : "Apakah Anda yakin ingin menghapus pos referensi ini?" }}');">
+                                  onsubmit="return confirm('{{ $totalCoaCount > 0 ? "PERINGATAN: Pos ini sedang digunakan oleh {$totalCoaCount} akun COA dan penghapusan akan ditolak sistem. Tetap lanjutkan?" : "Apakah Anda yakin ingin menghapus pos referensi ini?" }}');">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit"
                                         class="btn btn-sm btn-outline-danger py-0.5 px-2 ms-1"
-                                        @if(($item->coa_count ?? 0) > 0)
-                                            title="Pos ini sedang digunakan oleh {{ $item->coa_count }} akun COA"
+                                        @if($totalCoaCount > 0)
+                                            title="Pos ini sedang digunakan oleh {{ $totalCoaCount }} akun COA"
                                         @else
                                             title="Hapus Pos Referensi"
                                         @endif>

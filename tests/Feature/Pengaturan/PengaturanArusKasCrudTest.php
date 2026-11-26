@@ -236,15 +236,21 @@ class PengaturanArusKasCrudTest extends TestCase
         // Filter by aktivitas
         $responseAktivitas = $this->actingAs($this->admin)
             ->get(route('pengaturan.arus-kas.index', ['metode' => 'langsung', 'aktivitas' => 'operasi']));
-        $responseAktivitas->assertSee('Penerimaan Pasien');
-        $responseAktivitas->assertSee('Beban Operasional');
-        $responseAktivitas->assertDontSee('Pembelian Mesin');
+        $this->assertCount(2, $responseAktivitas->viewData('referensiList'));
+        $htmlAkt = $responseAktivitas->getContent();
+        $tbodyAkt = substr($htmlAkt, strpos($htmlAkt, '<tbody>'), strpos($htmlAkt, '</tbody>') - strpos($htmlAkt, '<tbody>') + 8);
+        $this->assertStringContainsString('Penerimaan Pasien', $tbodyAkt);
+        $this->assertStringContainsString('Beban Operasional', $tbodyAkt);
+        $this->assertStringNotContainsString('Pembelian Mesin', $tbodyAkt);
 
         // Filter by search
         $responseSearch = $this->actingAs($this->admin)
             ->get(route('pengaturan.arus-kas.index', ['metode' => 'langsung', 'aktivitas' => 'operasi', 'search' => 'Operasional']));
-        $responseSearch->assertSee('Beban Operasional');
-        $responseSearch->assertDontSee('Penerimaan Pasien');
+        $this->assertCount(1, $responseSearch->viewData('referensiList'));
+        $htmlSearch = $responseSearch->getContent();
+        $tbodySearch = substr($htmlSearch, strpos($htmlSearch, '<tbody>'), strpos($htmlSearch, '</tbody>') - strpos($htmlSearch, '<tbody>') + 8);
+        $this->assertStringContainsString('Beban Operasional', $tbodySearch);
+        $this->assertStringNotContainsString('Penerimaan Pasien', $tbodySearch);
 
         // Reset link mempertahankan metode=langsung dan aktivitas=operasi
         $responseSearch->assertSee(route('pengaturan.arus-kas.index', ['metode' => 'langsung', 'aktivitas' => 'operasi']));
@@ -1129,7 +1135,10 @@ class PengaturanArusKasCrudTest extends TestCase
             'search' => 'TidakAdaAkunSamaSekali',
         ]));
         $resSearchNotFound->assertStatus(200);
-        $resSearchNotFound->assertDontSee('Penerimaan Rawat Inap');
+        $this->assertCount(0, $resSearchNotFound->viewData('referensiList'));
+        $htmlNotFound = $resSearchNotFound->getContent();
+        $tbodyNotFound = substr($htmlNotFound, strpos($htmlNotFound, '<tbody>'), strpos($htmlNotFound, '</tbody>') - strpos($htmlNotFound, '<tbody>') + 8);
+        $this->assertStringNotContainsString('Penerimaan Rawat Inap', $tbodyNotFound);
 
         // 3. parentCoaLeavesLangsung returns JSON structure
         $resLeaves = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.langsung.parent-coa-leaves', [
@@ -1182,5 +1191,440 @@ class PengaturanArusKasCrudTest extends TestCase
         ]);
         $resUpdateClear->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
         $this->assertNull($leafCoa3->fresh()->arus_kas_kelompok);
+    }
+
+    public function test_langsung_store_update_sentinel_clear_and_move_reassignment(): void
+    {
+        $parentTemplate = Coa::create([
+            'kode' => '400',
+            'nama' => 'Pendapatan Induk',
+            'tipe_coa' => 'Pendapatan',
+            'status_aktif' => 1,
+            'arus_kas_aktivitas' => 'operasi',
+            'arus_kas_kelompok' => 'Penerimaan Operasional',
+        ]);
+
+        $leaf1 = Coa::create([
+            'parent_coa' => $parentTemplate->id,
+            'kode' => '400.01',
+            'nama' => 'Pendapatan Layanan A',
+            'tipe_coa' => 'Pendapatan',
+            'status_aktif' => 1,
+        ]);
+
+        $leaf2 = Coa::create([
+            'parent_coa' => $parentTemplate->id,
+            'kode' => '400.02',
+            'nama' => 'Pendapatan Layanan B',
+            'tipe_coa' => 'Pendapatan',
+            'status_aktif' => 1,
+        ]);
+
+        // 1. Store pos baru dengan coa_ids berisi 2 leaf -> memverifikasi kedua leaf ter-update arus_kas_aktivitas & arus_kas_kelompok.
+        $resStore = $this->actingAs($this->admin)->post(route('pengaturan.arus-kas.langsung.store'), [
+            'aktivitas' => 'operasi',
+            'nama' => 'Penerimaan Operasional',
+            'status_aktif' => '1',
+            'coa_ids' => [$leaf1->id, $leaf2->id],
+        ]);
+        $resStore->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
+        $resStore->assertSessionHas('success');
+
+        $ref1 = ReferensiKelompokArusKas::where('nama', 'Penerimaan Operasional')->firstOrFail();
+        $this->assertSame('operasi', $leaf1->fresh()->arus_kas_aktivitas);
+        $this->assertSame('Penerimaan Operasional', $leaf1->fresh()->arus_kas_kelompok);
+        $this->assertSame('operasi', $leaf2->fresh()->arus_kas_aktivitas);
+        $this->assertSame('Penerimaan Operasional', $leaf2->fresh()->arus_kas_kelompok);
+
+        // 2. Buat pos kedua dan update dengan memindahkan salah satu leaf dari pos pertama (reassign) + pertahankan leaf parent template pada pos pertama
+        $ref2 = ReferensiKelompokArusKas::create([
+            'aktivitas' => 'operasi',
+            'nama' => 'Penerimaan Khusus',
+            'status_aktif' => true,
+        ]);
+
+        $resUpdateMove = $this->actingAs($this->admin)->put(route('pengaturan.arus-kas.langsung.update', $ref2), [
+            'nama' => 'Penerimaan Khusus',
+            'status_aktif' => '1',
+            'coa_ids' => [$leaf2->id],
+        ]);
+        $resUpdateMove->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
+        $resUpdateMove->assertSessionHas('success');
+
+        // Verifikasi leaf berpindah ke pos kedua, pos pertama masih memiliki leaf satunya & parent template tidak hilang
+        $this->assertSame('Penerimaan Khusus', $leaf2->fresh()->arus_kas_kelompok);
+        $this->assertSame('Penerimaan Operasional', $leaf1->fresh()->arus_kas_kelompok);
+        $this->assertSame('Penerimaan Operasional', $parentTemplate->fresh()->arus_kas_kelompok);
+
+        // 3. Update pos dengan coa_ids => '' (simulasi sentinel hidden <select multiple> dikosongkan)
+        $resClear = $this->actingAs($this->admin)->put(route('pengaturan.arus-kas.langsung.update', $ref1), [
+            'nama' => 'Penerimaan Operasional',
+            'status_aktif' => '1',
+            'coa_ids' => '',
+        ]);
+        $resClear->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
+        $this->assertNull($leaf1->fresh()->arus_kas_aktivitas);
+        $this->assertNull($leaf1->fresh()->arus_kas_kelompok);
+        // Parent template tetap utuh
+        $this->assertSame('operasi', $parentTemplate->fresh()->arus_kas_aktivitas);
+        $this->assertSame('Penerimaan Operasional', $parentTemplate->fresh()->arus_kas_kelompok);
+
+        // 4. Update pos tanpa key coa_ids -> memverifikasi mapping leaf eksisting tidak terhapus
+        $resWithoutCoaKey = $this->actingAs($this->admin)->put(route('pengaturan.arus-kas.langsung.update', $ref2), [
+            'nama' => 'Penerimaan Khusus Renamed',
+            'status_aktif' => '1',
+        ]);
+        $resWithoutCoaKey->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
+        $this->assertSame('Penerimaan Khusus Renamed', $leaf2->fresh()->arus_kas_kelompok);
+
+        // 5. Cek audit log LogAktifitas tercatat untuk create_langsung dan update_langsung
+        $this->assertDatabaseHas('log_aktifitas', [
+            'tipe' => 'create_langsung',
+        ]);
+        $this->assertDatabaseHas('log_aktifitas', [
+            'tipe' => 'update_langsung',
+        ]);
+    }
+
+    public function test_langsung_search_matches_mapped_coa_kode_or_nama_and_renders_detail_coa_modal_and_sentinels(): void
+    {
+        $refUtilitas = ReferensiKelompokArusKas::create([
+            'aktivitas' => 'operasi',
+            'nama' => 'Pembayaran Utilitas',
+            'status_aktif' => true,
+        ]);
+
+        $parentUtilitas = Coa::create([
+            'kode' => '5.1',
+            'nama' => 'Beban Utilitas Induk',
+            'tipe_coa' => 'Beban',
+            'status_aktif' => 1,
+            'arus_kas_aktivitas' => 'operasi',
+            'arus_kas_kelompok' => 'Pembayaran Utilitas',
+        ]);
+
+        $leafListrik = Coa::create([
+            'parent_coa' => $parentUtilitas->id,
+            'kode' => '5.1.01',
+            'nama' => 'Beban Listrik PLN',
+            'tipe_coa' => 'Beban',
+            'status_aktif' => 0,
+            'arus_kas_aktivitas' => 'operasi',
+            'arus_kas_kelompok' => 'Pembayaran Utilitas',
+        ]);
+
+        // GET /pengaturan/arus-kas?metode=langsung&search=5.1.01 dan search=Listrik PLN menampilkan 'Pembayaran Utilitas'
+        $resCode = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', [
+            'metode' => 'langsung',
+            'search' => '5.1.01',
+        ]));
+        $resCode->assertStatus(200);
+        $resCode->assertSee('Pembayaran Utilitas');
+
+        $resName = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', [
+            'metode' => 'langsung',
+            'search' => 'Listrik PLN',
+        ]));
+        $resName->assertStatus(200);
+        $resName->assertSee('Pembayaran Utilitas');
+
+        // search=Induk (hanya nama parent, bukan leaf dan bukan nama pos) TIDAK mencocokkan pos tersebut
+        $resParentOnly = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', [
+            'metode' => 'langsung',
+            'search' => 'Induk',
+        ]));
+        $resParentOnly->assertStatus(200);
+        $this->assertCount(0, $resParentOnly->viewData('referensiList'));
+        $htmlParent = $resParentOnly->getContent();
+        $tbodyParent = substr($htmlParent, strpos($htmlParent, '<tbody>'), strpos($htmlParent, '</tbody>') - strpos($htmlParent, '<tbody>') + 8);
+        $this->assertStringNotContainsString('Pembayaran Utilitas', $tbodyParent);
+
+        // Halaman merender 1 Akun, +1 Induk, tombol .btn-show-langsung-coas, #modalDetailCoaLangsung, #modalKonfirmasiPindahCoaLangsung
+        $resIndex = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
+        $resIndex->assertStatus(200);
+        $html = $resIndex->getContent();
+
+        $this->assertStringContainsString('1 Akun', $html);
+        $this->assertStringContainsString('+1 Induk', $html);
+        $this->assertStringContainsString('btn-show-langsung-coas', $html);
+        $this->assertStringContainsString('id="modalDetailCoaLangsung"', $html);
+        $this->assertStringContainsString('id="modalKonfirmasiPindahCoaLangsung"', $html);
+
+        // Regex sentinel <input type="hidden" name="coa_ids" value=""> tepat sebelum #createCoaIdsSelect dan #editCoaIdsSelect
+        $this->assertMatchesRegularExpression(
+            '/<input\s+type="hidden"\s+name="coa_ids"\s+value=""\s*>\s*<select\s+name="coa_ids\[\]"[^>]*id="createCoaIdsSelect"/s',
+            $html
+        );
+        $this->assertMatchesRegularExpression(
+            '/<input\s+type="hidden"\s+name="coa_ids"\s+value=""\s*>\s*<select\s+name="coa_ids\[\]"[^>]*id="editCoaIdsSelect"/s',
+            $html
+        );
+
+        // Opsi COA yang terpetakan ke pos lain merender (Saat ini: [Aktivitas] Nama Kelompok) dan data-current-group-key
+        $this->assertStringContainsString('(Saat ini: [Operasi] Pembayaran Utilitas)', $html);
+        $this->assertStringContainsString('data-current-group-key="operasi||Pembayaran Utilitas"', $html);
+    }
+
+    public function test_langsung_unmapped_cash_counterpart_banner_and_quick_map_workflow(): void
+    {
+        $refOperasi = ReferensiKelompokArusKas::create([
+            'aktivitas' => 'operasi',
+            'nama' => 'Penerimaan Pendapatan',
+            'status_aktif' => true,
+        ]);
+
+        $kasbankCoa = Coa::create([
+            'kode' => '111.01',
+            'nama' => 'Kas Operasional',
+            'tipe_coa' => 'Kasbank',
+            'status_aktif' => 1,
+        ]);
+
+        $mappedCounterpart = Coa::create([
+            'kode' => '411.01',
+            'nama' => 'Pendapatan Rawat Jalan',
+            'tipe_coa' => 'Pendapatan',
+            'status_aktif' => 1,
+            'arus_kas_aktivitas' => 'operasi',
+            'arus_kas_kelompok' => 'Penerimaan Pendapatan',
+        ]);
+
+        $unmappedCounterpart = Coa::create([
+            'kode' => '519.01',
+            'nama' => 'Beban Lain Unmapped',
+            'tipe_coa' => 'Beban',
+            'status_aktif' => 1,
+        ]);
+
+        // Pasangan jurnal akrual non-Kasbank
+        $akrualCoa1 = Coa::create([
+            'kode' => '706.01',
+            'nama' => 'Akun Akrual 1',
+            'tipe_coa' => 'Pendapatan Lain',
+            'status_aktif' => 1,
+        ]);
+        $akrualCoa2 = Coa::create([
+            'kode' => '142.01',
+            'nama' => 'Akun Akrual 2',
+            'tipe_coa' => 'Aset Lain',
+            'status_aktif' => 1,
+        ]);
+
+        // Masukkan transaksi bukubesar tahun berjalan:
+        // 1. Kasbank + unmapped counterpart
+        BukuBesar::create([
+            'coa_id' => $kasbankCoa->id,
+            'sumber_id' => 101,
+            'sumber_transaksi' => 'Kas Keluar',
+            'tanggal' => now()->toDateString(),
+            'nominal' => 500000,
+            'tipe_mutasi' => 'K',
+        ]);
+        BukuBesar::create([
+            'coa_id' => $unmappedCounterpart->id,
+            'sumber_id' => 101,
+            'sumber_transaksi' => 'Kas Keluar',
+            'tanggal' => now()->toDateString(),
+            'nominal' => 500000,
+            'tipe_mutasi' => 'D',
+        ]);
+
+        // 2. Kasbank + mapped counterpart
+        BukuBesar::create([
+            'coa_id' => $kasbankCoa->id,
+            'sumber_id' => 102,
+            'sumber_transaksi' => 'Kas Masuk',
+            'tanggal' => now()->toDateString(),
+            'nominal' => 750000,
+            'tipe_mutasi' => 'D',
+        ]);
+        BukuBesar::create([
+            'coa_id' => $mappedCounterpart->id,
+            'sumber_id' => 102,
+            'sumber_transaksi' => 'Kas Masuk',
+            'tanggal' => now()->toDateString(),
+            'nominal' => 750000,
+            'tipe_mutasi' => 'K',
+        ]);
+
+        // 3. Akrual murni non-Kasbank
+        BukuBesar::create([
+            'coa_id' => $akrualCoa1->id,
+            'sumber_id' => 103,
+            'sumber_transaksi' => 'Jurnal Penyesuaian',
+            'tanggal' => now()->toDateString(),
+            'nominal' => 300000,
+            'tipe_mutasi' => 'D',
+        ]);
+        BukuBesar::create([
+            'coa_id' => $akrualCoa2->id,
+            'sumber_id' => 103,
+            'sumber_transaksi' => 'Jurnal Penyesuaian',
+            'tanggal' => now()->toDateString(),
+            'nominal' => 300000,
+            'tipe_mutasi' => 'K',
+        ]);
+
+        // GET /pengaturan/arus-kas?metode=langsung
+        $res = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
+        $res->assertStatus(200);
+
+        // Menampilkan banner kuning (#unmappedLangsungAccountsCollapse), 519.01 - Beban Lain Unmapped, .btn-quick-map-langsung, #modalQuickMapLangsung, #btnQuickMapCreatePosBaru
+        $res->assertSee('id="unmappedLangsungAccountsCollapse"', false);
+        $res->assertSee('519.01');
+        $res->assertSee('Beban Lain Unmapped');
+        $res->assertSee('btn-quick-map-langsung');
+        $res->assertSee('id="modalQuickMapLangsung"', false);
+        $res->assertSee('id="btnQuickMapCreatePosBaru"', false);
+
+        // Serta TIDAK menampilkan 706.01, 142.01, 411.01, maupun 111.01 di dalam banner
+        $html = $res->getContent();
+        $bannerStart = strpos($html, 'id="unmappedLangsungAccountsCollapse"');
+        $this->assertNotFalse($bannerStart);
+        $bannerHtml = substr($html, $bannerStart, 2500);
+
+        $this->assertStringNotContainsString('706.01', $bannerHtml);
+        $this->assertStringNotContainsString('142.01', $bannerHtml);
+        $this->assertStringNotContainsString('411.01', $bannerHtml);
+        $this->assertStringNotContainsString('111.01', $bannerHtml);
+
+        // POST /pengaturan/arus-kas/langsung/quick-map dengan coa_id = 519.01 dan referensi_id = pos aktif
+        $resQuickMap = $this->actingAs($this->admin)->post(route('pengaturan.arus-kas.langsung.quick-map'), [
+            'coa_id' => $unmappedCounterpart->id,
+            'referensi_id' => $refOperasi->id,
+        ]);
+        $resQuickMap->assertRedirect(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
+        $resQuickMap->assertSessionHas('success');
+
+        // COA ter-update
+        $this->assertSame('operasi', $unmappedCounterpart->fresh()->arus_kas_aktivitas);
+        $this->assertSame('Penerimaan Pendapatan', $unmappedCounterpart->fresh()->arus_kas_kelompok);
+
+        // Banner tidak lagi menampilkan 519.01
+        $resAfter = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
+        $resAfter->assertDontSee('id="unmappedLangsungAccountsCollapse"', false);
+    }
+
+    public function test_langsung_parent_coa_leaves_json_and_validation_error_reopen_preserves_old_coa_ids(): void
+    {
+        $refCurrent = ReferensiKelompokArusKas::create([
+            'aktivitas' => 'operasi',
+            'nama' => 'Biaya Operasional',
+            'status_aktif' => true,
+        ]);
+
+        $refOther = ReferensiKelompokArusKas::create([
+            'aktivitas' => 'investasi',
+            'nama' => 'Investasi Mesin',
+            'status_aktif' => true,
+        ]);
+
+        $parentCoa = Coa::create([
+            'kode' => '500',
+            'nama' => 'Induk Beban',
+            'tipe_coa' => 'Beban',
+            'status_aktif' => 1,
+        ]);
+
+        $childEligibleKosong = Coa::create([
+            'parent_coa' => $parentCoa->id,
+            'kode' => '500.01',
+            'nama' => 'Beban Kosong',
+            'tipe_coa' => 'Beban',
+            'status_aktif' => 1,
+        ]);
+
+        $childEligibleThisPos = Coa::create([
+            'parent_coa' => $parentCoa->id,
+            'kode' => '500.02',
+            'nama' => 'Beban Sudah di Pos Ini',
+            'tipe_coa' => 'Beban',
+            'status_aktif' => 1,
+            'arus_kas_aktivitas' => 'operasi',
+            'arus_kas_kelompok' => 'Biaya Operasional',
+        ]);
+
+        $childReassignableOtherPos = Coa::create([
+            'parent_coa' => $parentCoa->id,
+            'kode' => '500.03',
+            'nama' => 'Beban di Pos Lain',
+            'tipe_coa' => 'Beban',
+            'status_aktif' => 1,
+            'arus_kas_aktivitas' => 'investasi',
+            'arus_kas_kelompok' => 'Investasi Mesin',
+        ]);
+
+        $childKasbank = Coa::create([
+            'parent_coa' => $parentCoa->id,
+            'kode' => '500.04',
+            'nama' => 'Kas di Bawah Induk Beban',
+            'tipe_coa' => 'Kasbank',
+            'status_aktif' => 1,
+        ]);
+
+        // GET /pengaturan/arus-kas/langsung/parent-coa-leaves
+        $resLeaves = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.langsung.parent-coa-leaves', [
+            'parent_id' => $parentCoa->id,
+            'ignore_referensi_id' => $refCurrent->id,
+        ]));
+        $resLeaves->assertStatus(200);
+        $data = $resLeaves->json();
+
+        $eligibleIds = collect($data['eligible'])->pluck('id')->all();
+        $this->assertContains($childEligibleKosong->id, $eligibleIds);
+        $this->assertContains($childEligibleThisPos->id, $eligibleIds);
+
+        $reassignableIds = collect($data['reassignable'])->pluck('id')->all();
+        $this->assertContains($childReassignableOtherPos->id, $reassignableIds);
+        $reassignableItem = collect($data['reassignable'])->firstWhere('id', $childReassignableOtherPos->id);
+        $this->assertSame('investasi', $reassignableItem['current_aktivitas']);
+        $this->assertSame('Investasi Mesin', $reassignableItem['current_kelompok']);
+        $this->assertSame($refOther->id, $reassignableItem['current_referensi_id']);
+
+        $skippedIds = collect($data['skipped'])->pluck('id')->all();
+        $this->assertContains($childKasbank->id, $skippedIds);
+
+        // Submit invalid POST /langsung (nama => '', coa_ids => [$leaf->id], _modal_target => 'modalTambahReferensi')
+        $followedPost = $this->actingAs($this->admin)
+            ->from(route('pengaturan.arus-kas.index', ['metode' => 'langsung']))
+            ->followingRedirects()
+            ->post(route('pengaturan.arus-kas.langsung.store'), [
+                'aktivitas' => 'operasi',
+                'nama' => '',
+                'coa_ids' => [$childEligibleKosong->id],
+                '_modal_target' => 'modalTambahReferensi',
+            ]);
+        $followedPost->assertStatus(200);
+        $followedPost->assertSee('id="modalTambahReferensiValidationAlert"', false);
+        $this->assertMatchesRegularExpression(
+            '/<option\s+value="' . $childEligibleKosong->id . '"[^>]*selected/s',
+            $followedPost->getContent()
+        );
+
+        // Submit invalid PUT /langsung/{ref} (nama => '', coa_ids => [$leaf->id], _modal_target => 'modalEditReferensi')
+        $followedPut = $this->actingAs($this->admin)
+            ->from(route('pengaturan.arus-kas.index', ['metode' => 'langsung']))
+            ->followingRedirects()
+            ->put(route('pengaturan.arus-kas.langsung.update', $refCurrent), [
+                'nama' => '',
+                'coa_ids' => [$childEligibleKosong->id],
+                '_modal_target' => 'modalEditReferensi',
+                '_referensi_id' => $refCurrent->id,
+                '_referensi_aktivitas' => 'operasi',
+            ]);
+        $followedPut->assertStatus(200);
+        $followedPut->assertSee('id="modalEditReferensiValidationAlert"', false);
+
+        // Submit invalid POST /langsung/quick-map (coa_id => $kasbank->id, _modal_target => 'modalQuickMapLangsung')
+        $followedQuick = $this->actingAs($this->admin)
+            ->from(route('pengaturan.arus-kas.index', ['metode' => 'langsung']))
+            ->followingRedirects()
+            ->post(route('pengaturan.arus-kas.langsung.quick-map'), [
+                'coa_id' => $childKasbank->id,
+                'referensi_id' => $refCurrent->id,
+                '_modal_target' => 'modalQuickMapLangsung',
+            ]);
+        $followedQuick->assertStatus(200);
+        $followedQuick->assertSee('id="modalQuickMapValidationAlert"', false);
     }
 }

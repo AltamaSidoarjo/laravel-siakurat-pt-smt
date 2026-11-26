@@ -251,6 +251,81 @@
             </div>
         @endif
 
+        <!-- Unmapped Cash Counterpart Warning Banner (Khusus Metode Langsung) -->
+        @if ($activeMetode === 'langsung' && $unmappedLangsungAccounts->isNotEmpty())
+            <div class="alert alert-warning border-warning-subtle shadow-sm mb-0" role="alert">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                    <div class="d-flex align-items-start gap-2">
+                        <i class="bi bi-exclamation-triangle-fill fs-5 text-warning-emphasis mt-0.5"></i>
+                        <div>
+                            <div class="fw-bold text-dark">
+                                Terdapat {{ $unmappedLangsungAccounts->count() }} akun lawan transaksi Kas/Bank tahun berjalan yang belum dipetakan.
+                            </div>
+                            <div class="small text-muted">
+                                Akun berikut memiliki mutasi pada buku besar berpasangan dengan akun Kas/Bank namun belum dipetakan ke pos kelompok arus kas langsung.
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-warning text-dark fw-semibold text-nowrap"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#unmappedLangsungAccountsCollapse"
+                            aria-expanded="false"
+                            aria-controls="unmappedLangsungAccountsCollapse">
+                        <i class="bi bi-chevron-down me-1"></i> Lihat Daftar Akun
+                    </button>
+                </div>
+
+                <div class="collapse mt-3" id="unmappedLangsungAccountsCollapse">
+                    <div class="table-responsive bg-white rounded-3 border">
+                        <table class="table table-sm table-hover align-middle mb-0 small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="px-3 py-2">Akun COA</th>
+                                    <th class="px-3 py-2">Tipe COA</th>
+                                    <th class="px-3 py-2 text-end">Debit</th>
+                                    <th class="px-3 py-2 text-end">Kredit</th>
+                                    <th class="px-3 py-2 text-end">Dampak Kas</th>
+                                    @if ($canCreate || $canUpdate)
+                                        <th class="px-3 py-2 text-center">Tindakan Cepat</th>
+                                    @endif
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($unmappedLangsungAccounts as $account)
+                                    <tr>
+                                        <td class="px-3 py-2 fw-semibold text-dark">
+                                            {{ $account['kode'] }} - {{ $account['nama'] }}
+                                            @if ((int) $account['status_aktif'] !== 1)
+                                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1">Nonaktif</span>
+                                            @endif
+                                            @if (($account['trx_count'] ?? 0) > 0)
+                                                <span class="text-muted fw-normal ms-1">({{ $account['trx_count'] }} trx)</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-2 text-muted">{{ $account['tipe_coa'] !== '' ? $account['tipe_coa'] : '-' }}</td>
+                                        <td class="px-3 py-2 text-end font-monospace">{{ number_format((float) $account['debit'], 2, ',', '.') }}</td>
+                                        <td class="px-3 py-2 text-end font-monospace">{{ number_format((float) $account['kredit'], 2, ',', '.') }}</td>
+                                        <td class="px-3 py-2 text-end font-monospace fw-semibold">{{ number_format((float) $account['dampak_kas'], 2, ',', '.') }}</td>
+                                        @if ($canCreate || $canUpdate)
+                                            <td class="px-3 py-2 text-center text-nowrap">
+                                                <button type="button"
+                                                        class="btn btn-xs btn-outline-primary py-0 px-2 btn-quick-map-langsung"
+                                                        data-coa-id="{{ $account['coa_id'] }}"
+                                                        data-coa-label="{{ $account['kode'] }} - {{ $account['nama'] }}">
+                                                    <i class="bi bi-plus-circle me-1"></i> Petakan
+                                                </button>
+                                            </td>
+                                        @endif
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <!-- Card Utama: 2 Tab Utama -->
         <div class="card border-0 shadow-sm bg-white">
             <div class="card-header bg-white border-bottom-0 pb-0 pt-3 px-3 px-md-4">
