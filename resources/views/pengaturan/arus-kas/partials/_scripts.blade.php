@@ -364,6 +364,30 @@
             coaCounterBadgeEl.textContent = `${count} akun dipilih`;
         };
 
+        const initSelect2InModal = (selector, modalSelector, placeholderText) => {
+            if (!($ && $.fn && $.fn.select2)) {
+                return null;
+            }
+            const $el = $(selector);
+            const $modal = $(modalSelector);
+            if (!$el.length || !$modal.length) {
+                return null;
+            }
+            if ($el.data('select2')) {
+                return $el;
+            }
+
+            $el.select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                dropdownParent: $modal,
+                placeholder: placeholderText,
+                allowClear: true,
+            });
+
+            return $el;
+        };
+
         const filterSelectOptions = (selectEl, rawQuery) => {
             if (!selectEl) {
                 return;
@@ -591,6 +615,8 @@
         const parentLeavesFeedbackEl = document.getElementById('parentLeavesFeedback');
         const coaIdsSelectEl = document.getElementById('coaIdsSelect');
 
+        initSelect2InModal('#parentCoaSelect', '#modalPosArusKas', '-- Pilih Induk COA untuk Tambah Cepat --');
+
         const defaultSifatForBagian = (bagian) => {
             switch (bagian) {
                 case 'penyesuaian_laba':
@@ -672,6 +698,9 @@
 
             if (parentCoaSelectEl) {
                 parentCoaSelectEl.value = '';
+                if ($ && $(parentCoaSelectEl).data('select2')) {
+                    $(parentCoaSelectEl).val('').trigger('change');
+                }
             }
             if (filterCoaOptionsInputEl) {
                 filterCoaOptionsInputEl.value = '';
@@ -734,6 +763,9 @@
 
             if (parentCoaSelectEl) {
                 parentCoaSelectEl.value = '';
+                if ($ && $(parentCoaSelectEl).data('select2')) {
+                    $(parentCoaSelectEl).val('').trigger('change');
+                }
             }
             if (filterCoaOptionsInputEl) {
                 filterCoaOptionsInputEl.value = '';
@@ -802,6 +834,8 @@
         const pengecualianCoaSelectEl = document.getElementById('pengecualianCoaIdsSelect');
         const pengecualianAlasanEl = document.getElementById('pengecualianAlasan');
 
+        initSelect2InModal('#pengecualianParentCoaSelect', '#modalPengecualianArusKas', '-- Pilih Induk COA untuk Memilih Cepat --');
+
         const openPengecualianModal = (preselectedCoaIds = []) => {
             if (!modalPengecualianEl) {
                 return;
@@ -812,6 +846,9 @@
             }
             if (pengecualianParentEl) {
                 pengecualianParentEl.value = '';
+                if ($ && $(pengecualianParentEl).data('select2')) {
+                    $(pengecualianParentEl).val('').trigger('change');
+                }
             }
             if (filterPengecualianCoaInputEl) {
                 filterPengecualianCoaInputEl.value = '';

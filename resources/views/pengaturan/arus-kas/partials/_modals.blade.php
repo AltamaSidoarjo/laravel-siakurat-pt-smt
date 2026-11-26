@@ -307,7 +307,7 @@
                                     <!-- Quick Parent Picker -->
                                     <div class="row g-2 align-items-center mb-2">
                                         <div class="col-sm-8">
-                                            <select class="form-select form-select-sm" id="parentCoaSelect">
+                                            <select class="form-select form-select-sm select2" id="parentCoaSelect" data-placeholder="-- Pilih Induk COA untuk Tambah Cepat --">
                                                 <option value="">-- Pilih Induk COA untuk Tambah Cepat --</option>
                                                 @foreach ($parentCoas as $parent)
                                                     <option value="{{ $parent->id }}">
@@ -424,7 +424,7 @@
                         <div class="mb-3">
                             <label class="form-label small fw-semibold">Pilih Induk COA (Opsional)</label>
                             <div class="input-group input-group-sm">
-                                <select class="form-select form-select-sm" id="pengecualianParentCoaSelect">
+                                <select class="form-select form-select-sm select2" id="pengecualianParentCoaSelect" data-placeholder="-- Pilih Induk COA untuk Memilih Cepat --">
                                     <option value="">-- Pilih Induk COA untuk Memilih Cepat --</option>
                                     @foreach ($parentCoas as $parent)
                                         <option value="{{ $parent->id }}">
