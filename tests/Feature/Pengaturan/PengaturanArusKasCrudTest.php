@@ -181,7 +181,13 @@ class PengaturanArusKasCrudTest extends TestCase
         $response->assertSee('Bantuan & Panduan');
         $response->assertSee('id="btnStartTour"', false);
         $response->assertSee('id="modalPanduanArusKas"', false);
-        $response->assertSee('Panduan & Glosarium belum tersedia.');
+        $response->assertSee('modal-xl', false);
+        $response->assertSee('id="pillsTabPanduanArusKas"', false);
+        $response->assertSee('Langsung vs Tidak Langsung');
+        $response->assertSee('Aturan COA, Sifat Pos &amp; Eliminasi', false);
+        $response->assertSee('Glosarium &amp; Studi Kasus RS', false);
+        $response->assertDontSee('Panduan & Glosarium belum tersedia.');
+        $response->assertDontSee('tourPlaceholderAlert');
 
         // 2 Tab Utama
         $response->assertSee('Pengaturan Arus Kas Metode Langsung');
@@ -225,6 +231,59 @@ class PengaturanArusKasCrudTest extends TestCase
         $resWithLaporanTidakLangsung = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']));
         $resWithLaporanTidakLangsung->assertSee(route('laporan.keuangan.arus-kas-tidak-langsung'));
         $resWithLaporanTidakLangsung->assertDontSee('href="'.route('laporan.keuangan.arus-kas').'"', false);
+    }
+
+    public function test_modal_panduan_renders_three_tabs_rules_and_rs_case_studies(): void
+    {
+        $view = $this->blade("@include('pengaturan.arus-kas.partials._modal-panduan')");
+
+        // Structural & 3-tab pills
+        $view->assertSee('id="modalPanduanArusKas"', false)
+            ->assertSee('modal-xl', false)
+            ->assertSee('id="pills-perbandingan-tab"', false)
+            ->assertSee('id="pills-aturan-coa-tab"', false)
+            ->assertSee('id="pills-glosarium-kasus-tab"', false)
+            ->assertSee('Tutup Panduan')
+            ->assertDontSee('Panduan & Glosarium belum tersedia.');
+
+        // Tab 1: Langsung vs Tidak Langsung & scanner rules
+        $view->assertSee('/laporan/keuangan/arus-kas')
+            ->assertSee('/laporan/keuangan/arus-kas-tidak-langsung')
+            ->assertSee('Kredit - Debit')
+            ->assertSee('|cashNet| &lt; 0,005', false);
+
+        // Tab 2: COA rules, 5 sifat_pos, prefix rules, pengecualian vs nonaktif
+        $view->assertSee('Kasbank')
+            ->assertSee('Akun Induk Template')
+            ->assertSee('UNIQUE(coa_id)')
+            ->assertSee('modalKonfirmasiPindahCoaLangsung')
+            ->assertSee('penambah_laba')
+            ->assertSee('pengurang_laba')
+            ->assertSee('aset')
+            ->assertSee('liabilitas')
+            ->assertSee('ekuitas')
+            ->assertSee('(Kenaikan)')
+            ->assertSee('(Penurunan)')
+            ->assertSee('Daftar Pengecualian')
+            ->assertSee('Pos Nonaktif');
+
+        // Tab 3: Glossary & 5 RS case studies grounded in seeders
+        $view->assertSee('Akun Lawan Kasbank')
+            ->assertSee('Selisih Rekonsiliasi Kas Riil')
+            ->assertSee('Penerimaan klaim BPJS Kesehatan')
+            ->assertSee('112.01.*')
+            ->assertSee('706.*')
+            ->assertSee('142..147')
+            ->assertSee('Pembelian &amp; pembayaran hutang aset tetap', false)
+            ->assertSee('221.*')
+            ->assertSee('113.*')
+            ->assertSee('213.*');
+
+        // Must never trip RBAC attribute checks
+        $view->assertDontSee('id="btnOpenCreate', false)
+            ->assertDontSee('btn-edit-referensi"', false)
+            ->assertDontSee('btn-edit-pos"', false)
+            ->assertDontSee('btn-reorder-pos"', false);
     }
 
     public function test_index_renders_hardened_tour_target_ids_and_removes_placeholder(): void
