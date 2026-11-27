@@ -202,6 +202,11 @@ class PengaturanArusKasCrudTest extends TestCase
 
         // Dropdown aktivitas dan data tabel
         $response->assertSee('id="selectAktivitasLangsung"', false);
+        $response->assertSee('id="tabLinkLangsung"', false);
+        $response->assertSee('id="tabLinkTidakLangsung"', false);
+        $response->assertSee('id="filterToolbarLangsung"', false);
+        $response->assertSee('id="tableReferensiContainer"', false);
+        $response->assertSee('driver.js@1.3.1');
         $response->assertSee('Penerimaan Pasien');
         $response->assertSee('1 Akun');
 
@@ -224,13 +229,98 @@ class PengaturanArusKasCrudTest extends TestCase
 
         // Pada metode langsung, muncul link laporan arus kas langsung
         $resWithLaporanLangsung = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
+        $resWithLaporanLangsung->assertSee('id="btnLaporanArusKas"', false);
         $resWithLaporanLangsung->assertSee(route('laporan.keuangan.arus-kas'));
         $resWithLaporanLangsung->assertDontSee(route('laporan.keuangan.arus-kas-tidak-langsung'));
 
         // Pada metode tidak langsung, muncul link laporan arus kas tidak langsung
         $resWithLaporanTidakLangsung = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']));
+        $resWithLaporanTidakLangsung->assertSee('id="btnLaporanArusKas"', false);
         $resWithLaporanTidakLangsung->assertSee(route('laporan.keuangan.arus-kas-tidak-langsung'));
         $resWithLaporanTidakLangsung->assertDontSee('href="'.route('laporan.keuangan.arus-kas').'"', false);
+    }
+
+    public function test_tour_scripts_partial_renders_driverjs_assets_and_scenarios(): void
+    {
+        // 1. Default without $activeMetode (falls back safely to 'langsung') + compiled Blade progressText
+        $defaultView = $this->blade("
+            @include('pengaturan.arus-kas.partials._tour-scripts')
+            @stack('styles')
+            @stack('scripts')
+        ");
+
+        $defaultView->assertSee('https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.css', false)
+            ->assertSee('https://cdn.jsdelivr.net/npm/driver.js@1.3.1/dist/driver.js.iife.js', false)
+            ->assertSee('#027e3f')
+            ->assertSee('Langkah {{current}} dari {{total}}', false)
+            ->assertSee('const activeMetode = "langsung"', false)
+            ->assertSee('siakurat_tour_arus_kas_langsung_seen')
+            ->assertSee('siakurat_tour_arus_kas_tidak_langsung_tab_seen')
+            ->assertSee('siakurat_tour_arus_kas_tidak_langsung_struktur_seen')
+            ->assertSee('window.initArusKasTour = startArusKasTour', false)
+            ->assertSee('isElementVisible')
+            ->assertSee("el.closest('.d-none')", false)
+            ->assertSee('getClientRects().length > 0', false)
+            ->assertSee('.modal.show')
+            ->assertSee('#tabLinkLangsung')
+            ->assertSee('#tabLinkTidakLangsung')
+            ->assertSee('#viewModeSwitcher')
+            ->assertSee('#subBarModeStruktur')
+            ->assertSee('#viewModeStruktur .btn-reorder-pos:not(:disabled)')
+            ->assertDontSee('id="btnOpenCreate', false)
+            ->assertDontSee('btn-edit-referensi"', false)
+            ->assertDontSee('btn-edit-pos"', false)
+            ->assertDontSee('btn-reorder-pos"', false);
+
+        // 2. Explicit activeMetode = 'tidak_langsung'
+        $tidakLangsungView = $this->blade("
+            @include('pengaturan.arus-kas.partials._tour-scripts', ['activeMetode' => 'tidak_langsung'])
+            @stack('styles')
+            @stack('scripts')
+        ");
+
+        $tidakLangsungView->assertSee('const activeMetode = "tidak_langsung"', false);
+    }
+
+    public function test_tidak_langsung_index_renders_tour_targets_and_driverjs_assets(): void
+    {
+        $kasCoa = Coa::create(['kode' => '111.01', 'nama' => 'Kas Utama', 'tipe_coa' => 'Kasbank', 'status_aktif' => 1]);
+        $unmappedNeraca = Coa::create(['kode' => '119.01', 'nama' => 'Uang Muka Supplier', 'tipe_coa' => 'Aset Lancar Lainnya', 'status_aktif' => 1]);
+        BukuBesar::create(['coa_id' => $unmappedNeraca->id, 'tanggal' => now()->toDateString(), 'nominal' => 125000, 'tipe_mutasi' => 'D']);
+        BukuBesar::create(['coa_id' => $kasCoa->id, 'tanggal' => now()->toDateString(), 'nominal' => 125000, 'tipe_mutasi' => 'K']);
+
+        SettingArusKas::create([
+            'kode_pos' => 'PL_DEPRESIASI',
+            'nama_pos' => 'Penyusutan Aset',
+            'kelompok_bagian' => 'penyesuaian_laba',
+            'sifat_pos' => 'penambah_laba',
+            'urutan' => 1,
+            'is_active' => true,
+        ]);
+
+        // Default tidak_langsung
+        $res = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']));
+        $res->assertStatus(200)
+            ->assertSee('driver.js@1.3.1')
+            ->assertSee('id="viewModeSwitcher"', false)
+            ->assertSee('id="filterToolbarTidakLangsung"', false)
+            ->assertSee('id="tableTidakLangsungContainer"', false)
+            ->assertSee('id="btnOpenCreatePosTidakLangsung"', false)
+            ->assertSee('id="subBarModeStruktur"', false)
+            ->assertSee('id="bannerUnmappedTidakLangsung"', false)
+            ->assertSee('data-section-bagian="penyesuaian_laba"', false)
+            ->assertSee('data-section-bagian="pengecualian"', false)
+            ->assertDontSee('tourPlaceholderAlert');
+
+        // bagian=pengecualian renders #btnOpenCreatePengecualian & #tableTidakLangsungContainer
+        $resPengecualian = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', [
+            'metode' => 'tidak_langsung',
+            'bagian' => 'pengecualian',
+        ]));
+        $resPengecualian->assertStatus(200)
+            ->assertSee('id="btnOpenCreatePengecualian"', false)
+            ->assertSee('id="tableTidakLangsungContainer"', false)
+            ->assertSee('driver.js@1.3.1');
     }
 
     public function test_modal_panduan_renders_three_tabs_rules_and_rs_case_studies(): void

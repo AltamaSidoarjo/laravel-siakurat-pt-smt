@@ -355,3 +355,4 @@
 @endsection
 
 @include('pengaturan.arus-kas.partials._scripts')
+@include('pengaturan.arus-kas.partials._tour-scripts')
