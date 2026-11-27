@@ -329,7 +329,7 @@
         <!-- Card Utama: 2 Tab Utama -->
         <div class="card border-0 shadow-sm bg-white">
             <div class="card-header bg-white border-bottom-0 pb-0 pt-3 px-3 px-md-4">
-                <ul class="nav nav-tabs card-header-tabs flex-nowrap overflow-x-auto custom-scrollbar border-bottom-0" id="mainArusKasTabs" role="tablist">
+                <ul class="nav nav-tabs card-header-tabs flex-nowrap overflow-x-auto overflow-y-hidden custom-scrollbar border-bottom-0 pb-1" id="mainArusKasTabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <a class="nav-link fw-semibold px-3 py-2.5 text-nowrap {{ $activeMetode === 'langsung' ? 'active text-primary' : 'text-muted' }}"
                            href="{{ route('pengaturan.arus-kas.index', ['metode' => 'langsung']) }}">

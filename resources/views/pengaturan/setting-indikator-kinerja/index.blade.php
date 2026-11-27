@@ -442,10 +442,10 @@
 
     <!-- Navigation Tabs -->
     <div class="card border-0 shadow-sm bg-white">
-        <div class="card-header bg-white border-bottom-0 pb-0 pt-3 px-4">
-            <ul class="nav nav-tabs card-header-tabs" id="settingTab" role="tablist">
+        <div class="card-header bg-white border-bottom-0 pb-0 pt-3 px-3 px-md-4">
+            <ul class="nav nav-tabs card-header-tabs flex-nowrap overflow-x-auto overflow-y-hidden custom-scrollbar border-bottom-0 pb-1" id="settingTab" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <a class="nav-link fw-semibold px-3 py-2.5 {{ $tab !== 'manual' ? 'active text-primary' : 'text-muted' }}" 
+                    <a class="nav-link fw-semibold px-3 py-2.5 text-nowrap {{ $tab !== 'manual' ? 'active text-primary' : 'text-muted' }}" 
                        id="tabLinkIndikator"
                        href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator', 'tahun' => $tahun]) }}">
                         <i class="bi bi-speedometer2 me-1.5"></i> 1. Manajemen Indikator & Ambang Batas
@@ -453,7 +453,7 @@
                     </a>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <a class="nav-link fw-semibold px-3 py-2.5 {{ $tab === 'manual' ? 'active text-primary' : 'text-muted' }}" 
+                    <a class="nav-link fw-semibold px-3 py-2.5 text-nowrap {{ $tab === 'manual' ? 'active text-primary' : 'text-muted' }}" 
                        id="tabLinkManual"
                        href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'manual', 'tahun' => $tahun]) }}">
                         <i class="bi bi-calendar3 me-1.5"></i> 2. Entri Data Manual Bulanan
