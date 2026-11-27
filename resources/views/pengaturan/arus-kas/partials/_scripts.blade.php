@@ -44,18 +44,6 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         // ---------------------------------------------------------------------
-        // 0. Pusat Panduan & Tur Interaktif Placeholder Alert
-        // ---------------------------------------------------------------------
-        const btnStartTour = document.getElementById('btnStartTour');
-        const tourAlert = document.getElementById('tourPlaceholderAlert');
-        if (btnStartTour && tourAlert) {
-            btnStartTour.addEventListener('click', function () {
-                tourAlert.classList.remove('d-none');
-                tourAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            });
-        }
-
-        // ---------------------------------------------------------------------
         // Shared Pure JavaScript Utilities
         // ---------------------------------------------------------------------
         const escapeHtml = (value) => String(value ?? '')

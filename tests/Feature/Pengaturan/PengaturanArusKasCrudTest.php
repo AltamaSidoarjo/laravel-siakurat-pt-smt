@@ -227,6 +227,59 @@ class PengaturanArusKasCrudTest extends TestCase
         $resWithLaporanTidakLangsung->assertDontSee('href="'.route('laporan.keuangan.arus-kas').'"', false);
     }
 
+    public function test_index_renders_hardened_tour_target_ids_and_removes_placeholder(): void
+    {
+        $laporanModule = AccessModule::create([
+            'kode' => 'laporan.keuangan',
+            'nama' => 'Laporan Keuangan',
+            'group_nama' => 'Laporan',
+            'urutan' => 100,
+        ]);
+        RolePermission::create([
+            'role_id' => $this->admin->role_id,
+            'access_module_id' => $laporanModule->id,
+            'can_view' => true,
+        ]);
+        $this->admin->unsetRelation('role');
+
+        $kasbank = Coa::create(['kode' => '111.01', 'nama' => 'Kas Utama', 'tipe_coa' => 'Kasbank', 'status_aktif' => 1]);
+        $unmappedPendapatan = Coa::create(['kode' => '419.01', 'nama' => 'Pendapatan Belum Dipetakan', 'tipe_coa' => 'Pendapatan', 'status_aktif' => 1]);
+        $unmappedNeraca = Coa::create(['kode' => '119.02', 'nama' => 'Piutang Lain Unmapped', 'tipe_coa' => 'Aset Lancar Lainnya', 'status_aktif' => 1]);
+
+        BukuBesar::create(['coa_id' => $kasbank->id, 'sumber_id' => 901, 'sumber_transaksi' => 'Kas Masuk', 'tanggal' => now()->toDateString(), 'nominal' => 100000, 'tipe_mutasi' => 'D']);
+        BukuBesar::create(['coa_id' => $unmappedPendapatan->id, 'sumber_id' => 901, 'sumber_transaksi' => 'Kas Masuk', 'tanggal' => now()->toDateString(), 'nominal' => 100000, 'tipe_mutasi' => 'K']);
+        BukuBesar::create(['coa_id' => $unmappedNeraca->id, 'sumber_id' => 902, 'sumber_transaksi' => 'Jurnal Umum', 'tanggal' => now()->toDateString(), 'nominal' => 50000, 'tipe_mutasi' => 'D']);
+
+        // Langsung
+        $resLangsung = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', ['metode' => 'langsung']));
+        $resLangsung->assertStatus(200)
+            ->assertDontSee('tourPlaceholderAlert')
+            ->assertSee('id="btnLaporanArusKas"', false)
+            ->assertSee('id="bannerUnmappedLangsung"', false)
+            ->assertSee('id="tabLinkLangsung"', false)
+            ->assertSee('id="tabLinkTidakLangsung"', false);
+
+        // Tidak Langsung (mode pos)
+        $resTidakLangsung = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']));
+        $resTidakLangsung->assertStatus(200)
+            ->assertDontSee('tourPlaceholderAlert')
+            ->assertSee('id="btnLaporanArusKas"', false)
+            ->assertSee('id="bannerUnmappedTidakLangsung"', false)
+            ->assertSee('id="viewModeSwitcher"', false)
+            ->assertSee('id="btnOpenCreatePosTidakLangsung"', false)
+            ->assertSee('id="tableTidakLangsungContainer"', false);
+        $this->assertSame(1, substr_count($resTidakLangsung->getContent(), 'id="btnOpenCreatePosTidakLangsung"'));
+        $this->assertSame(1, substr_count($resTidakLangsung->getContent(), 'id="tableTidakLangsungContainer"'));
+
+        // Tidak Langsung (bagian=pengecualian)
+        $resPengecualian = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung', 'bagian' => 'pengecualian']));
+        $resPengecualian->assertStatus(200)
+            ->assertSee('id="btnOpenCreatePengecualian"', false)
+            ->assertSee('id="tableTidakLangsungContainer"', false);
+        $this->assertSame(1, substr_count($resPengecualian->getContent(), 'id="btnOpenCreatePengecualian"'));
+        $this->assertSame(1, substr_count($resPengecualian->getContent(), 'id="tableTidakLangsungContainer"'));
+    }
+
     public function test_langsung_filters_by_aktivitas_dropdown_and_search(): void
     {
         ReferensiKelompokArusKas::create(['aktivitas' => 'operasi', 'nama' => 'Penerimaan Pasien', 'status_aktif' => true]);

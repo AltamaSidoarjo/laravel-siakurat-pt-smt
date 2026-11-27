@@ -300,20 +300,27 @@ class PengaturanArusKasAccessTest extends TestCase
         // 1. GET index (default langsung)
         $indexLangsungResponse = $this->actingAs($this->viewerOnly)->get(route('pengaturan.arus-kas.index'));
         $indexLangsungResponse->assertStatus(200);
-        $indexLangsungResponse->assertDontSee('Tambah Pos Referensi');
-        $indexLangsungResponse->assertDontSee('btn-edit-referensi');
+        $indexLangsungResponse->assertDontSee('id="btnOpenCreateReferensi"', false);
+        $indexLangsungResponse->assertDontSee('btn-edit-referensi"', false);
         $indexLangsungResponse->assertDontSee(route('pengaturan.arus-kas.langsung.destroy', $this->referensi));
 
-        // 2. GET index?metode=tidak_langsung
+        // 2. GET index?metode=tidak_langsung (semua & pengecualian)
         $indexTidakLangsungResponse = $this->actingAs($this->viewerOnly)
             ->get(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']));
         $indexTidakLangsungResponse->assertStatus(200);
-        $indexTidakLangsungResponse->assertDontSee('Tambah Pos');
-        $indexTidakLangsungResponse->assertDontSee('Tambah Pengecualian');
-        $indexTidakLangsungResponse->assertDontSee('btn-reorder-pos');
+        $indexTidakLangsungResponse->assertDontSee('id="btnOpenCreatePosTidakLangsung"', false);
+        $indexTidakLangsungResponse->assertDontSee('id="btnOpenCreatePengecualian"', false);
+        $indexTidakLangsungResponse->assertDontSee('btn-edit-pos"', false);
+        $indexTidakLangsungResponse->assertDontSee('btn-reorder-pos"', false);
         $indexTidakLangsungResponse->assertDontSee(route('pengaturan.arus-kas.tidak-langsung.toggle', $this->pos));
         $indexTidakLangsungResponse->assertDontSee(route('pengaturan.arus-kas.tidak-langsung.destroy', $this->pos));
         $indexTidakLangsungResponse->assertDontSee(route('pengaturan.arus-kas.tidak-langsung.pengecualian.destroy', $this->pengecualian));
+
+        $indexPengecualianResponse = $this->actingAs($this->viewerOnly)
+            ->get(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung', 'bagian' => 'pengecualian']));
+        $indexPengecualianResponse->assertStatus(200);
+        $indexPengecualianResponse->assertDontSee('id="btnOpenCreatePengecualian"', false);
+        $indexPengecualianResponse->assertDontSee(route('pengaturan.arus-kas.tidak-langsung.pengecualian.destroy', $this->pengecualian));
 
         // 3. GET parent-coa-leaves (tidak langsung dan langsung)
         $this->actingAs($this->viewerOnly)

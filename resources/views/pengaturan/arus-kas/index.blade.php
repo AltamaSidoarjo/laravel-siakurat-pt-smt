@@ -100,6 +100,7 @@
                             @if ($canLaporanKeuangan)
                                 @if ($activeMetode === 'langsung')
                                     <a href="{{ route('laporan.keuangan.arus-kas') }}"
+                                       id="btnLaporanArusKas"
                                        class="btn btn-sm btn-outline-primary fw-semibold text-nowrap d-inline-flex align-items-center gap-1.5 shadow-xs"
                                        title="Buka Laporan Arus Kas Metode Langsung">
                                         <i class="bi bi-file-earmark-bar-graph"></i>
@@ -107,6 +108,7 @@
                                     </a>
                                 @else
                                     <a href="{{ route('laporan.keuangan.arus-kas-tidak-langsung') }}"
+                                       id="btnLaporanArusKas"
                                        class="btn btn-sm btn-outline-primary fw-semibold text-nowrap d-inline-flex align-items-center gap-1.5 shadow-xs"
                                        title="Buka Laporan Arus Kas Metode Tidak Langsung">
                                         <i class="bi bi-file-earmark-bar-graph"></i>
@@ -157,23 +159,12 @@
             </div>
         </div>
 
-        {{-- Inline Alert for Tour Placeholder --}}
-        <div id="tourPlaceholderAlert" class="alert alert-info alert-dismissible fade show d-none mb-0" role="alert">
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-info-circle-fill fs-5"></i>
-                <div>
-                    <strong>Tur Panduan:</strong> Fitur tur interaktif sedang dipersiapkan dan akan segera tersedia.
-                </div>
-            </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-
         @include('partials.flash-message')
         @include('partials.validation-errors')
 
         <!-- Unmapped Mutated Neraca Warning Banner (Khusus Metode Tidak Langsung) -->
         @if ($activeMetode === 'tidak_langsung' && $unmappedAccounts->isNotEmpty())
-            <div class="alert alert-warning border-warning-subtle shadow-sm mb-0" role="alert">
+            <div id="bannerUnmappedTidakLangsung" class="alert alert-warning border-warning-subtle shadow-sm mb-0" role="alert">
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
                     <div class="d-flex align-items-start gap-2">
                         <i class="bi bi-exclamation-triangle-fill fs-5 text-warning-emphasis mt-0.5"></i>
@@ -253,7 +244,7 @@
 
         <!-- Unmapped Cash Counterpart Warning Banner (Khusus Metode Langsung) -->
         @if ($activeMetode === 'langsung' && $unmappedLangsungAccounts->isNotEmpty())
-            <div class="alert alert-warning border-warning-subtle shadow-sm mb-0" role="alert">
+            <div id="bannerUnmappedLangsung" class="alert alert-warning border-warning-subtle shadow-sm mb-0" role="alert">
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
                     <div class="d-flex align-items-start gap-2">
                         <i class="bi bi-exclamation-triangle-fill fs-5 text-warning-emphasis mt-0.5"></i>
@@ -331,14 +322,16 @@
             <div class="card-header bg-white border-bottom-0 pb-0 pt-3 px-3 px-md-4">
                 <ul class="nav nav-tabs card-header-tabs flex-nowrap overflow-x-auto overflow-y-hidden custom-scrollbar border-bottom-0 pb-1" id="mainArusKasTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <a class="nav-link fw-semibold px-3 py-2.5 text-nowrap {{ $activeMetode === 'langsung' ? 'active text-primary' : 'text-muted' }}"
+                        <a id="tabLinkLangsung"
+                           class="nav-link fw-semibold px-3 py-2.5 text-nowrap {{ $activeMetode === 'langsung' ? 'active text-primary' : 'text-muted' }}"
                            href="{{ route('pengaturan.arus-kas.index', ['metode' => 'langsung']) }}">
                             <i class="bi bi-arrow-down-up me-1.5"></i> Pengaturan Arus Kas Metode Langsung
                             <span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1.5">{{ $referensiTabCounts['semua'] }}</span>
                         </a>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <a class="nav-link fw-semibold px-3 py-2.5 text-nowrap {{ $activeMetode === 'tidak_langsung' ? 'active text-primary' : 'text-muted' }}"
+                        <a id="tabLinkTidakLangsung"
+                           class="nav-link fw-semibold px-3 py-2.5 text-nowrap {{ $activeMetode === 'tidak_langsung' ? 'active text-primary' : 'text-muted' }}"
                            href="{{ route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']) }}">
                             <i class="bi bi-diagram-3 me-1.5"></i> Pengaturan Arus Kas Metode Tidak Langsung
                             <span class="badge bg-secondary-subtle text-secondary rounded-pill ms-1.5">{{ $tidakLangsungTabCounts['semua'] + $tidakLangsungTabCounts['pengecualian'] }}</span>

@@ -66,7 +66,7 @@
         </div>
     </div>
 
-    <div class="btn-group btn-group-sm flex-nowrap flex-shrink-0 ms-auto" role="group" aria-label="Mode Tampilan Pengaturan Arus Kas">
+    <div id="viewModeSwitcher" class="btn-group btn-group-sm flex-nowrap flex-shrink-0 ms-auto" role="group" aria-label="Mode Tampilan Pengaturan Arus Kas">
         <button type="button"
                 id="btnModeTab"
                 class="btn btn-primary fw-semibold active text-nowrap"
@@ -139,6 +139,7 @@
                     <div class="col-12 col-md-auto ms-auto">
                         @if ($activeBagian === 'pengecualian')
                             <button type="button"
+                                    id="btnOpenCreatePengecualian"
                                     class="btn btn-sm btn-danger fw-bold text-nowrap btn-open-create-pengecualian w-100"
                                     data-bs-toggle="modal"
                                     data-bs-target="#modalPengecualianArusKas">
@@ -146,6 +147,7 @@
                             </button>
                         @else
                             <button type="button"
+                                    id="btnOpenCreatePosTidakLangsung"
                                     class="btn btn-sm btn-success fw-bold text-nowrap btn-open-create-pos w-100"
                                     data-kelompok-bagian="{{ in_array($activeBagian, \App\Models\SettingArusKas::KELOMPOK_BAGIAN, true) ? $activeBagian : 'penyesuaian_laba' }}"
                                     data-bs-toggle="modal"
@@ -160,7 +162,7 @@
     </div>
 
     @if ($activeBagian === 'pengecualian')
-        <div class="table-responsive border rounded-3 custom-scrollbar">
+        <div id="tableTidakLangsungContainer" class="table-responsive border rounded-3 custom-scrollbar">
             <table class="table table-hover align-middle mb-0 text-sm">
                 <thead class="table-light border-bottom">
                     <tr class="text-nowrap small text-uppercase text-secondary">
@@ -218,7 +220,7 @@
             </table>
         </div>
     @else
-        <div class="table-responsive border rounded-3 custom-scrollbar">
+        <div id="tableTidakLangsungContainer" class="table-responsive border rounded-3 custom-scrollbar">
             <table class="table table-hover align-middle mb-0 text-sm">
                 <thead class="table-light border-bottom">
                     <tr class="text-nowrap small text-uppercase text-secondary">
