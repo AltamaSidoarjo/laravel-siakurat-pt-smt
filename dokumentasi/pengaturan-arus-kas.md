@@ -520,20 +520,18 @@ Modul dilengkapi dengan seeder `ReferensiKelompokArusKasSeeder` yang menjalankan
 Pada laporan arus kas metode langsung, setiap penerimaan atau pengeluaran kas diklasifikasikan berdasarkan akun lawan transaksinya. Jika suatu jurnal transaksi kas/bank memiliki akun lawan non-Kasbank yang belum dipetakan ke pos kelompok arus kas langsung, transaksi kas tersebut berisiko tidak terklasifikasi pada laporan arus kas. Modul menyediakan pemindai otomatis transaksi kas/bank dan fasilitas aksi cepat (*quick-map*).
 
 #### Algoritma Pemindaian Akun Lawan Kasbank
-Method `ReferensiKelompokArusKasService::getUnmappedCashCounterpartAccounts(?string $startDate, ?string $endDate)` memindai buku besar:
+Method `ReferensiKelompokArusKasService::getUnmappedCashCounterpartAccounts(?string $startDate, ?string $endDate)` memindai buku besar dengan pendekatan teroptimasi dua tahap (*targeted query*) untuk mencegah lonjakan memori:
 1. Membaca periode tanggal (default: 1 Januari s.d. 31 Desember tahun berjalan).
-2. Mengambil seluruh mutasi buku besar pada rentang tanggal tersebut yang bergabung dengan tabel `coa`.
-3. Mengelompokkan baris buku besar berdasarkan kunci unik transaksi:
+2. Mengidentifikasi seluruh kandidat akun daun (*leaf*) non-Kasbank yang belum dipetakan (`arus_kas_aktivitas` atau `arus_kas_kelompok` belum valid) dan mengecualikan akun induk (*parent COA*). Jika tidak ada kandidat akun belum dipetakan, fungsi langsung mengembalikan koleksi kosong tanpa mengakses tabel `bukubesar`.
+3. Mengambil mutasi buku besar pada rentang tanggal terkait hanya untuk ID akun-akun kandidat tersebut, lalu mengekstrak identitas transaksi unik:
    - Jika `sumber_id` terisi: `sumber_transaksi | sumber_id`.
    - Jika `sumber_id` kosong: `sumber_transaksi | nomer | tanggal(YYYY-MM-DD)`.
-4. Untuk setiap kelompok transaksi:
-   - Memeriksa baris mutasi bertipe `Kasbank`. Jika tidak ada atau total mutasi kas net bernilai nol (`abs(sum) < 0.005`), transaksi diabaikan (karena merupakan jurnal memo non-kas).
-   - Mengambil baris mutasi akun lawan (akun non-Kasbank).
-   - Mengabaikan akun induk (*parent COA*) dan baris dengan nominal mendekati nol (`< 0.005`).
-   - Memeriksa apakah akun lawan telah dipetakan: akun dianggap **terpetakan** jika memiliki `arus_kas_aktivitas` yang valid (`operasi`, `investasi`, `pendanaan`) dan `arus_kas_kelompok` tidak kosong.
-   - Jika **belum terpetakan**, akun lawan dimasukkan ke dalam daftar unmapped.
-   - Mengakumulasi mutasi debit, kredit, frekuensi transaksi (`trx_count`), dan menghitung `dampak_kas = kredit - debit`.
-5. Mengembalikan koleksi akun lawan belum dipetakan yang terurut berdasarkan kode COA.
+4. Mengambil mutasi akun `Kasbank` hanya untuk transaksi-transaksi unik yang terdeteksi di tahap sebelumnya. Menghitung mutasi kas neto (`cashNet` = `D - K`).
+5. Memvalidasi dan mengagregasikan akun lawan:
+   - Jika transaksi tidak memiliki mutasi `Kasbank` atau net kas mendekati nol (`abs(cashNet) < 0.005`, misal transfer antarkas), transaksi diabaikan.
+   - Mengabaikan baris dengan nominal mendekati nol (`< 0.005`).
+   - Mengakumulasikan mutasi debit, kredit, frekuensi transaksi unik (`trx_count`), dan menghitung `dampak_kas = kredit - debit`.
+6. Mengembalikan koleksi akun lawan belum dipetakan yang terurut berdasarkan kode COA.
 
 #### Fitur Antarmuka & UX
 1. **Banner Peringatan Kuning (`#unmappedLangsungAccountsCollapse`)**:

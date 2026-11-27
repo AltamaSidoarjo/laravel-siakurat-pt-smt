@@ -727,109 +727,162 @@ class ReferensiKelompokArusKasService
         $end = $endDate ?: now()->endOfYear()->toDateString();
         $normalizedEnd = strlen($end) === 10 ? $end.' 23:59:59' : $end;
 
-        $rows = BukuBesar::query()
-            ->join('coa', 'coa.id', '=', 'bukubesar.coa_id')
-            ->whereBetween('bukubesar.tanggal', [$start, $normalizedEnd])
-            ->get([
-                'bukubesar.id',
-                'bukubesar.sumber_id',
-                'bukubesar.tanggal',
-                'bukubesar.nomer',
-                'bukubesar.sumber_transaksi',
-                'bukubesar.nominal',
-                'bukubesar.tipe_mutasi',
-                'coa.id as coa_id',
-                'coa.kode as kode_coa',
-                'coa.nama as nama_coa',
-                'coa.tipe_coa',
-                'coa.status_aktif',
-                'coa.arus_kas_aktivitas',
-                'coa.arus_kas_kelompok',
-            ]);
+        $parentIds = $this->loadParentCoaIdSet();
 
-        if ($rows->isEmpty()) {
+        // 1. Identify candidate unmapped leaf non-Kasbank COAs first to avoid full table scans on bukubesar
+        $unmappedCoas = Coa::query()
+            ->where(function ($q) {
+                $q->whereNull('arus_kas_aktivitas')
+                    ->orWhere('arus_kas_aktivitas', '')
+                    ->orWhereNull('arus_kas_kelompok')
+                    ->orWhere('arus_kas_kelompok', '')
+                    ->orWhereNotIn('arus_kas_aktivitas', ['operasi', 'investasi', 'pendanaan']);
+            })
+            ->whereRaw("LOWER(TRIM(COALESCE(tipe_coa, ''))) != ?", ['kasbank'])
+            ->when(! empty($parentIds), fn ($q) => $q->whereNotIn('id', array_keys($parentIds)))
+            ->get(['id', 'kode', 'nama', 'tipe_coa', 'status_aktif']);
+
+        if ($unmappedCoas->isEmpty()) {
             return collect();
         }
 
-        $parentIds = $this->loadParentCoaIdSet();
+        $unmappedCoaMap = $unmappedCoas->keyBy('id');
+        $unmappedIds = $unmappedCoas->pluck('id')->all();
 
-        $txGroups = $rows->groupBy(function (object $row): string {
+        // 2. Fetch bukubesar entries only for candidate unmapped COAs within the period
+        $unmappedRows = BukuBesar::query()
+            ->whereIn('coa_id', $unmappedIds)
+            ->whereBetween('tanggal', [$start, $normalizedEnd])
+            ->get([
+                'id',
+                'sumber_id',
+                'tanggal',
+                'nomer',
+                'sumber_transaksi',
+                'nominal',
+                'tipe_mutasi',
+                'coa_id',
+            ]);
+
+        if ($unmappedRows->isEmpty()) {
+            return collect();
+        }
+
+        // 3. Extract transaction identifiers touching unmapped COAs
+        $sumberMap = [];
+        $noSumberNomers = [];
+
+        foreach ($unmappedRows as $row) {
             if ($row->sumber_id !== null && (string) $row->sumber_id !== '') {
-                return ((string) $row->sumber_transaksi).'|'.((string) $row->sumber_id);
+                $sumberMap[(string) $row->sumber_transaksi][(string) $row->sumber_id] = true;
+            } else {
+                $noSumberNomers[(string) $row->sumber_transaksi][(string) $row->nomer] = true;
             }
+        }
 
-            return ((string) $row->sumber_transaksi).'|'.((string) $row->nomer).'|'.substr((string) $row->tanggal, 0, 10);
-        });
+        // 4. Find Kasbank account IDs
+        $kasbankIds = Coa::query()
+            ->whereRaw("LOWER(TRIM(COALESCE(tipe_coa, ''))) = ?", ['kasbank'])
+            ->pluck('id')
+            ->all();
 
+        if (empty($kasbankIds)) {
+            return collect();
+        }
+
+        // 5. Query Kasbank rows only for candidate transactions within the period
+        $cashNetByTx = [];
+
+        if (! empty($sumberMap) || ! empty($noSumberNomers)) {
+            $cashQuery = BukuBesar::query()
+                ->whereIn('coa_id', $kasbankIds)
+                ->whereBetween('tanggal', [$start, $normalizedEnd])
+                ->where(function ($q) use ($sumberMap, $noSumberNomers) {
+                    foreach ($sumberMap as $st => $ids) {
+                        foreach (array_chunk(array_keys($ids), 500) as $chunk) {
+                            $q->orWhere(function ($sub) use ($st, $chunk) {
+                                $sub->where('sumber_transaksi', $st)
+                                    ->whereIn('sumber_id', $chunk);
+                            });
+                        }
+                    }
+
+                    foreach ($noSumberNomers as $st => $nomers) {
+                        foreach (array_chunk(array_keys($nomers), 500) as $chunk) {
+                            $q->orWhere(function ($sub) use ($st, $chunk) {
+                                $sub->where('sumber_transaksi', $st)
+                                    ->whereIn('nomer', $chunk);
+                            });
+                        }
+                    }
+                });
+
+            $cashRows = $cashQuery->get([
+                'sumber_id',
+                'nomer',
+                'tanggal',
+                'sumber_transaksi',
+                'nominal',
+                'tipe_mutasi',
+            ]);
+
+            foreach ($cashRows as $row) {
+                $txKey = $row->sumber_id !== null && (string) $row->sumber_id !== ''
+                    ? ((string) $row->sumber_transaksi).'|'.((string) $row->sumber_id)
+                    : ((string) $row->sumber_transaksi).'|'.((string) $row->nomer).'|'.substr((string) $row->tanggal, 0, 10);
+
+                $amount = $row->tipe_mutasi === 'D' ? (float) $row->nominal : -(float) $row->nominal;
+                $cashNetByTx[$txKey] = ($cashNetByTx[$txKey] ?? 0.0) + $amount;
+            }
+        }
+
+        // 6. Aggregate unmapped counterpart rows belonging to valid cash transactions
         $unmappedByCoa = [];
+        $countedCoaByTx = [];
 
-        foreach ($txGroups as $txKey => $transaction) {
-            $cashRows = $transaction->filter(
-                fn (object $row): bool => strtolower(trim((string) $row->tipe_coa)) === 'kasbank'
-            );
+        foreach ($unmappedRows as $counterpart) {
+            $txKey = $counterpart->sumber_id !== null && (string) $counterpart->sumber_id !== ''
+                ? ((string) $counterpart->sumber_transaksi).'|'.((string) $counterpart->sumber_id)
+                : ((string) $counterpart->sumber_transaksi).'|'.((string) $counterpart->nomer).'|'.substr((string) $counterpart->tanggal, 0, 10);
 
-            if ($cashRows->isEmpty()) {
+            if (! isset($cashNetByTx[$txKey]) || abs($cashNetByTx[$txKey]) < 0.005) {
                 continue;
             }
 
-            $cashNet = (float) $cashRows->sum(
-                fn (object $row): float => $row->tipe_mutasi === 'D' ? (float) $row->nominal : -(float) $row->nominal
-            );
-
-            if (abs($cashNet) < 0.005) {
+            $nominal = (float) $counterpart->nominal;
+            if (abs($nominal) < 0.005) {
                 continue;
             }
 
-            $counterparts = $transaction->reject(
-                fn (object $row): bool => strtolower(trim((string) $row->tipe_coa)) === 'kasbank'
-            );
+            $coaId = (int) $counterpart->coa_id;
+            $coa = $unmappedCoaMap[$coaId] ?? null;
+            if (! $coa) {
+                continue;
+            }
 
-            $countedCoaIdsInTx = [];
+            if (! isset($unmappedByCoa[$coaId])) {
+                $unmappedByCoa[$coaId] = [
+                    'coa_id' => $coaId,
+                    'kode' => (string) $coa->kode,
+                    'nama' => (string) $coa->nama,
+                    'tipe_coa' => (string) ($coa->tipe_coa ?? ''),
+                    'status_aktif' => (int) ($coa->status_aktif ?? 1),
+                    'debit' => 0.0,
+                    'kredit' => 0.0,
+                    'dampak_kas' => 0.0,
+                    'trx_count' => 0,
+                ];
+            }
 
-            foreach ($counterparts as $counterpart) {
-                $coaId = (int) $counterpart->coa_id;
+            if ($counterpart->tipe_mutasi === 'D') {
+                $unmappedByCoa[$coaId]['debit'] += $nominal;
+            } elseif ($counterpart->tipe_mutasi === 'K') {
+                $unmappedByCoa[$coaId]['kredit'] += $nominal;
+            }
 
-                if (isset($parentIds[$coaId])) {
-                    continue;
-                }
-
-                $nominal = (float) $counterpart->nominal;
-                if (abs($nominal) < 0.005) {
-                    continue;
-                }
-
-                $aktivitas = strtolower(trim((string) ($counterpart->arus_kas_aktivitas ?? '')));
-                $kelompok = trim((string) ($counterpart->arus_kas_kelompok ?? ''));
-                $isMapped = in_array($aktivitas, ['operasi', 'investasi', 'pendanaan'], true) && $kelompok !== '';
-
-                if ($isMapped) {
-                    continue;
-                }
-
-                if (! isset($unmappedByCoa[$coaId])) {
-                    $unmappedByCoa[$coaId] = [
-                        'coa_id' => $coaId,
-                        'kode' => (string) $counterpart->kode_coa,
-                        'nama' => (string) $counterpart->nama_coa,
-                        'tipe_coa' => (string) ($counterpart->tipe_coa ?? ''),
-                        'status_aktif' => (int) ($counterpart->status_aktif ?? 1),
-                        'debit' => 0.0,
-                        'kredit' => 0.0,
-                        'dampak_kas' => 0.0,
-                        'trx_count' => 0,
-                    ];
-                }
-
-                if ($counterpart->tipe_mutasi === 'D') {
-                    $unmappedByCoa[$coaId]['debit'] += $nominal;
-                } elseif ($counterpart->tipe_mutasi === 'K') {
-                    $unmappedByCoa[$coaId]['kredit'] += $nominal;
-                }
-
-                if (! isset($countedCoaIdsInTx[$coaId])) {
-                    $unmappedByCoa[$coaId]['trx_count']++;
-                    $countedCoaIdsInTx[$coaId] = true;
-                }
+            if (! isset($countedCoaByTx[$txKey][$coaId])) {
+                $unmappedByCoa[$coaId]['trx_count']++;
+                $countedCoaByTx[$txKey][$coaId] = true;
             }
         }
 
@@ -848,6 +901,8 @@ class ReferensiKelompokArusKasService
 
             $result->push($item);
         }
+
+        return $result->sortBy('kode')->values();
 
         return $result->sortBy('kode')->values();
     }
