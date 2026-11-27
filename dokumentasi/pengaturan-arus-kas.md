@@ -73,6 +73,7 @@ Implementasi utama modul ini berada di:
 - `resources/views/pengaturan/arus-kas/partials/_modals-langsung.blade.php`
 - `resources/views/pengaturan/arus-kas/partials/_modals.blade.php`
 - `resources/views/pengaturan/arus-kas/partials/_scripts.blade.php`
+- `resources/views/pengaturan/arus-kas/partials/_tour-scripts.blade.php`
 
 Komponen terkait di modul lain:
 - `app/Http/Controllers/Bukubesar/CoaController.php` (injeksi preset referensi aktif ke form create & edit COA)
@@ -116,10 +117,10 @@ Halaman utama menyajikan antarmuka terpadu yang memadukan Header Card, tab navig
 1. **Header Card Terpadu**:
    - Tombol kembali melingkar (`rounded-circle`) yang mengarah ke dashboard (`route('home')`).
    - Judul modul: **Pengaturan Arus Kas**, dilengkapi badge status `Master & Pemetaan` dan ringkasan fungsi modul.
-   - Tautan kontekstual **Laporan Arus Kas** (tampil bila pengguna memiliki izin `laporan.keuangan,view`): mengarah ke `/laporan/keuangan/arus-kas` (`route('laporan.keuangan.arus-kas')`) saat tab Metode Langsung aktif, atau ke `/laporan/keuangan/arus-kas-tidak-langsung` (`route('laporan.keuangan.arus-kas-tidak-langsung')`) saat tab Metode Tidak Langsung aktif.
+   - Tautan kontekstual **Laporan Arus Kas** (`#btnLaporanArusKas`, tampil bila pengguna memiliki izin `laporan.keuangan,view`): mengarah ke `/laporan/keuangan/arus-kas` (`route('laporan.keuangan.arus-kas')`) saat tab Metode Langsung aktif, atau ke `/laporan/keuangan/arus-kas-tidak-langsung` (`route('laporan.keuangan.arus-kas-tidak-langsung')`) saat tab Metode Tidak Langsung aktif.
    - Dropdown **Bantuan & Panduan** (`#btnBantuanDropdown`) dengan opsi:
-     - **Mulai Tur Panduan** (`#btnStartTour`): menampilkan alert placeholder `#tourPlaceholderAlert`.
-     - **Panduan & Glosarium** (`#btnOpenModalPanduan`): membuka modal `#modalPanduanArusKas` (`partials/_modal-panduan.blade.php`) yang saat ini menampilkan placeholder `"Panduan & Glosarium belum tersedia."`.
+     - **Mulai Tur Panduan** (`#btnStartTour`): memicu tur interaktif **Driver.js v1.3.1** (`partials/_tour-scripts.blade.php`, terekspos melalui `window.initArusKasTour`) dengan 3 skenario kontekstual (`langsung`, `tidak_langsung_tab`, `tidak_langsung_struktur`), filter visibilitas DOM nyata `isElementVisible()`, awareness RBAC & banner kondisional (`#bannerUnmappedLangsung`, `#bannerUnmappedTidakLangsung`), serta `localStorage` auto-trigger (`siakurat_tour_arus_kas_{scenario}_seen`) yang aman saat ada modal terbuka (`.modal.show`).
+     - **Panduan & Glosarium** (`#btnOpenModalPanduan`): membuka modal `#modalPanduanArusKas` (`modal-xl`, `partials/_modal-panduan.blade.php`) berisi 3 tab tematik (`#pillsTabPanduanArusKas`: *Langsung vs Tidak Langsung*, *Aturan COA, Sifat Pos & Eliminasi*, dan *Glosarium & Studi Kasus RS*).
 2. **Tab Navigasi Utama (`#mainArusKasTabs`)**:
    - **Pengaturan Arus Kas Metode Langsung** (`route('pengaturan.arus-kas.index', ['metode' => 'langsung'])`): Menampilkan master referensi kelompok arus kas 3 pilar aktivitas beserta badge counter `$referensiTabCounts['semua']`.
    - **Pengaturan Arus Kas Metode Tidak Langsung** (`route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung'])`): Menampilkan konfigurasi dinamis pos arus kas 4 bagian laporan, pengecualian, serta banner deteksi unmapped accounts.
@@ -191,7 +192,7 @@ flowchart TD
    - Menghitung `$tidakLangsungTabCounts` (dan alias `$tabCounts`) untuk keenam kategori bagian laporan.
    - Memanggil `PengaturanArusKasService::getUnmappedMutatedNeracaAccounts()` untuk memindai akun Neraca non-Kasbank bermutasi pada tahun berjalan yang belum dipetakan.
    - Memanggil `PengaturanArusKasService::getCoaOptionsData()` untuk menyiapkan metadata COA leaf, parent, akun terpetakan, dan akun pengecualian.
-4. Mengembalikan view `pengaturan.arus-kas.index` yang merender header card terpadu, `_modal-panduan.blade.php`, `_modals-langsung.blade.php`, `_modals.blade.php`, dan partial tab yang sesuai (`_tab-langsung.blade.php` atau `_tab-tidak-langsung.blade.php`).
+4. Mengembalikan view `pengaturan.arus-kas.index` yang merender header card terpadu, `_modal-panduan.blade.php`, `_modals-langsung.blade.php`, `_modals.blade.php`, `_scripts.blade.php`, `_tour-scripts.blade.php`, dan partial tab yang sesuai (`_tab-langsung.blade.php` atau `_tab-tidak-langsung.blade.php`).
 
 ---
 
