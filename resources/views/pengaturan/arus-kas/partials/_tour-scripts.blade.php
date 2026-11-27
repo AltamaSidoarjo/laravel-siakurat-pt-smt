@@ -137,19 +137,17 @@
             return 'tidak_langsung_tab';
         }
 
-        function isElementVisible(selector) {
-            const el = document.querySelector(selector);
-            if (!el) {
-                return false;
+        function isElementVisible(target) {
+            const elements = typeof target === 'string' ? document.querySelectorAll(target) : [target];
+            if (!elements.length) return false;
+            for (let i = 0; i < elements.length; i++) {
+                const el = elements[i];
+                if (!el || el.closest('.d-none')) continue;
+                const style = window.getComputedStyle(el);
+                if (style.display === 'none' || style.visibility === 'hidden') continue;
+                if (el.getClientRects().length > 0) return true;
             }
-            if (el.closest('.d-none')) {
-                return false;
-            }
-            const style = window.getComputedStyle(el);
-            if (style.display === 'none' || style.visibility === 'hidden') {
-                return false;
-            }
-            return el.getClientRects().length > 0;
+            return false;
         }
 
         const scenariosConfig = {
@@ -333,8 +331,14 @@
         };
 
         let activeTourDriver = null;
+        let autoStartTimer = null;
 
         function startArusKasTour(force = false) {
+            if (autoStartTimer) {
+                clearTimeout(autoStartTimer);
+                autoStartTimer = null;
+            }
+
             if (typeof window.driver === 'undefined' || !window.driver.js || !window.driver.js.driver) {
                 console.warn('Driver.js library not loaded yet.');
                 return;
@@ -392,8 +396,9 @@
                 });
             }
 
-            setTimeout(function () {
-                if (document.querySelector('.modal.show') !== null) {
+            autoStartTimer = setTimeout(function () {
+                autoStartTimer = null;
+                if (activeTourDriver !== null || document.querySelector('.modal.show') !== null) {
                     return;
                 }
                 const scenario = resolveCurrentScenario();
@@ -407,7 +412,8 @@
                 btnModeStruktur.addEventListener('click', function () {
                     setTimeout(function () {
                         if (
-                            document.querySelector('.modal.show') === null
+                            activeTourDriver === null
+                            && document.querySelector('.modal.show') === null
                             && resolveCurrentScenario() === 'tidak_langsung_struktur'
                             && !readSeen(storageKeys.tidak_langsung_struktur)
                         ) {

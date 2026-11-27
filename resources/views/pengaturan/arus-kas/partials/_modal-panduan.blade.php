@@ -146,7 +146,7 @@
                                         </div>
                                         <div class="card-body p-3 small">
                                             <ol class="mb-0 ps-3 d-flex flex-column gap-2 text-secondary">
-                                                <li><strong>Pilih Mode Tampilan:</strong> Gunakan <em>Mode Tab</em> untuk memfilter per bagian/pencarian, atau <em>Mode Struktur Laporan</em> untuk melihat urutan lengkap dan mengatur ulang posisi (<em>drag &amp; drop</em>).</li>
+                                                <li><strong>Pilih Mode Tampilan:</strong> Gunakan <em>Mode Tab</em> untuk memfilter per bagian/pencarian, atau <em>Mode Struktur Laporan</em> untuk melihat urutan lengkap dan mengatur ulang posisi (tombol panah &uarr; / &darr;).</li>
                                                 <li><strong>Atur Pos &amp; Pemetaan COA:</strong> Gunakan Tombol Tambah Pos Arus Kas, tentukan bagian, sifat pos, serta opsi prefix perubahan, lalu pilih akun daun yang kompatibel.</li>
                                                 <li><strong>Kelola Daftar Pengecualian:</strong> Masukkan akun kontra (seperti akumulasi penyusutan) ke <em>Daftar Pengecualian</em> agar tidak memicu perhitungan ganda maupun peringatan palsu.</li>
                                                 <li><strong>Verifikasi Rekonsiliasi:</strong> Pastikan banner peringatan akun Neraca bermutasi kosong, lalu periksa <code>/laporan/keuangan/arus-kas-tidak-langsung</code>.</li>

@@ -407,6 +407,7 @@ class PengaturanArusKasCrudTest extends TestCase
             ->assertSee('id="bannerUnmappedLangsung"', false)
             ->assertSee('id="tabLinkLangsung"', false)
             ->assertSee('id="tabLinkTidakLangsung"', false);
+        $this->assertSame(1, substr_count($resLangsung->getContent(), 'id="btnLaporanArusKas"'));
 
         // Tidak Langsung (mode pos)
         $resTidakLangsung = $this->actingAs($this->admin)->get(route('pengaturan.arus-kas.index', ['metode' => 'tidak_langsung']));
@@ -417,6 +418,7 @@ class PengaturanArusKasCrudTest extends TestCase
             ->assertSee('id="viewModeSwitcher"', false)
             ->assertSee('id="btnOpenCreatePosTidakLangsung"', false)
             ->assertSee('id="tableTidakLangsungContainer"', false);
+        $this->assertSame(1, substr_count($resTidakLangsung->getContent(), 'id="btnLaporanArusKas"'));
         $this->assertSame(1, substr_count($resTidakLangsung->getContent(), 'id="btnOpenCreatePosTidakLangsung"'));
         $this->assertSame(1, substr_count($resTidakLangsung->getContent(), 'id="tableTidakLangsungContainer"'));
 
