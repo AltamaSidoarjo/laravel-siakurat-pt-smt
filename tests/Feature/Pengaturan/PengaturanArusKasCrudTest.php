@@ -336,22 +336,23 @@ class PengaturanArusKasCrudTest extends TestCase
             ->assertSee('Tutup Panduan')
             ->assertDontSee('Panduan & Glosarium belum tersedia.');
 
-        // Tab 1: Langsung vs Tidak Langsung & scanner rules
-        $view->assertSee('/laporan/keuangan/arus-kas')
-            ->assertSee('/laporan/keuangan/arus-kas-tidak-langsung')
-            ->assertSee('Kredit - Debit')
-            ->assertSee('|cashNet| &lt; 0,005', false);
+        // Tab 1: Langsung vs Tidak Langsung & scanner rules (finance-friendly copy)
+        $view->assertSee('Aktivitas Arus Kas')
+            ->assertSee('Kelompok Arus Kas')
+            ->assertSee('Arus Kas (Metode Langsung)')
+            ->assertSee('Arus Kas (Metode Tidak Langsung)')
+            ->assertSee('Kredit &minus; Debit', false)
+            ->assertSee('Rp 0,01');
 
-        // Tab 2: COA rules, 5 sifat_pos, prefix rules, pengecualian vs nonaktif
+        // Tab 2: COA rules, 5 sifat pos UI labels, prefix rules, pengecualian vs nonaktif
         $view->assertSee('Kasbank')
             ->assertSee('Akun Induk Template')
-            ->assertSee('UNIQUE(coa_id)')
-            ->assertSee('modalKonfirmasiPindahCoaLangsung')
-            ->assertSee('penambah_laba')
-            ->assertSee('pengurang_laba')
-            ->assertSee('aset')
-            ->assertSee('liabilitas')
-            ->assertSee('ekuitas')
+            ->assertSee('Konfirmasi Pemindahan Akun COA')
+            ->assertSee('Penambah Laba (Non-Kas)')
+            ->assertSee('Pengurang Laba (Non-Kas)')
+            ->assertSee('Aset (Neraca)')
+            ->assertSee('Liabilitas (Neraca)')
+            ->assertSee('Ekuitas (Neraca)')
             ->assertSee('(Kenaikan)')
             ->assertSee('(Penurunan)')
             ->assertSee('Daftar Pengecualian')
@@ -369,8 +370,26 @@ class PengaturanArusKasCrudTest extends TestCase
             ->assertSee('113.*')
             ->assertSee('213.*');
 
-        // Must never trip RBAC attribute checks
-        $view->assertDontSee('id="btnOpenCreate', false)
+        // Must never expose raw database columns, SQL constraints, DOM IDs, or code identifiers
+        $view->assertDontSee('coa.arus_kas_aktivitas')
+            ->assertDontSee('coa.arus_kas_kelompok')
+            ->assertDontSee('referensi_kelompok_arus_kas')
+            ->assertDontSee('setting_arus_kas')
+            ->assertDontSee('UNIQUE(coa_id)')
+            ->assertDontSee('modalKonfirmasiPindahCoaLangsung')
+            ->assertDontSee('cashNet')
+            ->assertDontSee('dampak_kas')
+            ->assertDontSee('kas_akhir_riil')
+            ->assertDontSee('penambah_laba')
+            ->assertDontSee('pengurang_laba')
+            ->assertDontSee('penyesuaian_laba')
+            ->assertDontSee('modal_kerja')
+            ->assertDontSee('reassignable')
+            ->assertDontSee('0,005')
+            ->assertDontSee('0.005')
+            ->assertDontSee('+Y Induk')
+            ->assertDontSee('drag &amp; drop', false)
+            ->assertDontSee('id="btnOpenCreate', false)
             ->assertDontSee('btn-edit-referensi"', false)
             ->assertDontSee('btn-edit-pos"', false)
             ->assertDontSee('btn-reorder-pos"', false);

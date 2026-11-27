@@ -156,7 +156,7 @@
                     element: '#tabLinkLangsung',
                     popover: {
                         title: 'Tab Metode Langsung',
-                        description: 'Kelola master pos referensi 3 pilar aktivitas (Operasi, Investasi, Pendanaan) yang tersinkron langsung dengan kolom klasifikasi arus kas pada Master COA.',
+                        description: 'Kelola master pos referensi 3 pilar aktivitas (Operasi, Investasi, Pendanaan) yang tersinkron langsung dengan kolom Aktivitas &amp; Kelompok Arus Kas pada Master COA.',
                         side: 'bottom',
                         align: 'start',
                     },
@@ -174,7 +174,7 @@
                     element: '#filterToolbarLangsung',
                     popover: {
                         title: 'Filter Aktivitas &amp; Pencarian COA',
-                        description: 'Saring daftar berdasarkan aktivitas atau ketik nama pos maupun kode/nama akun COA daun (leaf) yang terpetakan.',
+                        description: 'Saring daftar berdasarkan aktivitas atau ketik nama pos maupun kode/nama akun detail COA yang terpetakan.',
                         side: 'bottom',
                         align: 'start',
                     },
@@ -182,8 +182,8 @@
                 {
                     element: '#btnOpenCreateReferensi',
                     popover: {
-                        title: 'Tambah Pos &amp; Ekspansi Induk',
-                        description: 'Tambahkan pos baru sekaligus memetakan banyak akun leaf atau mengekspansi seluruh sub-akun dari akun induk COA secara cepat.',
+                        title: 'Tambah Pos &amp; Pilih Sub-Akun',
+                        description: 'Tambahkan pos baru sekaligus memetakan banyak akun detail atau memasukkan seluruh sub-akun dari akun induk COA secara cepat.',
                         side: 'bottom',
                         align: 'end',
                     },
@@ -192,7 +192,7 @@
                     element: '#tableReferensiContainer',
                     popover: {
                         title: 'Tabel Referensi &amp; Detail COA',
-                        description: 'Klik pill jumlah akun untuk melihat rincian akun daun terpetakan serta catatan akun induk template Master COA.',
+                        description: 'Klik tombol jumlah akun untuk melihat rincian akun detail terpetakan serta catatan akun induk template Master COA.',
                         side: 'top',
                         align: 'center',
                     },
@@ -248,7 +248,7 @@
                     element: '#btnOpenCreatePosTidakLangsung',
                     popover: {
                         title: 'Tambah Pos Arus Kas',
-                        description: 'Buat pos baru, tentukan sifat pos (Aset, Liabilitas, Ekuitas, Penambah/Pengurang Laba), aktifkan Prefix Perubahan, dan petakan akun leaf COA.',
+                        description: 'Buat pos baru, tentukan sifat pos (Aset, Liabilitas, Ekuitas, Penambah/Pengurang Laba), aktifkan Prefix Perubahan, dan petakan akun detail COA.',
                         side: 'bottom',
                         align: 'end',
                     },
@@ -266,7 +266,7 @@
                     element: '#tableTidakLangsungContainer',
                     popover: {
                         title: 'Tabel Pos &amp; Detail COA',
-                        description: 'Pantau urutan, sifat pos, status aktif, serta klik pill jumlah akun COA untuk melihat rincian akun terpetakan atau kelola daftar pengecualian.',
+                        description: 'Pantau urutan, sifat pos, status aktif, serta klik tombol jumlah akun COA untuk melihat rincian akun terpetakan atau kelola daftar pengecualian.',
                         side: 'top',
                         align: 'center',
                     },
