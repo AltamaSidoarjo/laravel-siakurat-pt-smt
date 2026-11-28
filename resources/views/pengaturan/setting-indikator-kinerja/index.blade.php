@@ -471,34 +471,38 @@
                 <div class="tab-pane fade show active">
                     <!-- Toolbar Filter Pencarian -->
                     <div class="bg-light p-3 rounded-3 border mb-3" id="filterToolbarTab1">
-                        <form method="GET" action="{{ route('pengaturan.setting-indikator-kinerja.index') }}" class="row g-2 align-items-end">
-                            <input type="hidden" name="tab" value="indikator">
+                        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3">
+                            <form method="GET" action="{{ route('pengaturan.setting-indikator-kinerja.index') }}" class="d-flex align-items-end gap-2 flex-grow-1 flex-wrap flex-sm-nowrap">
+                                <input type="hidden" name="tab" value="indikator">
 
-                            <div class="col-12 col-md-8 col-lg-9">
-                                <label for="qInput" class="form-label small fw-semibold text-muted mb-1">Cari Indikator</label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text bg-white text-muted border-end-0">
-                                        <i class="bi bi-search"></i>
-                                    </span>
-                                    <input type="text" class="form-control border-start-0" id="qInput" name="q" value="{{ $q ?? '' }}" placeholder="Cari Kode, Nama, atau Formula...">
+                                <div class="flex-grow-1" style="min-width: 220px;">
+                                    <label for="qInput" class="form-label small fw-semibold text-muted mb-1">Cari Indikator</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-white text-muted border-end-0">
+                                            <i class="bi bi-search"></i>
+                                        </span>
+                                        <input type="text" class="form-control border-start-0" id="qInput" name="q" value="{{ $q ?? '' }}" placeholder="Cari Kode, Nama, atau Formula...">
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="col-12 col-md-4 col-lg-3 d-flex gap-2 justify-content-md-end">
-                                <button type="submit" class="btn btn-sm btn-primary fw-semibold px-3">
-                                    <i class="bi bi-filter me-1"></i> Filter
-                                </button>
-                                <a href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']) }}" class="btn btn-sm btn-light border fw-semibold">
-                                    Reset
-                                </a>
+                                <div class="d-flex gap-2 flex-shrink-0">
+                                    <button type="submit" class="btn btn-sm btn-primary fw-semibold px-3 text-nowrap">
+                                        <i class="bi bi-filter me-1"></i> Filter
+                                    </button>
+                                    <a href="{{ route('pengaturan.setting-indikator-kinerja.index', ['tab' => 'indikator']) }}" class="btn btn-sm btn-light border fw-semibold text-nowrap">
+                                        Reset
+                                    </a>
+                                </div>
+                            </form>
 
-                                @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'create'))
-                                    <a href="{{ route('pengaturan.setting-indikator-kinerja.create') }}" id="btnTambahIndikator" class="btn btn-sm btn-success fw-bold text-nowrap ms-auto">
+                            @if (auth()->user()?->hasModuleAccess('pengaturan.setting-indikator-kinerja', 'create'))
+                                <div class="flex-shrink-0">
+                                    <a href="{{ route('pengaturan.setting-indikator-kinerja.create') }}" id="btnTambahIndikator" class="btn btn-sm btn-success fw-bold text-nowrap">
                                         <i class="bi bi-plus-circle me-1"></i> Tambah Indikator
                                     </a>
-                                @endif
-                            </div>
-                        </form>
+                                </div>
+                            @endif
+                        </div>
                     </div>
 
                     <!-- Table Master Indikator -->
