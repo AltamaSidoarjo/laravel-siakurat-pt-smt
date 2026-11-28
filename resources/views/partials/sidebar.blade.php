@@ -27,6 +27,7 @@
     $canPengaturanPreferensi = $can('pengaturan.preferensi');
     $canPengaturanPengguna = $can('pengaturan.pengguna');
     $canPengaturanRoleAkses = $can('pengaturan.role-akses');
+    $canPengaturanArusKas = $can('pengaturan.arus-kas');
     $canPengaturanKonversiFile = $can('pengaturan.konversi-file');
     $canPengaturanLayananInformasi = $can('pengaturan.layanan-informasi');
     $canDashboardIndikatorKinerja = $can('dashboard.indikator-kinerja');
@@ -38,6 +39,7 @@
         || $canPengaturanPreferensi
         || $canPengaturanPengguna
         || $canPengaturanRoleAkses
+        || $canPengaturanArusKas
         || $canPengaturanKonversiFile
         || $canPengaturanLayananInformasi;
 
@@ -375,6 +377,14 @@
                         <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/role-akses') ? 'active' : '' }}"
                            href="{{ route('pengaturan.role-akses.index') }}">
                             <i class="bi bi-circle-fill sidebar-bullet"></i> Role Akses
+                        </a>
+                    </li>
+                    @endif
+                    @if ($canPengaturanArusKas)
+                    <li>
+                        <a class="sidebar-sublink {{ str_starts_with($path, '/pengaturan/arus-kas') ? 'active' : '' }}"
+                           href="{{ route('pengaturan.arus-kas.index') }}">
+                            <i class="bi bi-circle-fill sidebar-bullet"></i> Pengaturan Arus Kas
                         </a>
                     </li>
                     @endif

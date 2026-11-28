@@ -29,6 +29,13 @@
                         </a>
                     </li>
                 </ul>
+                @if (auth()->user()?->hasModuleAccess('pengaturan.arus-kas', 'view') ?? false)
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="{{ route('pengaturan.arus-kas.index', ['metode' => 'langsung']) }}" class="btn btn-outline-primary">
+                            <i class="bi bi-gear me-1"></i> Pengaturan Arus Kas
+                        </a>
+                    </div>
+                @endif
             </div>
 
             <div class="card border-light shadow-sm">

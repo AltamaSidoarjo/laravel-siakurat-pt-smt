@@ -31,23 +31,5 @@
 @endsection
 
 @push('scripts')
-    <script>
-        window.jQuery(function () {
-            if (window.jQuery && window.jQuery.fn.select2) {
-                window.jQuery('#status_aktif').select2({
-                    theme: 'bootstrap-5',
-                    width: '100%',
-                    minimumResultsForSearch: Infinity
-                });
-                window.jQuery('#parent_id, #tipe_coa, #arus_kas_aktivitas').select2({
-                    theme: 'bootstrap-5',
-                    width: '100%'
-                });
-            }
-
-            const toggleArusKas = () => window.jQuery('.arus-kas-field').toggle(window.jQuery('#tipe_coa').val() !== 'Kasbank');
-            window.jQuery('#tipe_coa').on('change', toggleArusKas);
-            toggleArusKas();
-        });
-    </script>
+    @include('bukubesar.coa._scripts')
 @endpush

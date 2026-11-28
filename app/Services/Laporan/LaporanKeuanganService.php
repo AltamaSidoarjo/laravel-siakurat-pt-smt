@@ -5,6 +5,8 @@ namespace App\Services\Laporan;
 use App\Models\BukuBesar;
 use App\Models\Coa;
 use App\Models\PreferensiPerusahaan;
+use App\Models\SettingArusKas;
+use App\Models\SettingArusKasPengecualian;
 use App\Models\SettingRba;
 use App\Models\TipeCoa;
 use Carbon\CarbonImmutable;
@@ -1003,6 +1005,315 @@ class LaporanKeuanganService
                     : ($this->isTipeBiaya((string) $coa->tipe_coa) ? -$nominal : 0);
             });
 
+        if (Schema::hasTable('setting_arus_kas') && SettingArusKas::query()->exists()) {
+            return $this->susunArusKasTidakLangsungDinamis(
+                openingCash: $openingCash,
+                closingCash: $closingCash,
+                mutasiPerCoa: $mutasiPerCoa,
+                labaBersih: $labaBersih,
+            );
+        }
+
+        return $this->susunArusKasTidakLangsungLegacy(
+            startDate: $startDate,
+            endDate: $endDate,
+            openingCash: $openingCash,
+            closingCash: $closingCash,
+            mutasiPerCoa: $mutasiPerCoa,
+            labaBersih: $labaBersih,
+        );
+    }
+
+    /**
+     * Susun laporan arus kas metode tidak langsung berbasis konfigurasi dinamis SettingArusKas.
+     *
+     * @param  array<int, array{debit: float, kredit: float}>  $mutasiPerCoa
+     */
+    private function susunArusKasTidakLangsungDinamis(
+        float $openingCash,
+        float $closingCash,
+        array $mutasiPerCoa,
+        float $labaBersih,
+    ): array {
+        $hasCoaTable = Schema::hasTable('setting_arus_kas_coa');
+        $activePositions = SettingArusKas::query()
+            ->when($hasCoaTable, fn (Builder $query) => $query->with(['coas' => fn ($coaQuery) => $coaQuery->orderBy('kode')]))
+            ->aktif()
+            ->urut()
+            ->get();
+
+        $activePosBySection = $activePositions->groupBy('kelompok_bagian');
+
+        $penyesuaianNonKas = $this->bangunBagianArusKasDinamis(
+            positions: $activePosBySection->get('penyesuaian_laba', collect()),
+            mutasiPerCoa: $mutasiPerCoa,
+            hasCoaTable: $hasCoaTable,
+        );
+        $labaSebelumModalKerja = $labaBersih + (float) $penyesuaianNonKas['subtotal'];
+
+        $modalKerja = $this->bangunBagianArusKasDinamis(
+            positions: $activePosBySection->get('modal_kerja', collect()),
+            mutasiPerCoa: $mutasiPerCoa,
+            hasCoaTable: $hasCoaTable,
+        );
+        $kasOperasi = $labaSebelumModalKerja + (float) $modalKerja['subtotal'];
+
+        $investasi = $this->bangunBagianArusKasDinamis(
+            positions: $activePosBySection->get('investasi', collect()),
+            mutasiPerCoa: $mutasiPerCoa,
+            hasCoaTable: $hasCoaTable,
+            withKelompok: true,
+        );
+        $pendanaan = $this->bangunBagianArusKasDinamis(
+            positions: $activePosBySection->get('pendanaan', collect()),
+            mutasiPerCoa: $mutasiPerCoa,
+            hasCoaTable: $hasCoaTable,
+            withKelompok: true,
+        );
+
+        $akunBelumDipetakan = $this->kumpulkanAkunNeracaBelumDipetakan(
+            activePositions: $activePositions,
+            mutasiPerCoa: $mutasiPerCoa,
+            hasCoaTable: $hasCoaTable,
+        );
+        $belumDipetakan = (float) $akunBelumDipetakan->sum('dampak_kas');
+
+        $kenaikanPenurunan = $kasOperasi
+            + (float) $investasi['subtotal']
+            + (float) $pendanaan['subtotal']
+            + $belumDipetakan;
+        $kasAkhirRekonsiliasi = $openingCash + $kenaikanPenurunan;
+        $selisihRekonsiliasi = $closingCash - $kasAkhirRekonsiliasi;
+
+        return [
+            'uses_dynamic_setting' => true,
+            'laba_bersih' => $labaBersih,
+            'penyesuaian_non_kas' => $penyesuaianNonKas,
+            'laba_sebelum_modal_kerja' => $labaSebelumModalKerja,
+            'modal_kerja' => $modalKerja,
+            'kas_operasi' => $kasOperasi,
+            'investasi' => $investasi,
+            'pendanaan' => $pendanaan,
+            'kas_awal' => $openingCash,
+            'kenaikan_penurunan' => $kenaikanPenurunan,
+            'kas_akhir' => $kasAkhirRekonsiliasi,
+            'kas_akhir_riil' => $closingCash,
+            'selisih_rekonsiliasi' => $selisihRekonsiliasi,
+            'akun_belum_dipetakan' => $akunBelumDipetakan,
+            'belum_dipetakan' => $belumDipetakan,
+        ];
+    }
+
+    /**
+     * @param  Collection<int, SettingArusKas>  $positions
+     * @param  array<int, array{debit: float, kredit: float}>  $mutasiPerCoa
+     * @return array<string, mixed>
+     */
+    private function bangunBagianArusKasDinamis(
+        Collection $positions,
+        array $mutasiPerCoa,
+        bool $hasCoaTable,
+        bool $withKelompok = false,
+    ): array {
+        $items = collect();
+        $subtotal = 0.0;
+
+        foreach ($positions as $pos) {
+            $coas = $hasCoaTable ? $pos->coas : collect();
+            $isSifatLabaRugi = in_array((string) $pos->sifat_pos, SettingArusKas::SIFAT_LABA_RUGI, true);
+            $totalDebit = 0.0;
+            $totalKredit = 0.0;
+            $detailAkun = collect();
+
+            foreach ($coas as $coa) {
+                // Konsisten dengan queryCoaLabaRugiLeafAktif(): COA Laba Rugi nonaktif tidak masuk laba bersih sehingga harus dilewati di penyesuaian laba.
+                if ($isSifatLabaRugi && (int) $coa->status_aktif !== 1) {
+                    continue;
+                }
+
+                $debit = (float) ($mutasiPerCoa[$coa->id]['debit'] ?? 0);
+                $kredit = (float) ($mutasiPerCoa[$coa->id]['kredit'] ?? 0);
+                $totalDebit += $debit;
+                $totalKredit += $kredit;
+
+                if (abs($debit) >= 0.005 || abs($kredit) >= 0.005) {
+                    $akunNilai = $this->hitungDampakDanPerubahanPos((string) $pos->sifat_pos, $debit, $kredit);
+                    $detailAkun->push([
+                        'kode' => (string) $coa->kode,
+                        'nama' => (string) $coa->nama,
+                        'debit' => $debit,
+                        'kredit' => $kredit,
+                        'perubahan' => $akunNilai['perubahan'],
+                        'dampak_kas' => $akunNilai['dampak_kas'],
+                    ]);
+                }
+            }
+
+            $posNilai = $this->hitungDampakDanPerubahanPos((string) $pos->sifat_pos, $totalDebit, $totalKredit);
+            $dampakKas = (float) $posNilai['dampak_kas'];
+            $subtotal += $dampakKas;
+
+            $items->put((string) $pos->kode_pos, [
+                'kode_pos' => (string) $pos->kode_pos,
+                'nama_pos' => (string) $pos->nama_pos,
+                'nama' => (string) $pos->nama_pos,
+                'label' => $pos->formatLabelPos((float) $posNilai['perubahan']),
+                'kelompok_bagian' => (string) $pos->kelompok_bagian,
+                'sifat_pos' => (string) $pos->sifat_pos,
+                'urutan' => (int) $pos->urutan,
+                'debit' => $totalDebit,
+                'kredit' => $totalKredit,
+                'perubahan' => (float) $posNilai['perubahan'],
+                'dampak_kas' => $dampakKas,
+                'detail_akun' => $detailAkun,
+            ]);
+        }
+
+        $result = [
+            'items' => $items,
+            'subtotal' => $subtotal,
+        ];
+
+        if ($withKelompok) {
+            $result['kelompok'] = $items
+                ->map(fn (array $item): array => [
+                    'kelompok' => $item['label'],
+                    'nilai' => $item['dampak_kas'],
+                ])
+                ->values();
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array{perubahan: float, dampak_kas: float}
+     */
+    private function hitungDampakDanPerubahanPos(string $sifatPos, float $debit, float $kredit): array
+    {
+        return match ($sifatPos) {
+            'aset' => [
+                'perubahan' => $debit - $kredit,
+                'dampak_kas' => $kredit - $debit,
+            ],
+            'liabilitas', 'ekuitas' => [
+                'perubahan' => $kredit - $debit,
+                'dampak_kas' => $kredit - $debit,
+            ],
+            'penambah_laba' => [
+                'perubahan' => $debit - $kredit,
+                'dampak_kas' => $debit - $kredit,
+            ],
+            'pengurang_laba' => [
+                'perubahan' => $kredit - $debit,
+                'dampak_kas' => $debit - $kredit,
+            ],
+            default => [
+                'perubahan' => $kredit - $debit,
+                'dampak_kas' => $kredit - $debit,
+            ],
+        };
+    }
+
+    /**
+     * Pindai akun Neraca non-Kasbank bermutasi (termasuk yang nonaktif) yang belum masuk pos aktif maupun pengecualian.
+     *
+     * @param  Collection<int, SettingArusKas>  $activePositions
+     * @param  array<int, array{debit: float, kredit: float}>  $mutasiPerCoa
+     * @return Collection<int, array{coa_id: int, kode: string, nama: string, tipe_coa: string, status_aktif: int, debit: float, kredit: float, dampak_kas: float}>
+     */
+    private function kumpulkanAkunNeracaBelumDipetakan(
+        Collection $activePositions,
+        array $mutasiPerCoa,
+        bool $hasCoaTable,
+    ): Collection {
+        $activeMappedCoaIds = $hasCoaTable
+            ? $activePositions
+                ->flatMap(fn (SettingArusKas $pos) => $pos->coas->pluck('id'))
+                ->map(fn ($id): int => (int) $id)
+                ->unique()
+                ->all()
+            : [];
+
+        $excludedCoaIds = Schema::hasTable('setting_arus_kas_pengecualian')
+            ? SettingArusKasPengecualian::query()
+                ->pluck('coa_id')
+                ->map(fn ($id): int => (int) $id)
+                ->all()
+            : [];
+
+        $ignoredCoaSet = array_flip(array_merge($activeMappedCoaIds, $excludedCoaIds));
+
+        $candidateMutasi = [];
+        foreach ($mutasiPerCoa as $coaId => $mutasi) {
+            $coaIdInt = (int) $coaId;
+            if (isset($ignoredCoaSet[$coaIdInt])) {
+                continue;
+            }
+
+            $debit = (float) ($mutasi['debit'] ?? 0);
+            $kredit = (float) ($mutasi['kredit'] ?? 0);
+            if (abs($debit) < 0.005 && abs($kredit) < 0.005) {
+                continue;
+            }
+
+            $candidateMutasi[$coaIdInt] = [
+                'debit' => $debit,
+                'kredit' => $kredit,
+            ];
+        }
+
+        if ($candidateMutasi === []) {
+            return collect();
+        }
+
+        $candidateCoas = Coa::query()
+            ->whereIn('id', array_keys($candidateMutasi))
+            ->orderBy('kode')
+            ->get(['id', 'kode', 'nama', 'tipe_coa', 'status_aktif']);
+
+        $unmapped = collect();
+        foreach ($candidateCoas as $coa) {
+            $tipeCoa = trim((string) ($coa->tipe_coa ?? ''));
+            if (in_array($tipeCoa, self::TIPE_LABA_RUGI, true)) {
+                continue;
+            }
+
+            if (strtolower($tipeCoa) === 'kasbank') {
+                continue;
+            }
+
+            $debit = $candidateMutasi[(int) $coa->id]['debit'];
+            $kredit = $candidateMutasi[(int) $coa->id]['kredit'];
+
+            $unmapped->push([
+                'coa_id' => (int) $coa->id,
+                'kode' => (string) $coa->kode,
+                'nama' => (string) $coa->nama,
+                'tipe_coa' => $tipeCoa,
+                'status_aktif' => (int) $coa->status_aktif,
+                'debit' => $debit,
+                'kredit' => $kredit,
+                'dampak_kas' => $kredit - $debit,
+            ]);
+        }
+
+        return $unmapped;
+    }
+
+    /**
+     * Fallback kalkulasi arus kas metode tidak langsung lama bila tabel SettingArusKas belum tersedia atau masih kosong.
+     *
+     * @param  array<int, array{debit: float, kredit: float}>  $mutasiPerCoa
+     */
+    private function susunArusKasTidakLangsungLegacy(
+        string $startDate,
+        string $endDate,
+        float $openingCash,
+        float $closingCash,
+        array $mutasiPerCoa,
+        float $labaBersih,
+    ): array {
         // 2. Penyesuaian Non-Kas (Beban Penyusutan & Amortisasi)
         $expenseDepreciationCoas = Coa::query()
             ->active()
@@ -1157,7 +1468,8 @@ class LaporanKeuanganService
         }
 
         // Subtotal Kas Bersih dari Aktivitas Operasi
-        $kasOperasi = $labaBersih + $bebanPenyusutan + $totalModalKerja;
+        $labaSebelumModalKerja = $labaBersih + $bebanPenyusutan;
+        $kasOperasi = $labaSebelumModalKerja + $totalModalKerja;
 
         // 4. Aktivitas Investasi & Pendanaan (Optimized untuk performa tinggi & hemat memori)
         $invFin = $this->susunArusKasInvestasiDanPendanaan($startDate, $endDate);
@@ -1169,11 +1481,13 @@ class LaporanKeuanganService
         $selisihRekonsiliasi = $closingCash - $kasAkhirRekonsiliasi;
 
         return [
+            'uses_dynamic_setting' => false,
             'laba_bersih' => $labaBersih,
             'penyesuaian_non_kas' => [
                 'items' => $depreciationItems,
                 'subtotal' => $bebanPenyusutan,
             ],
+            'laba_sebelum_modal_kerja' => $labaSebelumModalKerja,
             'modal_kerja' => [
                 'items' => $modalKerjaItems,
                 'subtotal' => $totalModalKerja,

@@ -55,6 +55,7 @@ bagian **Documentation Policy**.
 | Pengaturan — Preferensi | [pengaturan-preferensi.md](pengaturan-preferensi.md) | selesai |
 | Pengaturan — Pengguna | [pengaturan-pengguna.md](pengaturan-pengguna.md) | selesai |
 | Pengaturan — Role Akses | [pengaturan-role-akses.md](pengaturan-role-akses.md) | selesai |
+| Pengaturan — Pengaturan Arus Kas | [pengaturan-arus-kas.md](pengaturan-arus-kas.md) | selesai |
 | Pengaturan — Konversi File | [pengaturan-konversi-file.md](pengaturan-konversi-file.md) | selesai |
 | Pengaturan — Layanan Informasi | [pengaturan-layanan-informasi.md](pengaturan-layanan-informasi.md) | selesai |
 

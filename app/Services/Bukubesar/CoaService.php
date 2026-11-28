@@ -5,16 +5,25 @@ namespace App\Services\Bukubesar;
 use App\Models\Coa;
 use App\Models\TipeCoa;
 use App\Services\LogAktifitasService;
+use App\Services\Pengaturan\ReferensiKelompokArusKasService;
 use DomainException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use InvalidArgumentException;
 
 class CoaService
 {
     public function __construct(
         private readonly LogAktifitasService $logService,
+        private readonly ?ReferensiKelompokArusKasService $referensiKelompokService = null,
     ) {
+    }
+
+    private function getReferensiKelompokService(): ReferensiKelompokArusKasService
+    {
+        return $this->referensiKelompokService ?? app(ReferensiKelompokArusKasService::class);
     }
 
     public function getTreeRows(): array
@@ -95,7 +104,7 @@ class CoaService
                     ->orWhereDoesntHave('bukuBesar');
             })
             ->orderBy('kode')
-            ->get(['id', 'kode', 'nama']);
+            ->get(['id', 'kode', 'nama', 'tipe_coa', 'arus_kas_aktivitas', 'arus_kas_kelompok']);
     }
 
     public function getSelectableTransactionOptions(): Collection
@@ -158,12 +167,21 @@ class CoaService
 
     public function create(array $data): Coa
     {
+        $isKasbank = strtolower((string) ($data['tipe_coa'] ?? '')) === 'kasbank';
+        $kelompok = $isKasbank ? null : ($data['arus_kas_kelompok'] ?? null);
+        $aktivitas = $isKasbank ? null : ($data['arus_kas_aktivitas'] ?? null);
+
+        if (! $isKasbank && ! empty($aktivitas) && ! empty($kelompok)) {
+            $ref = $this->getReferensiKelompokService()->ensureExists($aktivitas, $kelompok);
+            $kelompok = $ref->nama;
+        }
+
         $coa = Coa::query()->create([
             'status_aktif' => (int) $data['status_aktif'],
             'parent_coa' => ($data['parent_id'] ?? null) ?: null,
             'tipe_coa' => $data['tipe_coa'],
-            'arus_kas_aktivitas' => $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_aktivitas'] ?? null),
-            'arus_kas_kelompok' => $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_kelompok'] ?? null),
+            'arus_kas_aktivitas' => $aktivitas,
+            'arus_kas_kelompok' => $kelompok,
             'kode' => $data['kode'],
             'nama' => $data['nama'],
             'deskripsi' => ($data['deskripsi'] ?? null) ?: null,
@@ -177,32 +195,154 @@ class CoaService
 
     public function update(Coa $coa, array $data): Coa
     {
-        $original = $coa->only($this->loggableFields());
+        return DB::transaction(function () use ($coa, $data) {
+            $original = $coa->only($this->loggableFields());
 
-        $coa->fill([
-            'status_aktif' => (int) $data['status_aktif'],
-            'parent_coa' => ($data['parent_id'] ?? null) ?: null,
-            'tipe_coa' => $data['tipe_coa'],
-            'arus_kas_aktivitas' => $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_aktivitas'] ?? null),
-            'arus_kas_kelompok' => $data['tipe_coa'] === 'Kasbank' ? null : ($data['arus_kas_kelompok'] ?? null),
-            'kode' => $data['kode'],
-            'nama' => $data['nama'],
-            'deskripsi' => ($data['deskripsi'] ?? null) ?: null,
-        ]);
+            $isKasbank = strtolower((string) $data['tipe_coa']) === 'kasbank';
+            $kelompok = $isKasbank ? null : ($data['arus_kas_kelompok'] ?? null);
+            $aktivitas = $isKasbank ? null : ($data['arus_kas_aktivitas'] ?? null);
 
-        $changes = $coa->getDirty();
-        $coa->save();
+            if (! $isKasbank && ! empty($aktivitas) && ! empty($kelompok)) {
+                $ref = $this->getReferensiKelompokService()->ensureExists($aktivitas, $kelompok);
+                $kelompok = $ref->nama;
+            }
 
-        if ($changes) {
-            $this->logService->log(
-                'COA',
-                'update',
-                array_intersect_key($original, $changes),
-                $changes,
-            );
+            $coa->fill([
+                'status_aktif' => (int) $data['status_aktif'],
+                'parent_coa' => ($data['parent_id'] ?? null) ?: null,
+                'tipe_coa' => $data['tipe_coa'],
+                'arus_kas_aktivitas' => $aktivitas,
+                'arus_kas_kelompok' => $kelompok,
+                'kode' => $data['kode'],
+                'nama' => $data['nama'],
+                'deskripsi' => ($data['deskripsi'] ?? null) ?: null,
+            ]);
+
+            $changes = $coa->getDirty();
+            $coa->save();
+
+            if ($changes) {
+                $this->logService->log(
+                    'COA',
+                    'update',
+                    array_intersect_key($original, $changes),
+                    $changes,
+                );
+            }
+
+            $coa->refresh();
+
+            if (! empty($data['cascade_to_children']) && ! empty($data['cascade_mode'])) {
+                $this->cascadeArusKas($coa, (string) $data['cascade_mode']);
+            }
+
+            return $coa;
+        });
+    }
+
+    /**
+     * Ringkasan akun turunan non-Kasbank yang belum vs sudah memiliki pemetaan arus kas.
+     *
+     * @return array{
+     *     total_descendants: int,
+     *     empty_count: int,
+     *     existing_count: int,
+     *     existing_samples: array<int, array{kode: string, nama: string, aktivitas: ?string, kelompok: ?string}>
+     * }
+     */
+    public function getCascadePreview(int $coaId): array
+    {
+        $descendantIds = $this->getDescendantIds($coaId);
+
+        if ($descendantIds->isEmpty()) {
+            return [
+                'total_descendants' => 0,
+                'empty_count' => 0,
+                'existing_count' => 0,
+                'existing_samples' => [],
+            ];
         }
 
-        return $coa->refresh();
+        $descendants = $this->nonKasbankDescendantQuery($descendantIds)
+            ->orderBy('kode')
+            ->get(['id', 'kode', 'nama', 'arus_kas_aktivitas', 'arus_kas_kelompok']);
+
+        [$empty, $existing] = $descendants->partition(
+            fn (Coa $item) => empty($item->arus_kas_aktivitas)
+        );
+
+        return [
+            'total_descendants' => $descendants->count(),
+            'empty_count' => $empty->count(),
+            'existing_count' => $existing->count(),
+            'existing_samples' => $existing
+                ->take(5)
+                ->map(fn (Coa $item) => [
+                    'kode' => (string) $item->kode,
+                    'nama' => (string) $item->nama,
+                    'aktivitas' => $item->arus_kas_aktivitas,
+                    'kelompok' => $item->arus_kas_kelompok,
+                ])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * Terapkan klasifikasi arus kas akun induk ke seluruh sub-akun turunan non-Kasbank.
+     */
+    public function cascadeArusKas(Coa $parent, string $mode = 'overwrite_all'): int
+    {
+        if (! in_array($mode, ['overwrite_all', 'fill_empty'], true)) {
+            throw new InvalidArgumentException("Mode kaskade tidak valid: {$mode}");
+        }
+
+        if (strtolower((string) $parent->tipe_coa) === 'kasbank' || empty($parent->arus_kas_aktivitas)) {
+            return 0;
+        }
+
+        $descendantIds = $this->getDescendantIds((int) $parent->id);
+
+        if ($descendantIds->isEmpty()) {
+            return 0;
+        }
+
+        return DB::transaction(function () use ($parent, $mode, $descendantIds) {
+            $query = $this->nonKasbankDescendantQuery($descendantIds);
+
+            if ($mode === 'fill_empty') {
+                $query->where(function (Builder $q) {
+                    $q->whereNull('arus_kas_aktivitas')
+                        ->orWhere('arus_kas_aktivitas', '');
+                });
+            }
+
+            $affectedCount = $query->update([
+                'arus_kas_aktivitas' => $parent->arus_kas_aktivitas,
+                'arus_kas_kelompok' => $parent->arus_kas_kelompok,
+            ]);
+
+            $this->logService->log('COA', 'cascade_arus_kas', null, [
+                'parent_id' => $parent->id,
+                'parent_kode' => $parent->kode,
+                'mode' => $mode,
+                'aktivitas' => $parent->arus_kas_aktivitas,
+                'kelompok' => $parent->arus_kas_kelompok,
+                'affected_count' => $affectedCount,
+            ]);
+
+            return $affectedCount;
+        });
+    }
+
+    private function nonKasbankDescendantQuery(Collection $descendantIds): Builder
+    {
+        return Coa::query()
+            ->whereIn('id', $descendantIds->all())
+            ->where(function (Builder $query) {
+                $query->whereNull('tipe_coa')
+                    ->orWhereRaw('LOWER(tipe_coa) != ?', ['kasbank']);
+            });
     }
 
     public function hasTransactions(int $coaId): bool

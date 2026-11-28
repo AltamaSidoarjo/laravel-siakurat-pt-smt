@@ -126,31 +126,36 @@ flowchart TD
 
 ### Arus Kas (Metode Tidak Langsung)
 
-Laporan arus kas metode tidak langsung (*Indirect Method*) menyusun arus kas operasi dari rekonsiliasi Laba Bersih, penyesuaian non-kas, dan pergerakan modal kerja operasi:
+Laporan arus kas metode tidak langsung (*Indirect Method*) menyusun arus kas dari rekonsiliasi Laba Bersih, penyesuaian non-kas, perubahan modal kerja, serta aktivitas investasi dan pendanaan. Perhitungan mendukung dua mode:
 
-1. **Laba (Rugi) Bersih Periode Berjalan**: Diperoleh dari mutasi akun leaf laba rugi aktif (`Pendapatan`, `Pendapatan lain`, `Beban`, `Beban lain`, `Beban Pokok Penjualan`).
-2. **Penyesuaian Non-Kas**: Beban Penyusutan dan Amortisasi ditambahkan kembali (+) ke Laba Bersih.
-3. **Perubahan Modal Kerja Operasi**:
-   - $\Delta$ Piutang Usaha & Pasien (`Akun Piutang`, `Piutang Usaha`): Kenaikan mengurangi kas (-), penurunan menambah kas (+).
-   - $\Delta$ Persediaan (`Persediaan`): Kenaikan mengurangi kas (-), penurunan menambah kas (+).
-   - $\Delta$ Aset Lancar Lainnya (`Aktiva Lancar lainnya`, `Aset Lancar lainnya`): Kenaikan mengurangi kas (-).
-   - $\Delta$ Utang Usaha (`Akun Hutang`, `Utang Usaha`): Kenaikan menambah kas (+), penurunan mengurangi kas (-).
-   - $\Delta$ Liabilitas Jangka Pendek Lainnya (`Hutang Lancar lainnya`, `Liabilitas Jangka Pendek`): Kenaikan menambah kas (+).
-4. **Arus Kas Investasi & Pendanaan**: Konsisten merefleksikan mutasi kas riil investasi (aset tetap/lainnya) dan pendanaan (pinjaman jangka panjang/ekuitas).
-5. **Rekonsiliasi Kas**:
-   $\text{Kas Akhir} = \text{Kas Awal} + \text{Kas Operasi} + \text{Kas Investasi} + \text{Kas Pendanaan}$.
+1. **Mode Dinamis (`SettingArusKas`, Mode Utama)**: Aktif otomatis ketika tabel `setting_arus_kas` tersedia dan memiliki minimal satu record (`SettingArusKas::query()->exists()`).
+   - **Laba (Rugi) Bersih Periode Berjalan**: Diperoleh dari mutasi akun leaf laba rugi aktif (`Pendapatan`, `Pendapatan lain`, `Beban`, `Beban lain`, `Beban Pokok Penjualan`).
+   - **Penyesuaian Non-Kas** (`kelompok_bagian = 'penyesuaian_laba'`): Seluruh pos aktif pada bagian ini dihitung sesuai `sifat_pos` via `hitungDampakDanPerubahanPos()`. Khusus pos dengan `sifat_pos` Laba Rugi (`penambah_laba`/`pengurang_laba`), `bangunBagianArusKasDinamis()` hanya mengagregasi COA Laba Rugi yang aktif (`status_aktif = 1`) agar konsisten dengan perhitungan Laba Bersih dan menjaga rekonsiliasi kas tetap nol, sedangkan pos dengan `sifat_pos` Neraca (`aset`, `liabilitas`, `ekuitas`) tetap menyertakan COA Neraca nonaktif (`status_aktif = 0`) yang bermutasi. Penjumlahan laba bersih dan subtotal bagian ini menghasilkan baris **`Laba Operasi Sebelum Perubahan Modal Kerja`** (`laba_sebelum_modal_kerja`).
+   - **Perubahan Modal Kerja** (`kelompok_bagian = 'modal_kerja'`): Dihitung per pos aktif sesuai urutan (`urut()`) dengan label dinamis dari `SettingArusKas::formatLabelPos($perubahan)`. Penjumlahan `laba_sebelum_modal_kerja` dan subtotal modal kerja menghasilkan `kas_operasi`.
+   - **Aktivitas Investasi & Pendanaan** (`kelompok_bagian = 'investasi'` & `'pendanaan'`): Dihitung dari pos aktif dan mapping COA masing-masing bagian.
+   - **Deteksi Akun Neraca Belum Dipetakan**: `kumpulkanAkunNeracaBelumDipetakan()` memindai seluruh akun Neraca non-Kasbank yang bermutasi pada periode (termasuk akun berstatus nonaktif) yang tidak masuk ke pos aktif maupun daftar pengecualian (`setting_arus_kas_pengecualian`). Jika ditemukan pada periode berjalan, antarmuka menampilkan *warning banner* (beserta tautan ke tab Metode Tidak Langsung `?metode=tidak_langsung` pada [Pengaturan Arus Kas](pengaturan-arus-kas.md) bila user memiliki izin `pengaturan.arus-kas,view`) dan nilai `belum_dipetakan` tetap dijumlahkan pada baris **Perubahan Akun Neraca Belum Dipetakan** ke `kenaikan_penurunan` agar rekonsiliasi saldo kas tetap terekspos.
+2. **Mode Fallback Legacy**: Digunakan secara otomatis (`susunArusKasTidakLangsungLegacy()`) apabila tabel `setting_arus_kas` belum tersedia atau belum berisi data:
+   - Penyesuaian non-kas diambil dari akun beban penyusutan/amortisasi (atau fallback akun `Akumulasi Penyusutan`).
+   - Modal kerja menggunakan 5 kelompok hardcoded berbasis `tipe_coa` (`piutang`, `persediaan`, `aset_lancar_lainnya`, `utang_usaha`, `liabilitas_pendek_lainnya`).
+   - Investasi & Pendanaan diambil via `susunArusKasInvestasiDanPendanaan()`.
+3. **Rekonsiliasi Kas**:
+   $\text{Kas Akhir} = \text{Kas Awal} + \text{Kenaikan (Penurunan) Bersih Kas}$. Pada mode dinamis, $\text{Kenaikan (Penurunan)} = \text{Kas Operasi} + \text{Investasi} + \text{Pendanaan} + \text{Belum Dipetakan}$.
 
 ```mermaid
 flowchart TD
     A["GET arus-kas-tidak-langsung"] --> B["Validasi startDate/endDate"]
     B --> C["getArusKasTidakLangsung(start,end)"]
-    C --> D["Hitung Laba Bersih Periode"]
-    D --> E["Hitung Penyesuaian Beban Non-Kas (Penyusutan/Amortisasi)"]
-    E --> F["Hitung Perubahan Modal Kerja (Delta Piutang, Persediaan, Utang)"]
-    F --> G["Kas Operasi = Laba Bersih + Non-Kas + Modal Kerja"]
-    G --> H["Ambil Arus Kas Investasi & Pendanaan Riil"]
-    H --> I["Rekonsiliasi Kas Awal + Kenaikan/Penurunan = Kas Akhir"]
-    I --> J["Render view (berjalan, pembanding, rincian modal kerja)"]
+    C --> D["susunArusKasTidakLangsungPeriode(): hitung kas awal/akhir, mutasiPerCoa, dan Laba Bersih"]
+    D --> E{"Tabel setting_arus_kas ada dan terisi?"}
+    E -- Ya --> F["susunArusKasTidakLangsungDinamis()"]
+    F --> G["bangunBagianArusKasDinamis(): penyesuaian_laba -> laba_sebelum_modal_kerja"]
+    G --> H["bangunBagianArusKasDinamis(): modal_kerja -> kas_operasi, investasi, pendanaan"]
+    H --> I["kumpulkanAkunNeracaBelumDipetakan() (kecualikan pos aktif & setting_arus_kas_pengecualian)"]
+    I --> J["Hitung kenaikan_penurunan (+ belum_dipetakan) & rekonsiliasi saldo kas"]
+    E -- Tidak --> K["susunArusKasTidakLangsungLegacy()"]
+    K --> L["Hitung non-kas, 5 kelompok modal kerja hardcoded & susunArusKasInvestasiDanPendanaan()"]
+    L --> J
+    J --> M["Render view arus-kas-tidak-langsung (banner warning jika ada unmapped, berjalan, pembanding, rincian akun)"]
 ```
 
 ## Fungsi yang Dipanggil
@@ -163,7 +168,10 @@ flowchart TD
   `getLabaRugiDetil()/getLabaRugiStandard()/getLabaRugiPerParentCoa()/getLabaRugiKomparasiBulanan()`,
   `getNeracaStandard()/getNeracaPerParentCoa()/getNeracaSaldo()/getNeracaDetil()/getNeracaRinci()`,
   `getBukubesar()/getBukubesarSelectedCoaOptions()/searchBukubesarCoaOptions()/countBukubesarCoaOptions()`,
-  `getArusKas()`, `getArusKasTidakLangsung()`, `getDaftarTipeCoaAktif()` (plus banyak helper privat untuk agregasi & klasifikasi).
+  `getArusKas()`, `getArusKasTidakLangsung()`, `susunArusKasTidakLangsungDinamis()`,
+  `bangunBagianArusKasDinamis()`, `hitungDampakDanPerubahanPos()`, `kumpulkanAkunNeracaBelumDipetakan()`,
+  `susunArusKasTidakLangsungLegacy()`, `getDaftarTipeCoaAktif()` (plus banyak helper privat untuk agregasi & klasifikasi).
+- Model terkait Arus Kas Tidak Langsung: `SettingArusKas::formatLabelPos()`, `SettingArusKasPengecualian`.
 
 ## Catatan Penting Bisnis
 
@@ -171,8 +179,9 @@ flowchart TD
 - Input Select2 Pilih COA pada Buku Besar menggunakan AJAX dengan `minimumInputLength: 0` dan pagination, sehingga saat dropdown diklik tanpa mengetik akan langsung menampilkan daftar opsi COA dari server.
 - Pada Buku Besar (`getBukubesar`), kolom keterangan baris transaksi otomatis menggabungkan penjamin dengan format `[Kode Penjamin] Nama Penjamin - Keterangan Asli` (Opsi A) jika penjamin ditemukan dari sumbernya (`faktur_penjualan` untuk `Invoice Pendapatan`, `simrs_import_pendapatan` untuk `Jurnal Umum`, atau `pelanggan` untuk `Penerimaan Pendapatan`). Teks penjamin ini otomatis dapat dicari melalui input pencarian `#globalSearch` di halaman Buku Besar serta tercakup pada export Excel dan Print. Pengambilan penjamin dilakukan secara bersegmen (chunked query per 500 item) demi efisiensi query dan mencegah memory exhaustion/SQL parameter limit saat rentang laporan memuat ribuan transaksi.
 - Laporan laba rugi mengintegrasikan anggaran **RBA** sebagai pembanding.
-- Klasifikasi neraca dan arus kas bergantung pada `tipe_coa` dan `arus_kas_aktivitas`/`arus_kas_kelompok`
+- Klasifikasi neraca dan arus kas metode langsung bergantung pada `tipe_coa` dan `arus_kas_aktivitas`/`arus_kas_kelompok`
   pada COA (lihat [Konvensi Buku Besar & COA](fondasi/konvensi-bukubesar-coa.md)).
+- Arus kas **Metode Tidak Langsung** mengutamakan konfigurasi dinamis dari [Pengaturan Arus Kas](pengaturan-arus-kas.md) (`SettingArusKas`, `SettingArusKasCoa`, dan `SettingArusKasPengecualian`), termasuk menampilkan banner peringatan apabila terdapat akun Neraca bermutasi (termasuk akun nonaktif atau akun pada pos yang dinonaktifkan) yang belum dipetakan atau dikecualikan, serta tetap menyediakan *graceful legacy fallback* saat tabel konfigurasi belum terisi.
 - Laporan arus kas menyediakan dua sudut pandang: **Metode Langsung** (aliran kas riil berdasarkan akun lawan kas) dan **Metode Tidak Langsung** (rekonsiliasi dari laba bersih, beban non-kas, dan perubahan modal kerja sesuai standar PSAK).
 - Deteksi jurnal tidak balance membantu menemukan hasil bridging/jurnal yang tidak seimbang
   (lihat juga [Bridging Pendapatan](bridging-pendapatan.md)).
