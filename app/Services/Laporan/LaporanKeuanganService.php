@@ -793,7 +793,7 @@ class LaporanKeuanganService
             ->count();
     }
 
-    public function getArusKas(string $startDate, string $endDate): array
+    public function getArusKas(string $startDate, string $endDate, bool $includeDetail = true): array
     {
         $start = CarbonImmutable::parse($startDate)->startOfDay();
         $end = CarbonImmutable::parse($endDate)->startOfDay();
@@ -801,116 +801,728 @@ class LaporanKeuanganService
         $comparisonEnd = $start->subDay();
         $comparisonStart = $comparisonEnd->subDays($duration - 1);
 
+        $coaMeta = $this->loadCoaMetadataForArusKas();
+
         return [
             'periode' => [
                 'berjalan' => ['start' => $start->toDateString(), 'end' => $end->toDateString()],
                 'pembanding' => ['start' => $comparisonStart->toDateString(), 'end' => $comparisonEnd->toDateString()],
             ],
-            'berjalan' => $this->susunArusKasPeriode($start->toDateString(), $end->toDateString(), true),
-            'pembanding' => $this->susunArusKasPeriode($comparisonStart->toDateString(), $comparisonEnd->toDateString()),
+            'berjalan' => $this->susunArusKasPeriode($start->toDateString(), $end->toDateString(), $coaMeta, $includeDetail),
+            'pembanding' => $this->susunArusKasPeriode($comparisonStart->toDateString(), $comparisonEnd->toDateString(), $coaMeta, false),
         ];
     }
 
-    private function susunArusKasPeriode(string $startDate, string $endDate, bool $includeDetail = false): array
-    {
-        $openingCash = (float) BukuBesar::query()
-            ->join('coa', 'coa.id', '=', 'bukubesar.coa_id')
-            ->whereRaw('LOWER(coa.tipe_coa) = ?', ['kasbank'])
-            ->where('bukubesar.tanggal', '<', $startDate)
-            ->sum(DB::raw('CASE WHEN bukubesar.tipe_mutasi = "D" THEN bukubesar.nominal ELSE -bukubesar.nominal END'));
+    /**
+     * Ambil rincian transaksi arus kas metode langsung secara terpaginasi untuk DataTables server-side.
+     *
+     * @return array{draw: int, recordsTotal: int, recordsFiltered: int, data: array<int, array<string, string>>}
+     */
+    public function getArusKasDetailPaginated(
+        string $startDate,
+        string $endDate,
+        int $draw,
+        int $start,
+        int $length,
+        string $search = '',
+        int $orderCol = 0,
+        string $orderDir = 'asc',
+    ): array {
+        $coaMeta = $this->loadCoaMetadataForArusKas();
+        $coaMap = $coaMeta['coaMap'];
+        $normalizedSearch = trim($search);
+        $needKeterangan = $normalizedSearch !== '' || $orderCol === 6;
 
-        $rows = BukuBesar::query()
-            ->join('coa', 'coa.id', '=', 'bukubesar.coa_id')
-            ->whereBetween('bukubesar.tanggal', [$startDate, $endDate])
-            ->orderBy('bukubesar.tanggal')
-            ->orderBy('bukubesar.id')
-            ->get([
-                'bukubesar.id', 'bukubesar.sumber_id', 'bukubesar.tanggal', 'bukubesar.nomer',
-                'bukubesar.sumber_transaksi', 'bukubesar.keterangan', 'bukubesar.nominal',
-                'bukubesar.tipe_mutasi', 'coa.kode as kode_coa', 'coa.nama as nama_coa',
-                'coa.tipe_coa', 'coa.arus_kas_aktivitas', 'coa.arus_kas_kelompok',
-            ]);
+        $collected = $this->kumpulkanTransaksiArusKasPeriode(
+            startDate: $startDate,
+            endDate: $endDate,
+            coaMeta: $coaMeta,
+            needDetail: true,
+            needSummary: false,
+            needKeterangan: $needKeterangan,
+        );
 
-        $detail = collect();
-        $unmappedAccounts = collect();
+        $txMeta = $collected['txMeta'];
+        $items = $collected['detailRows'];
+        $recordsTotal = count($items);
 
-        $rows->groupBy(fn (object $row) => $this->kunciTransaksiArusKas($row))
-            ->each(function (Collection $transaction) use ($detail, $unmappedAccounts): void {
-                $cashRows = $transaction->filter(fn (object $row) => strtolower((string) $row->tipe_coa) === 'kasbank');
-                $cashNet = (float) $cashRows->sum(fn (object $row) => $this->nilaiDebitKredit($row));
+        if ($normalizedSearch !== '') {
+            $filtered = [];
+            foreach ($items as $item) {
+                $tx = $txMeta[$item[1]];
+                $coaId = $item[2];
+                $coa = $coaId !== null ? ($coaMap[$coaId] ?? null) : null;
+                $activity = $coa !== null && in_array($coa['aktivitas'], ['operasi', 'investasi', 'pendanaan'], true)
+                    ? $coa['aktivitas']
+                    : 'belum_dipetakan';
 
-                if ($cashRows->isEmpty() || abs($cashNet) < 0.005) {
-                    return;
+                $akunLawan = $coaId === null
+                    ? ''
+                    : trim(($coa['kode'] ?? '').' '.($coa['nama'] ?? ''));
+                $kelompok = $coaId === null
+                    ? 'Selisih jurnal atau akun lawan tidak tersedia'
+                    : ($activity === 'belum_dipetakan' ? 'Akun belum dipetakan' : (string) ($coa['kelompok'] ?? ''));
+                $statusMapping = $activity === 'belum_dipetakan' ? 'Belum dipetakan' : 'Terpetakan';
+                $aktivitasDisplay = str_replace('_', ' ', $activity);
+                $formattedNilai = $this->formatNominalArusKas($item[3]);
+                $keterangan = (string) ($item[4] ?? $tx[4] ?? '');
+
+                if (
+                    mb_stripos($tx[1], $normalizedSearch) !== false
+                    || mb_stripos($tx[2], $normalizedSearch) !== false
+                    || mb_stripos($tx[3], $normalizedSearch) !== false
+                    || ($akunLawan !== '' && mb_stripos($akunLawan, $normalizedSearch) !== false)
+                    || mb_stripos($aktivitasDisplay, $normalizedSearch) !== false
+                    || mb_stripos($kelompok, $normalizedSearch) !== false
+                    || mb_stripos($keterangan, $normalizedSearch) !== false
+                    || mb_stripos($statusMapping, $normalizedSearch) !== false
+                    || mb_stripos($formattedNilai, $normalizedSearch) !== false
+                ) {
+                    $filtered[] = $item;
+                }
+            }
+        } else {
+            $filtered = $items;
+        }
+
+        unset($items);
+
+        $recordsFiltered = count($filtered);
+        $direction = strtolower($orderDir) === 'desc' ? -1 : 1;
+
+        if ($recordsFiltered > 1 && ! ($orderCol === 0 && $direction === 1 && $collected['isDateSorted'])) {
+            usort($filtered, static function (array $a, array $b) use ($orderCol, $direction, $txMeta, $coaMap): int {
+                $txA = $txMeta[$a[1]];
+                $txB = $txMeta[$b[1]];
+
+                if ($orderCol === 0) {
+                    return strcmp($txA[1], $txB[1]) * $direction;
+                }
+                if ($orderCol === 1) {
+                    return strcmp($txA[2], $txB[2]) * $direction;
+                }
+                if ($orderCol === 2) {
+                    return strcmp($txA[3], $txB[3]) * $direction;
+                }
+                if ($orderCol === 6) {
+                    $ketA = (string) ($a[4] ?? $txA[4] ?? '');
+                    $ketB = (string) ($b[4] ?? $txB[4] ?? '');
+
+                    return strcmp($ketA, $ketB) * $direction;
+                }
+                if ($orderCol === 8) {
+                    return ($a[3] <=> $b[3]) * $direction;
                 }
 
-                $counterparts = $transaction->reject(fn (object $row) => strtolower((string) $row->tipe_coa) === 'kasbank');
-                $allocated = 0.0;
+                $coaA = $a[2] !== null ? ($coaMap[$a[2]] ?? null) : null;
+                $coaB = $b[2] !== null ? ($coaMap[$b[2]] ?? null) : null;
+                $actA = $coaA !== null && in_array($coaA['aktivitas'], ['operasi', 'investasi', 'pendanaan'], true)
+                    ? $coaA['aktivitas']
+                    : 'belum_dipetakan';
+                $actB = $coaB !== null && in_array($coaB['aktivitas'], ['operasi', 'investasi', 'pendanaan'], true)
+                    ? $coaB['aktivitas']
+                    : 'belum_dipetakan';
 
-                foreach ($counterparts as $counterpart) {
-                    $amount = $this->nilaiArusKasAkunLawan($counterpart);
-                    if (abs($amount) < 0.005) {
-                        continue;
-                    }
+                $cmp = match ($orderCol) {
+                    3 => strcmp(
+                        $a[2] === null ? '' : trim(($coaA['kode'] ?? '').' '.($coaA['nama'] ?? '')),
+                        $b[2] === null ? '' : trim(($coaB['kode'] ?? '').' '.($coaB['nama'] ?? '')),
+                    ),
+                    4 => strcmp($actA, $actB),
+                    5 => strcmp(
+                        $a[2] === null
+                            ? 'Selisih jurnal atau akun lawan tidak tersedia'
+                            : ($actA === 'belum_dipetakan' ? 'Akun belum dipetakan' : (string) ($coaA['kelompok'] ?? '')),
+                        $b[2] === null
+                            ? 'Selisih jurnal atau akun lawan tidak tersedia'
+                            : ($actB === 'belum_dipetakan' ? 'Akun belum dipetakan' : (string) ($coaB['kelompok'] ?? '')),
+                    ),
+                    7 => strcmp(
+                        $actA === 'belum_dipetakan' ? 'Belum dipetakan' : 'Terpetakan',
+                        $actB === 'belum_dipetakan' ? 'Belum dipetakan' : 'Terpetakan',
+                    ),
+                    default => strcmp($txA[1], $txB[1]),
+                };
 
-                    $allocated += $amount;
-                    $activity = in_array($counterpart->arus_kas_aktivitas, ['operasi', 'investasi', 'pendanaan'], true)
-                        ? (string) $counterpart->arus_kas_aktivitas
-                        : 'belum_dipetakan';
-                    $group = $activity === 'belum_dipetakan'
-                        ? 'Akun belum dipetakan'
-                        : (string) $counterpart->arus_kas_kelompok;
-
-                    if ($activity === 'belum_dipetakan') {
-                        $unmappedAccounts->put((string) $counterpart->kode_coa, [
-                            'kode' => (string) $counterpart->kode_coa,
-                            'nama' => (string) $counterpart->nama_coa,
-                            'tipe_coa' => (string) $counterpart->tipe_coa,
-                        ]);
-                    }
-
-                    $detail->push($this->barisDetailArusKas($cashRows, $counterpart, $activity, $group, $amount));
-                }
-
-                $residual = $cashNet - $allocated;
-                if (abs($residual) >= 0.005) {
-                    $reference = $cashRows->first();
-                    $detail->push($this->barisDetailArusKas(
-                        $cashRows,
-                        $reference,
-                        'belum_dipetakan',
-                        'Selisih jurnal atau akun lawan tidak tersedia',
-                        $residual,
-                    ));
-                }
+                return $cmp * $direction;
             });
+        }
 
-        $sections = collect(['operasi', 'investasi', 'pendanaan'])
-            ->mapWithKeys(function (string $activity) use ($detail) {
-                $items = $detail->where('aktivitas', $activity)
-                    ->groupBy('kelompok')
-                    ->map(fn (Collection $rows, string $group) => [
-                        'kelompok' => $group,
-                        'nilai' => (float) $rows->sum('nilai'),
-                    ])
-                    ->sortBy('kelompok')
-                    ->values();
+        $offset = max(0, $start);
+        $pageRows = $length > 0 ? array_slice($filtered, $offset, $length) : $filtered;
 
-                return [$activity => ['kelompok' => $items, 'subtotal' => (float) $items->sum('nilai')]];
-            })
-            ->all();
+        $keteranganById = [];
+        if (! $needKeterangan && $pageRows !== []) {
+            $neededIds = [];
+            foreach ($pageRows as $row) {
+                if ($row[0] !== null) {
+                    $neededIds[$row[0]] = true;
+                }
+                $firstCashId = $txMeta[$row[1]][0];
+                if ($firstCashId !== null) {
+                    $neededIds[$firstCashId] = true;
+                }
+            }
 
-        $change = (float) $detail->sum('nilai');
+            if ($neededIds !== []) {
+                $keteranganById = DB::table('bukubesar')
+                    ->whereIn('id', array_keys($neededIds))
+                    ->pluck('keterangan', 'id')
+                    ->all();
+            }
+        }
+
+        $data = [];
+        foreach ($pageRows as $row) {
+            $tx = $txMeta[$row[1]];
+            $coaId = $row[2];
+            $coa = $coaId !== null ? ($coaMap[$coaId] ?? null) : null;
+            $activity = $coa !== null && in_array($coa['aktivitas'], ['operasi', 'investasi', 'pendanaan'], true)
+                ? $coa['aktivitas']
+                : 'belum_dipetakan';
+
+            if ($needKeterangan) {
+                $keterangan = (string) ($row[4] ?? $tx[4] ?? '');
+            } else {
+                $rowKet = $row[0] !== null ? ($keteranganById[$row[0]] ?? null) : null;
+                $cashKet = $tx[0] !== null ? ($keteranganById[$tx[0]] ?? null) : null;
+                $keterangan = (string) ($rowKet ?? $cashKet ?? '');
+            }
+
+            $data[] = [
+                'tanggal' => $tx[1],
+                'nomer' => $tx[2],
+                'akun_kas' => $tx[3],
+                'akun_lawan' => $coaId === null
+                    ? ''
+                    : trim(($coa['kode'] ?? '').' '.($coa['nama'] ?? '')),
+                'aktivitas' => str_replace('_', ' ', $activity),
+                'kelompok' => $coaId === null
+                    ? 'Selisih jurnal atau akun lawan tidak tersedia'
+                    : ($activity === 'belum_dipetakan' ? 'Akun belum dipetakan' : (string) ($coa['kelompok'] ?? '')),
+                'keterangan' => $keterangan,
+                'status_mapping' => $activity === 'belum_dipetakan' ? 'Belum dipetakan' : 'Terpetakan',
+                'nilai' => $this->formatNominalArusKas($row[3]),
+            ];
+        }
+
+        return [
+            'draw' => $draw,
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $data,
+        ];
+    }
+
+    /**
+     * @return array{
+     *     coaMap: array<int, array{kode: string, nama: string, tipe_coa: string, is_kasbank: bool, aktivitas: ?string, kelompok: ?string}>,
+     *     kasCoaIds: array<int, int>
+     * }
+     */
+    private function loadCoaMetadataForArusKas(): array
+    {
+        $coaMap = [];
+        $kasCoaIds = [];
+
+        $coas = DB::table('coa')->get([
+            'id',
+            'kode',
+            'nama',
+            'tipe_coa',
+            'arus_kas_aktivitas',
+            'arus_kas_kelompok',
+        ]);
+
+        foreach ($coas as $coa) {
+            $coaId = (int) $coa->id;
+            $isKasbank = strtolower((string) $coa->tipe_coa) === 'kasbank';
+
+            if ($isKasbank) {
+                $kasCoaIds[] = $coaId;
+            }
+
+            $coaMap[$coaId] = [
+                'kode' => (string) $coa->kode,
+                'nama' => (string) $coa->nama,
+                'tipe_coa' => (string) ($coa->tipe_coa ?? ''),
+                'is_kasbank' => $isKasbank,
+                'aktivitas' => $coa->arus_kas_aktivitas !== null ? (string) $coa->arus_kas_aktivitas : null,
+                'kelompok' => $coa->arus_kas_kelompok !== null ? (string) $coa->arus_kas_kelompok : null,
+            ];
+        }
+
+        return [
+            'coaMap' => $coaMap,
+            'kasCoaIds' => $kasCoaIds,
+        ];
+    }
+
+    /**
+     * @param  array{
+     *     coaMap: array<int, array{kode: string, nama: string, tipe_coa: string, is_kasbank: bool, aktivitas: ?string, kelompok: ?string}>,
+     *     kasCoaIds: array<int, int>
+     * }  $coaMeta
+     */
+    private function susunArusKasPeriode(
+        string $startDate,
+        string $endDate,
+        array $coaMeta,
+        bool $includeDetail = false,
+    ): array {
+        $kasCoaIds = $coaMeta['kasCoaIds'];
+        $coaMap = $coaMeta['coaMap'];
+
+        $openingCash = $kasCoaIds === []
+            ? 0.0
+            : (float) (DB::table('bukubesar')
+                ->whereIn('coa_id', $kasCoaIds)
+                ->where('tanggal', '<', $startDate)
+                ->selectRaw("COALESCE(SUM(CASE WHEN tipe_mutasi = 'D' THEN nominal ELSE -nominal END), 0) as total")
+                ->value('total') ?? 0.0);
+
+        $collected = $this->kumpulkanTransaksiArusKasPeriode(
+            startDate: $startDate,
+            endDate: $endDate,
+            coaMeta: $coaMeta,
+            needDetail: $includeDetail,
+            needSummary: true,
+            needKeterangan: $includeDetail,
+        );
+
+        $sections = [];
+        foreach (['operasi', 'investasi', 'pendanaan'] as $activity) {
+            $groupTotals = $collected['summaryGroups'][$activity] ?? [];
+            $items = collect($groupTotals)
+                ->map(fn (float $nilai, string $group) => [
+                    'kelompok' => $group,
+                    'nilai' => $nilai,
+                ])
+                ->sortBy('kelompok')
+                ->values();
+
+            $sections[$activity] = [
+                'kelompok' => $items,
+                'subtotal' => (float) $items->sum('nilai'),
+            ];
+        }
+
+        $detailCollection = collect();
+        if ($includeDetail) {
+            $txMeta = $collected['txMeta'];
+            foreach ($collected['detailRows'] as $row) {
+                $tx = $txMeta[$row[1]];
+                $coaId = $row[2];
+                $coa = $coaId !== null ? ($coaMap[$coaId] ?? null) : null;
+                $activity = $coa !== null && in_array($coa['aktivitas'], ['operasi', 'investasi', 'pendanaan'], true)
+                    ? $coa['aktivitas']
+                    : 'belum_dipetakan';
+
+                $detailCollection->push([
+                    'tanggal' => $tx[1],
+                    'nomer' => $tx[2],
+                    'sumber_transaksi' => $tx[5],
+                    'keterangan' => (string) ($row[4] ?? $tx[4] ?? ''),
+                    'akun_kas' => $tx[3],
+                    'kode_akun_lawan' => $coaId === null ? '' : (string) ($coa['kode'] ?? ''),
+                    'akun_lawan' => $coaId === null ? '' : (string) ($coa['nama'] ?? ''),
+                    'aktivitas' => $activity,
+                    'kelompok' => $coaId === null
+                        ? 'Selisih jurnal atau akun lawan tidak tersedia'
+                        : ($activity === 'belum_dipetakan' ? 'Akun belum dipetakan' : (string) ($coa['kelompok'] ?? '')),
+                    'nilai' => $row[3],
+                    'status_mapping' => $activity === 'belum_dipetakan' ? 'Belum dipetakan' : 'Terpetakan',
+                ]);
+            }
+        }
+
+        $change = $collected['totalChange'];
 
         return [
             'bagian' => $sections,
-            'belum_dipetakan' => (float) $detail->where('aktivitas', 'belum_dipetakan')->sum('nilai'),
-            'akun_belum_dipetakan' => $unmappedAccounts->values(),
+            'belum_dipetakan' => $collected['belumDipetakan'],
+            'akun_belum_dipetakan' => collect($collected['unmappedAccounts'])->values(),
             'kas_awal' => $openingCash,
             'kenaikan_penurunan' => $change,
             'pengaruh_kurs' => 0.0,
             'kas_akhir' => $openingCash + $change,
-            'detail' => $includeDetail ? $detail->values() : collect(),
+            'detail' => $detailCollection,
         ];
+    }
+
+    /**
+     * Kumpulkan ringkasan dan/atau baris rincian transaksi arus kas metode langsung untuk satu periode.
+     * Menggunakan batching per rentang tanggal dan key transaksi agar penggunaan memori tetap konstan.
+     *
+     * @param  array{
+     *     coaMap: array<int, array{kode: string, nama: string, tipe_coa: string, is_kasbank: bool, aktivitas: ?string, kelompok: ?string}>,
+     *     kasCoaIds: array<int, int>
+     * }  $coaMeta
+     * @return array{
+     *     summaryGroups: array<string, array<string, float>>,
+     *     belumDipetakan: float,
+     *     totalChange: float,
+     *     unmappedAccounts: array<string, array{kode: string, nama: string, tipe_coa: string}>,
+     *     txMeta: array<int, array{0: int, 1: string, 2: string, 3: string, 4: ?string, 5: string}>,
+     *     detailRows: array<int, array{0: ?int, 1: int, 2: ?int, 3: float, 4: ?string}>,
+     *     isDateSorted: bool
+     * }
+     */
+    private function kumpulkanTransaksiArusKasPeriode(
+        string $startDate,
+        string $endDate,
+        array $coaMeta,
+        bool $needDetail,
+        bool $needSummary,
+        bool $needKeterangan,
+    ): array {
+        $emptyResult = [
+            'summaryGroups' => [],
+            'belumDipetakan' => 0.0,
+            'totalChange' => 0.0,
+            'unmappedAccounts' => [],
+            'txMeta' => [],
+            'detailRows' => [],
+            'isDateSorted' => true,
+        ];
+
+        $kasCoaIds = $coaMeta['kasCoaIds'];
+        if ($kasCoaIds === []) {
+            return $emptyResult;
+        }
+
+        $coaMap = $coaMeta['coaMap'];
+
+        $cashColumns = ['id', 'coa_id', 'sumber_id', 'tanggal', 'nomer', 'sumber_transaksi', 'nominal', 'tipe_mutasi'];
+        if ($needDetail && $needKeterangan) {
+            $cashColumns[] = 'keterangan';
+        }
+
+        $cashNetByKey = [];
+        $cashMetaByKey = [];
+        $keyPartsByKey = [];
+
+        $sliceStart = CarbonImmutable::parse($startDate)->startOfDay();
+        $rangeEnd = CarbonImmutable::parse($endDate)->startOfDay();
+
+        while ($sliceStart->lte($rangeEnd)) {
+            $sliceEnd = $sliceStart->addDays(13);
+            if ($sliceEnd->gt($rangeEnd)) {
+                $sliceEnd = $rangeEnd;
+            }
+
+            $cashQuery = DB::table('bukubesar')
+                ->whereIn('coa_id', $kasCoaIds)
+                ->whereBetween('tanggal', [$sliceStart->toDateString(), $sliceEnd->toDateString()]);
+
+            if ($needDetail) {
+                $cashQuery->orderBy('tanggal')->orderBy('id');
+            }
+
+            $cashRowsChunk = $cashQuery->get($cashColumns);
+
+            foreach ($cashRowsChunk as $row) {
+                $txKey = $this->kunciTransaksiArusKas($row);
+                $signed = $this->nilaiDebitKredit($row);
+                $cashNetByKey[$txKey] = ($cashNetByKey[$txKey] ?? 0.0) + $signed;
+
+                if (! isset($keyPartsByKey[$txKey])) {
+                    $keyPartsByKey[$txKey] = [
+                        'sumber_transaksi' => (string) $row->sumber_transaksi,
+                        'sumber_id' => $row->sumber_id,
+                        'nomer' => $row->nomer,
+                        'tanggal' => substr((string) $row->tanggal, 0, 10),
+                    ];
+                }
+
+                if ($needDetail) {
+                    $coaId = (int) $row->coa_id;
+                    if (! isset($cashMetaByKey[$txKey])) {
+                        $cashMetaByKey[$txKey] = [
+                            'first_id' => (int) $row->id,
+                            'first_tanggal' => substr((string) $row->tanggal, 0, 10),
+                            'first_nomer' => (string) $row->nomer,
+                            'first_sumber_transaksi' => (string) $row->sumber_transaksi,
+                            'first_keterangan' => $needKeterangan ? ($row->keterangan !== null ? (string) $row->keterangan : null) : null,
+                            'cash_coa_ids' => [$coaId => true],
+                        ];
+                    } else {
+                        $cashMetaByKey[$txKey]['cash_coa_ids'][$coaId] = true;
+                    }
+                }
+            }
+
+            unset($cashRowsChunk);
+            $sliceStart = $sliceEnd->addDay();
+        }
+
+        if ($cashNetByKey === []) {
+            return $emptyResult;
+        }
+
+        $validCashNetByKey = [];
+        $sumberIds = [];
+        $noSumberNomers = [];
+        $nullNomerDates = [];
+
+        foreach ($cashNetByKey as $txKey => $cashNet) {
+            if (abs($cashNet) < 0.005) {
+                continue;
+            }
+
+            $validCashNetByKey[$txKey] = $cashNet;
+            $parts = $keyPartsByKey[$txKey];
+            $st = $parts['sumber_transaksi'];
+
+            if ($parts['sumber_id'] !== null) {
+                $sumberIds[$st][$parts['sumber_id']] = true;
+            } elseif ($parts['nomer'] === null) {
+                $nullNomerDates[$st][$parts['tanggal']] = true;
+            } else {
+                $noSumberNomers[$st][(string) $parts['nomer']] = true;
+            }
+        }
+
+        unset($cashNetByKey, $keyPartsByKey);
+
+        if ($validCashNetByKey === []) {
+            return $emptyResult;
+        }
+
+        $allocatedByKey = [];
+        $summaryGroups = [];
+        $belumDipetakan = 0.0;
+        $totalChange = 0.0;
+        $unmappedAccounts = [];
+        $counterpartsByKey = [];
+
+        $this->prosesBarisLawanArusKas(
+            startDate: $startDate,
+            endDate: $endDate,
+            coaMap: $coaMap,
+            sumberIds: $sumberIds,
+            noSumberNomers: $noSumberNomers,
+            nullNomerDates: $nullNomerDates,
+            needKeterangan: $needDetail && $needKeterangan,
+            onRow: function (object $counterpart) use (
+                $validCashNetByKey,
+                $coaMap,
+                $needSummary,
+                $needDetail,
+                $needKeterangan,
+                &$allocatedByKey,
+                &$summaryGroups,
+                &$belumDipetakan,
+                &$totalChange,
+                &$unmappedAccounts,
+                &$counterpartsByKey,
+            ): void {
+                $txKey = $this->kunciTransaksiArusKas($counterpart);
+                if (! isset($validCashNetByKey[$txKey])) {
+                    return;
+                }
+
+                $amount = $this->nilaiArusKasAkunLawan($counterpart);
+                if (abs($amount) < 0.005) {
+                    return;
+                }
+
+                $allocatedByKey[$txKey] = ($allocatedByKey[$txKey] ?? 0.0) + $amount;
+
+                $coaId = (int) $counterpart->coa_id;
+                $coa = $coaMap[$coaId] ?? null;
+                $aktivitasCoa = $coa['aktivitas'] ?? null;
+                $activity = in_array($aktivitasCoa, ['operasi', 'investasi', 'pendanaan'], true)
+                    ? $aktivitasCoa
+                    : 'belum_dipetakan';
+                $group = $activity === 'belum_dipetakan'
+                    ? 'Akun belum dipetakan'
+                    : (string) ($coa['kelompok'] ?? '');
+
+                if ($needSummary) {
+                    if ($activity === 'belum_dipetakan') {
+                        $belumDipetakan += $amount;
+                        if ($coa !== null) {
+                            $unmappedAccounts[$coa['kode']] = [
+                                'kode' => $coa['kode'],
+                                'nama' => $coa['nama'],
+                                'tipe_coa' => $coa['tipe_coa'],
+                            ];
+                        }
+                    } else {
+                        $summaryGroups[$activity][$group] = ($summaryGroups[$activity][$group] ?? 0.0) + $amount;
+                    }
+
+                    $totalChange += $amount;
+                }
+
+                if ($needDetail) {
+                    $counterpartsByKey[$txKey][] = [
+                        (int) $counterpart->id,
+                        $coaId,
+                        $amount,
+                        $needKeterangan && $counterpart->keterangan !== null ? (string) $counterpart->keterangan : null,
+                    ];
+                }
+            },
+        );
+
+        $residualsByKey = [];
+        foreach ($validCashNetByKey as $txKey => $cashNet) {
+            $residual = $cashNet - ($allocatedByKey[$txKey] ?? 0.0);
+            if (abs($residual) < 0.005) {
+                continue;
+            }
+
+            if ($needSummary) {
+                $belumDipetakan += $residual;
+                $totalChange += $residual;
+            }
+
+            if ($needDetail) {
+                $residualsByKey[$txKey] = $residual;
+            }
+        }
+
+        $txMeta = [];
+        $detailRows = [];
+        $isDateSorted = true;
+        $lastTanggal = '';
+
+        if ($needDetail) {
+            $txIdx = 0;
+            foreach ($validCashNetByKey as $txKey => $cashNet) {
+                $meta = $cashMetaByKey[$txKey];
+                $cashNames = [];
+                foreach ($meta['cash_coa_ids'] as $coaId => $_) {
+                    if (isset($coaMap[$coaId])) {
+                        $cashNames[] = $coaMap[$coaId]['nama'];
+                    }
+                }
+
+                $tanggal = $meta['first_tanggal'];
+                $txMeta[$txIdx] = [
+                    $meta['first_id'],
+                    $tanggal,
+                    $meta['first_nomer'],
+                    implode(', ', array_unique($cashNames)),
+                    $meta['first_keterangan'],
+                    $meta['first_sumber_transaksi'],
+                ];
+
+                if (isset($counterpartsByKey[$txKey])) {
+                    $cpList = $counterpartsByKey[$txKey];
+                    if (count($cpList) > 1) {
+                        usort($cpList, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
+                    }
+
+                    foreach ($cpList as $cp) {
+                        if ($isDateSorted && $tanggal < $lastTanggal) {
+                            $isDateSorted = false;
+                        }
+                        $lastTanggal = $tanggal;
+
+                        $detailRows[] = [$cp[0], $txIdx, $cp[1], $cp[2], $cp[3]];
+                    }
+                }
+
+                if (isset($residualsByKey[$txKey])) {
+                    if ($isDateSorted && $tanggal < $lastTanggal) {
+                        $isDateSorted = false;
+                    }
+                    $lastTanggal = $tanggal;
+
+                    $detailRows[] = [null, $txIdx, null, $residualsByKey[$txKey], null];
+                }
+
+                $txIdx++;
+            }
+        }
+
+        return [
+            'summaryGroups' => $summaryGroups,
+            'belumDipetakan' => $belumDipetakan,
+            'totalChange' => $totalChange,
+            'unmappedAccounts' => $unmappedAccounts,
+            'txMeta' => $txMeta,
+            'detailRows' => $detailRows,
+            'isDateSorted' => $isDateSorted,
+        ];
+    }
+
+    /**
+     * Ambil baris akun lawan hanya untuk transaksi kas valid secara bertahap (batched by index).
+     *
+     * @param  array<int, array{kode: string, nama: string, tipe_coa: string, is_kasbank: bool, aktivitas: ?string, kelompok: ?string}>  $coaMap
+     * @param  array<string, array<int|string, true>>  $sumberIds
+     * @param  array<string, array<string, true>>  $noSumberNomers
+     * @param  array<string, array<string, true>>  $nullNomerDates
+     */
+    private function prosesBarisLawanArusKas(
+        string $startDate,
+        string $endDate,
+        array $coaMap,
+        array $sumberIds,
+        array $noSumberNomers,
+        array $nullNomerDates,
+        bool $needKeterangan,
+        callable $onRow,
+    ): void {
+        $columns = ['id', 'coa_id', 'sumber_id', 'tanggal', 'nomer', 'sumber_transaksi', 'nominal', 'tipe_mutasi'];
+        if ($needKeterangan) {
+            $columns[] = 'keterangan';
+        }
+
+        $batchSize = DB::connection()->getDriverName() === 'mysql' ? 500 : 200;
+
+        $consumeBatch = static function (iterable $rows) use ($coaMap, $onRow): void {
+            foreach ($rows as $row) {
+                if ($coaMap[(int) $row->coa_id]['is_kasbank'] ?? false) {
+                    continue;
+                }
+                $onRow($row);
+            }
+        };
+
+        foreach ($sumberIds as $st => $ids) {
+            foreach (array_chunk(array_keys($ids), $batchSize) as $chunk) {
+                $rows = DB::table('bukubesar')
+                    ->whereBetween('tanggal', [$startDate, $endDate])
+                    ->where('sumber_transaksi', $st)
+                    ->whereIn('sumber_id', $chunk)
+                    ->get($columns);
+                $consumeBatch($rows);
+            }
+        }
+
+        foreach ($noSumberNomers as $st => $nomers) {
+            foreach (array_chunk(array_keys($nomers), $batchSize) as $chunk) {
+                $rows = DB::table('bukubesar')
+                    ->whereBetween('tanggal', [$startDate, $endDate])
+                    ->where('sumber_transaksi', $st)
+                    ->whereNull('sumber_id')
+                    ->whereIn('nomer', $chunk)
+                    ->get($columns);
+                $consumeBatch($rows);
+            }
+        }
+
+        foreach ($nullNomerDates as $st => $_dates) {
+            $rows = DB::table('bukubesar')
+                ->whereBetween('tanggal', [$startDate, $endDate])
+                ->where('sumber_transaksi', $st)
+                ->whereNull('sumber_id')
+                ->whereNull('nomer')
+                ->get($columns);
+            $consumeBatch($rows);
+        }
+    }
+
+    private function formatNominalArusKas(float $value): string
+    {
+        $formatted = number_format(abs($value), 0, ',', '.');
+
+        return $value < 0 ? '('.$formatted.')' : $formatted;
     }
 
     private function kunciTransaksiArusKas(object $row): string
@@ -930,30 +1542,6 @@ class LaporanKeuanganService
     private function nilaiArusKasAkunLawan(object $row): float
     {
         return -$this->nilaiDebitKredit($row);
-    }
-
-    private function barisDetailArusKas(
-        Collection $cashRows,
-        object $counterpart,
-        string $activity,
-        string $group,
-        float $amount,
-    ): array {
-        $firstCash = $cashRows->first();
-
-        return [
-            'tanggal' => substr((string) $firstCash->tanggal, 0, 10),
-            'nomer' => (string) $firstCash->nomer,
-            'sumber_transaksi' => (string) $firstCash->sumber_transaksi,
-            'keterangan' => (string) ($counterpart->keterangan ?? $firstCash->keterangan ?? ''),
-            'akun_kas' => $cashRows->pluck('nama_coa')->unique()->implode(', '),
-            'kode_akun_lawan' => strtolower((string) $counterpart->tipe_coa) === 'kasbank' ? '' : (string) $counterpart->kode_coa,
-            'akun_lawan' => strtolower((string) $counterpart->tipe_coa) === 'kasbank' ? '' : (string) $counterpart->nama_coa,
-            'aktivitas' => $activity,
-            'kelompok' => $group,
-            'nilai' => $amount,
-            'status_mapping' => $activity === 'belum_dipetakan' ? 'Belum dipetakan' : 'Terpetakan',
-        ];
     }
 
     public function getArusKasTidakLangsung(string $startDate, string $endDate): array

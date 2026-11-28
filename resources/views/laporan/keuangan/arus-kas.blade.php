@@ -161,7 +161,7 @@
 
                     <h5 class="fw-bold">Lampiran Rincian Transaksi</h5>
                     <div class="table-responsive">
-                        <table class="table table-sm table-bordered table-hover">
+                        <table class="table table-sm table-bordered table-hover" id="datatable-arus-kas">
                             <thead class="table-light">
                                 <tr>
                                     <th>Tanggal</th>
@@ -175,25 +175,6 @@
                                     <th class="text-end">Nilai</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                @forelse ($detailRows as $row)
-                                    <tr>
-                                        <td>{{ $row['tanggal'] }}</td>
-                                        <td>{{ $row['nomer'] }}</td>
-                                        <td>{{ $row['akun_kas'] }}</td>
-                                        <td>{{ $row['kode_akun_lawan'] }} {{ $row['akun_lawan'] }}</td>
-                                        <td class="text-uppercase">{{ str_replace('_', ' ', $row['aktivitas']) }}</td>
-                                        <td>{{ $row['kelompok'] }}</td>
-                                        <td>{{ $row['keterangan'] }}</td>
-                                        <td>{{ $row['status_mapping'] }}</td>
-                                        <td class="text-end">{{ $formatArusKas((float) $row['nilai']) }}</td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="10" class="text-center text-muted py-4">Tidak ada data arus kas.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -243,4 +224,49 @@
             }
         }
     </style>
+@endpush
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (!(window.jQuery && window.jQuery.fn.DataTable)) {
+                return;
+            }
+
+            const textRenderer = window.jQuery.fn.dataTable.render?.text
+                ? window.jQuery.fn.dataTable.render.text()
+                : undefined;
+
+            window.jQuery('#datatable-arus-kas').DataTable({
+                processing: true,
+                serverSide: true,
+                autoWidth: false,
+                pageLength: 25,
+                lengthMenu: [10, 25, 50, 100],
+                order: [[0, 'asc']],
+                language: {
+                    emptyTable: 'Tidak ada data arus kas.'
+                },
+                ajax: {
+                    url: '{{ route('laporan.keuangan.arus-kas.load-data') }}',
+                    type: 'GET',
+                    data: function (d) {
+                        d.startDate = '{{ $startDate }}';
+                        d.endDate = '{{ $endDate }}';
+                    }
+                },
+                columns: [
+                    { data: 'tanggal', name: 'tanggal', render: textRenderer },
+                    { data: 'nomer', name: 'nomer', render: textRenderer },
+                    { data: 'akun_kas', name: 'akun_kas', render: textRenderer },
+                    { data: 'akun_lawan', name: 'akun_lawan', render: textRenderer },
+                    { data: 'aktivitas', name: 'aktivitas', className: 'text-uppercase', render: textRenderer },
+                    { data: 'kelompok', name: 'kelompok', render: textRenderer },
+                    { data: 'keterangan', name: 'keterangan', render: textRenderer },
+                    { data: 'status_mapping', name: 'status_mapping', render: textRenderer },
+                    { data: 'nilai', name: 'nilai', className: 'text-end', render: textRenderer }
+                ]
+            });
+        });
+    </script>
 @endpush

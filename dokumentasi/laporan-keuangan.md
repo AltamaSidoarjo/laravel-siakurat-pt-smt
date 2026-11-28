@@ -43,6 +43,7 @@ Semua endpoint memakai izin `laporan.keuangan,view`.
 | `GET` | `/laporan/keuangan/neraca-detil` | `laporan.keuangan.neraca-detil` | `neracaDetil()` |
 | `GET` | `/laporan/keuangan/neraca-rinci` | `laporan.keuangan.neraca-rinci` | `neracaRinci()` |
 | `GET` | `/laporan/keuangan/arus-kas` | `laporan.keuangan.arus-kas` | `arusKas()` |
+| `GET` | `/laporan/keuangan/arus-kas/load-data` | `laporan.keuangan.arus-kas.load-data` | `loadArusKasDetail()` |
 | `GET` | `/laporan/keuangan/arus-kas-tidak-langsung` | `laporan.keuangan.arus-kas-tidak-langsung` | `arusKasTidakLangsung()` |
 
 ## Parameter Umum
@@ -118,10 +119,11 @@ flowchart TD
 ```mermaid
 flowchart TD
     A["GET arus-kas"] --> B["Validasi startDate/endDate"]
-    B --> C["getArusKas(start,end)"]
-    C --> D["susunArusKasPeriode() berjalan + pembanding"]
+    B --> C["getArusKas(start,end, includeDetail: false)"]
+    C --> D["susunArusKasPeriode(): filter transaksi kasbank terlebih dahulu untuk berjalan + pembanding"]
     D --> E["Klasifikasi arus kas via arus_kas_aktivitas/kelompok COA"]
-    E --> F["Render view (berjalan, pembanding, detail)"]
+    E --> F["Render view ringkasan (berjalan, pembanding)"]
+    F --> G["DataTable AJAX GET arus-kas/load-data -> getArusKasDetailPaginated()"]
 ```
 
 ### Arus Kas (Metode Tidak Langsung)
@@ -163,12 +165,12 @@ flowchart TD
 - Controller: `index()`, `rincianTransaksiBukubesar()/loadRincianTransaksiBukubesar()`,
   `deteksiJurnalTidakBalance()/loadDeteksiJurnalTidakBalance()`, `labaRugiDetil()/labaRugiStandard()/labaRugiPerParentCoa()/labaRugiKomparasiBulanan()`,
   `neracaStandard()/neracaPerParentCoa()/neracaSaldo()/neracaDetil()/neracaRinci()`,
-  `bukubesar()/searchBukubesarCoa()`, `arusKas()`, `arusKasTidakLangsung()`, `resolveDateRange()` (private).
+  `bukubesar()/searchBukubesarCoa()`, `arusKas()`, `loadArusKasDetail()`, `arusKasTidakLangsung()`, `resolveDateRange()` (private).
 - Service: `getIdentitasLaporan()`, `getQueryRincianTransaksiBukubesar()`, `getJurnalTidakBalance()`,
   `getLabaRugiDetil()/getLabaRugiStandard()/getLabaRugiPerParentCoa()/getLabaRugiKomparasiBulanan()`,
   `getNeracaStandard()/getNeracaPerParentCoa()/getNeracaSaldo()/getNeracaDetil()/getNeracaRinci()`,
   `getBukubesar()/getBukubesarSelectedCoaOptions()/searchBukubesarCoaOptions()/countBukubesarCoaOptions()`,
-  `getArusKas()`, `getArusKasTidakLangsung()`, `susunArusKasTidakLangsungDinamis()`,
+  `getArusKas()`, `getArusKasDetailPaginated()`, `getArusKasTidakLangsung()`, `susunArusKasTidakLangsungDinamis()`,
   `bangunBagianArusKasDinamis()`, `hitungDampakDanPerubahanPos()`, `kumpulkanAkunNeracaBelumDipetakan()`,
   `susunArusKasTidakLangsungLegacy()`, `getDaftarTipeCoaAktif()` (plus banyak helper privat untuk agregasi & klasifikasi).
 - Model terkait Arus Kas Tidak Langsung: `SettingArusKas::formatLabelPos()`, `SettingArusKasPengecualian`.

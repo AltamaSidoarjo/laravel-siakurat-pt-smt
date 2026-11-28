@@ -294,7 +294,7 @@ class LaporanKeuanganController extends Controller
         ]);
 
         [$startDate, $endDate] = $this->resolveDateRange($request);
-        $data = $this->laporanKeuanganService->getArusKas($startDate, $endDate);
+        $data = $this->laporanKeuanganService->getArusKas($startDate, $endDate, includeDetail: false);
 
         return view('laporan.keuangan.arus-kas', array_merge(
             $this->laporanKeuanganService->getIdentitasLaporan(),
@@ -305,9 +305,31 @@ class LaporanKeuanganController extends Controller
                 'periode' => $data['periode'],
                 'arusKasBerjalan' => $data['berjalan'],
                 'arusKasPembanding' => $data['pembanding'],
-                'detailRows' => $data['berjalan']['detail'],
             ],
         ));
+    }
+
+    public function loadArusKasDetail(Request $request): JsonResponse
+    {
+        $request->validate([
+            'startDate' => ['nullable', 'date'],
+            'endDate' => ['nullable', 'date', 'after_or_equal:startDate'],
+        ]);
+
+        [$startDate, $endDate] = $this->resolveDateRange($request);
+
+        return response()->json(
+            $this->laporanKeuanganService->getArusKasDetailPaginated(
+                startDate: $startDate,
+                endDate: $endDate,
+                draw: (int) $request->integer('draw', 1),
+                start: (int) $request->integer('start', 0),
+                length: (int) $request->integer('length', 25),
+                search: (string) $request->input('search.value', ''),
+                orderCol: (int) $request->input('order.0.column', 0),
+                orderDir: (string) $request->input('order.0.dir', 'asc'),
+            ),
+        );
     }
 
     public function arusKasTidakLangsung(Request $request): View
