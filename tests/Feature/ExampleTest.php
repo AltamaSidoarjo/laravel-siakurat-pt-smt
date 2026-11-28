@@ -17,6 +17,15 @@ class ExampleTest extends TestCase
         $response->assertRedirect(route('login'));
     }
 
+    public function test_layout_renders_favicon(): void
+    {
+        $response = $this->get('/login');
+
+        $response
+            ->assertOk()
+            ->assertSee('<link rel="icon" type="image/png" href="' . asset('assets/logo-jrsma.png') . '">', false);
+    }
+
     public function test_home_redirects_to_login_when_not_authenticated(): void
     {
         $response = $this->get('/home');
